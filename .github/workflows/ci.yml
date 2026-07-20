@@ -67,3 +67,16 @@ jobs:
           else
             echo "No app yet — tests are a no-op until FB-005 adds the Next.js app."
           fi
+
+  manifests:
+    name: Validate manifests
+    runs-on: ubuntu-latest
+    # ventures/*.yaml must validate against the bcap-contracts Venture JSON Schema (FB-003).
+    # Isolated tool (tools/manifest-validate) so it needs no root package.json / studio app.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate ventures/*.yaml against the Venture contract
+        run: make validate-manifests

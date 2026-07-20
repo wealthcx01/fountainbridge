@@ -1,0 +1,16 @@
+{
+  "name": "fountainbridge-manifest-validate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Validate ventures/*.yaml against the bcap-contracts Venture JSON Schema (FB-003). Isolated from the studio app (FB-005) so the repo root stays package.json-free until then.",
+  "type": "module",
+  "scripts": {
+    "validate": "node validate.mjs",
+    "test": "node test.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "js-yaml": "^4.1.0"
+  }
+}
