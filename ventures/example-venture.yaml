@@ -1,0 +1,77 @@
+# example-venture.yaml — the onboarding template. Copy this to ventures/<slug>.yaml and edit.
+# Every field is documented inline. Validates against bcap-contracts 0.1.0 `Venture`
+# (schema/Venture.schema.json). Generic by design: a B2B bank-sponsored wealth product is "just
+# another manifest" — nothing venture-specific lives in the studio core (venture-as-config).
+#
+# Next Tier 3 pick (most likely): CANON. See docs/manifest.md for field semantics + posture rules.
+
+# ---- identity ---------------------------------------------------------------------------------
+id: example-venture          # REQUIRED. Slug, lowercase-kebab (e.g. the-reset, canon). Used as the venture key.
+name: Example Venture        # REQUIRED. Human-readable name.
+status: draft                # OPTIONAL (default draft). One of: draft | active | paused | archived.
+tier3_ref: EXAMPLE           # OPTIONAL. Reference into the Tier 3 venture pack, if any.
+
+# ---- founder (the PRODUCT founder) ------------------------------------------------------------
+# REQUIRED. Single identity = the product authority (D7). Bruntsfield's authority is expressed via
+# approval_matrix below, NOT a second founder. The studio scopes access off `workspace_email`.
+founder:
+  name: Founder Name                        # REQUIRED.
+  github_login: founder-github              # REQUIRED. The founder's own GitHub account (D2 collaborator).
+  workspace_email: founder@example-venture.com  # REQUIRED. BC-assigned venture-domain Google Workspace
+                                            # account (D3). Must NOT be a personal @gmail.com/@googlemail.com.
+
+# ---- VPS (Decision D1: one box per venture) ---------------------------------------------------
+# OPTIONAL. Omit until FB-011 provisions the box. `provisioned_at` stays unset until recorded.
+vps:
+  host: example.vps.example.com   # REQUIRED within vps.
+  provider: hetzner               # REQUIRED within vps.
+  provisioned_at: "2026-01-01T00:00:00Z"  # OPTIONAL. ISO-8601 UTC string; omit until provisioned.
+
+# ---- D7 approval matrix -----------------------------------------------------------------------
+# OPTIONAL (defaults to empty, but every real venture should declare it). Maps each change class
+# to its required approver. change_class ∈ {product-visible, platform-infra, high-blast-radius};
+# approver ∈ {founder, bruntsfield, dual}.
+approval_matrix:
+  - change_class: product-visible
+    approver: founder
+  - change_class: platform-infra
+    approver: bruntsfield
+  - change_class: high-blast-radius
+    approver: dual        # migrations, auth, payments, secrets, external sends
+
+# ---- repos ------------------------------------------------------------------------------------
+repos:                    # OPTIONAL. Repo slugs owned by the venture (under the org).
+  - example-platform
+  - example-marketing
+
+# ---- lanes (workshop lanes on the venture VPS) ------------------------------------------------
+lanes:                    # OPTIONAL. Each lane's `venture_id` MUST equal this venture's `id`.
+  - id: platform          # REQUIRED. Lane id, unique within the venture.
+    venture_id: example-venture   # REQUIRED. Must match the venture id (checked by the loader).
+    repo: example-platform        # REQUIRED. Repo this lane builds.
+    tmux: example-venture:platform  # REQUIRED. tmux session:window binding on the VPS.
+    standing_order: The lane's durable brief between sessions.  # REQUIRED.
+    status: idle          # OPTIONAL (default idle). One of: active | idle | stale | archived.
+
+# ---- departments ------------------------------------------------------------------------------
+departments:              # OPTIONAL. Each department's `venture_id` MUST equal this venture's `id`.
+  - id: engineering       # REQUIRED. Department id, unique within the venture.
+    venture_id: example-venture   # REQUIRED. Must match the venture id (checked by the loader).
+    name: Engineering     # REQUIRED.
+    repo: example-platform  # REQUIRED.
+    queue_path: docs/tickets  # REQUIRED. Path (in the repo) to the department's work queue.
+    connectors: []        # OPTIONAL. Connector names this department uses.
+    gate: pr              # REQUIRED. One of: pr | activegraph | tbd-fb012.
+  - id: gtm
+    venture_id: example-venture
+    name: GTM
+    repo: example-marketing
+    queue_path: docs/tickets
+    connectors:
+      - postmark
+    gate: activegraph     # external sends gate on recorded ActiveGraph approval events (D3)
+
+# ---- connectors -------------------------------------------------------------------------------
+connectors:               # OPTIONAL. Connector names available to the venture.
+  - postmark
+  - stripe

@@ -1,0 +1,344 @@
+{
+  "$defs": {
+    "ApprovalRule": {
+      "additionalProperties": false,
+      "description": "One row of the D7 approval matrix: a change class and who must approve it.",
+      "properties": {
+        "approver": {
+          "$ref": "#/$defs/Approver"
+        },
+        "change_class": {
+          "$ref": "#/$defs/ChangeClass"
+        }
+      },
+      "required": [
+        "change_class",
+        "approver"
+      ],
+      "title": "ApprovalRule",
+      "type": "object"
+    },
+    "Approver": {
+      "description": "Who must sign off a change class (D7). ``dual`` = both founder and Bruntsfield.",
+      "enum": [
+        "founder",
+        "bruntsfield",
+        "dual"
+      ],
+      "title": "Approver",
+      "type": "string"
+    },
+    "ChangeClass": {
+      "description": "The blast-radius classes the D7 approval matrix routes on.",
+      "enum": [
+        "product-visible",
+        "platform-infra",
+        "high-blast-radius"
+      ],
+      "title": "ChangeClass",
+      "type": "string"
+    },
+    "Department": {
+      "additionalProperties": false,
+      "description": "A venture department (engineering, GTM, ops, …) with its own repo/queue and gate.",
+      "properties": {
+        "connectors": {
+          "description": "Connector names this department uses (e.g. 'stripe').",
+          "items": {
+            "type": "string"
+          },
+          "title": "Connectors",
+          "type": "array"
+        },
+        "gate": {
+          "$ref": "#/$defs/DepartmentGate"
+        },
+        "id": {
+          "description": "Department id, unique within the venture.",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Human-readable department name.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "queue_path": {
+          "description": "Path (in the repo) to the department's work queue.",
+          "minLength": 1,
+          "title": "Queue Path",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Repo backing this department's work.",
+          "minLength": 1,
+          "title": "Repo",
+          "type": "string"
+        },
+        "venture_id": {
+          "description": "The owning venture's id.",
+          "minLength": 1,
+          "title": "Venture Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "venture_id",
+        "name",
+        "repo",
+        "queue_path",
+        "gate"
+      ],
+      "title": "Department",
+      "type": "object"
+    },
+    "DepartmentGate": {
+      "description": "How a department's actions are gated. GTM/external gates firm up post-FB-012.",
+      "enum": [
+        "pr",
+        "activegraph",
+        "tbd-fb012"
+      ],
+      "title": "DepartmentGate",
+      "type": "string"
+    },
+    "FounderIdentity": {
+      "additionalProperties": false,
+      "description": "The human founder's identity across GitHub and Google Workspace.\n\n``workspace_email`` is a Bruntsfield-assigned account on the venture's Workspace domain,\nmanaged by the founder — it is the studio login (Google OAuth) and the venture-scoping key\n(D6), never a personal consumer mailbox (D3). The validator refuses consumer domains so a\nmisconfigured manifest fails loud instead of leaking the founder's personal identity into the\nsend/auth path.",
+      "properties": {
+        "github_login": {
+          "description": "The founder's own GitHub account (D2: added as a collaborator).",
+          "minLength": 1,
+          "title": "Github Login",
+          "type": "string"
+        },
+        "name": {
+          "description": "The founder's human name.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "workspace_email": {
+          "description": "Bruntsfield-assigned venture-domain Google Workspace account (e.g. ross@thereset.com). Never a personal @gmail.com.",
+          "format": "email",
+          "title": "Workspace Email",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "github_login",
+        "workspace_email"
+      ],
+      "title": "FounderIdentity",
+      "type": "object"
+    },
+    "Lane": {
+      "additionalProperties": false,
+      "description": "A workshop lane bound to one venture repo (a Claude Code + tmux lane on the venture VPS).",
+      "properties": {
+        "id": {
+          "description": "Lane id, unique within the venture.",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Repo this lane builds (slug or full name).",
+          "minLength": 1,
+          "title": "Repo",
+          "type": "string"
+        },
+        "standing_order": {
+          "description": "The lane's durable standing order (its brief between sessions).",
+          "minLength": 1,
+          "title": "Standing Order",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/LaneStatus",
+          "default": "idle"
+        },
+        "tmux": {
+          "description": "tmux session/window binding on the VPS.",
+          "minLength": 1,
+          "title": "Tmux",
+          "type": "string"
+        },
+        "venture_id": {
+          "description": "The owning venture's id.",
+          "minLength": 1,
+          "title": "Venture Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "venture_id",
+        "repo",
+        "tmux",
+        "standing_order"
+      ],
+      "title": "Lane",
+      "type": "object"
+    },
+    "LaneStatus": {
+      "description": "Health of a workshop lane (a Claude Code lane on the venture's VPS).",
+      "enum": [
+        "active",
+        "idle",
+        "stale",
+        "archived"
+      ],
+      "title": "LaneStatus",
+      "type": "string"
+    },
+    "VentureStatus": {
+      "description": "Lifecycle of a venture in the studio.",
+      "enum": [
+        "draft",
+        "active",
+        "paused",
+        "archived"
+      ],
+      "title": "VentureStatus",
+      "type": "string"
+    },
+    "VpsBinding": {
+      "additionalProperties": false,
+      "description": "The venture's own VPS (Decision D1: one box per venture). Fields are populated by FB-011\nprovisioning, so an un-provisioned venture carries ``vps=None`` and a provisioned one may\nstill have ``provisioned_at=None`` until the runbook records it.",
+      "properties": {
+        "host": {
+          "description": "Hostname or IP of the venture's VPS.",
+          "minLength": 1,
+          "title": "Host",
+          "type": "string"
+        },
+        "provider": {
+          "description": "Infra provider, e.g. 'hetzner'.",
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "provisioned_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the box was provisioned; None until FB-011 records it.",
+          "title": "Provisioned At"
+        }
+      },
+      "required": [
+        "host",
+        "provider"
+      ],
+      "title": "VpsBinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A co-created Foundry venture — the root config object the studio scopes everything to.\n\nEverything venture-specific lives here (venture-as-config); the studio core stays generic.\n``vps`` and identities may be unset before FB-011 provisioning. The ``approval_matrix`` is the\nD7 governance record: which change class routes to which approver(s).",
+  "properties": {
+    "approval_matrix": {
+      "description": "D7: rules mapping each change class to its required approver(s).",
+      "items": {
+        "$ref": "#/$defs/ApprovalRule"
+      },
+      "title": "Approval Matrix",
+      "type": "array"
+    },
+    "connectors": {
+      "description": "Connector names available to the venture.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Connectors",
+      "type": "array"
+    },
+    "departments": {
+      "description": "Departments for this venture.",
+      "items": {
+        "$ref": "#/$defs/Department"
+      },
+      "title": "Departments",
+      "type": "array"
+    },
+    "founder": {
+      "$ref": "#/$defs/FounderIdentity"
+    },
+    "id": {
+      "description": "Venture slug, e.g. 'the-reset' or 'arca'.",
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "lanes": {
+      "description": "Workshop lanes for this venture.",
+      "items": {
+        "$ref": "#/$defs/Lane"
+      },
+      "title": "Lanes",
+      "type": "array"
+    },
+    "name": {
+      "description": "Human-readable venture name, e.g. 'THE RESET'.",
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "repos": {
+      "description": "Repo slugs owned by this venture.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Repos",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/VentureStatus",
+      "default": "draft"
+    },
+    "tier3_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Reference into the Tier 3 venture pack, if any.",
+      "title": "Tier3 Ref"
+    },
+    "vps": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VpsBinding"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The venture's VPS binding; None until FB-011 provisions it."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "founder"
+  ],
+  "title": "Venture",
+  "type": "object"
+}

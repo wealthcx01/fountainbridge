@@ -1,0 +1,45 @@
+# ARCA — fixture venture (Decision D5: rides along as the lower-stakes fixture).
+# A real repo (wealthcx01/arca) with John as founder — used to test venture scoping, parser
+# tolerance, and breaking changes before they reach THE RESET's view. ARCA has no docs/tickets/
+# queue yet, which is deliberate: it exercises the studio's empty-queue tolerance (FB-004/FB-006).
+# Validates against bcap-contracts 0.1.0 `Venture` (schema/Venture.schema.json).
+
+id: arca
+name: ARCA
+status: active            # a real running app (Bun/Hono/React) — the fixture is live, not a mock
+
+founder:
+  name: John Gallagher
+  github_login: wealthcx01
+  workspace_email: john.gallagher@wealthcx.com   # venture-domain Workspace account (never @gmail.com)
+
+approval_matrix:
+  - change_class: product-visible
+    approver: founder
+  - change_class: platform-infra
+    approver: bruntsfield
+  - change_class: high-blast-radius
+    approver: dual
+
+repos:
+  - arca
+
+lanes:
+  - id: arca
+    venture_id: arca
+    repo: arca
+    tmux: arca:main
+    standing_order: >-
+      Maintain ARCA (the Pokemon-card terminal). Fixture lane for the studio — exercises
+      scoping and parser tolerance. One ticket = one branch = one PR; never merge.
+    status: idle
+
+departments:
+  - id: engineering
+    venture_id: arca
+    name: Engineering
+    repo: arca
+    queue_path: docs/tickets   # not yet populated — tests empty-queue tolerance
+    gate: pr
+
+connectors: []
