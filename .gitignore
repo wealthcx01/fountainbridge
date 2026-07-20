@@ -1,0 +1,35 @@
+# Env / secrets — never commit (D8: venture secrets live on the venture box, never here)
+.env
+.env.*
+!.env.example
+!.env.local.example
+*.pem
+*.key
+secrets/
+
+# Node / Next.js (arrives FB-005)
+node_modules/
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+*.tsbuildinfo
+.turbo/
+coverage/
+
+# Test / tooling caches
+.eslintcache
+playwright-report/
+test-results/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+.gbrain-source
