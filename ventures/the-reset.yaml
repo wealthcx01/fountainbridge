@@ -1,0 +1,70 @@
+# THE RESET — launch venture (Decision D5: in the studio from Phase 1 v0).
+# Validates against bcap-contracts 0.1.0 `Venture` (schema/Venture.schema.json).
+#
+# `founder` is the venture's PRODUCT founder (Ross). Bruntsfield's authority (John) is expressed
+# through `approval_matrix`, not a second founder identity — John sees every venture as the
+# Bruntsfield admin (D6 scoping), so he is not a per-venture founder field. See docs/manifest.md.
+#
+# VPS is provisioned by FB-011, so `vps` is omitted here until the runbook fills it and records
+# the founder's Workspace identity + SSH keys.
+
+id: the-reset
+name: THE RESET
+status: draft            # drafted from the deck; flips to `active` once its box + platform v0.1 land
+tier3_ref: THE RESET
+
+founder:
+  name: Ross
+  github_login: ross-thereset        # the founder's own GitHub account (D2), added as collaborator
+  workspace_email: ross@thereset.com # BC-assigned venture-domain Workspace account (D3) — never @gmail.com
+
+# D7 governance: founder approves product-visible; Bruntsfield approves platform/infra;
+# high-blast-radius (migrations, auth, payments, secrets, external sends) is dual-approve.
+approval_matrix:
+  - change_class: product-visible
+    approver: founder
+  - change_class: platform-infra
+    approver: bruntsfield
+  - change_class: high-blast-radius
+    approver: dual
+
+repos:
+  - thereset-platform    # platform v0.1: read-only client dashboard (its deck's roadmap)
+  - thereset-marketing   # GTM stage 1: landing page + case studies (Phase 4a machinery)
+
+lanes:
+  - id: platform
+    venture_id: the-reset
+    repo: thereset-platform
+    tmux: the-reset:platform
+    standing_order: >-
+      Build THE RESET platform v0.1 — the read-only client dashboard per the deck. One
+      ticket = one branch = one PR; never merge; respect ticket scope.
+    status: idle
+  - id: marketing
+    venture_id: the-reset
+    repo: thereset-marketing
+    tmux: the-reset:marketing
+    standing_order: >-
+      Ship THE RESET GTM stage-1 content (landing page, case studies) through real CI on the
+      venture's real domain. Interest-based capture only; no cold outreach (research-gtm §7).
+    status: idle
+
+departments:
+  - id: engineering
+    venture_id: the-reset
+    name: Engineering
+    repo: thereset-platform
+    queue_path: docs/tickets
+    gate: pr
+  - id: gtm
+    venture_id: the-reset
+    name: GTM
+    repo: thereset-marketing
+    queue_path: docs/tickets
+    connectors:
+      - postmark
+    gate: activegraph   # external sends gate on recorded ActiveGraph approval events (D3)
+
+connectors:
+  - postmark

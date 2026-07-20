@@ -1,0 +1,30 @@
+# Deliberately-broken manifest (FB-003 acceptance: a broken fixture fails validation with a
+# useful error). NOT under ventures/ so it never ships as a real venture. The test asserts this
+# file FAILS validation; that assertion passing is what keeps CI green.
+#
+# Intentional defects:
+#   - founder.workspace_email is a personal @gmail.com (D3 violation)
+#   - lanes[0].venture_id does not match the venture id (loader consistency)
+#   - `gate` uses an invalid enum value
+#   - `bogus_field` is an unknown top-level key (extra=forbid)
+
+id: broken
+name: Broken Venture
+founder:
+  name: Someone
+  github_login: someone
+  workspace_email: someone@gmail.com      # defect: personal consumer mailbox
+lanes:
+  - id: l1
+    venture_id: not-broken                # defect: does not match id `broken`
+    repo: some-repo
+    tmux: broken:0
+    standing_order: do things
+departments:
+  - id: d1
+    venture_id: broken
+    name: Eng
+    repo: some-repo
+    queue_path: docs/tickets
+    gate: not-a-real-gate                  # defect: invalid enum
+bogus_field: 123                           # defect: unknown key (additionalProperties: false)
