@@ -1,0 +1,69 @@
+name: CI
+
+# The lane gate (FB-001): lint + typecheck + test must pass on every PR into main.
+# The Next.js studio app arrives in FB-005; until a package.json exists at the repo root,
+# each job passes trivially so branch protection has real, green status checks to require
+# from day one. FB-005 adds the app and the scripts these jobs already call — the job names
+# stay stable so the required-checks configuration never has to change.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Lint
+        run: |
+          if [ -f package.json ]; then
+            npm ci --no-audit --no-fund
+            npm run lint
+          else
+            echo "No app yet — lint is a no-op until FB-005 adds the Next.js app."
+          fi
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Typecheck
+        run: |
+          if [ -f package.json ]; then
+            npm ci --no-audit --no-fund
+            npm run typecheck
+          else
+            echo "No app yet — typecheck is a no-op until FB-005 adds the Next.js app."
+          fi
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test
+        run: |
+          if [ -f package.json ]; then
+            npm ci --no-audit --no-fund
+            npm test
+          else
+            echo "No app yet — tests are a no-op until FB-005 adds the Next.js app."
+          fi
