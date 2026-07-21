@@ -1,0 +1,4 @@
+{
+  "extends": "next/core-web-vitals",
+  "ignorePatterns": ["tools/", "e2e/", ".next/", "node_modules/"]
+}

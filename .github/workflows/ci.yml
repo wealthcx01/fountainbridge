@@ -93,3 +93,45 @@ jobs:
           node-version: "22"
       - name: Parse docs/tickets against the Ticket contract
         run: make parse-tickets
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    # The Next.js studio app (FB-005) must compile. Auth secret is a throwaway — build never
+    # touches real credentials; runtime secrets live on the deployment env (D8, FB-009).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --no-audit --no-fund
+      - name: Build the studio app
+        run: npm run build
+        env:
+          AUTH_SECRET: build-time-placeholder-not-a-real-secret
+          AUTH_TRUST_HOST: "true"
+
+  e2e:
+    name: Playwright UI gate
+    runs-on: ubuntu-latest
+    # FB-005 UI-gate: the three authorization cases (admin all / founder scoped / unlisted refused)
+    # against a real server, with screenshots uploaded as the per-PR gallery artifact.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --no-audit --no-fund
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run the UI gate
+        run: npm run test:e2e
+      - name: Upload UI-gate gallery (screenshots + report)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-gate-gallery
+          path: |
+            e2e/__screenshots__/
+            playwright-report/
+          if-no-files-found: ignore

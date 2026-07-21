@@ -13,15 +13,18 @@ node_modules/
 out/
 build/
 dist/
-next-env.d.ts
 *.tsbuildinfo
 .turbo/
 coverage/
+# next-env.d.ts is committed (stable, 4 lines) so the CI typecheck job has Next's ambient types
+# without first running `next build`.
 
 # Test / tooling caches
 .eslintcache
 playwright-report/
 test-results/
+e2e/__screenshots__/
+.playwright/
 
 # Editor / OS
 .vscode/
