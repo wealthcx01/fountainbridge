@@ -4,6 +4,7 @@ import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
+import { loadVentureHealth } from '@/lib/health';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
 
@@ -39,12 +40,16 @@ export default async function VenturePage({
   // Overlay PR-derived status (FB-007): open PR → pr-open, merged → done. Shared per-venture cache.
   const attention = await loadVentureAttention(venture, { refresh: refresh === '1' });
   const lanes = data.lanes.map((lane) => applyStatusInference(lane, attention.ticketStatus));
+  // Staleness (FB-008): flag a lane whose repo has had no activity in N days — surfaced on the board.
+  const health = await loadVentureHealth(venture, { refresh: refresh === '1' });
+  const staleRepos = health.repos.filter((r) => r.stale).map((r) => r.repo);
   const org = process.env.GITHUB_ORG ?? 'wealthcx01';
 
   return (
     <VentureBoard
       venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName }}
       lanes={lanes}
+      staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
       fetchedAt={data.fetchedAt}
       org={org}
