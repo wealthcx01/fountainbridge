@@ -135,3 +135,13 @@ jobs:
             e2e/__screenshots__/
             playwright-report/
           if-no-files-found: ignore
+
+  provision:
+    name: Provision scripts
+    runs-on: ubuntu-latest
+    # FB-011: the venture-provisioning script must stay shellcheck-clean. shellcheck is preinstalled
+    # on ubuntu-latest runners; the script is only linted here, never executed (it touches Hetzner).
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint provisioning scripts
+        run: make provision-lint
