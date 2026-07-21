@@ -51,31 +51,39 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <span className="eyebrow topbar-spacer topbar-eyebrow">
             <span className="eyebrow-id">03</span> — Foundry Studio
           </span>
-          <nav className="topnav" data-testid="topnav">
-            {NAV.map((n) => (
-              <Link key={n.href} className="pill" href={n.href}>
-                {n.label}
-                {n.href === '/attention' && attentionCount > 0 ? (
-                  <span className="tag tag-accent" data-testid="nav-attention-badge" style={{ marginLeft: '0.35rem', padding: '0.05rem 0.35rem' }}>
-                    {attentionCount}
-                  </span>
-                ) : null}
-              </Link>
-            ))}
-          </nav>
           {session?.user?.email ? (
-            <form
-              className="signout-form"
-              action={async () => {
-                'use server';
-                await signOut({ redirectTo: '/login' });
-              }}
-            >
-              <button className="btn" type="submit" title={session.user.email}>
-                Sign out
-              </button>
-            </form>
-          ) : null}
+            <>
+              <nav className="topnav" data-testid="topnav">
+                {NAV.map((n) => (
+                  <Link key={n.href} className="pill" href={n.href}>
+                    {n.label}
+                    {n.href === '/attention' && attentionCount > 0 ? (
+                      <span className="tag tag-accent" data-testid="nav-attention-badge" style={{ marginLeft: '0.35rem', padding: '0.05rem 0.35rem' }}>
+                        {attentionCount}
+                      </span>
+                    ) : null}
+                  </Link>
+                ))}
+              </nav>
+              <form
+                className="signout-form"
+                action={async () => {
+                  'use server';
+                  await signOut({ redirectTo: '/login' });
+                }}
+              >
+                <button className="btn" type="submit" title={session.user.email}>
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            /* Public header (landing / playbook): no studio nav, just a way in. */
+            <nav className="topnav signout-form" data-testid="topnav-public">
+              <Link className="pill" href="/playbook">Playbook</Link>
+              <Link className="btn btn-primary" href="/login" data-testid="nav-signin">Sign in</Link>
+            </nav>
+          )}
         </header>
         <main className="main">{children}</main>
       </body>
