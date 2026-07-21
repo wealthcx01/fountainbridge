@@ -23,17 +23,20 @@ interface Selected {
 export function VentureBoard({
   venture,
   lanes,
+  staleRepos = [],
   totalWarnings,
   fetchedAt,
   org,
 }: {
   venture: { id: string; name: string; status: string; founderName: string | null };
   lanes: LaneTickets[];
+  staleRepos?: string[];
   totalWarnings: number;
   fetchedAt: number;
   org: string;
 }) {
   const [selected, setSelected] = useState<Selected | null>(null);
+  const stale = new Set(staleRepos);
 
   // Index every ticket by id so dependency chips in the drawer can jump to another ticket.
   const index = useMemo(() => {
@@ -78,6 +81,11 @@ export function VentureBoard({
         <div key={lane.repo} style={{ marginBottom: '2.5rem' }} data-testid={`lane-${lane.repo}`}>
           <h3 className="mono" style={{ fontSize: '15px' }}>
             {lane.repo} <span className="muted">· {lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
+            {stale.has(lane.repo) ? (
+              <span className="tag" data-testid={`lane-stale-${lane.repo}`} title="No repo activity in the staleness window" style={{ marginLeft: '0.4rem', color: 'var(--color-warn)' }}>
+                ⚠ stale
+              </span>
+            ) : null}
             {lane.skipped > 0 ? (
               <span className="muted" data-testid={`lane-skipped-${lane.repo}`} title="Non-ticket .md files in docs/tickets">
                 {' '}· {lane.skipped} non-ticket file{lane.skipped === 1 ? '' : 's'} skipped
