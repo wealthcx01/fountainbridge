@@ -3,8 +3,10 @@ import {
   groupRepoTickets,
   loadVentureTickets,
   clearTicketCache,
+  applyStatusInference,
   type RepoTicketFetcher,
 } from '../tickets';
+import { inferenceKey } from '../attention';
 import type { VentureSummary } from '../ventures';
 
 const ticketMd = (id: string, status?: string) =>
@@ -60,6 +62,31 @@ describe('groupRepoTickets', () => {
     expect(lane.skipped).toBe(0);
     const item = Object.values(lane.groups).flat()[0];
     expect(item.warnings.some((w) => w.code === 'unrecognized-status')).toBe(true);
+  });
+});
+
+describe('applyStatusInference (FB-007 status overlay)', () => {
+  const laneOf = (id: string, status: string) =>
+    groupRepoTickets('arca', {
+      files: [{ path: `docs/tickets/${id}.md`, content: `# ${id} — t\n**Status:** ${status}\n` }],
+      error: null,
+    });
+
+  it('moves a ticket to the PR-derived status using the same key buildAttention writes', () => {
+    const lane = laneOf('ARCA-1', 'In progress');
+    expect(lane.groups['in-progress'].map((t) => t.ticket.id)).toEqual(['ARCA-1']);
+    // Key built exactly as buildAttention does — catches any separator drift between the two.
+    const statusMap = new Map([[inferenceKey('arca', 'ARCA-1'), 'pr-open' as const]]);
+    const inferred = applyStatusInference(lane, statusMap);
+    expect(inferred.groups['pr-open'].map((t) => t.ticket.id)).toEqual(['ARCA-1']);
+    expect(inferred.groups['in-progress']).toHaveLength(0);
+  });
+
+  it('does not apply a PR from a DIFFERENT repo to this lane', () => {
+    const lane = laneOf('ARCA-1', 'In progress');
+    const wrongRepo = new Map([[inferenceKey('other-repo', 'ARCA-1'), 'pr-open' as const]]);
+    expect(applyStatusInference(lane, wrongRepo).groups['pr-open']).toHaveLength(0);
+    expect(applyStatusInference(lane, wrongRepo).groups['in-progress'].map((t) => t.ticket.id)).toEqual(['ARCA-1']);
   });
 });
 
