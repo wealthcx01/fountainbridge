@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "TicketStatus": {
+      "description": "Where a ticket sits in the one-ticket-one-branch-one-PR flow (FB-002 spec).",
+      "enum": [
+        "todo",
+        "in-progress",
+        "pr-open",
+        "done"
+      ],
+      "title": "TicketStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A work item, rendered from a ``docs/tickets/`` markdown file (git is the source of truth,\nD2). Parsed by FB-004; PR-derived status inference lands in FB-007.",
+  "properties": {
+    "body_md": {
+      "default": "",
+      "description": "Rendered markdown body of the ticket.",
+      "title": "Body Md",
+      "type": "string"
+    },
+    "branch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Branch name (fb-XXX-slug), if known.",
+      "title": "Branch"
+    },
+    "depends_on": {
+      "description": "Ids of tickets this one depends on.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Depends On",
+      "type": "array"
+    },
+    "id": {
+      "description": "Ticket id, e.g. 'FB-001'.",
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "path": {
+      "description": "Path to the ticket file within the repo.",
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "phase": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase label, if the ticket declares one.",
+      "title": "Phase"
+    },
+    "pr_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "URL of the open/merged PR, if any.",
+      "title": "Pr Url"
+    },
+    "repo": {
+      "description": "Repo the ticket lives in.",
+      "minLength": 1,
+      "title": "Repo",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/TicketStatus",
+      "default": "todo"
+    },
+    "title": {
+      "description": "Ticket title.",
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "repo",
+    "path",
+    "title"
+  ],
+  "title": "Ticket",
+  "type": "object"
+}

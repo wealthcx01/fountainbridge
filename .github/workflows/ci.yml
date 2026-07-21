@@ -80,3 +80,16 @@ jobs:
           node-version: "22"
       - name: Validate ventures/*.yaml against the Venture contract
         run: make validate-manifests
+
+  tickets:
+    name: Parse tickets
+    runs-on: ubuntu-latest
+    # docs/tickets/*.md must parse into the bcap-contracts Ticket contract (FB-004): typecheck +
+    # unit/corpus/schema tests. Isolated tool (tools/ticket-parser) — no root package.json / app.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Parse docs/tickets against the Ticket contract
+        run: make parse-tickets
