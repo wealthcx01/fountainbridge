@@ -60,7 +60,9 @@ export class GitHubClient {
     const reset = headers.get('x-ratelimit-reset');
     if (reset) {
       const resetMs = Number(reset) * 1000;
-      if (Number.isFinite(resetMs)) return Math.max(0, resetMs - this.now());
+      // Cap the wait: a primary-rate-limit reset can be tens of minutes out, which would hang the
+      // page request. Wait at most 60s, then let the retry fail into a surfaced error state.
+      if (Number.isFinite(resetMs)) return Math.min(60_000, Math.max(0, resetMs - this.now()));
     }
     // Fallback: exponential backoff capped at 60s.
     return Math.min(60_000, 1000 * 2 ** attempt);
