@@ -116,6 +116,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--color-accent);
 }
 .topbar-spacer { margin-left: auto; }
+.topnav { display: flex; gap: 0.25rem; align-items: center; }
 
 /* Main content column */
 .main {
@@ -161,6 +162,8 @@ a { color: inherit; text-decoration: none; }
 
 /* Nav pills */
 .pill {
+  display: inline-flex;
+  align-items: center;
   font-family: var(--font-sans);
   font-size: var(--fs-body-sm);
   font-weight: 500;
@@ -212,4 +215,33 @@ a { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+}
+
+/* Mobile pass (FB-009): usable at 390×844. Nav drops to its own full-width row with thumb-sized
+   targets; the page eyebrow hides; content padding tightens; boards/drawers are already single-column. */
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+    padding: 0.5rem 0.9rem;
+    row-gap: 0.5rem;
+    height: auto;
+  }
+  .topbar-eyebrow { display: none !important; }
+  .signout-form { margin-left: auto; }
+  .topnav {
+    order: 5;
+    flex-basis: 100%;
+    margin-left: 0 !important;
+    gap: 0.4rem;
+    justify-content: space-between;
+  }
+  .topnav .pill {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 44px; /* thumb-reachable tap target */
+  }
+  .btn { min-height: 44px; }
+  .main { padding: 1.5rem 1rem 3rem; }
+  h1 { font-size: 30px; }
+  /* Ticket drawer is already min(40rem, 100%) → full-width on phone. */
 }
