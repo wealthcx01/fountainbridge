@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { parseTicket, looksLikeTicket, type Ticket, type ParseWarning } from '../tools/ticket-parser/src/index';
 import type { VentureSummary } from './ventures';
 import { GitHubClient, GitHubError } from './github';
+import { inferenceKey } from './attention';
 
 export type TicketStatusGroup = 'todo' | 'in-progress' | 'pr-open' | 'done';
 export const STATUS_GROUPS: readonly TicketStatusGroup[] = ['todo', 'in-progress', 'pr-open', 'done'];
@@ -76,6 +77,33 @@ export function groupRepoTickets(repo: string, fetched: RepoTicketFiles): LaneTi
     groups[g].sort((a, b) => a.ticket.id.localeCompare(b.ticket.id, undefined, { numeric: true }));
   }
   return { repo, ref: fetched.ref ?? 'main', groups, total, skipped, error: fetched.error };
+}
+
+/**
+ * Re-group a lane's tickets by PR-derived status (FB-007): an open PR referencing a ticket moves it
+ * to `pr-open`, a merged PR to `done`. Git's markdown status is the default; PR state overrides it.
+ * The map is keyed by `"<repo> <id>"` (see lib/attention `inferenceKey`) so a PR only regroups a
+ * ticket in its OWN repo — two repos in a venture may share an id namespace.
+ */
+export function applyStatusInference(
+  lane: LaneTickets,
+  statusMap: ReadonlyMap<string, TicketStatusGroup>,
+): LaneTickets {
+  const groups = emptyGroups();
+  for (const g of STATUS_GROUPS) {
+    for (const item of lane.groups[g]) {
+      const inferred = statusMap.get(inferenceKey(lane.repo, item.ticket.id));
+      if (inferred && inferred !== item.ticket.status) {
+        groups[inferred].push({ ...item, ticket: { ...item.ticket, status: inferred } });
+      } else {
+        groups[item.ticket.status].push(item);
+      }
+    }
+  }
+  for (const g of STATUS_GROUPS) {
+    groups[g].sort((a, b) => a.ticket.id.localeCompare(b.ticket.id, undefined, { numeric: true }));
+  }
+  return { ...lane, groups };
 }
 
 // --- fetchers -------------------------------------------------------------------------------

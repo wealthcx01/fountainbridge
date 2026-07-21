@@ -1,0 +1,35 @@
+[
+  {
+    "number": 10,
+    "title": "ARCA-1: terminal card renderer",
+    "url": "https://github.com/wealthcx01/arca/pull/10",
+    "author": "wealthcx01",
+    "createdAt": "2026-07-15T00:00:00Z",
+    "branch": "arca-1-terminal-setup",
+    "state": "open",
+    "merged": false,
+    "ciStatus": "success",
+    "previewUrl": "https://arca-pr-10.preview.example.com"
+  },
+  {
+    "number": 11,
+    "title": "ARCA-5: deck sharing",
+    "url": "https://github.com/wealthcx01/arca/pull/11",
+    "author": "wealthcx01",
+    "createdAt": "2026-07-19T00:00:00Z",
+    "branch": "arca-5-deck-sharing",
+    "state": "open",
+    "merged": false,
+    "ciStatus": "pending"
+  },
+  {
+    "number": 9,
+    "title": "ARCA-2: card search",
+    "url": "https://github.com/wealthcx01/arca/pull/9",
+    "author": "wealthcx01",
+    "createdAt": "2026-07-14T00:00:00Z",
+    "branch": "arca-2-card-search",
+    "state": "closed",
+    "merged": true
+  }
+]

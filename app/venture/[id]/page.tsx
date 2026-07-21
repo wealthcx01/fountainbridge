@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
-import { loadVentureTickets } from '@/lib/tickets';
+import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
+import { loadVentureAttention } from '@/lib/attention';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
 
@@ -35,12 +36,15 @@ export default async function VenturePage({
   }
 
   const data = await loadVentureTickets(venture, { refresh: refresh === '1' });
+  // Overlay PR-derived status (FB-007): open PR → pr-open, merged → done. Shared per-venture cache.
+  const attention = await loadVentureAttention(venture, { refresh: refresh === '1' });
+  const lanes = data.lanes.map((lane) => applyStatusInference(lane, attention.ticketStatus));
   const org = process.env.GITHUB_ORG ?? 'wealthcx01';
 
   return (
     <VentureBoard
       venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName }}
-      lanes={data.lanes}
+      lanes={lanes}
       totalWarnings={data.totalWarnings}
       fetchedAt={data.fetchedAt}
       org={org}
