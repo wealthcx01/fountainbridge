@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
@@ -32,7 +33,7 @@ export default async function VenturesHome() {
       <hr className="hr" />
       <div className="grid" data-testid="venture-grid">
         {visible.map((v) => (
-          <article key={v.id} className="card card-link" data-testid={`venture-${v.id}`}>
+          <Link key={v.id} href={`/venture/${v.id}`} className="card card-link" data-testid={`venture-${v.id}`}>
             <div className="stack">
               <span className="eyebrow-id mono" style={{ fontSize: '12px' }}>{v.id}</span>
               <h3 style={{ margin: '0.1rem 0 0' }}>{v.name}</h3>
@@ -42,7 +43,7 @@ export default async function VenturesHome() {
                 {v.repos.length} repo{v.repos.length === 1 ? '' : 's'}
               </span>
             </div>
-          </article>
+          </Link>
         ))}
       </div>
     </section>

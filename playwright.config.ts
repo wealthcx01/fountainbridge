@@ -26,6 +26,7 @@ export default defineConfig({
     env: {
       E2E_TEST_LOGIN: '1',
       E2E_TEST_LOGIN_SECRET: 'e2e-playwright-shared-secret',
+      TICKETS_FIXTURE_DIR: 'e2e/fixtures/tickets',
       STUDIO_ADMIN_EMAILS: 'john.gallagher@wealthcx.com',
       AUTH_SECRET: 'e2e-test-secret-not-for-production',
       AUTH_TRUST_HOST: 'true',
