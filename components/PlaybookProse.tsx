@@ -13,8 +13,10 @@ export function PlaybookProse({ body }: { body: string }) {
         components={{
           a({ href, children }) {
             const raw = href ?? '';
+            // Bare slug → in-playbook link; absolute/anchor/mailto pass through. Protocol-relative
+            // (`//host`) is treated as external so it carries rel="noreferrer".
             const to = /^(https?:|\/|#|mailto:)/.test(raw) ? raw : `/playbook/${raw}`;
-            const external = /^https?:/.test(to);
+            const external = /^https?:/.test(to) || to.startsWith('//');
             return (
               <a
                 href={to}

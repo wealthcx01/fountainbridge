@@ -35,15 +35,20 @@ export function loadPlaybook(dir: string = DEFAULT_DIR): PlaybookSection[] {
   }
   const sections: PlaybookSection[] = [];
   for (const file of files) {
-    const { data, body } = parseFrontmatter(readFileSync(join(dir, file), 'utf8'));
-    if (typeof data.slug !== 'string' || !data.slug) continue;
-    sections.push({
-      slug: data.slug,
-      title: typeof data.title === 'string' ? data.title : data.slug,
-      order: typeof data.order === 'number' ? data.order : 999,
-      summary: typeof data.summary === 'string' ? data.summary : '',
-      body: body.trim(),
-    });
+    try {
+      const { data, body } = parseFrontmatter(readFileSync(join(dir, file), 'utf8'));
+      if (typeof data.slug !== 'string' || !data.slug) continue;
+      sections.push({
+        slug: data.slug,
+        title: typeof data.title === 'string' ? data.title : data.slug,
+        order: typeof data.order === 'number' ? data.order : 999,
+        summary: typeof data.summary === 'string' ? data.summary : '',
+        body: body.trim(),
+      });
+    } catch {
+      // A malformed file (e.g. bad YAML frontmatter) is skipped, never blanks the whole playbook.
+      continue;
+    }
   }
   return sections.sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug));
 }
