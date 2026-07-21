@@ -3,12 +3,17 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
+import { loadPlaybook } from '@/lib/playbook';
+import { Landing } from '@/components/Landing';
 
-// The Ventures home. Server-rendered: authenticate, then scope the venture list server-side
-// (CLAUDE.md #6 — isolation is never UI-only) before anything is shown.
-export default async function VenturesHome() {
+// `/` serves two audiences (FB-013): signed-out visitors get the public educational landing; signed-in
+// users get the Ventures home. Scoping is server-side (CLAUDE.md #6) — venture data is only loaded
+// after auth, so the landing branch never touches it.
+export default async function Home() {
   const session = await auth();
-  if (!session?.user?.email) redirect('/login');
+  if (!session?.user?.email) {
+    return <Landing sections={loadPlaybook()} />;
+  }
 
   const ventures = loadVentures();
   const access = authorizeVentures(
