@@ -1,0 +1,34 @@
+{
+  "name": "fountainbridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foundry Studio — the founder-facing venture platform (FB-005 studio shell onward).",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "^15.5.4",
+    "next-auth": "^5.0.0-beta.25",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.4",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
