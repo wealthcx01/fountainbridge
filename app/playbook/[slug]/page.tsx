@@ -1,16 +1,16 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { loadPlaybook, getPlaybookSection } from '@/lib/playbook';
+import { loadPlaybook } from '@/lib/playbook';
 import { PlaybookProse } from '@/components/PlaybookProse';
 
 // Public playbook section (FB-013).
 export default async function PlaybookSectionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const section = getPlaybookSection(slug);
+  const all = loadPlaybook(); // read the content dir once
+  const idx = all.findIndex((s) => s.slug === slug);
+  const section = idx >= 0 ? all[idx] : null;
   if (!section) notFound();
 
-  const all = loadPlaybook();
-  const idx = all.findIndex((s) => s.slug === slug);
   const prev = idx > 0 ? all[idx - 1] : null;
   const next = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : null;
 
