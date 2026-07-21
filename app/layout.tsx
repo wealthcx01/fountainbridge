@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { Source_Serif_4, Inter, IBM_Plex_Mono } from 'next/font/google';
 import Link from 'next/link';
@@ -13,6 +13,12 @@ const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variabl
 export const metadata: Metadata = {
   title: 'Foundry Studio',
   description: 'Bruntsfield Foundry Studio — launch and run co-created ventures.',
+};
+
+// FB-009: usable on a phone. Explicit viewport so mobile scaling is correct.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 const NAV = [
@@ -42,10 +48,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <span className="wordmark-name">Bruntsfield</span>
             <span className="wordmark-sub">Foundry</span>
           </Link>
-          <span className="eyebrow topbar-spacer">
+          <span className="eyebrow topbar-spacer topbar-eyebrow">
             <span className="eyebrow-id">03</span> — Foundry Studio
           </span>
-          <nav style={{ display: 'flex', gap: '0.25rem' }}>
+          <nav className="topnav" data-testid="topnav">
             {NAV.map((n) => (
               <Link key={n.href} className="pill" href={n.href}>
                 {n.label}
@@ -59,6 +65,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </nav>
           {session?.user?.email ? (
             <form
+              className="signout-form"
               action={async () => {
                 'use server';
                 await signOut({ redirectTo: '/login' });

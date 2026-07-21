@@ -17,7 +17,12 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /mobile\.spec\.ts/ },
+    // FB-009: the mobile UI-gate at phone size (~393×851). Pixel 5 is Chromium-based, so it runs on
+    // the same browser CI installs (iPhone/WebKit would need a separate webkit install).
+    { name: 'mobile', use: { ...devices['Pixel 5'] }, testMatch: /mobile\.spec\.ts/ },
+  ],
   webServer: {
     command: `npm run build && npm run start -- --port ${PORT}`,
     port: PORT,

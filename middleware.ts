@@ -8,6 +8,8 @@ export { auth as middleware } from '@/auth';
 // gated, not accidentally public. The `authorized` callback in auth.ts does the actual enforcement.
 export const config = {
   matcher: [
-    '/((?!api/auth|login$|login/|not-authorized$|not-authorized/|_next/static|_next/image|favicon.ico).*)',
+    // `api/health$` (anchored — health has no subpaths) is excluded so Railway's healthcheck + the
+    // uptime monitor get a 200, not a login redirect. Anchoring keeps a future `/api/health-x` gated.
+    '/((?!api/auth|api/health$|login$|login/|not-authorized$|not-authorized/|_next/static|_next/image|favicon.ico).*)',
   ],
 };
