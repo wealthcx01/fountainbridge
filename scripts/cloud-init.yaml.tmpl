@@ -1,0 +1,48 @@
+#cloud-config
+# Venture VPS baseline (FB-011). Rendered by provision-venture.sh — placeholders (__HOSTNAME__,
+# __VENTURE_ID__, __AUTHORIZED_KEYS__) are substituted at provision time. Hardening baseline:
+# key-only SSH, ufw, fail2ban, unattended-upgrades. Base tooling only; Claude Code / gstack /
+# gbrain are installed via the [MANUAL] login steps (they need auth).
+
+hostname: __HOSTNAME__
+
+users:
+  - name: root
+    ssh_authorized_keys:
+__AUTHORIZED_KEYS__
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - tmux
+  - curl
+  - unzip
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-hardening.conf
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin prohibit-password
+      KbdInteractiveAuthentication no
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  - path: /etc/venture-id
+    content: __VENTURE_ID__
+
+runcmd:
+  # Firewall: SSH only (key-only). Widen per-venture as services land (documented in the runbook).
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw --force enable
+  - systemctl enable --now fail2ban
+  - systemctl restart ssh || systemctl restart sshd || true
+  - mkdir -p /srv
+
+final_message: "venture VPS __HOSTNAME__ baseline ready after $UPTIME s"
