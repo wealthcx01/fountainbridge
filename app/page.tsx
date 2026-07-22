@@ -3,17 +3,12 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
-import { loadPlaybook } from '@/lib/playbook';
-import { Landing } from '@/components/Landing';
 
-// `/` serves two audiences (FB-013): signed-out visitors get the public educational landing; signed-in
-// users get the Ventures home. Scoping is server-side (CLAUDE.md #6) — venture data is only loaded
-// after auth, so the landing branch never touches it.
+// The Ventures home (FB-015: private — no public landing). Signed-out visitors are sent to login;
+// signed-in users get the studio, scoped server-side (CLAUDE.md #6).
 export default async function Home() {
   const session = await auth();
-  if (!session?.user?.email) {
-    return <Landing sections={loadPlaybook()} />;
-  }
+  if (!session?.user?.email) redirect('/login');
 
   const ventures = loadVentures();
   const access = authorizeVentures(

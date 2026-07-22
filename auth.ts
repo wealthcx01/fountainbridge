@@ -52,13 +52,9 @@ export const config: NextAuthConfig = {
     // Middleware gate (FB-005): matched routes require a signed-in user. Without this callback,
     // next-auth v5 middleware defaults to "authorized" and lets everything through — the
     // placeholder routes (and FB-006/007/008's real data pages) would be publicly reachable.
-    authorized({ auth, request }) {
-      // Public surfaces (FB-013): the landing (`/`) and the playbook. Everything else — the studio,
-      // venture data, attention, activity, lanes — requires a signed-in user. The landing itself
-      // (app/page.tsx) shows marketing to signed-out visitors and the studio to signed-in ones, so
-      // `/` must be reachable without a session; it never renders venture data when signed out.
-      const path = request.nextUrl.pathname;
-      if (path === '/' || path === '/playbook' || path.startsWith('/playbook/')) return true;
+    authorized({ auth }) {
+      // FB-015: no Foundry page is public. Every matched route requires a signed-in user; only
+      // `/login`, `/not-authorized`, `/api/auth`, and `/api/health` are excluded (middleware matcher).
       return !!auth?.user;
     },
     // Persist the email on the JWT so `auth()` exposes it server-side for scoping.

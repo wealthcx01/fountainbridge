@@ -40,12 +40,12 @@ test('an unlisted account is refused', async ({ page }) => {
   await page.screenshot({ path: `${SHOTS}/03-not-authorized.png`, fullPage: true });
 });
 
-test('signed-out visitor sees the public landing, never venture data', async ({ page }) => {
+test('signed-out visitor is sent to login (no public pages, FB-015)', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByTestId('landing')).toBeVisible();
-  await expect(page.getByTestId('cta-signin')).toBeVisible();
+  await page.waitForURL((url) => url.pathname.startsWith('/login'));
+  await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible();
   await expect(page.getByTestId('venture-grid')).toHaveCount(0); // studio data never shown signed-out
-  await page.screenshot({ path: `${SHOTS}/04-landing.png`, fullPage: true });
+  await page.screenshot({ path: `${SHOTS}/04-login.png`, fullPage: true });
 });
 
 test('middleware gates a placeholder route for a signed-out visitor', async ({ page }) => {
