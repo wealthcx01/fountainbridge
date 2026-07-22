@@ -1,7 +1,7 @@
 ---
 slug: operating-model
 title: How we run a venture
-order: 4
+order: 11
 summary: The machine behind the studio — lanes, tickets, gates, and the human authority that stays in charge.
 ---
 

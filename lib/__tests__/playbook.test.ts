@@ -7,7 +7,7 @@ const DIR = join(process.cwd(), 'content', 'playbook');
 describe('loadPlaybook (real content/playbook)', () => {
   it('loads sections ordered by `order`, with parsed frontmatter', () => {
     const sections = loadPlaybook(DIR);
-    expect(sections.length).toBeGreaterThanOrEqual(4);
+    expect(sections.length).toBeGreaterThanOrEqual(12);
     // ordered
     expect(sections.map((s) => s.order)).toEqual([...sections.map((s) => s.order)].sort((a, b) => a - b));
     // introduction is first
@@ -26,6 +26,12 @@ describe('loadPlaybook (real content/playbook)', () => {
       expect(getPlaybookSection(slug, DIR)?.slug).toBe(slug);
     }
     expect(getPlaybookSection('nope', DIR)).toBeNull();
+  });
+
+  it('exposes the FB-018 deep sections — the six DE questions and the seven powers', () => {
+    for (const slug of ['de-customer', 'de-value', 'de-acquire', 'de-money', 'de-build', 'de-scale', 'seven-powers']) {
+      expect(getPlaybookSection(slug, DIR)?.slug).toBe(slug);
+    }
   });
 
   it('returns [] for a missing directory (never throws)', () => {
