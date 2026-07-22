@@ -78,11 +78,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </form>
             </>
           ) : (
-            /* Public header (landing / playbook): no studio nav, just a way in. */
-            <nav className="topnav signout-form" data-testid="topnav-public">
-              <Link className="pill" href="/playbook">Playbook</Link>
-              <Link className="btn btn-primary" href="/login" data-testid="nav-signin">Sign in</Link>
-            </nav>
+            /* Signed-out (login / not-authorized only, FB-015): just the wordmark, no nav. */
+            <span className="topnav signout-form" data-testid="topnav-signedout" />
           )}
         </header>
         <main className="main">{children}</main>

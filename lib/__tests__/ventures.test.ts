@@ -14,7 +14,7 @@ describe('loadVentures (against the real ventures/ manifests)', () => {
 
   it('extracts the founder workspace email and name', () => {
     const reset = loadVentures(DIR).find((v) => v.id === 'the-reset');
-    expect(reset?.founderEmail).toBe('ross@thereset.com');
+    expect(reset?.founderEmail).toBe('ross@bruntsfield.capital');
     expect(reset?.founderName).toBe('Ross');
   });
 
