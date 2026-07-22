@@ -27,3 +27,17 @@ test('a signed-in user can read the playbook and its sections', async ({ page })
   await expect(page.getByText('Who is your customer?', { exact: false }).first()).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/10-playbook-private.png`, fullPage: true });
 });
+
+test('the detailed DE and 7 Powers deep pages render (FB-018)', async ({ page }) => {
+  await testLogin(page, JOHN);
+  await page.goto('/playbook');
+  await page.getByTestId('pb-de-money').click();
+  await page.waitForURL(/\/playbook\/de-money$/);
+  await expect(page.getByTestId('playbook-section')).toBeVisible();
+  await expect(page.getByText('Cost of Customer Acquisition', { exact: false }).first()).toBeVisible();
+
+  await page.goto('/playbook/seven-powers');
+  await expect(page.getByTestId('playbook-section')).toBeVisible();
+  await expect(page.getByText('Counter-Positioning', { exact: false }).first()).toBeVisible();
+  await page.screenshot({ path: `${SHOTS}/13-playbook-deep.png`, fullPage: true });
+});
