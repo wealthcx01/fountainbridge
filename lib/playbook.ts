@@ -1,56 +1,19 @@
 /**
  * Foundry Playbook loader (FB-013). Reads `content/playbook/*.md` — our own educational content
- * (git = source of truth) — into ordered sections for the public landing + /playbook pages. Server-
- * only (filesystem). Frontmatter is a small YAML block (slug/title/order/summary) above the body.
+ * (git = source of truth) — into ordered sections for the (private, FB-015) /playbook pages. Thin
+ * wrapper over the shared content loader (lib/content).
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import yaml from 'js-yaml';
+import { loadContentSections, type ContentSection } from './content';
 
-export interface PlaybookSection {
-  slug: string;
-  title: string;
-  order: number;
-  summary: string;
-  body: string; // markdown after the frontmatter
-}
+export type PlaybookSection = ContentSection;
 
 const DEFAULT_DIR = join(process.cwd(), 'content', 'playbook');
 
-function parseFrontmatter(raw: string): { data: Record<string, unknown>; body: string } {
-  const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!m) return { data: {}, body: raw };
-  const data = (yaml.load(m[1]) as Record<string, unknown>) ?? {};
-  return { data, body: m[2] };
-}
-
-/** Load every playbook section, ordered by `order`. A file missing a slug is skipped, not fatal. */
+/** Load every playbook section, ordered by `order`. */
 export function loadPlaybook(dir: string = DEFAULT_DIR): PlaybookSection[] {
-  let files: string[];
-  try {
-    files = readdirSync(dir).filter((f) => f.endsWith('.md'));
-  } catch {
-    return [];
-  }
-  const sections: PlaybookSection[] = [];
-  for (const file of files) {
-    try {
-      const { data, body } = parseFrontmatter(readFileSync(join(dir, file), 'utf8'));
-      if (typeof data.slug !== 'string' || !data.slug) continue;
-      sections.push({
-        slug: data.slug,
-        title: typeof data.title === 'string' ? data.title : data.slug,
-        order: typeof data.order === 'number' ? data.order : 999,
-        summary: typeof data.summary === 'string' ? data.summary : '',
-        body: body.trim(),
-      });
-    } catch {
-      // A malformed file (e.g. bad YAML frontmatter) is skipped, never blanks the whole playbook.
-      continue;
-    }
-  }
-  return sections.sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug));
+  return loadContentSections(dir);
 }
 
 /** One section by slug (or null). */
