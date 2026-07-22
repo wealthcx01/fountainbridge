@@ -1,10 +1,13 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { auth } from '@/auth';
 import { loadPlaybook } from '@/lib/playbook';
 import { PlaybookProse } from '@/components/PlaybookProse';
 
-// Public playbook section (FB-013).
+// Private playbook section (FB-015). Self-guards in addition to the middleware.
 export default async function PlaybookSectionPage({ params }: { params: Promise<{ slug: string }> }) {
+  const session = await auth();
+  if (!session?.user?.email) redirect('/login');
   const { slug } = await params;
   const all = loadPlaybook(); // read the content dir once
   const idx = all.findIndex((s) => s.slug === slug);
