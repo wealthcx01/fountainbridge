@@ -26,7 +26,7 @@ test('admin (John) sees every venture', async ({ page }) => {
 });
 
 test('founder (Ross) sees only the-reset', async ({ page }) => {
-  await testLogin(page, 'ross@thereset.com');
+  await testLogin(page, 'ross@bruntsfield.capital');
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId('venture-the-reset')).toBeVisible();
   await expect(page.getByTestId('venture-arca')).toHaveCount(0);

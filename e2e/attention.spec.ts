@@ -40,7 +40,7 @@ test('open PR moves its ticket to pr-open in the venture board (status inference
 });
 
 test('a founder sees only their own ventures in the queue', async ({ page }) => {
-  await testLogin(page, 'ross@thereset.com'); // the-reset only; its repos have no PR fixtures
+  await testLogin(page, 'ross@bruntsfield.capital'); // the-reset only; its repos have no PR fixtures
   await page.goto('/attention');
   await expect(page.getByTestId('attention-empty')).toBeVisible();
   // arca's PRs (John's fixture) must NOT leak into Ross's queue.

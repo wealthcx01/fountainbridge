@@ -33,7 +33,7 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
 });
 
 test('a founder cannot open another venture — no ticket data is served', async ({ page }) => {
-  await testLogin(page, 'ross@thereset.com'); // founder of the-reset only
+  await testLogin(page, 'ross@bruntsfield.capital'); // founder of the-reset only
   await page.goto('/venture/arca');
   await expect(page.getByTestId('venture-forbidden')).toBeVisible();
   await expect(page.getByTestId('lane-arca')).toHaveCount(0); // board never rendered
