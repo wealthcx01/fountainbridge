@@ -11,7 +11,7 @@ status: active            # a real running app (Bun/Hono/React) — the fixture 
 founder:
   name: John Gallagher
   github_login: wealthcx01
-  workspace_email: john.gallagher@wealthcx.com   # venture-domain Workspace account (never @gmail.com)
+  workspace_email: john@bruntsfield.capital   # shared Bruntsfield Workspace until spin-out (D3) — never @gmail.com
 
 approval_matrix:
   - change_class: product-visible

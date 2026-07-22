@@ -31,7 +31,7 @@ Where the plan and a ticket disagree, the ticket's **scope** section wins for wh
 
 - **App:** Next.js (App Router) + TypeScript, mirroring Cofounder's managed stack so venture apps and the studio feel identical to operate. **Arrives in FB-005** — until then this repo is docs + tickets + CI scaffold only.
 - **Hosting / data:** **Railway** + Supabase. Deploy config lands in FB-009. *(D6 amended 2026-07-21, PR FB-009: Vercel → Railway — the studio's in-memory read-caches want a long-running server, and ventures already run on Hetzner VPS, D1. See the phased plan's D6 note.)*
-- **Auth:** **Google OAuth** (the Holy Corner vertical-login pattern). Venture scoping keys off `founder.workspace_email` in the manifest — a Bruntsfield-assigned venture-domain Google Workspace account (e.g. `ross@thereset.com`), **never** a personal `@gmail.com`. John's account → all ventures; a founder's account → their venture only.
+- **Auth:** **Google OAuth** (the Holy Corner vertical-login pattern). Venture scoping keys off `founder.workspace_email` in the manifest — a Bruntsfield-assigned Google Workspace account on the shared `@bruntsfield.capital` domain until spin-out (e.g. `ross@bruntsfield.capital`; D3 amended 2026-07-22), **never** a personal `@gmail.com`. John's account → all ventures; a founder's account → their venture only.
 - **Contracts:** `bcap-contracts` (Pydantic v2 + JSON Schema → TS), the same package grassmarket consumes.
 - **Source of truth:** GitHub API over the venture repos' `docs/tickets/` — no separate DB of record.
 - **Branding:** grassmarket / main Bruntsfield site design tokens — **do not invent a theme**; pull the existing tokens.
