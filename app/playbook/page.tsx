@@ -1,8 +1,13 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
 import { loadPlaybook } from '@/lib/playbook';
 
-// Public playbook index (FB-013).
-export default function PlaybookIndex() {
+// Private playbook index (FB-015). Middleware gates it; this self-guards too, for defense-in-depth
+// consistency with the rest of the studio.
+export default async function PlaybookIndex() {
+  const session = await auth();
+  if (!session?.user?.email) redirect('/login');
   const sections = loadPlaybook();
   return (
     <section data-testid="playbook-index">
