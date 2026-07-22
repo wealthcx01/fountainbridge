@@ -16,7 +16,7 @@ tier3_ref: THE RESET
 founder:
   name: Ross
   github_login: ross-thereset        # the founder's own GitHub account (D2), added as collaborator
-  workspace_email: ross@thereset.com # BC-assigned venture-domain Workspace account (D3) — never @gmail.com
+  workspace_email: ross@bruntsfield.capital # shared Bruntsfield Workspace until spin-out (D3) — never @gmail.com
 
 # D7 governance: founder approves product-visible; Bruntsfield approves platform/infra;
 # high-blast-radius (migrations, auth, payments, secrets, external sends) is dual-approve.
