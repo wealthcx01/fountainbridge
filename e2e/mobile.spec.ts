@@ -38,7 +38,11 @@ test('mobile: venture board + full-width ticket drawer', async ({ page }) => {
   await testLogin(page, JOHN);
   await page.goto('/venture/arca');
   await expect(page.getByTestId('lane-arca')).toBeVisible();
-  await page.getByTestId('ticket-ARCA-2').click();
+  // Open the drawer from a ticket in the first ("To do") column. On the phone layout the columns
+  // stack, so a ticket in the last ("Done") column sits at the very bottom of the page — a spot
+  // where Playwright's click hit-testing is unreliable. Any ticket exercises the same drawer, so
+  // click one that's reliably in the initial viewport.
+  await page.getByTestId('ticket-ARCA-3').click();
   await expect(page.getByTestId('ticket-drawer')).toBeVisible();
   await expect(page.getByTestId('drawer-title')).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/09-mobile-drawer.png`, fullPage: true });
