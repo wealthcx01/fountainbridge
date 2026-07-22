@@ -26,6 +26,7 @@ const NAV = [
   { href: '/lanes', label: 'Lanes' },
   { href: '/attention', label: 'Attention' },
   { href: '/activity', label: 'Activity' },
+  { href: '/foundry', label: 'Foundry' },
 ];
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
