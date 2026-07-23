@@ -27,8 +27,13 @@ from Phase 2 on; the read-only studio needs none yet). Auth: **Google OAuth**.
 | `AUTH_TRUST_HOST` | `true` (set in code too; harmless) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from the Google OAuth client (step 4) |
 | `STUDIO_ADMIN_EMAILS` | `john.gallagher@wealthcx.com` (comma-separated for more admins) |
-| `GITHUB_TOKEN` | org-scoped read PAT (or a GitHub App token) so lanes/tickets/PRs render |
+| `GITHUB_TOKEN` | **PAT path (v0):** org-scoped read PAT so lanes/tickets/PRs render. Takes precedence over the App vars below if both are set. |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | **GitHub App path (production, FB-020):** set all three (and leave `GITHUB_TOKEN` unset) to have the studio mint short-lived installation tokens from the App key. The private key is the App's `.pem`; escaped `\n` in the env value is normalised automatically. |
 | `GITHUB_ORG` | `wealthcx01` (default; set if different) |
+
+Use **one** of the two GitHub auth paths: a `GITHUB_TOKEN` PAT, or the three `GITHUB_APP_*` vars.
+App installation tokens expire hourly, so a GitHub App must go through the `GITHUB_APP_*` path (a
+raw App token pasted into `GITHUB_TOKEN` would stop working after ~1 hour) — see FB-020.
 
 Do **not** set `E2E_TEST_LOGIN`, `*_FIXTURE_DIR`, or `E2E_TEST_LOGIN_SECRET` in production — those
 are test-only seams and the app treats them as such.
