@@ -53,7 +53,7 @@ small venture's single best weapon against a large one.
 costly.
 **Barrier.** To win your customer, a competitor must compensate for that switching cost on top of matching
 you — often uneconomic.
-**When buildable.** *Takeoff into Stability* — it accrues as customers embed data, habits, and integrations.
+**When buildable.** *Takeoff* — the barrier is set as customers embed data, habits, and integrations during growth.
 **How a venture earns it.** Let customers invest in the product over time (their history, configuration,
 outcomes) so it grows more theirs — earned through delivered value, never hostage-taking.
 
@@ -61,7 +61,7 @@ outcomes) so it grows more theirs — earned through delivered value, never host
 **Benefit.** A higher willingness to pay for an objectively identical offering, because your name carries
 trust or affect.
 **Barrier.** Reputation is built only over years of consistent delivery — a competitor can't buy the history.
-**When buildable.** *Origination through Stability* — begun at founding, real only after sustained years.
+**When buildable.** *Stability* — the work starts at founding, but the barrier is real only after sustained years of consistent delivery.
 **How a venture earns it.** Be relentlessly consistent on the promise the persona cares about; for a
 consent-first venture, brand *is* the accumulated trust of every honest, approved interaction. One bad send
 spends years of it.

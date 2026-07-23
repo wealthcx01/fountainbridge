@@ -46,7 +46,7 @@ re-injury, follows their physio's plan on their phone."
 **What it means.** Size the beachhead's Total Addressable Market — annual revenue if you won 100% of it.
 Bottom-up (number of end users × annual value), not a top-down fraction of a huge number.
 **For a Foundry venture.** Aim for a beachhead TAM that's meaningful but conquerable (Aulet's rule of
-thumb: roughly \$5M–\$100M). Big enough to build a real business, small enough to own.
+thumb: roughly \$20M–\$100M/year). Big enough to build a real business, small enough to own.
 **Example.** ~200k relevant post-op patients/year × plausible annual value → a bottom-up figure you can
 defend line by line.
 **Trap.** "1% of a \$10B market." Top-down percentages are wishes, not markets.
