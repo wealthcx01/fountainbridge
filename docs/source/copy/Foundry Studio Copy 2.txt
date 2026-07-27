@@ -1,0 +1,454 @@
+Foundry — Bruntsfield Capital
+
+DRAFT copy — placeholder to show the layout. Replace in the UI/UX review.
+
+Build the company. We'll run the machine.
+Foundry is Bruntsfield Capital's venture engine: you bring the idea and the judgement, we bring a studio of agents that do the operational work — building the product, running the lanes, drafting the sells — with a human hand on every gate that matters.
+
+Not advice. Not a template. A working co-founder that ships every day, and a founder who stays in control of every decision.
+
+DRAFT copy — placeholder. Replace in the UI/UX review.
+
+Co-created, not outsourced
+A Foundry venture is built by a founder and Bruntsfield together. You own the company and the direction. We stand up the machinery it takes to run one: a dedicated box, a set of agent lanes, and a studio — this one — where the whole operation is visible and controllable from your phone.
+
+The agents do the repeatable, tireless work: turning tickets into shipped code, watching the numbers, drafting the emails to people who've raised their hand. You do the irreplaceable work: deciding what to build, who it's for, and what "good" looks like. Every consequential action waits for a human "yes" before it happens.
+
+It is one substrate, many ventures. What we learn running one company makes the next one faster to stand up — while each venture stays walled off from every other by construction.
+
+DRAFT copy — placeholder. Replace in the UI/UX review.
+
+What you get
+Velocity without a team. Lanes work in parallel and around the clock. You review shipped work instead of managing people to produce it.
+Control you can see. Nothing external — an email, a payment, a deploy — happens without your approval, and every one is logged. The studio shows you what's in flight and what needs you.
+Nothing fails silently. If a lane stalls or a check breaks, you see why, in plain language — not a dashboard of green lights hiding a stuck company.
+A method, not vibes. Every venture runs on the same disciplined build-and-sell playbook, so "what do I do next" always has an answer grounded in evidence.
+You stay the founder. Foundry removes the reasons a good founder gets stuck: no team yet, no time, no operating system.
+
+DRAFT copy — placeholder. Replace in the UI/UX review.
+
+How it runs, briefly
+Work becomes tickets in git. Agent lanes on the venture's own box turn each ticket into a branch and a pull request. The studio reads git and shows you the lanes, the queue of things awaiting your call, and the health of the whole operation. You approve; git remembers everything.
+
+The full mechanics — gstack, gbrain, ActiveGraph, the ticket flow, the approval matrix — get their own "how the Foundry works" pages (next), and the method behind building and selling is in the playbook.
+
+The studio is where the work happens. Open your ventures and start.
+
+← How it works
+
+The whole thing in one picture
+A Foundry venture is built the same way this studio was: as a stream of small, reviewable changes, made by AI agents working in a dedicated workspace, with a human approving anything that leaves the building. Nothing here is magic and nothing runs unattended. Every part below exists so the work is fast, visible, and reversible.
+
+The shape of it:
+
+Your venture gets its own box — a private server where the work actually happens. One venture, one box, no shared state with anyone else. See Lanes on a box.
+Work is cut into tickets. Each ticket becomes one branch and one pull request — a proposed change you (or Bruntsfield) can read before it counts. See Tickets, branches, PRs.
+The agents doing that work run on gstack — a shared pack of skills and workflows that forces a plan → review → ship discipline on every change. See gstack.
+They remember across sessions through gbrain — durable memory, partitioned per venture. See gbrain.
+Anything that reaches the outside world — an email, a post, a CRM write, a payment — stops at ActiveGraph and waits for a recorded human approval. See ActiveGraph.
+Who has to approve what is set by the approval matrix, and the things waiting on you surface in the studio's attention queue. See The approval matrix.
+Why it's built this way
+Two rules explain almost every design choice. Git is the source of truth — the studio doesn't keep its own private database of your work; it reads the same repositories the agents write to, so what you see is what actually exists. And nothing external happens without a human saying yes — the agents can draft, build, and propose all day, but the door to the outside world only opens on a recorded approval. Speed on the inside, a firm gate at the edge.
+
+← How it works
+
+A dedicated workspace per venture
+Every venture runs on its own server (a VPS). That box is the venture's workshop: the code, the agent sessions, and the tools all live there, and only that venture's people can reach it. Your founder account and John have SSH access; nothing on your box is shared with another venture, and a session scoped to your venture can never read another's data. Isolation is enforced on the server, not just hidden in the interface.
+
+What a "lane" is
+A lane is a working agent session on the box — an AI co-founder actually doing a piece of work: reading the repository, writing code, drafting content, running tests. Lanes run in the terminal (inside tmux, so a session survives you closing your laptop) and they operate on one ticket at a time. When a lane finishes a ticket it opens a pull request and stops — it never merges its own work.
+
+Why a whole box, not just a chat window
+Because real venture work is more than a conversation. An agent needs to run your actual build, hit your actual test suite, hold long-lived state, and pick up where it left off tomorrow. A dedicated box gives it a real, persistent place to do that — and gives you a clean boundary: everything the venture is made of sits in one isolated, inspectable place you control.
+
+The studio you're reading this in is the window onto that box. You don't have to live in a Linux terminal to run the venture — the studio renders what the lanes are doing and lets you drive the gates from your phone. The terminal is still there underneath if you ever want it.
+
+← How it works
+
+One ticket = one branch = one PR
+All work is cut into tickets — a short markdown file describing one change, small enough to read and reason about. Every ticket follows the same path:
+
+Ticket — the change is written down first (docs/tickets/FB-XXX-slug.md): context, scope, what's explicitly out of scope, and how it'll be verified.
+Branch — a lane does the work on its own branch named for the ticket. Nothing touches the main line yet.
+Pull request — the finished work opens as a PR: a reviewable diff, with automated checks (lint, types, tests, a screenshot gallery of the UI) attached.
+One ticket, one branch, one PR. No lane bundles unrelated work together, and discovered work becomes a new ticket rather than sprawling the current one.
+
+The lane never merges
+This is the rule that makes the speed safe: a lane opens a PR and stops. A human merges, per the approval matrix. So the agents can move as fast as they like — the worst they can do is propose a change, which someone reads before it becomes real.
+
+Git is the record
+The studio has no separate database of your tickets or work items. It reads docs/tickets/ and the pull requests directly from the venture's repositories and renders them. That's deliberate: there is one source of truth, git, and the studio is a live view and a set of controls on top of it — never a second copy that can drift out of sync with reality.
+
+← How it works
+
+The discipline layer
+gstack is the pack of skills and workflows every lane runs on. If a lane is a working agent, gstack is the set of professional habits it can't skip. It turns "an AI wrote some code" into a repeatable process with checkpoints — the same one a careful engineering team would use.
+
+Plan → review → ship
+gstack organises work into named steps a lane invokes as it goes:
+
+Plan — before anything large or ambiguous, the work is shaped and pressure-tested (a CEO- or engineering-level review of the plan) so effort goes at the right thing.
+Review — before a PR, the change gets a staff-engineer-style audit and a QA pass: does it do what the ticket asked, is it correct, does it hold up.
+Ship — the change is finalised into a clean PR, and the lane stops for a human to merge.
+There's a step for closing out a phase too (a retro), so the system keeps learning. The point of all of it is that quality isn't left to chance on any single change — the same gates apply every time.
+
+Shared across the portfolio
+gstack isn't bespoke to one venture. It's the common substrate every Bruntsfield lane uses, which is why work looks consistent across ventures and why improvements to the method benefit all of them at once. Your venture gets a battle-tested process from day one instead of inventing its own.
+
+← How it works
+
+Memory that outlasts a session
+An agent's conversation ends; the venture doesn't. gbrain is the durable memory the lanes and the studio write to and read from — the place decisions, context, and hard-won lessons are recorded so they survive across sessions and don't have to be re-explained every morning.
+
+What goes in it
+The useful, non-obvious things a good teammate would remember:
+
+Decisions and the reasoning behind them, so choices aren't silently reversed later.
+Context that isn't derivable from the code — why something is the way it is, what was tried and rejected, what a stakeholder actually wants.
+Cross-session threads — where a piece of work stands, so the next lane picks up cleanly.
+It deliberately does not store what the repository already records (code structure, history) — memory is for what code can't tell you.
+
+Partitioned per venture
+gbrain is scoped per venture. Your venture's memory is its own; it isn't pooled with another founder's. That keeps the isolation promise consistent all the way down — separate boxes, separate data, separate memory — and it means the studio can safely draw on gbrain for context without ever leaking one venture's thinking into another's.
+
+Never secrets
+One firm line: credentials and secrets never go in gbrain (or in tickets, or in code). They live only on the venture's own box and deployment environment. Memory holds knowledge, not keys.
+
+← How it works
+
+The gate at the edge
+Inside the box, agents can do almost anything — draft, build, revise — freely, because it's all reversible and reviewable. The moment an action would touch the outside world, it stops at ActiveGraph and waits.
+
+External actions are the ones with real-world consequences you can't take back:
+
+Sending an email to a prospect or customer.
+Posting to social or any public channel.
+Writing to a CRM or other system of record.
+Moving money — payments, invoices, subscriptions.
+Approve-then-act, always
+ActiveGraph holds each of these as a proposed action with its full content attached, and it will not execute until a recorded human approval exists. There is no path where an agent sends the email and asks forgiveness later — the send simply doesn't happen until someone approves it, and the approval is logged as an event. Engineering changes gate on PR review; external actions gate on ActiveGraph approvals. Both gates, no exceptions, including "trivial" ones.
+
+Why an event, not just a button
+Because "who approved this, and when" has to be answerable after the fact. ActiveGraph records approvals as durable events, so every outbound action a venture ever took has a name and a timestamp attached to it. That's what makes it safe to let agents draft outbound work at speed: the record of consent is part of the mechanism, not an afterthought.
+
+
+← How it works
+
+Who approves what
+Not every decision needs the same signer. The approval matrix sets, per kind of action, who has to approve it before it happens:
+
+Founder — decisions that are yours to make about your venture's direction, voice, and customers.
+Bruntsfield — decisions that touch the shared substrate, spend, or portfolio-level risk.
+Dual — the consequential ones that need both a founder and Bruntsfield to agree.
+The matrix is explicit and versioned, so there's never ambiguity about whose call a given action is — and merges to a venture's main line follow it just like external actions do.
+
+The attention queue
+You don't go looking for what needs approving — it comes to you. Anything waiting on a human surfaces in the studio's attention queue: open pull requests to review, and external actions parked at ActiveGraph. Each item is routed to the right approver per the matrix, so your queue shows the things that are actually yours to decide, not everyone's.
+
+The founder's-eye view
+This is the payoff of everything else in the system. The agents work fast on the box; the gates hold at every edge; and what reaches you is a short, honest list of decisions — approve, and it proceeds; hold, and it waits. You run the venture by working that queue, from your phone, without needing to touch a terminal or trust anything you couldn't see.
+
+← Playbook
+
+The Foundry Playbook
+Most "how to start a company" advice is a library of tactics with no spine — a thousand tips and no order to apply them in. Foundry ventures don't run on tips. They run on a method: a repeatable way to find a real market, build the smallest thing that proves value, sell it to people who already want it, and compound an advantage that gets harder to copy over time.
+
+This playbook is that method. It is not a course and it is not theory. It is the operating manual for a Bruntsfield-co-created venture — the thinking that sits underneath the studio you sign into.
+
+We stand on two shoulders and add our own:
+
+The build follows the discipline of Bill Aulet's Disciplined Entrepreneurship (MIT) — a step-by-step arc from "who is your customer" to "how you scale," reworked for ventures that are co-built with agents and sold on consent-first GTM.
+The moat follows Hamilton Helmer's 7 Powers — because a business that can't defend its value is a treadmill. We map each Power to the stage of a venture where you can actually build it.
+Both are frameworks we apply and credit; the words, examples, and the Foundry-specific method are ours. Read them in order the first time. After that, use them as a checklist — the point of a method is that you can tell, at any moment, what you actually know and what you're still guessing.
+
+The four questions this playbook answers
+The build arc — what to do, in what order, from idea to scale.
+Moats — how to make the value you create hard to take away.
+Selling — how a Foundry venture actually gets its first and next customers.
+How we run a venture — the machine (studio, lanes, gates) that does the work.
+The product is the point. This playbook is the soft introduction and the reference; the studio is where the work happens.
+
+The build arc →
+
+ Playbook
+
+The build arc
+Adapted from Bill Aulet's Disciplined Entrepreneurship (MIT), which frames company-building as 24 steps grouped under six questions. We keep the discipline and re-tell it for a Foundry venture: one co-founded with Bruntsfield, built by agent lanes, sold on interest, not cold outreach.
+
+The order matters. Most ventures die because they answer question four (how do you make money) before question one (who is your customer). Resist that.
+
+1 — Who is your customer?
+You cannot build for everyone, so stop trying. Narrow until it hurts.
+
+Segment the market. List the distinct groups who might want this, described by who they are and what they're trying to get done — not by demographics alone.
+Pick one beachhead. A single segment where the same product, sold the same way, wins the same way for everyone in it. Small enough to dominate, large enough to matter, reachable without a miracle. You expand from a won beachhead; you never start diffuse.
+Profile the end user, then a persona. Not "SMEs" — a named, specific person: what a day looks like, what they fear, who they answer to, where they already spend money. If you can't write the persona from memory, you don't know your customer yet.
+Size the beachhead honestly. Bottom-up: number of end users × what each realistically spends. A believable small number beats a fantasy TAM.
+Foundry note: THE RESET's beachhead isn't "people in transition" — it's a specific, reachable slice of them who have already raised a hand. The manifest's founder identity and the venture's Workspace domain exist precisely so you can reach that slice lawfully and personally.
+
+2 — What can you do for your customer?
+Value is not features. It is a measurable change in the customer's world.
+
+Map the full life-cycle use case — how they discover, buy, onboard, use, pay, and get value, start to finish. Gaps here are where ventures leak.
+Spec the product at a high level — a picture of what it does, not how it's built.
+Quantify the value proposition — in the customer's own terms and numbers. "Saves Ross six hours a week and one dropped client a month" beats "increases efficiency." If you can't quantify it, you're guessing at value.
+Name the next ten customers — real people who fit the persona. Not a list you hope exists; ten you could email today. If you can't, the beachhead is wrong.
+3 — How does your customer acquire your product?
+Define your core — the one thing you do better than anyone that is hard to copy. Everything else you can buy, borrow, or defer. (This is where the moats chapter starts.)
+Chart your competitive position — on the two axes your customer's top two priorities define. Win on the dimensions they actually care about, not the ones you find interesting.
+Map the decision-making unit — the champion, the economic buyer, the end user, and the people who can veto. Selling to one when another decides is the quiet killer of good products.
+Design the acquisition process — the concrete path from "never heard of you" to "paying." For a Foundry venture this runs on interest, not interruption (see Selling).
+4 — How do you make money?
+Choose a business model that fits how the customer already buys, and how you keep earning as you deliver more value.
+Set a pricing framework, not a number — anchored to the value you quantified, not your costs.
+Estimate lifetime value (LTV) and the cost to acquire a customer (COCA/CAC). If it costs more to win a customer than they're worth, no amount of growth fixes it — it accelerates the loss.
+5 — How do you design and build it?
+Build the smallest thing that lets a real customer get real value — and that produces evidence you're right or wrong. In the studio this is a lane: one ticket, one branch, one PR, shipped through a human gate. The discipline of "smallest thing that proves value" and "one change at a time" is the same at the product level as it is at the commit level.
+
+6 — How do you scale?
+Only after the beachhead is won. Scaling a business that hasn't proven value at small scale just manufactures a bigger version of the same problem. Expand to adjacent segments that share your core, compound the moats, and let each won market fund the next.
+
+The test of this chapter: at any moment you should be able to say which of the six questions you've genuinely answered with evidence, and which you're still assuming. Assumptions aren't failures — pretending they're answers is.
+
+← The Foundry Playbook
+DE · Who is your customer? →
+
+← Playbook
+
+Disciplined Entrepreneurship (Bill Aulet, 24 Steps to a Successful Startup). Our own explanation and application of Aulet's method — not a reproduction of the book. Steps 1–6.
+
+The first question decides everything downstream. A Foundry venture doesn't get to "everyone with a problem" — it earns one specific group of people who feel one specific pain, and grows out from there. Because our go-to-market is interest-based (no cold outreach; we reach people who've signalled they want this), a sharp customer definition isn't optional — it's what makes a consent-first launch even possible. You can't attract interest from a market you haven't named.
+
+Step 1 — Market Segmentation
+What it means. Brainstorm widely, then break the world into distinct market opportunities — groups who buy similar things for similar reasons. Breadth first, so you don't fall in love with the first idea. For a Foundry venture. Run this in a lane as a research pass: enumerate 6–12 candidate segments, each with the end user, the task they're trying to get done, and why now. Example. A "reset" wellbeing product might segment into new parents, shift workers, post-injury recovery, corporate burnout programs, and elite-sport recovery — each a different buyer and rhythm. Trap. Segmenting by demographics ("25–34, urban") instead of by job-to-be-done. Age doesn't buy; a shared, urgent task does.
+
+Step 2 — Select a Beachhead Market
+What it means. Choose one segment to win completely before expanding. Small enough to dominate, real enough to matter. For a Foundry venture. Pick the beachhead where interest is easiest to earn honestly — an existing community, list, or channel where these people already gather and would welcome the thing. Example. Of the resets, "post-injury recovery, routed through physiotherapy clinics" — a bounded, reachable group with an acute need and a natural referrer. Trap. Picking a beachhead because it's big. A beachhead's job is to be winnable; scale comes later.
+
+Step 3 — Build an End User Profile
+What it means. Describe the specific person who will actually use the product (distinct from who pays). A tight, recognisable profile — not a demographic range. For a Foundry venture. Write it down in the venture repo; the lanes and the studio reference it so every later decision (copy, features, sends) points at the same person. Example. "Recovering from an ACL repair, 6–16 weeks post-op, doing daily home rehab, anxious about re-injury, follows their physio's plan on their phone." Trap. A profile so broad that two people who fit it would want opposite things.
+
+Step 4 — Calculate the TAM for the Beachhead
+What it means. Size the beachhead's Total Addressable Market — annual revenue if you won 100% of it. Bottom-up (number of end users × annual value), not a top-down fraction of a huge number. For a Foundry venture. Aim for a beachhead TAM that's meaningful but conquerable (Aulet's rule of thumb: roughly $20M–$100M/year). Big enough to build a real business, small enough to own. Example. ~200k relevant post-op patients/year × plausible annual value → a bottom-up figure you can defend line by line. Trap. "1% of a $10B market." Top-down percentages are wishes, not markets.
+
+Step 5 — Profile the Persona
+What it means. Turn the end-user profile into one real, named person — the archetypal buyer for the beachhead — with their priorities, watering holes, and buying criteria. For a Foundry venture. The persona is the audience for every interest-based send. If you can't name where they already pay attention, you can't reach them on consent. Example. "Priya, 34, three weeks post-op, wants to trust she's rehabbing correctly; reads her clinic's handouts, in two recovery Facebook groups." Every send is written to Priya. Trap. Inventing a persona instead of grounding it in primary conversations with real people.
+
+Step 6 — Full Life-Cycle Use Case
+What it means. Map how the persona discovers, evaluates, buys, onboards, uses, pays for, and gets value from the product — end to end, before you build. For a Foundry venture. This map exposes every point where an external action fires (a send, a sign-up, a payment) — exactly the points that pass through the approval gate. Design the journey and the gates together. Example. Physio mentions it → Priya sees an opt-in send → free first week → guided plan → subscribes → shares in her group. Each arrow is a step you can instrument. Trap. Designing acquisition and ignoring the boring middle — onboarding and habit — where ventures actually die.
+
+← The build arc
+DE · What can you do for your customer? →
+
+← Playbook
+
+Disciplined Entrepreneurship (Bill Aulet). Our own application of Aulet's method. Steps 7–11.
+
+Now that you know exactly who the customer is, define what you'll do for them — concretely enough to build, and valuable enough that they'll change their behaviour to get it. This is where a vague "app for wellbeing" becomes a specific promise with a number attached.
+
+Step 7 — High-Level Product Specification
+What it means. A visual, benefit-led description of what the product does for the persona — brochure, not blueprint. It commits you to an offering without over-committing to implementation. For a Foundry venture. Draft it in the repo as the shared reference the lanes build against; it turns into tickets. Keep it benefit-first ("know you're rehabbing correctly"), not feature-first. Example. A guided daily rehab plan, form-check reminders, and a "am I on track?" signal — shown as three screens, not a database schema. Trap. Speccing features you find clever instead of the outcome the persona is hiring you for.
+
+Step 8 — Quantify the Value Proposition
+What it means. Express the benefit in the persona's own terms, as a number, against their status quo: what improves, by how much. For a Foundry venture. This single quantified claim becomes the spine of all interest-based copy — honest, specific, measurable. It's also what you'll later prove. Example. "Cut re-injury risk and finish rehab two weeks sooner" — tied to the persona's top priority from Step 5, not a generic "feel better." Trap. Value stated as features ("daily reminders") rather than gain the customer feels ("don't re-tear it").
+
+Step 9 — Identify Your Next 10 Customers
+What it means. Name ten real prospects who fit the persona and would plausibly buy — a reality check that the beachhead isn't a party of one. For a Foundry venture. These ten are your first interest-based conversations. If you can't list ten reachable, consenting people, the beachhead (Step 2) is wrong — go back. Example. Ten named post-op patients (via two partner clinics) who've agreed to talk — not "people like Priya" in the abstract. Trap. Listing friends and well-wishers who'll be nice to you instead of buyers who'll be honest.
+
+Step 10 — Define Your Core
+What it means. Name the one thing you'll do better than anyone that's hard to copy — your source of enduring advantage. Not a feature; the root of why you'll keep winning. For a Foundry venture. The Core is the seed of a Power (see Moats — the seven powers). Choosing it early tells the lanes what to protect and deepen versus what to treat as commodity. Example. A proprietary recovery-outcome dataset from clinic partners that makes the guidance measurably better the more patients use it — a Core competitors can't buy. Trap. Claiming your brand or your team as the Core on day one, before either is actually rare.
+
+Step 11 — Chart Your Competitive Position
+What it means. Plot yourself against alternatives on the two axes the persona cares most about (from Step 5's priorities). Win the top-right; concede the rest. For a Foundry venture. If your Core is right, you should dominate on the persona's two priorities. If you can't, the value prop or the beachhead needs rework — better to learn it here than after launch. Example. Axes "trustworthy/clinically-grounded" × "effortless daily use" — a quadrant incumbents (generic fitness apps; paper handouts) leave empty. Trap. Choosing axes where you look good instead of the axes the customer actually buys on.
+
+← DE · Who is your customer?
+DE · How does your customer acquire your product? →
+
+← Playbook
+
+Disciplined Entrepreneurship (Bill Aulet). Our own application of Aulet's method. Steps 12–14.
+
+Wanting the product and acquiring it are different things. This question maps the machinery of a purchase — who's involved, what the steps really are, and how big the opportunity gets if the beachhead works. For a consent-first venture, this is also where "how they acquire it" and "how we're allowed to reach them" have to line up.
+
+Step 12 — Determine the Decision-Making Unit (DMU)
+What it means. Identify everyone involved in a purchase: the end user, the economic buyer (controls the money), the champion, and any influencers, vetoes, or gatekeepers. For a Foundry venture. Often the user and the payer differ — and a third party (a clinic, an employer) is the trusted introducer. Interest-based GTM lives or dies on that introducer's consent, so name them explicitly. Example. User = Priya; champion = her physio; economic buyer = Priya (or her insurer); gatekeeper = the clinic's data/privacy policy. Trap. Selling only to the enthusiastic user while ignoring the buyer or the veto who quietly kills it.
+
+Step 13 — Map the Process to Acquire a Paying Customer
+What it means. Trace every step from first awareness to paid, cradle to grave — including budget authority, sales cycle length, and regulatory or approval hurdles. For a Foundry venture. Every outbound touch in this map is an external action that stops at the approval gate before it fires. Mapping the process is mapping where human consent is required — design them as one thing, not two. Example. Physio opt-in → welcome send → free week → conversion send → checkout → clinic-visible progress. Each send is drafted by a lane and released only on approval. Trap. Assuming a short, clean funnel when the real process has a gatekeeper, a compliance check, and a three-week gap you didn't budget for.
+
+Step 14 — Calculate the TAM for Follow-on Markets
+What it means. Estimate the additional markets you could enter after winning the beachhead — adjacent segments or new offerings to the same customers. This is the bridge to the scaling question. For a Foundry venture. Sketch it to show the beachhead is a doorway, not a dead end — but do not let follow-on markets pull focus. They exist to prove the upside and sequence later work, nothing more yet. Example. From post-op recovery → chronic-pain management → clinic-side analytics → elite-sport recovery: same Core (the outcomes dataset), widening markets. Trap. Working the follow-on markets now. They're a map for later; the beachhead is the only battle you're actually fighting.
+
+← DE · What can you do for your customer?
+DE · How do you make money? →
+
+← Playbook
+
+Disciplined Entrepreneurship (Bill Aulet). Our own application of Aulet's method. Steps 15–19.
+
+A product that helps people but can't capture value is a hobby. This question builds the economic engine: how you charge, what a customer is worth, what it costs to win one, and whether the two numbers point the right way. The last comparison — value in vs. cost to acquire — is the one that decides if the venture is a business.
+
+Step 15 — Design a Business Model
+What it means. Choose how you capture value — subscription, usage, licensing, transaction, freemium — matched to how the customer gets and perceives value. The model is a strategic choice, not a price. For a Foundry venture. Prefer models that compound with the interest-based, consent-first motion: recurring value → recurring revenue, with the introducer's trust intact. Example. A monthly subscription for the guided plan, with a clinic-referral arrangement — recurring, and aligned with the champion who introduced it. Trap. Defaulting to "we'll charge a subscription" without asking whether the customer experiences value continuously or just once.
+
+Step 16 — Set Your Pricing Framework
+What it means. Price against the quantified value (Step 8) and the customer's alternatives — capturing a fair fraction of value created, not cost-plus. Consider early-customer, and champion economics. For a Foundry venture. Anchor price to the value number you can defend, and keep it legible; opaque pricing corrodes the trust that consent-based GTM runs on. Example. Priced as a fraction of "two weeks faster, lower re-injury risk," well under the cost of a re-tear — a number the persona accepts without a spreadsheet. Trap. Cost-plus pricing, which ignores value entirely and usually leaves most of it on the table.
+
+Step 17 — Calculate Lifetime Value (LTV)
+What it means. The total profit from an average customer over the relationship — from revenue, margin, retention, and expansion, discounted for time. For a Foundry venture. LTV is the ceiling on what you can spend to acquire a customer. Retention is the biggest lever, so the "boring middle" (onboarding, habit) is an economic decision, not just UX. Example. Subscription margin × expected months retained + any referral/expansion value → a defensible per-customer LTV. Trap. Inflating LTV with a fantasy retention curve. Use evidence; a hopeful churn rate hides a broken model.
+
+Step 18 — Map the Sales Process
+What it means. Design how you'll actually sell across the venture's life — the short-term (founder-led, high-touch), medium-term, and long-term (self-serve, channel) motions — and the cost of each. For a Foundry venture. Early on the sales process is largely approved sends and honest conversations; later it's more automated. Each stage still ends at the same gate — nothing ships to a human without a yes. Example. Phase 1: founder + physio champions, hand-approved sends. Phase 2: templated opt-in journeys. Phase 3: clinic self-serve onboarding. Trap. Assuming the cheap, scalable channel works from day one. Early sales are expensive and manual on purpose — that's how you learn.
+
+Step 19 — Calculate the Cost of Customer Acquisition (COCA)
+What it means. The fully-loaded cost to acquire one customer over time — all sales and marketing spend divided by customers won — and crucially, how it falls as the motion matures. For a Foundry venture. Interest-based acquisition should drive COCA down structurally: reaching people who already want the thing is cheaper than interrupting people who don't. Prove that, and the engine works. Example. High COCA in the founder-led phase, dropping sharply as champion referrals and opt-in journeys compound. Trap. The venture-killer: COCA ≥ LTV. If it costs more to win a customer than they're worth, no amount of growth saves you — fix the model before you scale it.
+
+← DE · How does your customer acquire your product?
+DE · How do you design and build your product? →
+
+← Playbook
+
+Disciplined Entrepreneurship (Bill Aulet). Our own application of Aulet's method. Steps 20–23.
+
+Everything so far is a well-reasoned hypothesis. This question turns it into evidence — cheaply, before you over-build. It's also where Foundry's speed advantage is real: because the lanes can build and revise fast behind the gate, you can run more honest experiments per week than a traditional team, as long as you're testing the risky things and not polishing the safe ones.
+
+Step 20 — Identify Key Assumptions
+What it means. Extract the specific beliefs your plan depends on — the ones that, if wrong, sink the venture — and isolate them from the things you already know. For a Foundry venture. Write them as a list in the repo; each becomes a testable ticket. Rank by "how fatal if false" × "how unsure am I," and attack the top of that list first. Example. "Physios will introduce us," "patients will do a daily plan for 8 weeks," "guidance measurably lowers re-injury" — each a load-bearing assumption. Trap. Testing the assumptions that are easy or flattering to test instead of the ones that would hurt most if false.
+
+Step 21 — Test Key Assumptions
+What it means. Design the cheapest experiment that could disprove each assumption, and run it. The goal is truth fast, not confirmation. For a Foundry venture. Lanes stand up landing pages, opt-in tests, concierge prototypes, and fake-door tests quickly — but any experiment that touches a real person (a send, a sign-up) still passes the approval gate. Fast to build, still consent-first to release. Example. A single approved opt-in send to one clinic's list: do patients actually click to start? One real signal beats a month of opinion. Trap. Running experiments that can only succeed. If a test can't come back "no," it isn't a test.
+
+Step 22 — Define the Minimum Viable Business Product (MVBP)
+What it means. The smallest thing that (a) delivers real value, (b) the customer pays for, and (c) starts your feedback loop. Note "business" — it must transact, not just demo. For a Foundry venture. Scope the MVBP as a tight set of tickets aimed only at the value prop (Step 8). Everything not required to deliver and charge for that value is deferred to a follow-up ticket. Example. One guided rehab plan, a paywall after the free week, and a progress signal the physio can see — nothing else, but a real paid loop. Trap. Confusing an MVP demo with an MVBP. If no money changes hands, you haven't tested the business.
+
+Step 23 — Show That "The Dogs Will Eat the Dog Food"
+What it means. Prove real customers actually adopt, use, and keep paying — behaviour, not surveys. The metaphor is blunt on purpose: it doesn't matter how good the food is if the dogs won't eat it. For a Foundry venture. Instrument the full life-cycle use case (Step 6) and watch the cohort: activation, week-4 retention, renewal. The studio's activity and health feeds make this real usage visible, not anecdotal. Example. Of the first cohort, do they finish week 4 and renew? Sustained use and repeat payment is the proof; praise isn't. Trap. Declaring victory on sign-ups. Acquisition is easy to fake; retention is the honest signal.
+
+← DE · How do you make money?
+DE · How do you scale your business? →
+
+← Playbook
+
+Disciplined Entrepreneurship (Bill Aulet). Our own application of Aulet's method. Step 24 and the move beyond the beachhead.
+
+The final question only earns its place once the first five are answered with evidence. Scaling is what you do after the dogs eat the dog food — expanding deliberately from a beachhead you actually own, using the follow-on map you sketched in Step 14. Scale a broken model and you just lose money faster; scale a proven one and the earlier discipline compounds.
+
+Step 24 — Develop a Product Plan
+What it means. Lay out how the product evolves beyond the MVBP: the sequence of markets and capabilities that takes you from the beachhead into the adjacent opportunities, prioritised and staged. For a Foundry venture. The plan becomes a roadmap of tickets across lanes — but it stays a plan: you advance to the next market only when the current one is genuinely won (retention and unit economics, not hope). Each new market re-runs the earlier questions in miniature; it doesn't get to skip them. Example. Beachhead: post-op recovery, proven. Next: chronic-pain management (same Core dataset, new persona) → clinic-side analytics → elite-sport recovery — each entered only after the prior cohort holds. Trap. Scaling on vanity. Adding markets or features while the beachhead's retention is unproven multiplies the leak instead of the value — premature scaling is the classic way a promising venture dies.
+
+Where the two frameworks meet
+Disciplined Entrepreneurship gets you to a proven, profitable beachhead. What keeps that from eroding as competitors notice is a durable advantage — a Power. The Core you named in Step 10 is the seed; the next sections (Moats — the seven powers, and the deep breakdown that follows) are how a Foundry venture turns that seed into something that lasts. Build the business with DE; defend it with the 7 Powers.
+
+← Playbook
+
+Moats — the seven powers
+Adapted from Hamilton Helmer's 7 Powers. Helmer's insight is simple and unforgiving: strategy is the study of what makes a business durably valuable. Not "valuable today" — durable. A power is present only when it has two halves at once:
+
+a Benefit — it lets you charge more, or cost less, or both; and
+a Barrier — a reason your competitors can't or won't copy it, even though they can see it.
+A benefit without a barrier is a nice quarter, then a price war. Foundry ventures are small and co-created, so we can't out-spend anyone. We win by building barriers early and on purpose. Here are the seven, with where in a venture's life you can actually build each.
+
+The seven
+Scale economies — your cost per unit falls as you get bigger, faster than a rival can match. Buildable late, once you have volume. Rarely a startup's first power; don't kid yourself here early.
+
+Network economies — the product gets more valuable to each user as more users join. Build the conditions early (make sharing and connection native), harvest late. The barrier is brutal for latecomers: they'd have to move the whole network at once.
+
+Counter-positioning — you adopt a new model the incumbent can't copy without damaging their existing business. A startup's best early power. Bruntsfield's co-creation model — agents doing the operational work a traditional agency bills by the hour — is counter-positioning: the incumbent can't match the price without cannibalising their own economics.
+
+Switching costs — once a customer is in, leaving is expensive (data, integration, retraining, risk). Build from the first version by embedding into the customer's real workflow, not bolting on beside it.
+
+Branding — the customer pays more, or trusts faster, because of what your name means. Compounds slowly, from day one. Every honest interaction is a deposit; every over-claim is a withdrawal. This is why the studio's rule is fail loud, surface everything — trust is a moat and it's fragile.
+
+Cornered resource — you have preferential access to something rivals don't: a person, a dataset, a relationship, a right. Foundry's is structural — the founder is a genuine domain insider co-building with us, and the ventures share a substrate (gbrain memory, the contracts, the studio) no single founder could build alone.
+
+Process power — your organisation does something complex better than others can, and it can't be bought or copied quickly because it's embedded in how you work. The studio itself is process power in the making: one-ticket-one-branch, adversarial review, the approval matrix — a way of shipping that a competitor would have to rebuild their whole culture to match.
+
+How to use this
+At each stage of the build arc, ask: which power am I building toward, and does this next move deposit into it or spend it? A venture with no answer is running on the treadmill — growing revenue and defending nothing. Pick your power early (usually counter-positioning or switching costs for a young venture), and let every other chapter serve it.
+
+The moat is not a chapter you do once. It's the lens you hold over every other decision.
+
+← DE · How do you scale your business?
+The seven powers, in depth →
+
+
+← Playbook
+
+7 Powers: The Foundations of Business Strategy (Hamilton Helmer). Our own explanation and application of Helmer's framework — not a reproduction of the book. Deep companion to Moats — the seven powers.
+
+Helmer's definition is exacting: Power is a condition that creates sustained differential returns — the ability to earn more than your cost of capital, and to keep it, because competitors can't arbitrage the advantage away. Every Power has two inseparable parts:
+
+Benefit — it improves cash flow: higher prices, lower costs, or less capital required.
+Barrier — the reason a competitor can't or won't copy the benefit away. The benefit is the easy half; the barrier is the strategy. A benefit without a barrier is just a nice quarter.
+Helmer also insists Power is dynamic: each Power can only be established during a particular window of a business's life — Origination, Takeoff, or Stability. Miss the window and the door often closes. For a Foundry venture, that turns strategy into timing: name the Power you're building (it starts as the Core from DE Step 10), and build it while it's still buildable.
+
+1. Scale Economies
+Benefit. Unit costs fall as volume rises — you can profitably price where a smaller rival can't. Barrier. A challenger would have to match your scale to match your costs, and the cost of buying that share is prohibitive. When buildable. Takeoff — as volume compounds during rapid growth. How a venture earns it. Concentrate on the beachhead until you're the volume leader in it; design fixed costs (content, model, infrastructure) that spread across a growing base rather than recur per customer.
+
+2. Network Economies
+Benefit. The product becomes more valuable to each user as the installed base grows. Barrier. A new entrant is stuck at low value with few users while you compound — the gap widens, not narrows. When buildable. Takeoff — network value accelerates with the user base. How a venture earns it. Build in a reason users benefit from each other (shared data, matching, community). Interest-based GTM helps: each satisfied cohort recruits the next, feeding the network honestly.
+
+3. Counter-Positioning
+Benefit. You adopt a superior business model the incumbent can't follow without damaging its existing business. Barrier. Collateral damage — copying you would cannibalise the incumbent's profits, so its own board rationally refuses. Its strength becomes its cage. When buildable. Origination — it's the newcomer's founding move, chosen at the start. How a venture earns it. Design the model so success hurts the incumbent to imitate — a pricing, distribution, or consent-first motion that their legacy economics won't let them match. This is often a small venture's single best weapon against a large one.
+
+4. Switching Costs
+Benefit. Customers pay more to stay than a rival would have to charge to lure them, because leaving is costly. Barrier. To win your customer, a competitor must compensate for that switching cost on top of matching you — often uneconomic. When buildable. Takeoff — the barrier is set as customers embed data, habits, and integrations during growth. How a venture earns it. Let customers invest in the product over time (their history, configuration, outcomes) so it grows more theirs — earned through delivered value, never hostage-taking.
+
+5. Branding
+Benefit. A higher willingness to pay for an objectively identical offering, because your name carries trust or affect. Barrier. Reputation is built only over years of consistent delivery — a competitor can't buy the history. When buildable. Stability — the work starts at founding, but the barrier is real only after sustained years of consistent delivery. How a venture earns it. Be relentlessly consistent on the promise the persona cares about; for a consent-first venture, brand is the accumulated trust of every honest, approved interaction. One bad send spends years of it.
+
+6. Cornered Resource
+Benefit. Preferential access to a coveted resource — data, talent, a license, a supply — on terms others can't get. Barrier. Exclusive control: a patent, an exclusive agreement, or a genuinely scarce asset others simply can't obtain. When buildable. Origination — usually secured at or near founding. How a venture earns it. Lock in the scarce thing early. For a Foundry venture the Cornered Resource is often a proprietary dataset or partnership (the DE Step 10 Core) secured before competitors know the market exists.
+
+7. Process Power
+Benefit. Lower cost and/or better product from organisational processes competitors can't replicate. Barrier. Hysteresis — the processes are complex, tacit, and improved over so long that copying them takes years even if fully visible. When buildable. Stability — it emerges only through sustained operational refinement. How a venture earns it. This is the long game, and where Foundry's substrate helps: the lanes, gstack's plan-review-ship discipline, and gbrain's accumulating memory are a process that compounds — each venture inherits a maturing operating machine rather than reinventing one.
+
+Using this
+You don't need all seven — you need one, deliberately built while its window is open, defending a business you've already proven with Disciplined Entrepreneurship. Name your intended Power early, and let it tell the lanes what to deepen and protect. Value you can't defend is a treadmill; a Power is how a Foundry venture steps off it.
+
+← Moats — the seven powers
+Selling — interest, not interruption →
+
+← Playbook
+
+Selling — interest, not interruption
+Most startup selling advice is about volume: more outreach, more cold email, more "top of funnel." Foundry ventures reject that — not only because it's low-yield, but because we ratified a stance (docs/research-gtm.md): agents email only people who have signalled interest. Cold outreach is de-scoped entirely. That is a legal position (consent / soft opt-in under PECR and GDPR) and a strategic one: selling to demand you created beats manufacturing attention you didn't.
+
+The principle
+You are not trying to convince strangers. You are trying to be ready and specific for the people who already raised a hand — an ad response, a waitlist signup, an enquiry, an event registration. Everything below serves that.
+
+The path
+Create a reason to raise a hand. Content, a useful free thing, a sharp point of view — the "soft introduction" this playbook itself models. Interest is the top of a Foundry funnel because consent is the only lawful and durable entry.
+Classify every contact by interest source. Who they are, what they signalled, the lawful basis. This isn't bureaucracy — it's the difference between a personal reply and spam, and it's recorded as an approval event.
+Reply like a human, because it is one. 1:1 replies to flagged interest go from the founder's venture-domain address, agent-drafted, human-gated. They should read like the founder wrote them at their desk — because the founder approved them, and the identity is genuinely theirs.
+Separate the streams. Personal 1:1 replies use the primary domain. Bulk, lifecycle, and newsletter sends go from a dedicated subdomain (mail.<venture>.com) so the apex domain's reputation is never exposed to volume. SPF/DKIM/DMARC from day one.
+Gate every external send. Nothing leaves without a recorded human approval: recipient classification, lawful basis, suppression check, the exact draft, the approver, the timestamp, the sending identity. In the studio this is the attention queue and (from Phase 4) the ActiveGraph gate.
+Why this is also the better strategy
+Consent-first selling isn't a compliance tax — it's a moat. It forces you to earn genuine demand (branding, cornered relationships), it keeps your sending reputation clean (a real asset), and it makes every venture's GTM auditable by construction. The audit log is the accountability record regulators want, produced as a side effect of doing it right.
+
+The best outreach is the reply you were ready to send the moment someone asked.
+
+← The seven powers, in depth
+How we run a venture →
+
+← Playbook
+
+How we run a venture
+The chapters above are what to do. This is the machine that does it — the operating model a founder signs into. It exists so a company can be run day to day without a laptop or a terminal, while a human always stays in charge of anything that matters.
+
+One venture, one box, one source of truth
+One VPS per venture (Hetzner) runs the workshop stack — agent lanes in tmux, doing the actual work. Isolated by construction: a venture's secrets never share a box, and a scoped session can never reach another venture's data.
+Git is the source of truth. Work items are markdown tickets in the venture repo; the studio is a view and write-path over git via the GitHub API, not a competing database. Everything a lane does becomes a branch, a PR, a commit — legible, reversible, auditable.
+The studio is the pane of glass. It reads that git state and renders it: the venture's lanes and ticket queues, the attention queue of work awaiting a human, CI and lane health with staleness flags so silent failure is impossible to miss.
+The rules that make it safe
+One ticket = one branch = one PR. Small, reviewable units. No "while I was in there."
+Never self-merge. Engineering changes gate on review; external actions (email, social, CRM, payments) gate on a recorded human approval. Nothing external ever executes without a human's yes.
+The approval matrix (per venture). Two humans hold authority — the founder (product) and Bruntsfield (platform/infra/security) — with dual approval for the high-blast-radius list (migrations, auth, payments, secrets, external sends). The attention queue routes each item to the right approver.
+Fail loud. A founder blocked at 22:00 must see why in the studio — run reports, staleness, and failure states in plain language, never swallowed.
+Where this is going
+Today the studio is read-only — it shows you the truth. Next it gains a write path (file work from the studio, agents that wake on a schedule without SSH), then a founder experience layer (a conversational composer, in-studio approvals, context and library the whole venture can read). SSH to the box stays available to founder and John — the power path, never the required path.
+
+The through-line: the human decides; the machine does the work; git remembers everything. That's the moat you can't buy — process power, built into how we run.
+
+← Selling — interest, not interruption
+Sign in to the studio →

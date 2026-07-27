@@ -1,0 +1,371 @@
+00:03:40	Sean Buck:	Reacted to "No promises" with 😂
+00:07:44	Sumeet:	Don't MCPs like content7 make the Archon v1 strategy somewhat dated/not as relevant now?
+00:08:32	Sumeet:	*context7
+00:09:50	Sumeet:	makes sense thanks
+00:11:35	Mike Schirtzinger:	This looks slick!
+00:11:47	Joseph hanson:	This is amazing
+00:11:47	Jeffry Milan:	Its a MCP tool in steroids
+00:11:53	Philippe Razmadze:	❤️‍🔥
+00:12:05	Sandeep Junaghare:	Wow very neat !!
+00:12:36	Robert E. Lee:	Curious to try it with open web ui
+00:12:58	Kiran Yadalla:	Looks awesome off the bat!  Can we also get a brief intro to Sean’s background and also the challenges encountered in completing v2?  Just trying to gauge my own capabilities in being able to do such implementations.
+00:13:07	Jeffry Milan:	Please make it extensible where can add our own MCP
+00:13:17	Mike Lydick:	@Sean Buck I saw this and it was interesting, its an optimize approach compared to Context7 to help reduce context bloatref-tools/ref-tools-mcp: An MCP server to stop hallucinations with lightning fast and token efficient search over public and private documentation.
+00:13:42	Joseph hanson:	Love the UI, nice work!
+00:13:45	Darrell Fraser:	Love the styling you used.
+00:14:19	bidi:	this looks amazing ! (visually and capabilities wise)
+00:14:39	Fausto:	Reacted to "Love the styling y..." with ➕
+00:15:11	Robert E. Lee:	Can it integrate with Taiga?
+00:15:12	bidi:	please show the table instead or board plz
+00:15:15	Robert E. Lee:	that would be amazing
+00:15:23	Jay Reid:	Reacted to "Love the styling you..." with ➕
+00:15:53	Chris:	😲
+00:16:34	Cole Medin:	Reacted to "this looks amazing..." with ❤️
+00:16:38	Cole Medin:	Reacted to "Love the styling y..." with ➕
+00:16:40	Cole Medin:	Reacted to "Love the UI, nice ..." with ❤️
+00:16:41	Mike Lydick:	yes, very good, Agile approach
+00:16:55	bidi:	very nice, thanks a lot
+00:17:23	Robert E. Lee:	because it's integrated with claude, does that imply that claude-flow would automagically pair with this too?
+00:18:14	Josh Coleman:	Automagically needs to make it into my daily vocab just saying
+00:18:24	Ty Wells:	Give me a one liner to describe what Archon is
+00:18:26	Sean Buck:	Reacted to "Automagically needs ..." with 👍
+00:18:48	Joseph hanson:	🤯
+00:18:48	Leex279 (Thomas):	does it handle delays/timeouts etc. properly or is it the same as in crawl4ai-mcp still? (I tried Yesterday with a huge amount of Domains and it got stuck, got Errors and Maybe got banned from the Servers 😄 )
+00:18:48	Tom Schreck:	Just joined the conversation.  The UI is awesome
+00:18:48	Sumeet:	very cool
+00:18:50	Chris:	Thats so sick!
+00:19:10	cristobalcallejongarcia:	👌🏼
+00:19:13	kris kutayiah:	Very clean ❤️
+00:19:19	Kaushik:	very cool
+00:19:37	Robert E. Lee:	I've been meaning for some time to replace regex search in agidreams.us with natural language questions + rag.... this might be my weekend project :)
+00:20:09	Mike Schirtzinger:	Replying to "@Sean Buck I saw thi..."
+
+Ref is pretty nice, I just recently found it. You might also be interested in Serena. It attempts an agentic rag approach to limit the context sent to your llm.https://github.com/oraios/serena
+00:20:19	Cole Medin:	Reacted to "Very clean ❤️" with ❤️
+00:20:21	Cole Medin:	Reacted to "very cool" with ❤️
+00:20:23	Cole Medin:	Reacted to "I've been meaning ..." with 👍
+00:20:29	Cole Medin:	Reacted to "Just joined the co..." with 🙌
+00:20:42	Jose M Lopes:	Could this replace supabase?
+00:21:10	Benedikt Glaß:	Looks great, and happy to see this live and try it out.
+
+I saw the other day that Linear also provides a MCP, I haven’t tried it out yet, but I thought it would be similar in terms of Project Management and seeing Claude Code doing its things. Any thoughts or experiences?
+00:21:15	Chad Owens:	Will it integrate with Warp’s new CLI
+00:23:21	markkobe:	Demo please
+00:23:30	Robert E. Lee:	+1 (I'm a product manager by trade -- you're nailing it)
+00:23:50	Brian Gildea:	How feasible is it to use a local model for the embeddings on average hardware? I kind of hate the idea of paying an API call for all RAG, but maybe its less expensive than the regular chat completion calls. Curious what you guys are using on the reg.
+00:24:15	Sean Buck:	Replying to "Could this replace s..."
+
+No it uses Supabase
+00:24:20	Ty Wells:	thank you Sean
+00:24:28	Jose M Lopes:	Reacted to "No it uses Supabase" with 👌
+00:24:29	Ty Wells:	for the background
+00:25:06	Sean Buck:	Reacted to "+1 (I'm a product ma..." with ❤️
+00:25:10	Sean Buck:	Reacted to "thank you Sean" with ❤️
+00:25:29	Ty Wells:	When will it be ready for us to use?
+00:25:41	Joe Fajen:	This looks mind-blowing
+00:25:45	Kaushik:	I was wandering about the PRP
+00:26:00	Joseph hanson:	Replying to "When will it be read..."
+
+available for alpha test now, beta next month
+00:26:17	Jay Reid:	Reacted to "I was wandering abou..." with 🧐
+00:26:43	Pat Shanks:	If we are using local supabase what would be the recommendation for using Archon and the AI Agent Mastery. Same or separate db?
+00:27:12	Renata Baldissara-Kunnela:	So what you are saying is that we can use Archon to create AI agents and multi - agents, but how can we deploy, would be possible if not today some other day go through it and make it how would use it to create agents that we can sell?
+00:27:40	Ty Wells:	Reacted to "available for alpha ..." with 👍
+00:27:56	bidi:	(now I get it, sean's background is archon-themed ;)
+00:28:15	Fausto:	Can we connect it also to roo and kilo code?
+00:28:18	Kaushik:	bold to do that just before demo
+00:28:28	pierr:	Reacted to "(now I get it, sean'..." with 😂
+00:28:29	Jay Reid:	Reacted to "bold to do that just..." with 😂
+00:28:56	JRL:	No risk. We’re all family
+00:29:03	Kiran Yadalla:	Reacted to "No risk. We’re all f..." with 👍
+00:29:05	Jay Reid:	Reacted to "No risk. We’re all f..." with 👍
+00:29:07	Joseph hanson:	Replying to "Can we connect it al..."
+
+it's an MCP, so yeah
+00:29:10	Kiran Yadalla:	Reacted to "bold to do that just..." with 😃
+00:29:19	Sean Buck:	Reacted to "bold to do that just..." with 😂
+00:29:23	Joseph hanson:	Reacted to "bold to do that just..." with 😂
+00:29:25	Sean Buck:	Reacted to "No risk. We’re all f..." with ❤️
+00:29:36	Kaushik:	Reacted to "No risk. We’re all f..." with ❤️
+00:29:37	Sean Buck:	Reacted to "(now I get it, sean'..." with 😂
+00:29:40	Tudor Purcarelu:	Reacted to "No risk. We’re all f..." with ❤️
+00:29:50	Josh Coleman:	Replying to "If we are using loca..."
+
+I don’t know this for a fact, but remember you can basically use postgress connection with pgvector to connect to supabase the same way you would if it was cloud. You just use the connect string (direct/session/transaction, etc) instead of the project url and secret key.
+00:30:03	Sean Buck:	Reacted to "I don’t know this fo..." with 👍
+00:30:21	Mike Schirtzinger:	Well with the release of Claude sub-agents they are probably struggling to keep up with the demand. A ton of their users are basically testing out a multiplier
+00:31:15	Joseph hanson:	❤️‍🔥❤️‍🔥
+00:31:26	Renata Baldissara-Kunnela:	beautiful
+00:31:26	Fausto:	beautiful
+00:31:31	Chris:	Insane!
+00:31:31	augus:	this is really damn cool
+00:31:33	Fausto:	Reacted to "beautiful" with 😍
+00:31:38	Sean Buck:	Reacted to "this is really damn ..." with ❤️
+00:31:42	Sean Buck:	Reacted to "beautiful" with ❤️
+00:31:47	Sean Buck:	Reacted to "beautiful" with ❤️
+00:31:48	EWG:	Can you pause the entire process right now?
+00:31:53	Sean Buck:	Reacted to "❤️‍🔥❤️‍🔥" with ❤️
+00:32:03	Brian Gildea:	Is the project state managed in supabase?
+00:32:10	bidi:	what are the numbers next to the tags in the tasks ?
+00:32:26	markkobe:	How do you control progress across the kanban
+00:32:37	Kiran Yadalla:	Are there task dependencies?  That is, complete one before starting another?
+00:32:51	Renata Baldissara-Kunnela:	What if I have a another database, my own graph database, can I plug this in Archon?
+00:32:58	Darrell Fraser:	🤯
+00:32:59	markkobe:	can you rollback tasks
+00:33:21	Benedikt Glaß:	Any Idea of Including Acceptance criteria in the tasks to evaluate itself (as you have evaluation and testing in the PRP already)?
+00:33:32	Kiran Yadalla:	Reacted to "Any Idea of Includin..." with 👍
+00:33:48	Alex Leonov:	Are there docs on the PRP framework in the dynamous community resources? Not sure if that was added yet.
+00:34:26	Kaushik:	Can we retrieve a task from R-Con to Claud
+00:34:37	Josh Coleman:	Replying to "Are there docs on th..."
+
+A ton - just make sure you get access.
+00:35:58	Chris:	Dude @Sean Buck I was thinking the same exact thing “not having to remind Claude what is going on, find out what happened when I wasn’t looking, and continually refine the .md file and ask it to be ready first.
+
+👏👏👏👏👏👏👏👏👏👏👏👏👏
+00:36:06	Cole Medin:	Reacted to "Dude @Sean Buck I ..." with 🙌
+00:36:06	Joseph hanson:	Where do we contribute?
+00:36:40	Thomas Crespin:	So nice ! Would it be possible to enhance prp with Tunnel / sub Tunnels in order to separate prp by tunnels / subtunnels (Main prp sub prp's) that would enable parrallel dev for PRP. (If no dependancies, not same tunnel = parrallel … )
+00:36:42	Jeffry Milan:	New Tron movies coming
+00:36:43	Cole Medin:	Replying to "Where do we contri..."
+
+More on that soon - going to do a public beta release with the official GitHub for Archon! Then we'll be open for PRs and issues
+00:36:47	Mike Lydick:	TRON!!!
+00:36:50	Darrell Fraser:	Reacted to "TRON!!!" with 👍
+00:36:53	Darrell Fraser:	Reacted to "New Tron movies comi..." with 👍
+00:36:54	Kaushik:	Reacted to "TRON!!!" with 👍
+00:36:58	Jay Reid:	Reacted to "TRON!!!" with 👍
+00:37:00	Cole Medin:	Reacted to "available for alph..." with 👍
+00:37:02	Joseph hanson:	Reacted to "More on that soon - ..." with 🤘
+00:37:03	Cole Medin:	Reacted to "+1 (I'm a product ..." with ❤️
+00:37:08	Mike Schirtzinger:	Reacted to "More on that soon - ..." with 🤘
+00:37:21	Cole Medin:	Reacted to "I don’t know this..." with 👍
+00:37:34	Cole Medin:	Reacted to "it's an MCP, so ye..." with 👍
+00:37:37	Cole Medin:	Reacted to "No risk. We’re al..." with 👍
+00:37:37	Cole Medin:	Reacted to "No risk. We’re al..." with ❤️
+00:37:40	Jeffry Milan:	This is really awesome MCP context engineering platform
+00:37:42	Cole Medin:	Reacted to "Well with the rele..." with 👍
+00:37:44	Mike Lydick:	nice flash card implementation
+00:37:45	wayne:	Hey guys! Great effort on this! Did y'all know about OpenMemory from Mem0? I was thinking if y'all can integrate that into Archon for more subtle memory capabilities, such as for user preferences, business preferences etc
+00:37:45	Cole Medin:	Reacted to "this is really dam..." with ❤️
+00:37:46	Cole Medin:	Reacted to "beautiful" with ❤️
+00:37:46	Cole Medin:	Reacted to "beautiful" with ❤️
+00:37:48	Cole Medin:	Reacted to "Insane!" with ❤️
+00:37:50	Sebastian:	mind blown!!
+00:37:53	Cole Medin:	Replying to "Is the project sta..."
+
+Yep!
+00:37:58	kris kutayiah:	Reacted to "This is really aweso…" with 👍
+00:38:00	Fausto:	Reacted to "TRON!!!" with 👍
+00:38:05	Jay Reid:	Reacted to "This is really aweso..." with 👍
+00:38:19	Cole Medin:	Replying to "Can you pause the ..."
+
+Yep you can interrupt the AI coding assistant whenever you want and just pick up where you left off with the Archon tasks when you continue
+00:38:28	Cole Medin:	Replying to "what are the numbe..."
+
+That's priority!
+00:38:44	Cole Medin:	Replying to "can you rollback t..."
+
+Not yet but that would be awesome
+00:38:57	Cole Medin:	Reacted to "A ton - just make ..." with ❤️
+00:39:03	Cole Medin:	Reacted to "TRON!!!" with 👍
+00:39:03	Cole Medin:	Reacted to "New Tron movies co..." with 👍
+00:39:09	Cole Medin:	Reacted to "mind blown!!" with 🙌
+00:39:34	Jay Reid:	Replying to "Can you pause the en..."
+
+...via the coding assistant proper (i.e.: in Claude Code, not the Archon UI, for example)
+00:39:39	Cole Medin:	Replying to "Hey guys! Great ef..."
+
+I have gotten a lot of requests to implement memory into Archon so it is on my radar! OpenMemory is pretty awesome too
+00:40:18	Benedikt Glaß:	What do you use to handle background tasks?
+00:40:24	Fausto:	Reacted to "it's an MCP, so ye..." with 👌
+00:40:52	wayne:	Reacted to I have gotten a lot ... with "❤️"
+00:40:57	Jeffry Milan:	Can this be deployed in Kubernetes like a deployment or multi container working together for UI to make responsive when you have a huge project?
+00:40:57	wayne:	Replying to "Hey guys! Great effo..." 
+
+ Awesome!!!
+00:41:07	Thomas Crespin:	each on a tree
+00:41:09	Jay Reid:	Reacted to "Not yet but that wou..." with 💯
+00:41:11	Cole Medin:	Reacted to "So nice ! Would it..." with 👍
+00:41:16	Cole Medin:	Reacted to "Awesome!!!" with 👍
+00:41:33	Cole Medin:	Replying to "each on a tree"
+
+Right!
+00:41:33	Thomas Crespin:	thanks for your taking this one
+00:41:38	Cole Medin:	Reacted to "thanks for your ta..." with 👍
+00:41:39	Tom Schreck:	How do you handle  multiple agents working on same project?  Are each of the agents working in different branches?
+00:41:45	Jay Reid:	Reacted to "I have gotten a lot ..." with ❤️
+00:42:08	Mike Lydick:	can it leverage memory # in claude code, the thought is collecting patterns to be applied to rules and hooks
+00:42:40	Eric Soriano:	What tech stack is used for the UI?
+00:42:55	Jay Reid:	Replying to "can it leverage memo..."
+
+Like work trees?
+00:43:29	Kiran Yadalla:	Reacted to "What tech stack is u..." with 👍
+00:43:32	kris kutayiah:	Reacted to "What tech stack is u…" with 👍
+00:43:42	Robert E. Lee:	hmm, I might just replace Taiga with archon
+00:43:54	Fausto:	Replying to "What tech stack is..."
+
+react
+00:44:01	Cole Medin:	Reacted to "hmm, I might just ..." with 🙌
+00:44:15	Sandeep Junaghare:	Thank you Thank you Sean.
+00:45:10	Mike Lydick:	Replying to "can it leverage memo..."
+
+@Jay Reid well that too, but more capturing things that work or don't work so we can optimize work follows on the next project
+00:45:11	Kiran Yadalla:	Sean, love your perspective and contribution, inspirational!
+00:45:27	Renata Baldissara-Kunnela:	Do you have one example of project like this one that you have that we can have to check how it was done and try to replicate?
+00:45:42	Thomas Crespin:	Reacted to "Do you have one exam..." with 👍
+00:45:47	Darrell Fraser:	Reacted to "Sean, love your pers..." with 👍
+00:45:51	Cole Medin:	Reacted to "Sean, love your pe..." with 👍
+00:46:04	Jay Reid:	Archon for all, by all! <3
+00:46:13	Jose M Lopes:	Reacted to "Archon for all, by a…" with ❤️
+00:46:14	Kaushik:	Reacted to "Archon for all, by a..." with ❤️
+00:46:46	James Whitfield:	AMAZING work @Sean Buck & @Cole Medin
+00:46:50	Joseph hanson:	finally built, checking it out now :)
+00:46:52	Brian Gildea:	How feasible is it to use a local model for the embeddings on average hardware? I kind of hate the idea of paying an API call for all RAG, but maybe its less expensive than the regular chat completion calls. Curious what you guys are using on the reg.
+00:46:55	Mike Schirtzinger:	Can you go into the communication between the Archon mcp and claude code when you make an edit to a task?
+00:47:20	Mike Lydick:	I really like these views, I already have a project inflight that could leverage
+00:47:27	Fausto:	Settings looks 💥💥💥
+00:47:31	Jay Reid:	Reacted to "@Jay Reid well that ..." with 👍
+00:47:33	Cole Medin:	Reacted to "AMAZING work @Sean..." with ❤️
+00:47:34	Cole Medin:	Reacted to "Archon for all, by..." with ❤️
+00:47:38	Cole Medin:	Reacted to "finally built, che..." with ❤️
+00:47:42	Jay Reid:	Reacted to "Sean, love your pers..." with 👍
+00:47:57	Mike Lydick:	Can you add Infisical to encrypt the keys
+00:47:59	Joe Fajen:	Can you talk a little bit more about common use cases for Archon? From the highest level, just to help me crystallize how I can use this mind-blowing tool? What use cases would NOT make sense? What are the outer boundaries where you should look for different tools? This looks amazingly useful.
+00:48:06	Jay Reid:	Reacted to "finally built, check..." with ❤️
+00:48:43	Jeffry Milan:	This is awesome, making every coding best practice added in one platform 👏
+00:49:01	Jose M Lopes:	Reacted to "AMAZING work @Sean B…" with ❤️
+00:49:43	Jose M Lopes:	How do you envision we’d be able to collaborate as a community?
+00:50:05	Cole Medin:	Replying to "How do you handle ..."
+
+yes different branches generally, can use worktrees as well
+00:50:07	Eric Soriano:	Replying to "What tech stack is u..."
+
+Thanks @Fausto . Do you know the CSS component framework used? I haven’t seen the code base yet. I’m very interested to know.
+00:50:34	Cole Medin:	Replying to "can it leverage me..."
+
+That's something I definitely want to focus on more in the future! Though maybe since it is built into Claude Code it could already work?
+00:50:44	Cole Medin:	Replying to "can it leverage me..."
+
+Curious what exactly you have in mind
+00:50:50	Cole Medin:	Reacted to "What tech stack is..." with 👍
+00:51:01	Mike Lydick:	Shad/CN
+00:51:06	Mike Lydick:	Reacted to "Shad/CN" with 👍
+00:51:08	Jeffry Milan:	Super Chad 💪
+00:51:15	Cole Medin:	Reacted to "This is awesome, m..." with ❤️
+00:51:22	Cole Medin:	Reacted to "Settings looks 💥..." with 🙌
+00:51:27	Cole Medin:	Reacted to "I really like thes..." with 🙌
+00:51:38	Jay Reid:	Replying to "Super Chad 💪"
+
+Sounds very crypto! lol
+00:51:46	Thomas Crespin:	Perfect, actually using shadcn but with next.js...
+00:51:49	Kiran Yadalla:	Can you speak to how much time/effort you put into v2 (as you have many other initiatives going on)?  Wondering how PRPs and Claude Code helped you accelerate development and the issues you’ve had.
+
+You hit on what I also experienced with Claude Code tasks (hallucinations, getting lost on where it is, etc.) so then I scale back my request of Claude Code…slows down my progress but I think Archon v2 will help me there.
+00:52:43	Jay Reid:	Cole - I can't believe you've been hiding Sean in the dungeon for this long!
+00:52:52	Tom Schreck:	Thank you Cole and Sean.  Fantastic job!!
+00:52:53	Kiran Yadalla:	Reacted to "Cole - I can't belie..." with 😂
+00:52:54	Cole Medin:	Reacted to "Cole - I can't bel..." with 🤣
+00:52:56	kris kutayiah:	Looks like 700 hrs of work, great job
+00:52:59	Joseph hanson:	100% feel ya Sean, adhd/anxiety. It's hard to release something.
+00:53:09	Sandeep Junaghare:	Reacted to "Cole - I can't belie..." with 😂
+00:53:14	Tom B:	If you shift direction on a project will it capture that without needing to manually prompt the claude.md to be updated?
+00:53:23	Jay Reid:	Reacted to "Thank you Cole and S..." with 👍
+00:53:31	Scott Seaburn:	Replying to "@Sean Buck I saw thi..."
+
+Wow this is awesome!
+00:53:48	Cole Medin:	Reacted to "Thank you Cole and..." with 👍
+00:53:51	Chris:	Im so glad Im not the only one that does that. Sometimes with the ADHD thing I cant stop or let go because Its like having everything I learned in the last day erased
+00:53:57	Manoj Tewari:	This is really great !!
+00:54:01	Mike Lydick:	Reacted to "Ref is pretty nice, ..." with 👍
+00:54:07	Ty Wells:	I feel your pain Sean
+00:54:11	Jay Reid:	Reacted to "Im so glad Im not th..." with 😂
+00:54:12	Ty Wells:	There's never enough
+00:54:19	Thomas Crespin:	100% feel ya Sean, adhd/anxiety. It's hard to release Something have to release app.pensio.fr 1 st of september !! and can tell, ADHD makes me want it to be perfect, will be better thanks to you !! Many thanks !!
+00:54:21	Ty Wells:	hours in the day
+00:54:40	Cole Medin:	Reacted to "This is really gre..." with ❤️
+00:54:43	Cole Medin:	Reacted to "100% feel ya Sean,..." with ❤️
+00:54:51	Cole Medin:	Reacted to "hours in the day" with 👍
+00:55:06	Jeffry Milan:	How do you manage to stay fit when you work more than 8 hours a day? 🤯
+00:55:07	Tom Schreck:	When is Archon 2 available?
+00:55:11	James Whitfield:	🔥
+00:55:22	Renata Baldissara-Kunnela:	Would you be willing to sharing your knowledge on building UI and the struggles you get into make it better?
+00:55:27	Thomas Crespin:	YEAHHHHHHHH
+00:55:32	Kiran Yadalla:	What’s your feature roadmap looking like?  What’s next?
+00:55:32	David Melamed:	Where can we find it - the current archon repository is old
+00:55:35	Chris:	Okay , so the question I have for you is for you @Sean Buck and @Cole Medin is how do we get started please
+00:55:45	Alex Leonov:	This is sick. Can’t wait to try it and contribute.
+00:56:03	kris kutayiah:	Adding PRP 🤯
+00:56:12	Kiran Yadalla:	I’ll be trying it tonight!
+00:56:26	Renata Baldissara-Kunnela:	Where is the alpha project in dynamos folder in GitHub?
+00:56:34	Darrell Fraser:	Wow, absolutely blown away by this! Amazing work Sean and Cole, respect👊
+00:56:36	Sean Buck:	The link is in the live event… https://community.dynamous.ai/c/live-events/community-workshop-74a81b
+00:56:38	Eric Soriano:	@Sean Buck Thank you for sharing the UI tech stack you used.
+00:56:45	Sean Buck:	Reacted to "@Sean Buck Thank you..." with 👍
+00:56:54	Kiran Yadalla:	Reacted to "@Sean Buck Thank you..." with 👍
+00:57:03	Abdullah AlHyari:	I’m so impressed! It’s really mazing work gentlemen.
+00:57:08	Darrell Fraser:	Reacted to "@Sean Buck Thank you..." with 👍
+00:57:38	Kiran Yadalla:	Replying to "@Sean Buck Thank you..."
+
+…and your philosophy/experience that you baked in to UI/UX!
+00:57:47	Robert E. Lee:	sean - on linkedin?
+00:57:53	Sebastian:	i cant wait
+00:57:55	Cole Medin:	Reacted to "@Sean Buck Thank y..." with 👍
+00:58:10	Jay Reid:	Reacted to "The link is in the l..." with 🙏
+00:58:21	Renata Baldissara-Kunnela:	UI definitely but quantum physics not really :-)
+00:58:25	Jay Reid:	Reacted to "I’m so impressed! It..." with 💯
+00:58:33	Sean Buck:	Reacted to "UI definitely but qu..." with 😂
+00:58:33	markkobe:	Thanks Cole and Sean. Exciting!
+00:58:35	Billy:	Reacted to "UI definitely but ..." with 😂
+00:58:44	Chad Owens:	This is a super exciting project!! Love all of this!
+00:58:45	Jay Reid:	I thought 1hr workshops were now 90mins... hmmm...
+00:58:58	Sumeet:	thanks both, awesome project!
+00:58:58	Kiran Yadalla:	Reacted to "I thought 1hr worksh..." with 👍
+00:59:43	Jose M Lopes:	Looking forward to Aug 9
+00:59:49	Jay Reid:	Replying to "I thought 1hr worksh..."
+
+at least 90mins of value in this one!
+00:59:53	Cole Medin:	Reacted to "Looking forward to..." with ❤️
+01:00:00	Cole Medin:	Reacted to "thanks both, aweso..." with ❤️
+01:00:03	Cole Medin:	Reacted to "I thought 1hr work..." with 👍
+01:00:06	Thomas Crespin:	thanks both reeally nice can't wait to feeed archon with my project to orgnize tasks and context !
+01:00:13	Sebastian:	Thank you guys
+01:00:20	Joe Fajen:	W-O-W!! Amazing work Cole and Sean
+01:00:31	Benedikt Glaß:	Great work, thank you guys!
+01:00:31	Jay Reid:	Reacted to "Thank you guys" with 👍
+01:00:43	Eric Soriano:	Thank you Cole and Sean!
+01:00:47	Kaushik:	Great Job guys! this will help a lot
+01:01:17	Mike Schirtzinger:	Thanks again guys this looks great! Can't wait to help contribute!
+01:01:36	Kiran Yadalla:	Thank you Cole and Sean!!!
+01:01:37	Mike Lydick:	this rocks!!! thank you guys for giving us this
+01:01:53	EWG:	100% this community rocks!
+01:02:01	Jay Reid:	Can't thank you guys enough. Awesome demo and promise of the future of this space, which you guys are leading.
+01:02:03	Jeffry Milan:	Reacted to "100% this community ..." with 🫡
+01:02:15	pierr:	Dynamous will never cease to amaze me. First Rasmus now Sean, shoot. I never taught I could be that much valuable. We are so Lucky to have you guys. THX
+01:02:19	Chad Owens:	Agree 100!
+01:02:21	Renata Baldissara-Kunnela:	Thank you - please answer the questions I post in the chat when possible
+01:02:22	Jeffry Milan:	Awesome Demo @Cole Medin @Sean Buck appreciate it!
+01:02:25	Kiran Yadalla:	lol
+01:02:29	kris kutayiah:	Reacted to "Dynamous will never …" with 👍
+01:02:32	Bo Shipley:	We’re all better together!
+01:02:35	Joe Fajen:	Reacted to "Dynamous will never ..." with 👍
+01:02:41	Jay Reid:	Reacted to "We’re all better tog..." with 💯
+01:02:48	Sandeep Junaghare:	Reacted to "We’re all better tog..." with 💯
+01:02:48	Abdullah AlHyari:	Thank you both so much!
+01:02:57	Kiran Yadalla:	Reacted to "We’re all better tog..." with 💯
+01:03:09	Kaushik:	Reacted to "We’re all better tog..." with 💯
+01:03:10	Fausto:	Reacted to "Thank you both so ..." with 👍
+01:03:11	pierr:	Reacted to "We’re all better tog..." with 💯
+01:03:15	Renata Baldissara-Kunnela:	Great, thanks
+01:03:15	Bo Shipley:	Reacted to "Thank you both so mu..." with 👍
+01:03:19	Chris:	I just want to use it thats all I wanna know
+01:03:26	bidi:	thanks a lot !! it was boosting morale and exciting !
+01:03:29	Kaushik:	Thanks to both of you!
+01:03:30	Billy:	Impressed. So impressed :-)
+01:03:35	Jay Reid:	Reacted to "I just want to use i..." with 🙏
+01:03:41	Oliver Schneckmann:	Thank you so much, all a nice Weekend, greetings from the Alps.
+01:03:47	Tudor Purcarelu:	Thank you everyone! Amazing work!
+01:03:47	kris kutayiah:	✌🏽
+01:03:48	pierr:	❤️
+01:03:49	Robert E. Lee:	until next time...
+01:03:51	Sumeet:	thanks
+01:03:51	Mark Adair-Rios | ProsperityCRE:	Thanks!

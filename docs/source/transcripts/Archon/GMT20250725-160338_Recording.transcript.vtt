@@ -1,0 +1,1090 @@
+WEBVTT
+
+1
+00:00:02.120 --> 00:00:27.459
+Cole Medin: All right. Welcome everyone to the Alpha. Release of Archon Version 2. It's been a long time coming. A lot of work, especially that Sean has been putting in the last couple of months. So, Sean Buck, he is a guest on the workshop here. He's going to be doing a lot of the presenting today, especially diving into a lot of the philosophy behind the user experience that he's built into Archon. So let me go ahead and share my screen.
+
+2
+00:00:28.580 --> 00:00:40.479
+Cole Medin: And maybe actually, you know what I wasn't planning on doing this. Maybe I'll start by showing the original version of Archon just to give some context for everyone. Because we are, we're changing things up a lot.
+
+3
+00:00:40.940 --> 00:00:52.229
+Cole Medin: But we are really building off of the foundation of of what I created. Way back in like March with Archon Version one. So all right. Share my screen now. So, Archon.
+
+4
+00:00:52.590 --> 00:01:04.110
+Cole Medin: The original purpose for Archon was to be an AI agent builder. So it's an application that you took as an Mcp server, or you could just use it directly in an interface that I built.
+
+5
+00:01:04.390 --> 00:01:11.140
+Cole Medin: and you could plug it into an AI coding assistant. And basically it augments an AI coding assistant
+
+6
+00:01:11.280 --> 00:01:26.769
+Cole Medin: with this like entire workflow behind the scenes that, like your cloud code or your Windsurf, or your cursor, or whatever could call upon to craft an AI agent like you could say, Help me build a you know, customer, support agent, or help me build a research agent that can also, like
+
+7
+00:01:26.920 --> 00:01:33.230
+Cole Medin: draft messages for slack, like right like, no matter the agent you want to build, you just describe it, and then Archon built it.
+
+8
+00:01:33.650 --> 00:01:43.470
+Cole Medin: and it's pretty cool, and obviously the repository like blew up quite a bit. 5.2,000 stars, and I haven't focused on it in a while. Now.
+
+9
+00:01:44.050 --> 00:01:45.829
+Sean Buck: 3 months ago. Last commit.
+
+10
+00:01:45.830 --> 00:01:53.640
+Cole Medin: Yeah, 3 months ago last commit? Right? Yeah, it's been a while. And it's not because I just wanted to let it go stale. There's a very big reason.
+
+11
+00:01:54.368 --> 00:01:56.249
+streets: It's it's a video. And I'm cooking.
+
+12
+00:01:56.870 --> 00:02:08.269
+Cole Medin: I think we had someone that wasn't unmuted, or that wasn't muted. It's all good. So yeah, Archon, version 2, as you guys will see is the big reason why I took a step back
+
+13
+00:02:08.400 --> 00:02:17.149
+Cole Medin: not to abandon the project, but to completely overhaul it. And that's what we're going to get into today, because the big reason that I wanted to do this with Archon
+
+14
+00:02:17.420 --> 00:02:19.270
+Cole Medin: is it was very cool
+
+15
+00:02:19.380 --> 00:02:25.490
+Cole Medin: that we have this AI agent that can build other AI agents. That's what Archon was originally.
+
+16
+00:02:25.910 --> 00:02:48.650
+Cole Medin: but also a lot of people were telling me, like I got a lot of feedback that actually the coolest part of Archon is the way that it manages a knowledge base of documentation behind the scenes like you crawl pydantic AI! And then you have the pydantic AI documentation that your AI coding assistant can reference through Reg. And a lot of people thought that like that was the cool part of it. And I actually agreed.
+
+17
+00:02:49.070 --> 00:02:56.329
+Cole Medin: because the thing with Archon is as cool as it is that it's an AI agent that can build other AI agents. What if we took this whole
+
+18
+00:02:56.330 --> 00:03:26.000
+Cole Medin: knowledge, base functionality, like being able to crawl documentation stored in our own private super, based knowledge base, and then reference that to augment our coding. What if we took that and extended it to anything? Not just building AI agents, but we could crawl any documentation stored in our knowledge base? And I have all these like more advanced rag strategies that I've been building out with the Crawl for AI rag, Mcp server that maybe a lot of you guys have seen me cover on my Youtube channel. So a lot of the work that I did there was also kind of leading into our conversion. 2.
+
+19
+00:03:26.450 --> 00:03:39.749
+Cole Medin: And so that's Archon version one and kind of like, why, I want to take a step back. I basically wanted to make it more general to turn Archon into like just this knowledge and task management backbone for AI coding assistance.
+
+20
+00:03:39.920 --> 00:03:42.920
+Cole Medin: And now with Archon Version 2.
+
+21
+00:03:43.110 --> 00:04:07.850
+Cole Medin: That's what we have here. We have a complete overhaul of Archon that I'm going to. Once we do a public release next month. You guys are getting the Alpha release right now. But once we do a public release. I'm just going to replace this repository kind of do like an in place update. So we can still keep this repo. And, like all the stars and activity that we have in this, and I can kind of show how it evolved over time by staying in the same repository.
+
+22
+00:04:08.310 --> 00:04:26.970
+Cole Medin: But in many senses it is like a separate project, but it still kind of keeps the same ethos just expanded to be more general, and in my mind a lot more powerful and Sean, and you'll be talking about this a lot in this workshop. It's super exciting. He's created this entire
+
+23
+00:04:27.090 --> 00:04:41.459
+Cole Medin: front end, this application that we have that turns Archon into like quite a beautiful product like it's actually insane. What he's been able to do here, and I'll kind of just like cover the different sections in a second here for Archon.
+
+24
+00:04:42.171 --> 00:05:02.519
+Cole Medin: But the 1st thing that I want to cover before we get into that is this is available for you guys to try right now. And please please keep in mind that like this is an alpha right now. So it's like very much you're gonna find things that aren't perfect yet, and we're continuing to work on it here. We want to have like, kind of like a beta release next month when we actually make this like fully public.
+
+25
+00:05:03.190 --> 00:05:08.990
+Cole Medin: But yeah, you can go to this link that we have in the description for this event for the workshop.
+
+26
+00:05:09.180 --> 00:05:24.550
+Cole Medin: and that'll take you to this page right here. So we kind of just took the Github Repository that Sean and I have been working on privately, and we just dumped a copy in the workshops Repository for dynamis just for now. So you guys can try it out.
+
+27
+00:05:24.810 --> 00:05:31.810
+Cole Medin: And then, obviously, when we go on to the Beta release. It'll be a different repository. So we just have it here for you guys to try out right now.
+
+28
+00:05:32.936 --> 00:05:43.510
+Sean Buck: Sumit. Just to answer your question. Mcps, like Content 7. Make Archon version one strategy somewhat dated or as relevant. Now, in fact, it's the opposite.
+
+29
+00:05:43.510 --> 00:06:07.489
+Sean Buck: It was context 7, that created Archon v. 2. And the reason for that is, yes, context 7 has been great. It was something I used a ton. But what Cole's done is being able to give you the ability to crawl documentation that might not be on Context 7. It might be your own business documents you want to upload. It might be, and it pulls out code examples in a way that gives you more flexibility.
+
+30
+00:06:07.490 --> 00:06:16.669
+Sean Buck: So think of like Archon in some ways, as having your own context. 7. But also your own project, management and document management on top of that.
+
+31
+00:06:17.290 --> 00:06:31.759
+Cole Medin: Yeah, thanks, Sean, that's really good. And actually, one way to explain Archon, very simply. If you guys are familiar with some of like the really popular Mcp servers. You can kind of think of it like Context 7 and Claude Taskmaster combined together.
+
+32
+00:06:31.800 --> 00:06:55.599
+Cole Medin: but also just like much more customized. And, like, Sean said. You can have your own private knowledge base for the task management. It's just like super beautiful. We'll cover this in a second here, like it's in my mind, better than cloud taskmaster, at least in some ways. I mean cloud taskmaster does some things like really, really well, and we're going to continue to take inspiration from it as we incorporate it, like just the way that it uses perplexity, for example, is really cool.
+
+33
+00:06:55.600 --> 00:07:06.010
+Cole Medin: but like it doesn't have a ui like this, and maybe maybe actually, let's let's go ahead and start. I'll start by talking about task management. Here, let me just zoom in a little bit. So
+
+34
+00:07:06.230 --> 00:07:17.639
+Cole Medin: yeah, we'll start with task management. I'll talk about like knowledge as well. And then the Mcp server, and then I'll give you a quick, demo and then, Sean, I'll turn it over to Shawn to like really dive into his.
+
+35
+00:07:17.640 --> 00:07:34.080
+Sean Buck: Yeah, real quick, Cole, could you pull up the to help with that? Could you pull up the just quick diagram, the visual diagram to people, give people like an orientation of the tasks and knowledge, and then go into tasks or on the the diagram there, cause I think it'll help people on the if you click go up to the home, not the intro.
+
+36
+00:07:35.730 --> 00:07:37.080
+Cole Medin: Is it the.
+
+37
+00:07:37.080 --> 00:08:04.839
+Sean Buck: Right there. Yeah, just kind of seeing here. So the reason why this is important is because what you're gonna see in the Ui is accessible via the Mcp. And the whole intent of this is for Archon to be a coding. It's like the bridge between your AI and you. It's your communication layer and your contact. When you talk about context engineering, it's the hub that helps bring all this together. And so yeah, that I just kind of wanted that that context center to help.
+
+38
+00:08:04.840 --> 00:08:25.739
+Cole Medin: Yeah, yeah, thanks, Sean, I meant to show this, but I forgot to. So this is good. This is a beautiful diagram that Sean created. That just shows that like this can be expanded to really any AI coding assistant like, it's not just the ones that we have listed here, because it's an Mcp server like you can connect it to Kiro. You can connect it to cloud code augment Code Windsor, of cursor.
+
+39
+00:08:26.090 --> 00:08:49.589
+Cole Medin: even just like Claude Desktop, for example, like the other really cool thing with Archon, which I want to stay focused on AI coding assistance for this workshop. But, like theoretically, you can use, Archon, just as like a rag Mcp. Server for your agents, or a tool like cloud desktop like it isn't even just AI coding assistance. Now, that's our focus. And the way that the Ui is shaping up. And the way that we
+
+40
+00:08:49.873 --> 00:09:04.610
+Cole Medin: just like, for example, have the the global rules like, we have, like recommended global rules to put in to tell how to use. Archon like this is obviously very focused on AI coding assistance. But one of the the very future things that we have as a vision for this is
+
+41
+00:09:04.920 --> 00:09:14.249
+Cole Medin: to make it just like the rag solution, no matter what like. It doesn't matter if you're coding, it doesn't matter if you're creating an agent, and you just want to have it as available. Tools like
+
+42
+00:09:14.320 --> 00:09:30.349
+Cole Medin: this is going to be the solution for that, because we have the crawling figured out. We have chunking strategies and retrieval strategies built in like, there's a lot going on behind the scenes that we don't even have time to get into today. But yeah, like, I said, a lot of the rag strategies that I've just been experimenting with and
+
+43
+00:09:30.350 --> 00:09:49.239
+Cole Medin: working on the crawl for AI rag. Mcp workshops with you guys, things like re-ranking and hybrid search and contextual embedding contextual retrieval like these things, we're building into Archon to make it so that it's not just a cool ui which it definitely is, but like, there's also just a lot of power behind the scenes and things that are customized to you as well
+
+44
+00:09:49.420 --> 00:10:03.270
+Cole Medin: like. You can go into the settings panel here, and we're working on making. So you can use different providers like Gemini and Openai and Olama, probably adding more later as well. You can select the different strategies that you want to use for. Rag
+
+45
+00:10:03.280 --> 00:10:31.739
+Cole Medin: Sean's been working on code extraction. This is for a gentic rag where, whenever we do a crawl, maybe I'm getting a little bit ahead of myself. Here, we'll look at this more when we look at knowledge. But whenever we crawl, we also extract code examples from the documentation from, you know, like super base or Pyantic AI or Mcp. And so like being able to tweak exactly how it looks for those code examples like there's just so much customization. And one of the beautiful things that Sean told me actually, right before, this workshop is
+
+46
+00:10:31.880 --> 00:11:01.289
+Cole Medin: like a lot of these things. You can just leave the default values and never touch it, and it'll work well. But it's just here to like show you how much goes on behind the scenes. And then also, if you really want, you can like dig deep and tweak things to work for your use cases specifically. So yeah, let me let me take it from the top here. The project management like I said I was going to do so. What you can do within the projects here. You kind of turn yourself into a project manager for the AI coding assistant
+
+47
+00:11:01.660 --> 00:11:26.059
+Cole Medin: like I can make a new project here, just giving it a name and a description, and then we'll have something like this where we have a Kanban board, so I can create a new task. And I can, you know, put it in the backlog or put it in progress. Whatever. I can assign priorities to it, a lot of things that you would have in something like Clickup or Jira or Asana, right? But it's this beautiful Kanban board that is directly accessible for the AI coding assistant through Mcp.
+
+48
+00:11:26.190 --> 00:11:45.849
+Cole Medin: And I'll show you this in a demo in a little bit here, but like we can have it create the project when it starts something new for us in cloud code. We could have it define these tasks and then move them through the different stages in real time. And it, Sean has a lot of things set up with websockets here, connecting the front end to our back end, so that
+
+49
+00:11:46.090 --> 00:12:10.619
+Cole Medin: like if the AI agent moves something from the backlog to in process like we'll just see it move like in real time. So it makes the Mcp call to update the task, and then we'll see it in like less than a second. It'll be updated. And then also, like we can edit these tasks in real time. So like as the AI coding assistant is going, let's say it creates a bunch of tasks in the backlog. It starts to knock them off one by one.
+
+50
+00:12:10.960 --> 00:12:38.679
+Cole Medin: But like we we see like, Oh, shoot. Something is wrong in the description here, or maybe we want to add more context, we can do that. And then by the time it gets to that task, it'll read the updated context. And so we can very much like pair program, and, like, I said, manage the AI coding assistant as a project manager just with this ui is our way to do it, and I haven't seen anything like this before definitely, not something that looks as good. But honestly, I don't think I've seen this kind of like we can manage a Kanban board live for an AI coding assistant.
+
+51
+00:12:38.990 --> 00:12:42.909
+Sean Buck: Hey, Cole, can you click on the table table view real quick? Someone was asking about that. They wanted to see.
+
+52
+00:12:42.910 --> 00:12:43.480
+Sean Buck: Oh, it will be
+
+53
+00:12:43.480 --> 00:12:47.750
+Sean Buck: so, and the table view maybe go to one of the tabs that has more things on it.
+
+54
+00:12:47.750 --> 00:12:48.100
+Cole Medin: Alta.
+
+55
+00:12:48.100 --> 00:12:58.610
+Sean Buck: Yeah. So the table view is something I created for me like scroll all the way down or scroll all the way to the bottom where you can get the entry point.
+
+56
+00:12:58.920 --> 00:13:18.649
+Sean Buck: yeah. So you can just sit here and type and and type all the tasks. So what I do is while Claude's working on something I'm thinking of next steps in here, and I always use the table view for my interactions. And then I use the board view when I just want to see what Claude's doing and how it's moving things through. But and a couple of other questions
+
+57
+00:13:18.650 --> 00:13:34.010
+Sean Buck: I'll get to my background in just a second as we turn it over, and thanks for the comments on the Ui. I'll talk a little bit about that and my inspiration and thanks for sharing some of the other things. I'll I'll take a look at those, too. But yeah, keep the questions coming and stuff this is good for. I'm reading them.
+
+58
+00:13:34.010 --> 00:13:49.259
+Cole Medin: Yeah, cool. Thanks, Sean, yeah. So we'll we'll see this in action with the demo in a sec. But we also have docs, which I'll let Sean speak to this one more which is also really cool. Lot more planned for this, too. And then for the knowledge base.
+
+59
+00:13:49.580 --> 00:14:14.050
+Cole Medin: This is a lot of like what we had with Archon. Version one, and what I've been working on with the crawl for AI rag, Mcp server because it still uses, crawl for AI behind the scenes to do the crawling. But we can add our knowledge, and this can be documentation like I can, you know, do the pydantic AI llmstxt, for example, Llms dash fulltxt like I can take this. I can do a sitemap. It can recursively crawl just any web page that I give it.
+
+60
+00:14:14.130 --> 00:14:22.009
+Cole Medin: It's super robust in that way. It's just like the Mcp that I was working on. But you can also like upload business documents like, if you want it, to
+
+61
+00:14:22.200 --> 00:14:47.670
+Cole Medin: have access to your company information, because maybe, whatever it's trying to code like, it's actually very pertinent to look at like our company mission, or maybe we upload like best practices for our code bases like whatever that might be. You can upload that as well. And so there's a lot of different customization. There's just like ways that we can add different types of knowledge into Archon. And then when you add a source, and maybe I'll just like recrawl one of these to show you what it looks like.
+
+62
+00:14:48.060 --> 00:14:52.989
+Cole Medin: The the ux is just so good like if I if I recall Pydantic AI. For example.
+
+63
+00:14:53.420 --> 00:15:23.300
+Cole Medin: we can watch the progress in real time, and it's not just like watching one little progress bar like we can see all the different stages of the crawling where it like crawls the web page, and then it chunks everything. And then it's embedding everything. And then we're pulling the code examples. And we're inserting those in. We can watch that in real time. And it's all like using websockets under the hood. So it's also just like a really clean architecture and Archon itself. It's just a tool where you could just dive into the code and learn a lot from that even.
+
+64
+00:15:23.300 --> 00:15:39.389
+Cole Medin: And that's kind of like the ethos that I've always had even with Archon Version. One way back in the day is like I wanted to build it as a tool to educate as well. And it's not like the focus as much for Archon now, like, we really are like focusing on just making it like a really kick ass tool.
+
+65
+00:15:39.390 --> 00:15:53.949
+Cole Medin: but like that still is a big part of it is like you can go in in the code and Archon like, learn a lot about rag strategies and websockets. And you can see how Sean has built an incredibly beautiful ui, and like what the different react components are and things like that, too. So
+
+66
+00:15:54.140 --> 00:16:02.520
+Cole Medin: yeah, it's just so cool. And then I'll kind of leave it at this like this will go for a little bit, obviously, because I mean, there's quite a bit of financial.
+
+67
+00:16:02.520 --> 00:16:03.110
+Sean Buck: Maybe pull.
+
+68
+00:16:03.110 --> 00:16:03.480
+Cole Medin: I should.
+
+69
+00:16:03.480 --> 00:16:08.440
+Sean Buck: Maybe go, maybe go to the other one of the other ones and pull up one of the code examples so they can see kind of like.
+
+70
+00:16:08.440 --> 00:16:09.240
+Cole Medin: Oh, actually.
+
+71
+00:16:09.240 --> 00:16:29.160
+Sean Buck: Crawls, and then so you can see what the what the AI is doing. Some of it we still need to work on the formatting and stuff. But it's actually pulling out snippets and stuff and logical blocks to help your coding assistant find the right things. Now somebody asked one question, what is the one liner for, Archon? And I would say, it's your
+
+72
+00:16:29.210 --> 00:16:46.520
+Sean Buck: context, engineering hub that bridges you and your your coding ide whether it's cloud code, whether it's cursor, whether it's quent. 3 cli gemill cli. It's an Mcp server that allows you to set all the context your Id needs and have it work.
+
+73
+00:16:46.858 --> 00:17:03.119
+Sean Buck: One of the reasons why I wanted to do this and and create this. And yeah, somebody's calling me right now. Apologize for that. The is because a lot of my frustrations with coding ids and stuff like that. I so my background I come from
+
+74
+00:17:03.714 --> 00:17:09.775
+Sean Buck: somebody mentioned agile. I used to be an agile consultant. I've spoken at conferences. I've
+
+75
+00:17:10.390 --> 00:17:33.890
+Sean Buck: I have a very diverse background. Starting from the military and the Marine Corps getting into technology. I worked in the corporate world for a long time. I've been a program manager on programs that are as high as half a billion dollars, 500 million dollar technology initiatives. I've worked for very large companies in this space. I also have Adhd. So
+
+76
+00:17:33.890 --> 00:17:53.390
+Sean Buck: I left the corporate world to because I just interested in too many things. I own multiple businesses. Now, level method is a health and fitness business. We do medicinal grade. Cbd extraction with one of my businesses in a lab up in Oregon. We also have polar gold Cbd, which is our retail brand for people.
+
+77
+00:17:53.978 --> 00:17:56.870
+Sean Buck: But my passion lies in
+
+78
+00:17:56.940 --> 00:18:11.030
+Sean Buck: usability and and and human AI interaction. When I started getting into AI space, I started getting into doing, just learning to see how it can help my business. And I became passionate about
+
+79
+00:18:11.440 --> 00:18:22.459
+Sean Buck: people really teaching people. And that's why I got connected with Cole. And this community has been great. I've met a lot of you through the community and so now, when it comes to user experience and user design.
+
+80
+00:18:22.460 --> 00:18:49.150
+Sean Buck: I've worked with Alan Cooper, who wrote the book. Inmates are running asylum. He was one of the kind of be founders of User Center design personas is, if you've heard of the word personas and use of that, he was a big champion of that, you know. I put a sport on Nbc. Sports for 3 years, called Grid. Not just put the sport. I helped create the sport. I created all the technology I've done things from live TV to film to
+
+81
+00:18:49.190 --> 00:19:00.829
+Sean Buck: every industry you can name of. And so with that, Adhd has been fun, but that's my background. If that helps. And what what I wanted to share, too, a little bit is
+
+82
+00:19:01.030 --> 00:19:13.530
+Sean Buck: my diving into AI, where I think Ui and ux, and user experience is just the experience people have. And it needs to be a good experience, even if it's an agent right? Even if there is no beautiful looking user interface. And so
+
+83
+00:19:14.100 --> 00:19:17.429
+Sean Buck: if I can distill everything I've learned from
+
+84
+00:19:17.690 --> 00:19:37.510
+Sean Buck: all of this the Golden rule, like I, when I got into writing and was doing writing for a while. All the famous writers said, you need to be a reader first.st So what I would tell you guys, if you want to build good user experiences, be a user first.st And what I mean by that is, be an analytical user like, look at tools and see what you like about using them. See what you don't like. Take notes?
+
+85
+00:19:37.830 --> 00:19:53.469
+Sean Buck: Because you really and build something for yourself, because you're the ultimate persona right. And you can kind of do things that way. But what I want to do is kind of talk about some user interface. And we can. If you want to stop sharing, I can share my screen.
+
+86
+00:19:55.150 --> 00:19:55.700
+Sean Buck: Oh, go ahead.
+
+87
+00:19:55.700 --> 00:19:58.249
+Cole Medin: You you continue on Sean.
+
+88
+00:19:58.250 --> 00:19:59.979
+Sean Buck: Go ahead! Give the demo, give the demo.
+
+89
+00:19:59.980 --> 00:20:11.289
+Cole Medin: So I wanted to do that quick, and then I want to hand it over to you pretty much for the rest of the workshop. But I mean, yeah, thanks for sharing that, though, Sean cause I mean there, there's a reason why, when Sean reached out to me and he's like
+
+90
+00:20:11.400 --> 00:20:39.960
+Cole Medin: I want to help you with Archon, like a lot of people have told me that, but I just latched on to Shawn very quickly. And like we formed a pretty awesome relationship as we just started to dive into Archon. So I've always been impressed with Sean and his philosophy, and that's why I wanted to go, like all in on this with him. And so that's what we're doing now. And like, obviously, this is going to be like a massive community project for dynamists and beyond. But like, he and I are kind of like, really kicking it off for everyone. So
+
+91
+00:20:40.640 --> 00:20:55.720
+Cole Medin: yeah, that's what I wanted to say, There, thank you. Sean. And then, yeah, the last thing that I wanted to show just is the demo really quickly, which this is almost done processing, and then I'll be able to give the demo. I need this to be done here. I probably should have recralled something else, because I wanted to
+
+92
+00:20:55.720 --> 00:21:11.290
+Cole Medin: show about antique AI specifically. But yeah, the last thing I'll show is the Mcp server. You manage this from the dashboard as well. So like, if you're changing your environment, variables, or anything like changing your configuration. You can just stop and restart the server, and you can even view the logs for the Mcp
+
+93
+00:21:11.290 --> 00:21:16.259
+Cole Medin: directly here as well. And then there's instructions here which will expand this to other
+
+94
+00:21:16.590 --> 00:21:28.830
+Cole Medin: coding assistance as well, where there's instructions for how you can connect Archon very simply to your AI coding assistant like this is how we connect it for Claude Code. So I can just like copy this line.
+
+95
+00:21:29.000 --> 00:21:39.609
+Cole Medin: I can go into my cloud code, and I can just paste this in. And I already did that. So I'm going to delete this line here. But I've added Archon, as my Mcp. Server.
+
+96
+00:21:40.110 --> 00:21:58.080
+Cole Medin: And so I can go into Claude now, and the other the other like really, really big thing that I want to focus on for this demo, and I'll keep this demo pretty short as well, because I definitely want to give Sean as much time as possible. The other big thing I want to focus on here is that Archon works extremely well with the Prp framework.
+
+97
+00:21:58.130 --> 00:22:10.129
+Cole Medin: which has been like a very big focus for us as a community here with what Rasmus has been sharing with this framework and just our methods for context engineering that we've been talking about and covering and workshops that I've been talking about on my channel as well.
+
+98
+00:22:10.280 --> 00:22:14.539
+Cole Medin: because the Prp framework is all about providing
+
+99
+00:22:14.660 --> 00:22:44.570
+Cole Medin: the context like examples and documentation, and talking about validation loops or validation gates. But there's not as much for rag here, and rag is a very important part of context, engineering same thing with task management. And that's what Archon does. So it's like, very. It goes along very well with the Prp framework, and I'm actually going to be showing that in this demo really quick, which, if you guys know cloud code, it goes for like 35 min when you ask it to do something. So I'm not going to be able to show the full demo here.
+
+100
+00:22:44.810 --> 00:22:50.910
+Cole Medin: but I can show what it looks like to. We'll actually execute a prp that I've had prepared ahead of time.
+
+101
+00:22:51.010 --> 00:23:15.629
+Cole Medin: and we can just see it in action here. So let me Prps multi agent research email. It's just an agent that I actually built like for my channel recently. So I took the base of the repo, where, like, I just have the prps set up already, and then I've got my slash commands, so I don't like want to dive into the framework a ton right now. But I'm executing this Prp.
+
+102
+00:23:15.980 --> 00:23:23.809
+Cole Medin: And what I've done in my global rules is I've just copied over the thing that we had in the Archon Ui. If I go back to the settings here.
+
+103
+00:23:23.910 --> 00:23:45.209
+Cole Medin: I just clicked here, copied the Claude Code rules here added that into my cloud, Md. Along with all the other rules that I already have for other things, you just kind of like. Tack this on. And now we're telling cloud Code how to use Archon. So we just connect cloud code, update the rules to tell it how to use it. And then, boom, we're good to go. And also let me go to the knowledge and see if we have. Pyantic
+
+104
+00:23:45.460 --> 00:23:46.620
+Cole Medin: crawled here.
+
+105
+00:23:46.790 --> 00:24:12.790
+Cole Medin: Okay, we got our code examples here which, by the way, for code examples, Sean did a fantastic job of just showing like you can click in here, and we can see all the different examples. Like, we got the the whole stream whale data example, which I'm actually very familiar with from the documentation in pyantic AI. So yeah, these are like examples that it'll pull through rag just as it's building something to go find things that are similar
+
+106
+00:24:12.930 --> 00:24:27.079
+Cole Medin: in the documentation and use that as a reference implementation. And I mean, it looks like we got like a little bug in the Ui, so like there's there's little things like that because it is an alpha release. But it's I mean, it works. And like this is fantastic. So we can literally use this now. So.
+
+107
+00:24:27.350 --> 00:24:31.150
+Sean Buck: Yeah, we literally did a merge and push the repo up right before this call, so that
+
+108
+00:24:31.510 --> 00:24:34.699
+Sean Buck: just a few minutes ago we'll get it cleaned up. But.
+
+109
+00:24:34.700 --> 00:24:47.470
+Cole Medin: Yeah, I mean, that's how it goes. But yeah, let me execute this here. So we'll see what it looks like for it to like actually create a project and define tasks, and it'll start doing some research by performing rag. So
+
+110
+00:24:47.930 --> 00:24:54.220
+Cole Medin: all right, I guess it wants to do a health check first.st So I'm just going to approve all the tools that it wants to use here.
+
+111
+00:24:54.611 --> 00:25:01.368
+Cole Medin: Which, by the way, this is a risky demo right now, because Claude and anthropic, they're just having a lot of issues right now.
+
+112
+00:25:01.650 --> 00:25:03.827
+Sean Buck: Yeah, I was getting Api errors.
+
+113
+00:25:04.190 --> 00:25:04.630
+Cole Medin: Yeah.
+
+114
+00:25:04.630 --> 00:25:05.240
+Sean Buck: Or.
+
+115
+00:25:05.240 --> 00:25:17.269
+Cole Medin: It's not. It's not looking good, so we'll see if this demo works. But if it doesn't, it won't be our com's fault. It'll be anthropic's fault. But okay, so yeah, so now, it's calling the Mcp tool to list the projects that we have here.
+
+116
+00:25:17.780 --> 00:25:28.909
+Cole Medin: which I want to just make a new one here, so I might have to interrupt and tell it to, just because I already have a project for this agent. So that would be my fault. But we'll see what it does in a second here. Yeah, it says.
+
+117
+00:25:28.910 --> 00:25:30.800
+Sean Buck: Yeah, I see it found it already.
+
+118
+00:25:31.070 --> 00:25:38.810
+Cole Medin: Yeah, which is all good, because here's like literally, what I can do is like I'll just say no, I'll say, make a new project for me
+
+119
+00:25:40.100 --> 00:26:09.550
+Cole Medin: and continue there we go, and I'll actually pull up my Archon so we can see this in real time. So we'll see this in a second. Here, there we go, all right. We have our new project. So this is the old one that I had when I was testing this earlier, just like the same agent. But then here's our new one. So there we go. I made a new project for us, and then in a little bit here it'll start adding some tasks, and there's quite a few tool calls like Mcp calls that have to happen
+
+120
+00:26:10.030 --> 00:26:37.679
+Cole Medin: for it to make all of these tasks and perform all these rag queries. But overall, it doesn't actually take that many tokens. So like Archon definitely like, you have to be patient as the AI coding assistant will like use the Mcp tools for rag and for task management. You have to be patient, but like it doesn't actually take that many tokens. It's only like a couple 100 tokens every time it wants to perform an action which is really not that much in the grand scheme of things, and it takes a little bit for sure. But
+
+121
+00:26:37.974 --> 00:26:41.800
+Cole Medin: I mean the results speak for themselves and like it's definitely worth waiting.
+
+122
+00:26:41.800 --> 00:26:45.809
+Cole Medin: And that's kind of generally what people did you want to.
+
+123
+00:26:45.810 --> 00:26:49.609
+Sean Buck: Up the ui to see as it's doing, stuff it should, or.
+
+124
+00:26:49.610 --> 00:27:14.940
+Cole Medin: Yeah. Well, it was doing a rag first.st Now it's creating the task. So I'll show the ui in a second. But yeah, I mean. Right here you can see that it was performing rag queries with the patantic AI documentation, so doing everything, searching in the knowledge base behind the scenes with what we had just crawled with Padantic AI, or I guess in my case, I recalled now, now it's creating the tasks here, so I will say yes, and then I'll go back to the Ui.
+
+125
+00:27:15.310 --> 00:27:21.939
+Cole Medin: and then we'll just see the tasks start to pop up in real time. Here, there we go, all right step, one configuration environment.
+
+126
+00:27:21.940 --> 00:27:48.039
+Cole Medin: and then it'll probably do another one as well. Well, I don't. Sometimes it'll create. Yeah, okay, there we go. So it's creating them all at once here. So now we want to implement the brave search tool and then there'll probably be a task for implementing the gmail to. Yeah, there we go. I guessed it right. There we go. So it's building all the tasks in real time here, and the beauty of it, like I was saying earlier is, we can like, go in and we can edit this like we can look at the description and see like if it got anything wrong in its research. Or if there's something that wasn't
+
+127
+00:27:48.170 --> 00:28:09.319
+Cole Medin: like referenced correctly in the Prp, like we can edit this in real time. So by the time it actually goes back to grab this task. And, you know, like, move it in process and start implementing it. It'll take in that context from us. And then also, like the task management here is just beautiful to go like working in between sessions as well like. I can totally wipe the conversation with cloud code.
+
+128
+00:28:09.640 --> 00:28:29.439
+Cole Medin: come back in and tell it to just look at the Kanman board, to figure out what to do next, and to pull the context for that. So like the tasks plus the whole prp. That's like all the context we need for the AI coding assistant to pick up where it left off. Even if I completely clear the conversation. And so that's just like another way that, like the whole Prp framework works really well
+
+129
+00:28:29.540 --> 00:28:48.479
+Cole Medin: with the the whole thing that we got going on here with Archon. And like a lot of these descriptions, we like it understands what to put here like testing the Happy path edge cases. Errors ensure 80% coverage like this is coming from the Prp. And so that is providing all the context. It's like also dictating the tasks that it creates for us here.
+
+130
+00:28:48.740 --> 00:29:01.349
+Cole Medin: So yeah, it's pretty cool. And oh, I reached my opus limit already, which I'm actually not on the $200 a month plan. I'm on the $100 a month plan right now, which is why I reached the limit so fast and anthropic is just like
+
+131
+00:29:01.470 --> 00:29:13.939
+Cole Medin: being really picky about that now. But yeah, so I mean, that's pretty much everything I wanted to cover for the demo here, because most of what happens with Archon is upfront when you 1st start a project or a new feature in existing code base, when it's
+
+132
+00:29:14.160 --> 00:29:28.459
+Cole Medin: performing Reg to like understand the documentation, it's creating the project and the tasks I mean, obviously, as we keep going here, it'll move things to in process and review and complete like it did with our 1st step right here. So like that happens throughout the whole thing.
+
+133
+00:29:28.460 --> 00:29:57.420
+Cole Medin: And then in the end, it'll just look something like this right where you just have all the tasks that are complete. But I don't need to show the whole thing right now, because, like I said, upfront is like, really where we see most of our con happen. So, yeah, I mean, you guys have really seen it in action here, and it's pretty simple overall like it's pretty easy to set up, and Sean has this beautiful ui to make it easy for you to configure things, and then the way that you plug it in is just so simple, because you add in these global rules. And now your coding system knows how to do everything that I just showed you here. And yeah, it's just like
+
+134
+00:29:57.560 --> 00:30:19.160
+Cole Medin: the rag plus task management just makes such a huge difference in the result that we get with whatever we want to code. This applies to anything we want to. Code. And I've tested this like, I've built the exact same thing with Archon. And without Archon, just to like, really validate like, is this actually like, are we actually building something useful here? And the answer is very clearly, yes, from all the testing that I've done. So.
+
+135
+00:30:19.440 --> 00:30:21.010
+Cole Medin: yeah, I'm gonna go ahead.
+
+136
+00:30:21.010 --> 00:30:36.480
+Sean Buck: So there's a yeah. There's a lot of questions. So I'll kind of go through and address some of those. Can you pause the entire process right now. Yeah, you can pause, Claude, and it'll stop adding tasks right? But the part of the reason for why I I wanted to build. This is.
+
+137
+00:30:36.790 --> 00:31:00.660
+Sean Buck: I don't know if you guys. But when Claude creates tasks, you're like, Okay, cool work on them. And it starts working on. And then it hallucinates and goes off somewhere else, and I'm like, Stop! Go back to the tasks, and then it's like, I don't know where I'm at, and I'm like. I don't know where you're at like what the hell's going on right now. So part of the reason for this was to just have me have visibility over Claude, who is my employee in a way, doing something for me, and I just want to see what it's doing.
+
+138
+00:31:00.660 --> 00:31:08.310
+Sean Buck: So that was kind of the reason for that. The numbers in the in the board are the priority order. So when you drag and drop.
+
+139
+00:31:08.310 --> 00:31:14.780
+Sean Buck: I gotta look at the Mcp, and why, it's just adding certain numbers. I don't know why it's putting in numbers. It should be automatically generated.
+
+140
+00:31:14.780 --> 00:31:42.319
+Sean Buck: Can you control progress across the combine? Yeah, if you just drag it and move it to a different state, it will move it and change the state as far as task dependencies. I wanted things to be. The task management is super simple. There is the ability to do subtasks, but I removed it, for now, because in practice we weren't using a lot, and I think it over complicated things a little bit. But all I did in the task repo was just add a parent task id to tasks.
+
+141
+00:31:42.400 --> 00:31:57.259
+Sean Buck: So if a task has a parent id, it's now a subtask. It's a pretty simple thing we you can reimplement some people have asked about. So it's using super base. And people ask about local local shouldn't be a problem. It's it's you just connect
+
+142
+00:31:57.360 --> 00:32:06.360
+Sean Buck: to your database. And if you haven't somebody was asking about graphs, too, and that's we'll get into some of that
+
+143
+00:32:06.360 --> 00:32:06.970
+Sean Buck: you really excited.
+
+144
+00:32:06.970 --> 00:32:17.639
+Sean Buck: But I do want to cover the ui, but I do have a whole Ui built out for knowledge graphs and the work that Cole's been doing in the graph rag stuff.
+
+145
+00:32:17.880 --> 00:32:45.499
+Sean Buck: I already have the Ui built out. We just need, we just need to release this and hopefully get more people in the community involved in contributing. And then, now, we're gonna build. So there's a lot coming and what I want to do, because somebody thank you for your nice comments on the ui and stuff. But somebody said, You know, it was really brave to push up right before this demo, and somebody said, We're all family here, and I feel that way, too, like, I hope you guys feel I just feel a lot of us like we're all in this together. We're all here to help each other out
+
+146
+00:32:45.510 --> 00:32:56.550
+Sean Buck: as far as this ui, and let me share a few things. So I am. I know I do look a little younger than I am, but, I am a sport in the seventies. I am an eighties.
+
+147
+00:32:56.620 --> 00:33:18.609
+Sean Buck: kid. And so Tron was my inspiration for this user interface. Now, talking a little bit about user interfaces to me, is it needs to be. If you notice, I like physical things, I like to write. And I like to interact with physical objects. So I like user interfaces to be intuitive like that
+
+148
+00:33:18.710 --> 00:33:35.210
+Sean Buck: for me, and I like to have information. So that's why you see things, will, you? Can, you know, drag and drop, move things around. You know. Just be really intuitive. I don't have any tasks in that project there, right? So just being able to drag and drop. And there's things like
+
+149
+00:33:35.540 --> 00:34:00.989
+Sean Buck: you, don't. You shouldn't be able. You can just look like Oh, what's this? Oh, I oh, look! The details are on the back. I just clicked, and I flipped, and oh, task id! Now I can copy this by clicking it and just paste it in a clod if I wanted to go into. Just go look up this task and fix this task right. There's little things in here that I hope you will find are useful, as you just start using it. And that's where I go back to this philosophy of like.
+
+150
+00:34:01.170 --> 00:34:12.230
+Sean Buck: if you try to build a tool for somebody else that you're not going to use. It's gonna be very difficult, you know, to get it. The ui really intuitive and useful. You kind of got to be a user first.st
+
+151
+00:34:12.607 --> 00:34:37.509
+Sean Buck: So now in user interface design, too, right? Like you'll notice there's some very purposeful things I did here. There's the background. So with glass morphism, a lot of times. It just looks like gray. So I wanted this notion of a background, which is these things you're interacting with on the page are just kind of thrown up there, and and you can move them around. And and it just gives the the feeling that these are more physical things.
+
+152
+00:34:37.550 --> 00:34:59.219
+Sean Buck: Also, you notice visually. I know which one's selected. It's very colorful. Everything's shaded out. I can even copy the project id right here, just click, copy and get it and give it to Claude to go look up the project with the crawling right now. This is a different thing. But information is very powerful, and people understanding this stuff behind the scenes like.
+
+153
+00:34:59.230 --> 00:35:12.559
+Sean Buck: by the way, like a lot of this stuff Cole built a long time ago, and I just was looking at it. And I'm like this does some amazing things. If we just put a ui on it, people could see it like when I watched it crawl. I'm like man. It's doing some crazy stuff. So that's why you see.
+
+154
+00:35:13.900 --> 00:35:16.310
+Sean Buck: crawls. Oh, does somebody have a question.
+
+155
+00:35:17.140 --> 00:35:19.410
+Cole Medin: I think it's something that didn't mean to be off mute. So you're good.
+
+156
+00:35:19.410 --> 00:35:44.810
+Sean Buck: Okay. But you can also like. So I started using milkdown editor right? And if you want to recall, crawl, you can just click, recrawl and have it go through, and then, as it's working, it might be a little delay right here right now. If you notice if you click off the screen. We we have things running in background tasks. So when you click back, you actually, it'll refresh, and you can see where it's at in the process.
+
+157
+00:35:44.900 --> 00:36:10.790
+Sean Buck: although it didn't. There it is. So you can have multiple things going. They run in the background. But the user always is informed of what's going on right like. That's the feedback. Now, if you're building agents, this is called human in the loop. So if the agents working on something, you should be able to see progress and feedback. This gives users comfort, that it's doing something, not is it broken right? And so the interaction and feedback that you see in user interfaces
+
+158
+00:36:10.790 --> 00:36:35.108
+Sean Buck: is really important. And if you can get really good at building user interfaces that don't have AI. Now, when you have agents interact and build together. You can just have them interact together. Any question. I'm not looking at chat. I don't know if anybody has any questions. I wanted this to be open and answer any questions about ideas or things people have or things we want to show, or anything about ux ui design.
+
+159
+00:36:36.060 --> 00:36:41.319
+Cole Medin: Yeah, I'm I'm trying to answer some questions. Chat as well. But yeah,
+
+160
+00:36:42.510 --> 00:36:42.950
+Sean Buck: Oh! And.
+
+161
+00:36:42.950 --> 00:36:52.290
+Cole Medin: Couple, though, like so Thomas was asking about. Oh, yeah, light mode is really cool, too. I mean, I prefer dark mode, but also the light mode is really slick.
+
+162
+00:36:53.000 --> 00:37:04.559
+Cole Medin: Yeah. So Thomas had a question. Would it be impossible to enhance the Prp with tunnels? Slash subtunnels? I'm not sure if this applies specifically to Archon. But I just throwing this one out here
+
+163
+00:37:04.770 --> 00:37:12.704
+Cole Medin: that would enable parallel dev for the Prp which I'm gonna Thomas. I'm gonna take your question and kind of like, apply it to Archon here.
+
+164
+00:37:13.240 --> 00:37:29.480
+Cole Medin: Sean, how well does. And this is something we have to build out. How well does Archon work if we're like developing multiple projects at the exact same time. Like, maybe we have 2 instances of Claude code that are each working on a different prp, for, like a different feature of the code base like, would it work well for it.
+
+165
+00:37:29.480 --> 00:37:37.680
+Sean Buck: Yeah, I've done that. I've I've used cursor using Archon while Claude Code is using Archon 2 different agents on 2 different projects.
+
+166
+00:37:37.680 --> 00:38:02.269
+Sean Buck: It because it's an Mcp. Server, right? And that Archon is really your interface. The Ui is your interface to just see what's going on with all these other things right? And so it's your control command center, right for all the stuff going on. And that's why it's not being really used yet. But if you look at the task management. There is the notion of you can assign to Archon or your ide.
+
+167
+00:38:02.270 --> 00:38:05.519
+Sean Buck: If I go to a project that actually has some tasks.
+
+168
+00:38:05.992 --> 00:38:16.929
+Sean Buck: You know you have the notion of Archon Ide, because we can eventually add things like once you schedule it, or it can actually kick off a task or do something.
+
+169
+00:38:16.930 --> 00:38:35.789
+Sean Buck: The other thing. And what's interesting, what's coming soon? And you would think it's kind of funny. This release has really no AI built into it except in the back end. We do have the ability. I I did build the user interface for the knowledge chat panel. And it's it's got a pedantic AI agent background. But it's it's not it's not working
+
+170
+00:38:35.870 --> 00:39:01.456
+Sean Buck: great yet, because I was focusing on the Ui, but the ability here is to connect it to the same Mcp. And then you could ask and discuss with your rag. But then you could even also say, Hey, can you add this task, and when it adds the task you'll actually see it pop up across the board here, too. So I want people to feel physically first, st you know. Play around with Archon, see your workflow, see how you work things, and then and then have the assistant sort of augment with you as well.
+
+171
+00:39:02.830 --> 00:39:29.569
+Sean Buck: so yes, you can use. And the other thing is why I use hosted super base instead of local, because multiple people can work on the same platform. So if you have multiple developers like for my different companies, I have different developers in different areas. I'm getting them to use Archon. And now we're using the same task board and the same crawl documents, and we just connect our Archon to the same super base, and we can work on it together. So there's a lot of things that you can do from there, too.
+
+172
+00:39:31.080 --> 00:39:37.293
+Cole Medin: Yeah, that's good. Also, it's really cool to see that you have projects in Archon for working on Archon.
+
+173
+00:39:38.320 --> 00:39:40.820
+Cole Medin: You're actually using it. Yeah, that's so cool.
+
+174
+00:39:40.820 --> 00:40:10.670
+Sean Buck: I finally cleaned this out, but I cleaned it out because the context was getting too large. But in the done task there was something like 160 done tasks before I cleaned it out for this demo. So yes, but that was I needed to use it to improve the user experience. Right? Like, again, my 1st principles be a user. If you want to design good user experiences, be a user and say, well, this sucks. Oh, wait! I could change it, you know. So yeah. So if I wouldn't use it, I wouldn't be eating my own dog food on user interface design.
+
+175
+00:40:10.922 --> 00:40:16.499
+Sean Buck: The other thing I'll show you, by the way. And when I say I built this user interface, and I'm trying to give like
+
+176
+00:40:16.580 --> 00:40:24.360
+Sean Buck: my best to the community and to Archon and everybody, not just something I wanted to build. I'm actually using this for my business apps. Right? So I've built a
+
+177
+00:40:24.710 --> 00:40:27.520
+Sean Buck: a complete. This is, as you can see, on the same.
+
+178
+00:40:27.570 --> 00:40:39.969
+Sean Buck: You and you guys can take this code and use the the docker container and build this in your own apps. This is open source. This is what I'm giving to everybody. So don't just look at it as Archon. If you're interested in user interfaces and stuff.
+
+179
+00:40:39.970 --> 00:41:09.239
+Sean Buck: Learn from it, use it. Let Claude build your own things, but it's everything's the same here. I have like a planning module for doing our project management and our resource management. I've even built a because this is for my Cannabis company an app called, Can it do it? Which is a task tracking tool which allows people to just log their updates and complete their tasks and get Xp points and stuff like that. But yeah, I mean, I'm and you know I have the same chat over here. But
+
+180
+00:41:09.320 --> 00:41:19.820
+Sean Buck: yeah, this is also Archon can be something for you guys to use to play around with these experiences. If you want to play around and get into that type of stuff, there's a lot of cool things to do there.
+
+181
+00:41:20.600 --> 00:41:22.409
+Sean Buck: Any other questions or.
+
+182
+00:41:23.100 --> 00:41:24.129
+Cole Medin: Yeah, I mean, I can read.
+
+183
+00:41:24.130 --> 00:41:25.649
+Cole Medin: people want to see you. Yeah.
+
+184
+00:41:25.650 --> 00:41:32.959
+Cole Medin: to you. Yeah. Benedict asked. What you use to handle background tasks like when you have the crawling going in the background. How's that working.
+
+185
+00:41:32.960 --> 00:41:50.230
+Sean Buck: So I'm just using fast. Api right now, we could use celery, or, you know, Redis and celery right? There are things well, and that's where, like just to be super clear. I'm not a python, and backend isn't my forte, you know.
+
+186
+00:41:50.230 --> 00:42:17.069
+Sean Buck: Somebody said they're a product manager. I would consider myself, even though I built software before more in the product management space, even though I can code, I mainly code with AI assistance and stuff. So there are things that I am aware of that I'd love to implement, but just didn't either have the time to, or I'd love for everybody else in the community. If they have other ideas to improve it like we can. Archive could be our thing. We can all make it our own. Make it better for everybody, and.
+
+187
+00:42:17.070 --> 00:42:33.210
+Sean Buck: you know, contribute. And and that's why I'm I'm really excited to announce this to you guys more than publicly or anything, because I think it's a lot of you guys and senior discussions of what you guys have been trying to solve and do were some of the fuel for what I put into this, even if you didn't know it. So.
+
+188
+00:42:33.210 --> 00:42:37.449
+Cole Medin: That's awesome. Yeah, that's the beauty of community, for sure. Yeah, I appreciate that, Sean.
+
+189
+00:42:38.163 --> 00:42:49.999
+Cole Medin: Jeffrey asked about deploying this to Kubernetes, which I don't know. If, like we have that kind of, we don't really have deployment in mind for Archon yet, like it's it's right now. It's meant to be run locally.
+
+190
+00:42:50.000 --> 00:42:50.530
+Sean Buck: Local.
+
+191
+00:42:50.530 --> 00:42:57.430
+Cole Medin: You run it yourself, and you plug it into your AI coding assistance, though we do have that in mind at some point
+
+192
+00:42:57.660 --> 00:43:09.090
+Cole Medin: to make it where, like you can host Archon in the cloud. And and we're already halfway there because we're using super base for everything, even storing credentials like your Openai Api key. And, by the way.
+
+193
+00:43:09.090 --> 00:43:09.510
+Cole Medin: oh, yeah.
+
+194
+00:43:09.510 --> 00:43:15.260
+Cole Medin: encrypt. We do handle encryption for that super important to call out like, it's all safe. We have encrypted.
+
+195
+00:43:15.260 --> 00:43:17.917
+Sean Buck: So you're the the only thing
+
+196
+00:43:18.490 --> 00:43:44.559
+Sean Buck: it decrypts for you locally, but you can turn this off if you have a secret value, but it is stored encrypted in the database, and you can add your own credentials here into the settings. There's even rag settings. If you look in the back end. All of this, and I made even on the back end. I tried to make things really extensible, like using Json B. Fields or settings fields and having a category type. So if you want to add settings for different things.
+
+197
+00:43:44.560 --> 00:44:11.349
+Sean Buck: you don't have to make database changes, you can just add it in there with a different category type, and then code to use it right? So that really, there's a lot of that thought that went into make this not just a 1 trick pony or hard coded, but a lot of extensibility that you guys can do. And and I built it that way because I use it for the basis to build all my business apps. So you guys can do that to contribute to Archon, but use it as a basis to build other things.
+
+198
+00:44:11.800 --> 00:44:41.599
+Cole Medin: Yeah, that's awesome. And also you're speaking to something else that I don't think we've emphasized enough. Here is that like, especially like with the work you've been. You've been doing, Sean, just making it really easy for people to come in and contribute, because, like, we very much want this to be a community driven project. So we have the whole Docs. Page that I was showing earlier that Sean has created, which also has a lot of like best practices, for if you want to implement new things in Archon, we have, you know, everything that he just talked about here with making it really easy to add a new category of
+
+199
+00:44:41.750 --> 00:44:54.509
+Cole Medin: settings without having to do database changes because database changes are always the hardest thing for an open source project, like everyone has to run a migration. It's super painful. So like we're taking steps to make it so that
+
+200
+00:44:54.730 --> 00:45:17.940
+Cole Medin: it's easy to contribute as well, because, like, when I say that I want to make this a dynamist driven project also, like a public project like, I mean it, like, I want to to get as many of you guys on board as possible, not just using it. I mean, that's awesome, too. But like even contributing. If you guys ever find an issue or you want a new feature like you can build it, and we're trying to make that as easy as possible. And you can use Archon to improve Archon
+
+201
+00:45:17.940 --> 00:45:26.430
+Cole Medin: just like how anthropic uses cloud code to improve cloud code. Amazon uses Kiro to improve curo. We're using Archon to improve Archon.
+
+202
+00:45:27.069 --> 00:45:34.790
+Cole Medin: Yeah. And then, like, last thing for deployment that I just wanted to. I just wanted to wrap up that comment there like having everything managed in the database means that
+
+203
+00:45:35.130 --> 00:45:46.930
+Cole Medin: we're not relying on like Json files to manage credentials like I was doing with Archon version one like everything is stored in a way where it's like I mean we could deploy it in like a serverless environment, even.
+
+204
+00:45:47.327 --> 00:46:08.039
+Cole Medin: Well, maybe I guess the main thing is like we don't have to rely on local files to like manage any state or credentials or anything. So it's not like it's tied to running on our own computers. So at some point we'll definitely make it so that it's like deployable, and maybe even having like a self, serve like hosted version like any and superbase have that could be cool too.
+
+205
+00:46:08.320 --> 00:46:16.707
+Sean Buck: Yeah. So Joe asked. I think this is a good good question of some common use cases for Archon kind of from a high level.
+
+206
+00:46:17.120 --> 00:46:42.939
+Sean Buck: one is just to help you feel again me having Adhd high anxiety. And, by the way, I do work a lot. I've seen some of you guys talk about that. I think I worked 39 h straight at Archon without sleeping. But for me it's like having organization, knowing what's going on all the time, because sometimes I'll let my agents work and it'll throw up the code base, and I don't know where to go.
+
+207
+00:46:42.940 --> 00:47:02.769
+Sean Buck: So for me, that was the start and making it code things better, because how many times you like give it a URL. And you're saying the codes right here, just look up this document, and it just doesn't do it. And then, context 7 helped a little bit. And it was a game changer for me. But it just Archon took it to that next level. Some other use cases. Oh, so what tech stack is used for the Ui, it's react.
+
+208
+00:47:02.770 --> 00:47:18.190
+Sean Buck: It's just a vite app. I didn't put Nextjs or anything, because I wanted to keep it simple. But it is react Shadcn. So I'm a huge fan of Shadcn. By the way. Shadcn has an Mcp. Server. If you want to build uis, connect to the Shadcn. Mcp server, it'll change your life.
+
+209
+00:47:19.100 --> 00:47:25.428
+Sean Buck: I use magic patterns for my design magic patterns is an AI. I've also used
+
+210
+00:47:26.020 --> 00:47:43.150
+Sean Buck: Polymet. It's a y combinator company. It's it's like magic patterns, more like a figma with AI, so you can build things. But you can make reusable components. And you can then bring that react code down using Shad Cn, pull it into Claude, connect it to python. So that's kind of my workflow there.
+
+211
+00:47:44.920 --> 00:47:57.179
+Sean Buck: And but some other use cases are teams collaborating on code bases right? Being able to have again the super. But people be able to see who's working on what and or having multiple code. I
+
+212
+00:47:57.290 --> 00:48:17.070
+Sean Buck: if you guys haven't seen my studio, I've got my, I got multiple servers and laptops running. If you name an Id. I have it running. I have it connected. I use cloud code. I'm now using quen 3. I use gemini cli. I'm tapping into Quen 3. But I have multiple things going. And Archon is my sort of center hub to manage things. If that makes sense.
+
+213
+00:48:17.950 --> 00:48:19.560
+Cole Medin: Yeah, that is awesome.
+
+214
+00:48:19.560 --> 00:48:22.000
+Sean Buck: How much time have I put into version 2
+
+215
+00:48:22.442 --> 00:48:39.230
+Sean Buck: I put a lot. But because this was the base I was going to go build my business apps. And the mindset I had was to hey, what if I just built something really good for the community? And then, when it's there, I can then use it. So yes, I've put
+
+216
+00:48:40.000 --> 00:48:59.109
+Sean Buck: several 100 h into this and but it it, and that's why, like hopefully, and and the nice notes of the way it looks and how it feels and stuff is. It means a lot to me as someone with Adhd and perfectionism mindset, because sometimes I don't want to release things. But this was a huge step for me to
+
+217
+00:48:59.250 --> 00:49:21.990
+Sean Buck: to give back and just kind of see. But yeah, and and so I put a lot into it. The web socket socketio, like a lot of the feel, a lot of the things to it. There's a lot of things behind the scenes. You don't see that I probably spent 2030 h working on that you may never notice. But that's part of the point. If you don't notice it is because the user experience is good and you shouldn't notice it. So
+
+218
+00:49:23.270 --> 00:49:28.640
+Cole Medin: Yeah, yeah, Chris, that looks like 700 h of work. Yeah, it it really.
+
+219
+00:49:28.640 --> 00:49:29.159
+Sean Buck: That is right.
+
+220
+00:49:29.160 --> 00:49:29.760
+Cole Medin: Looks like that.
+
+221
+00:49:30.270 --> 00:49:31.290
+Sean Buck: Work
+
+222
+00:49:31.290 --> 00:49:57.450
+Sean Buck: 39 h one night straight. And then one night I was 26 h. Yeah, I have a problem. But it's fun. And and you know, I really thought about this community a lot. It helped me go through like seeing you guys post, even though I haven't been able to contribute much. I sometimes for breaks I would part of it is because I was working so much, but I would check in, and I would see some of your topics. And what you guys are talking about. And yeah, it's it's awesome.
+
+223
+00:49:58.370 --> 00:49:59.509
+Cole Medin: Yeah, well, you say.
+
+224
+00:49:59.510 --> 00:49:59.850
+Sean Buck: Sure.
+
+225
+00:49:59.850 --> 00:50:02.510
+Cole Medin: Much, but it's because you're busy contributing and like the big.
+
+226
+00:50:02.510 --> 00:50:21.229
+Sean Buck: Oh, right well, and that's the way I felt like, hey, how can I get back to the community? I can answer questions, or I could build something that we can start working on together because a lot of problems I saw people talking about. I was like, Oh, Arkans, gonna solve this Arkans gonna solve this. I gotta work harder. I gotta work harder. Yeah, I work 7 days a week, 18 HA day. No joke on average.
+
+227
+00:50:22.212 --> 00:50:24.627
+Sean Buck: But yeah, I'm addicted to work.
+
+228
+00:50:25.900 --> 00:50:46.939
+Cole Medin: Yeah. And I hope that, like, once we get more people involved, you don't have. You don't feel like you gotta work 18 h days. It's crazy. I do appreciate it, though, and like what you've you've built is incredible, like, like, I need to like, emphasize for you guys like I have been a part of this, but not doing nearly as much work as he has the past couple of months. And so, yeah, like.
+
+229
+00:50:46.940 --> 00:51:13.649
+Sean Buck: Yeah, but you did all the hard work with the crawl for the back end behind the scenes is all cold, too? Right? Like, yeah, I put in a lot of work because Uis are freaking hard to do, especially with sockets and being able to have that persistence. Stay. And yeah, there are a lot of nights of getting that working, but the ui wouldn't mean anything if it didn't properly crawl. Get good code like, if it's not utility or useful. The ui doesn't mean anything. So
+
+230
+00:51:13.650 --> 00:51:22.120
+Sean Buck: there's a lot. And there's a lot of stuff you're working on. I'm I'm excited to talk with Rasmus and start getting, you know, even the Prp framework built into here more natively. And
+
+231
+00:51:22.120 --> 00:51:46.389
+Sean Buck: so many things we can do guys, knowledge graphs are coming. And that's going to be a game changer for all of this. Because imagine your project, docs, and the coding repos with knowledge graphs across the 2. Yeah, this is going to be fun. This is, this is just getting started, the fun. I put in a lot of work. But hopefully people can see it and want to contribute some work to. And maybe you have a project or thing you're working on, and you can do like I did where you're like.
+
+232
+00:51:46.640 --> 00:51:55.039
+Sean Buck: I could build this with Archon, and then get some more feedback and help it, and then I'll take it and use it for my other project or thing like that. So.
+
+233
+00:51:56.360 --> 00:52:18.890
+Cole Medin: Yeah, I love it. And we got a few minutes left. So the last thing that I want to leave everyone with is a timeline, a a relatively rough draft of a timeline. And then also how you guys can get involved because there's a couple of people, Jose and Tom and others that we're asking about that. So I wanna focus on that and then we can wrap things up here. So
+
+234
+00:52:19.100 --> 00:52:23.520
+Cole Medin: yeah, the plan is like, right now, we have the alpha release for just the dynamist community
+
+235
+00:52:23.710 --> 00:52:28.160
+Cole Medin: that's going to go on for a couple of weeks. Hopefully, some of you guys will be able to try it out
+
+236
+00:52:28.280 --> 00:52:41.069
+Cole Medin: and give some feedback. Sean and I are going to keep working our butts off on this. And like this. This is like number one. Priority for me honestly, is like building this out for you guys. And then like turning it into a community project.
+
+237
+00:52:41.330 --> 00:52:53.380
+Cole Medin: And so that, yeah, I think the plan is, let me. I have to pull up my calendar here. I want to try to give you guys some some act like I wanna be like super specific. I think you guys would appreciate that. So the plan is
+
+238
+00:52:54.040 --> 00:52:55.590
+Cole Medin: to do a
+
+239
+00:52:55.940 --> 00:53:15.640
+Cole Medin: yeah, okay. I remember my dates now. So Saturday, August 9.th I want to do a live stream on my Youtube channel for kind of like the Beta launch of Archon. This is when it would like go public, and I still want it to be like a very much a dynamist driven project. And I hope that, like we'll kind of have like a little bit of
+
+240
+00:53:16.810 --> 00:53:44.080
+Cole Medin: just like an ethos built around Dynas, where it's like Archon is like our baby that we're working on together. But I do want it to be like a public thing as well, because we got to share what we're doing with the world. And like, if we hide this from the world. We're doing a disservice to everyone, because it's just such an awesome thing. And and that's the whole point of open source. Right? So yeah, August 9th will be like live stream like announcing it. And then Sean and I are going to be doing a video for my channel on August 13, th which is going to be like the release video for Archon.
+
+241
+00:53:44.740 --> 00:53:46.160
+Cole Medin: Yeah, no released.
+
+242
+00:53:46.420 --> 00:53:59.000
+Sean Buck: And I just want to mention that, too, because of Cole and everything, I've always wanted to start a Youtube channel. I actually owned a film company. And I put things on live TV. So I'm very well with that space. So I'm gonna start putting myself out there a little bit talking about user interface.
+
+243
+00:53:59.000 --> 00:53:59.340
+Cole Medin: Yeah.
+
+244
+00:53:59.340 --> 00:54:12.939
+Sean Buck: Interaction things like that showing off Archon more. So. I'll let you guys know if it's interesting to you. If you want to follow me. I'm I'm into weird shit if you're into quantum physics and geometry and Da Vinci and math and stuff like that. So.
+
+245
+00:54:12.940 --> 00:54:13.270
+Cole Medin: Yeah.
+
+246
+00:54:13.592 --> 00:54:16.169
+Sean Buck: It's gonna be an exploration of fun stuff
+
+247
+00:54:16.520 --> 00:54:41.730
+Sean Buck: I am on Linkedin. I don't use it much, but if you if you look me up, Sean Buck. You'll probably see polar, gold or level method, or curium. Those are my companies, but feel free to connect with me. I go on there a little bit. But in the community, DM, me, you know I love hearing from you. I've actually met with a few. I think Josh is on here I met with a few guys we've done zoom calls. If something I says resonates with you or is fascinated by you, or you want to talk.
+
+248
+00:54:41.730 --> 00:54:50.200
+Sean Buck: reach out to me on DM, you know, like I, I love contributing community, even if it's just a meeting, sharing my thoughts or seeing how we could work together, or something.
+
+249
+00:54:51.500 --> 00:55:00.620
+Cole Medin: Yeah, definitely, thanks, Sean. And also we should get you in on like another workshop for the community like just to to talk about ui and ux, I think that'd be awesome, too.
+
+250
+00:55:00.740 --> 00:55:02.380
+Cole Medin: Yeah.
+
+251
+00:55:02.540 --> 00:55:31.250
+Cole Medin: that'd be good. And then yeah, last thing that I'll say so like, that's kind of the timeline like official release, Beta. Release of Archon to the public like August 9th for the stream, 13th for the video. And then at that point, speaking about like how you guys can really contribute at that point we'll have it in the Archon, the Public Archon Github Repository. And then that's when you guys can like really come in and start to open up pull requests, and like I'll have a discussion board for it in the dynamist community. And then also, like a public Github discussions page as well.
+
+252
+00:55:31.590 --> 00:55:56.269
+Cole Medin: and then also, like Sean and I will be working on the contribution docs. So like we'll have a page for you to go to like boom, boom! Here's exactly how you can contribute and like general practices, and like just what we ask of you for that. And we're going to make it really straightforward as well. So like, definitely stay tuned for a lot more coming soon, like how you can get involved at like a really deep level that you want. But then also, just like how you can try it out, and maybe even just contribute at a
+
+253
+00:55:56.270 --> 00:56:05.920
+Cole Medin: at like a higher level, too. Like we'll we'll we'll get you covered, no matter what you're interested in. But yeah, definitely want to get as many of you guys involved as possible, and make it easy to do so.
+
+254
+00:56:07.430 --> 00:56:27.270
+Sean Buck: So yeah. Somebody asked, what? The how my whiteboard is glowing. It's actually a reflection of the light that's behind my head. So but yeah, I mean a neon. If you couldn't tell. Somebody said, Archon is actually my background. Yeah, it's fun. It's cool like I said, I love Tron, somebody said. There's a new movie coming out so can't wait.
+
+255
+00:56:27.580 --> 00:56:29.430
+Cole Medin: Yeah, hopefully, it's good.
+
+256
+00:56:32.440 --> 00:56:56.609
+Cole Medin: yeah, Jason, I thought 1 h workshops were 90 min. Well, yeah, I mean, I might be doing that for some workshops going forward. But this one, we're actually ending on time here. But yeah, like, you said, 90 min of value in this one. Okay? Glad to hear it. Yeah, I mean, this is this is value packed? And yeah, I think, I think together, Sean, you and I did a pretty good job at giving everyone an overview of this. So hopefully, you guys are excited and definitely like.
+
+257
+00:56:56.890 --> 00:57:05.360
+Cole Medin: I'll probably create. I I have to think about how I want to do this exactly, but I'll probably create a place in dynamus even before we go, like public Beta, with this for you guys.
+
+258
+00:57:05.360 --> 00:57:08.720
+Sean Buck: Yeah, like an archon community. Yeah.
+
+259
+00:57:08.720 --> 00:57:33.579
+Cole Medin: Yeah, something like that. Because I want to get feedback from you guys. And I mean, yeah, there's probably going to be like a lot of of things that need to be worked through just as we get this out. But I'm also going to be integrating cloud code like very directly within the Github Repository. Once we do go public, so they can like review Prs and like, create the 1st attempt at a fix for issues and answer common questions and stuff. So I'll be working on that just to try to make sure that, like, we can scale things really well.
+
+260
+00:57:33.620 --> 00:57:50.189
+Cole Medin: just because there's probably going to be a lot of stuff that comes in, especially if we get a lot of people excited about it, which I know we will. So trying to make sure that we can keep investing time into building out our con versus, like, always dealing with the little issues and stuff. So we're doing a lot of planning around that as well, and just like how we manage it as an open source project, too.
+
+261
+00:57:50.400 --> 00:57:52.920
+Cole Medin: So I got good plans for that as well.
+
+262
+00:57:53.860 --> 00:57:58.450
+Cole Medin: so yeah, any, any last words that you have, Sean before we.
+
+263
+00:57:58.450 --> 00:58:23.939
+Sean Buck: No, I would just say again, I'm thankful for you, and and how you brought this community together, and all the people I've been able to meet as a business owner who is just trying to figure this out myself. And this is no hit on some other AI communities which are trying to sell and upsell, and just like, do things like, I just appreciate the people here real. And I know you guys have some agentic businesses and stuff, and people reached out to me, and stuff like that, too. That's
+
+264
+00:58:23.940 --> 00:58:51.774
+Sean Buck: that's totally cool. But the spirit is is very much. Everybody's trying to help each other out, not in there trying to take advantage of people or trying to sell their services, using someone else's community. It really feels like a good community. And I love learning from you guys. And thanks so much because we're all trying to figure this out stuff out together. And it's fun. And it's it's I thought I was alone in my studio working by myself. And now I realize a bunch of us are alone in our offices working by ourselves, but we can do it together.
+
+265
+00:58:52.040 --> 00:58:52.545
+Cole Medin: Yeah.
+
+266
+00:58:53.050 --> 00:59:05.563
+Sean Buck: So I love all you guys and and and everything you guys do. And I'm looking forward to great things and seeing you guys in the community more. Hopefully, I'll I'll work a little bit less on Archon, so I can participate in the queue anymore.
+
+267
+00:59:06.100 --> 00:59:26.009
+Cole Medin: Sounds good. Yeah. I mean, you're participating by what you're doing here. But yeah, thank you, Sean, I appreciate it a lot, and and thank you everyone for your enthusiasm and being here and like, I mean, we haven't had this many people in a workshop for a while. So this is pretty awesome. And yeah, for any questions that we didn't get to like Renata. I see that you mentioned a couple of your questions like, feel free to just post them in the community.
+
+268
+00:59:26.010 --> 00:59:37.929
+Cole Medin: and I will definitely get to all of them like, there's just a lot coming in the chat right now, and it's tough as we're trying to demo things, too. But we definitely want to answer all the questions. So we'll get to it like you can feel free to to DM, me, or Sean, or make a post in the community.
+
+269
+00:59:38.187 --> 01:00:05.960
+Cole Medin: And yeah, I mean, I'm active in the community every single day because I live and breathe what I'm doing with you guys here. So yeah, thank you. Everyone for being here. Yeah, really excited for the future that we got with Archon. And like, Sean said, it's like the perfection kicks in. It's like really hard to like. Finally, give this to you guys. But that's why we're like labeling it very clearly, as like an alpha release, because it actually like takes pressure off of us as well, because there's just so much that we're shipping with this like, there's just a lot of functionality here.
+
+270
+01:00:06.428 --> 01:00:08.319
+Cole Medin: So, yeah, yeah, and thanks.
+
+271
+01:00:08.320 --> 01:00:11.909
+Sean Buck: For all the kind words everybody see you guys later and make it a great day.
+
+272
+01:00:12.420 --> 01:00:15.649
+Cole Medin: Yeah. Have a good weekend. Everyone take it easy. Y'all.
+

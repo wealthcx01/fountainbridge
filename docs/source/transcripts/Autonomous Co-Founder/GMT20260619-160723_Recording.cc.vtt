@@ -1,0 +1,1265 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:01.000
+And we will get right into it.
+
+00:00:01.000 --> 00:00:16.000
+All right. Cool. So welcome everyone to the next Dynamis Friday workshop. I have been putting a lot of effort into this one because I'm building an extension to my second brain, and I'm calling it my co-founder
+
+00:00:16.000 --> 00:00:29.000
+So my co-founder, I'm calling it that because the co-founder is someone that can build along with you and really take on tasks and take full ownership of something. So it's not you just delegating constantly.
+
+00:00:29.000 --> 00:00:46.000
+And so, this is gonna tie into a lot of concepts around loop engineering that has been sort of, like, the new buzzword, which I think there's some real things to take from that, but also have a lot of critiques, so I think that's something interesting to talk about at the start of our workshop here as well.
+
+00:00:46.000 --> 00:01:02.000
+And so we'll cover loop engineering and the pros and cons of it, like what is hype versus what is actually signal, and then we'll take a dive into the co-founder system. So how I basically built a loop with my heartbeat in my second brain
+
+00:01:02.000 --> 00:01:12.000
+for it to work autonomously on a larger task. And so it's loop engineering in the sense that, like, every time the heartbeat runs in my second brain
+
+00:01:12.000 --> 00:01:29.000
+It's analyzing the… basically, like, the running… living document markdown for my project to figure out, like, what should it build next? And then it'll actually kick off workflows in order to take that next step, and then document that, the next heartbeat will continue the process.
+
+00:01:29.000 --> 00:01:45.000
+And so my co-founder, it is built on top of my existing second brain. And so if you have gone through the second brain course here in Dynamis, then you're going to be able to build this into your second brain exactly as I did
+
+00:01:45.000 --> 00:02:09.000
+we'll actually cover a PRD skill that I've built to help you do that. However, even if you have not gone through the second brain course in the community, you're going to be able to apply all of this. In fact, I've built the whole skill that helps you create, like, kind of, like, create what I created but custom to you. I've built it in a way where it'll work even if you're not creating it into an existing second brain
+
+00:02:09.000 --> 00:02:17.000
+So, there's no hard requirement here of going through the course, and also, whenever my co-founder decides to run a workflow
+
+00:02:17.000 --> 00:02:33.000
+It uses Archon to do so, so the second brain is the orchestrator with the heartbeat that runs every half hour, and when it dispatches work, any kind of coding work, it's doing that with an Archon workflow. But also Archon is not a requirement. So, I want to show you guys how I'm really working
+
+00:02:33.000 --> 00:02:50.000
+how I'm using my tools, but I also don't want to make that a requirement, and so I'm leaning very, very heavily here into my second brain and archon, but at the same time, everything here is universal outside of any individual tool. So that's one of the biggest things I've put a lot of effort into prepping for you guys today.
+
+00:02:50.000 --> 00:03:01.000
+I know that, like, based on enterprise needs or security requirements, or you just want to build it from the ground up yourself, like, you might not necessarily want to lean on something that I've created. And so I always have that in mind here.
+
+00:03:01.000 --> 00:03:19.000
+So I'll also show you a full example of an application that I've been working on with the co-founder system. So you can see what I've been able to churn with it for real, and, like, the Archon workflows that it built by itself. Pretty cool. And then, at the end, I'll give an example of how we can fill out the PRD skill
+
+00:03:19.000 --> 00:03:36.000
+In order for you to build this into your own second brain, or build it from scratch. And so this is very similar, like, I've started to do this quite a bit, where it's like, I don't want to just give you the code base for what I built, because I want you to be able to create it from the ground up so you can really customize it
+
+00:03:36.000 --> 00:03:46.000
+So that way, any kinds of, like, assumptions for how I work or any, like, really opinionated parts to the setup, you can just change in the plan before the code is generated.
+
+00:03:46.000 --> 00:04:01.000
+And, I'm curious, actually, what you guys think about this in general. But I just love creating skills to help you guys build the things that I'm building, because then it's more just, like, sharing general ideas that are easy for you to take forward, versus, like, here's a GitHub repo to run.
+
+00:04:01.000 --> 00:04:19.000
+And of course, if you guys want more of, like, the just give me the full thing to run, I'm down for that, but, like, we're all builders here. No matter our level of technical expertise, and so I think, like, just explaining how to use the skill in a workshop makes it easy enough to then just go and do it yourself very quickly
+
+00:04:19.000 --> 00:04:26.000
+And it's also very token efficient. It's not going to cost you a lot because the PRD provides so much guidance upfront.
+
+00:04:26.000 --> 00:04:40.000
+Paul loves the new skills. Love the second brain system using mind every day, all day. Awesome. Yeah, I appreciate it, Paul. This is gold. I'm glad you think so, Eric. Cool. Yeah well yeah, I think I'm going to do this like at least
+
+00:04:40.000 --> 00:04:45.000
+You know, once or twice a month for these workshops, I'll have these skills to help you guys build along, so
+
+00:04:45.000 --> 00:05:00.000
+Daniel prefers a skill-based approach, do everything myself, customize things, combine things, exactly. I want you guys to be able to do that. So being able to use the skill and tell it how I want to work is the best. And then for anyone who does more, just want to follow directly with what I have, I mean, like, you can always fill out the
+
+00:05:00.000 --> 00:05:17.000
+The template that comes with the PRD, and really just not customize it further, right? Like, the whole point of the plan is if you want to take this and really have a longer conversation with a coding agent to tweak things and add things, subtract things, you can do that, but you also don't have to
+
+00:05:17.000 --> 00:05:29.000
+So yeah, that's the agenda that we have for today. John said, I think the transition to providing the base PRD to customize has been a game changer, at least for me. Yeah, glad to hear it, John.
+
+00:05:29.000 --> 00:05:33.000
+Cool, and it's also… it just feels really nice, because
+
+00:05:33.000 --> 00:05:45.000
+Back before I did this kind of thing, there was so much pressure to like, whenever I created something, I needed to make it in sort of like a generic way so that it'd be easy for you to run
+
+00:05:45.000 --> 00:06:02.000
+Right, there's so much complexity there, but now it's just, like, what I give to you is more, like, all of my best practices and all the work that I put into creating it, but then just, like, package up in a natural language description. So, it's just… it's just better for everyone all around. So, yeah, let me go ahead and exit out of here
+
+00:06:02.000 --> 00:06:12.000
+And we'll get into talking about the first thing with loop engineering. Loop engineering. So I put out a video on my YouTube channel
+
+00:06:12.000 --> 00:06:16.000
+Just this week on loop engineering.
+
+00:06:16.000 --> 00:06:22.000
+And the sort of like TLDR for the video
+
+00:06:22.000 --> 00:06:27.000
+is that I think that there are a lot of
+
+00:06:27.000 --> 00:06:37.000
+sort of hidden agendas from people like Peter Steinberger, the creator of OpenClop, Boris Czerney, the creator of Claude Code. They have these hidden agendas
+
+00:06:37.000 --> 00:06:55.000
+for pushing loop engineering. So, I think that there is definitely a big component of it that is just hype over signal, like, noise over signal. But there are certainly some good ideas to take from loop engineering, because the way I see it, and I'll explain, like, exactly what it is in a little bit
+
+00:06:55.000 --> 00:07:00.000
+At least as much as I can, that's part of the interesting take here.
+
+00:07:00.000 --> 00:07:09.000
+The way I see it is that loop engineering is the natural evolution of agentic engineering
+
+00:07:09.000 --> 00:07:11.000
+Like, once you build the harness
+
+00:07:11.000 --> 00:07:28.000
+With your AI layer and all of your workflows, whether you're using Archon or not, the next natural evolution is, like, once you trust that enough to work on larger tasks, you need some kind of system to work through the larger task iteratively
+
+00:07:28.000 --> 00:07:35.000
+Right, you're not gonna… no matter how good the large language model is, no matter how good your harness is, you're still going to do a focused piece of work
+
+00:07:35.000 --> 00:07:53.000
+per session, and so you need some kind of orchestrator at the higher level to kick off those different sessions over time and to coordinate things through handoff documents and things like that as you're progressing. And then, like, kicking off the code reviews and managing the deployments, like, I mean, you can take this very far into even, like, essentially a dark factory
+
+00:07:53.000 --> 00:08:09.000
+And so loop engineering is really like what I built for the dark factory a month ago, and it now is starting to be formalized as this idea, or more informally put, being turned into a buzzword. So I've been experimenting with this a lot
+
+00:08:09.000 --> 00:08:23.000
+Because I really do think that, like, this is a powerful idea, but I think, like, for the now, it is, it leads to a lot of problems, and like I said, there are hidden agendas for pushing this
+
+00:08:23.000 --> 00:08:37.000
+And so getting into this here, there's a couple of different tweets, but everything's like summarized really nicely in this LinkedIn post, which is why I am showing this to start. I'll put a link to this in the chat too if anyone wants to read this and check it out.
+
+00:08:37.000 --> 00:08:42.000
+So Peter Steinberger, the creator of OpenClaw
+
+00:08:42.000 --> 00:08:57.000
+And I'll, like, connect all this to the co-founder system in a few minutes here, but he said you shouldn't be prompting coding agents anymore, and that the tweet was like, you know, monthly reminder, you shouldn't be prompting your coding agents anymore. You should be designing loops that prompt your agents.
+
+00:08:57.000 --> 00:09:14.000
+And then Boris Trini, literally just like a few days before said, I don't prompt Claude anymore. He said this in a tweet. He said this in some podcasts. He's blasting this out to the world. I have loops that are running. They're the ones prompting Claude and figuring out what to do. My job is to write loops
+
+00:09:14.000 --> 00:09:30.000
+And so, like, yeah, he's doing some prompting, but he's exaggerating to make the point where it's like, he sets off a larger task and just has loops run through everything, right? Like, bringing this to concepts in the agentic coding course, it's essentially, instead of creating a PRD
+
+00:09:30.000 --> 00:09:47.000
+And then going through a bunch of PIV loops yourself, where you're reviewing the plan, approving it, going through the implementation, validating yourself. Instead, with loops, you're creating that initial PRD that has a lot of different milestones or pieces of work, and then you're just having the coding agent go through each one of those milestones autonomously
+
+00:09:47.000 --> 00:09:55.000
+doing its own validation and really only coming back to you to check on things yourself when the entire PRD has already worked through.
+
+00:09:55.000 --> 00:10:03.000
+And so, in saying that, and then also, I think there's also sort of the elephant in the room, there are two main problems that we have with loop engineering
+
+00:10:03.000 --> 00:10:18.000
+And the point of this workshop for you guys today is that I want to acknowledge the problems, but then also there is the reality where this is powerful. And so that's why I'm also trying to be on the forefront here
+
+00:10:18.000 --> 00:10:24.000
+How can we make loop engineering actually reliable and cost-effective? Because those are the two problems.
+
+00:10:24.000 --> 00:10:33.000
+Loop engineering leads to a lot of unreliability, because you're letting an LLM just rip through some kind of massive PRD, or spec
+
+00:10:33.000 --> 00:10:48.000
+And then the other problem is cost. It is very expensive to run these loops. And that seems like kind of the hidden agenda for people like Peter Steinberger and Boris Churney because Boris is the creator of Claude Code. He works for Anthropic
+
+00:10:48.000 --> 00:10:59.000
+He wants nothing more than for you to blow through your rate limits or even better, spend API credits to do loop engineering and spend millions and millions of tokens
+
+00:10:59.000 --> 00:11:15.000
+Like I showed in my YouTube video this week, I set up a loop actually using Pi. I had this whole dashboard for observability I built. It's pretty cool, but it took 1.3 million tokens just to build a simple proof of concept
+
+00:11:15.000 --> 00:11:31.000
+With 5 rounds in a loop, with the main orchestrator and then, like, the workers that it spins off in each iteration of the loop. It was so expensive. And so, yeah, same thing with Peter Steinberger. Like, he works for OpenAI now. He also has an unlimited budget. Like, he's the dude that's sharing on Link
+
+00:11:31.000 --> 00:11:49.000
+that he literally spent over $1 million in tokens using Codex last month. Like, it's nuts. The guy doesn't have a budget. Maybe because OpenAI is sponsoring him, because he works for OpenAI, maybe just because he's rich, like, he exited his company a decade ago or whatever, maybe it's both, I don't know, but he doesn't care about money
+
+00:11:49.000 --> 00:11:54.000
+But most of us definitely have to. And so we have to be very cautious of loops because of that
+
+00:11:54.000 --> 00:11:59.000
+And so if those are the downsides, but at the same time, it's like
+
+00:11:59.000 --> 00:12:15.000
+What if we try to design for solutions to this? Because I think there is something real here. If we can make a system that's reliable enough where we can let it go on larger pieces of work and not be in the loop all of the time
+
+00:12:15.000 --> 00:12:21.000
+like, having the coding agent really just go through its own piv loops, and then you're only reviewing things at the end
+
+00:12:21.000 --> 00:12:42.000
+And so as far as reliability goes, it's just like, can we build a harness that's good enough? That's kind of the question that I'm trying to answer actively over the last month and will continue to. And then as far as cost goes, well, that's a lot of the other work I've been doing recently where it's mixing models, mixing providers in your workflows
+
+00:12:42.000 --> 00:12:57.000
+like, we proved recently that you really only need the best model for just the planning, and you can make the planning pretty token efficient, especially with the usage of sub-agents and researching with smaller models, even within that exploration step that you have at the start of a workflow.
+
+00:12:57.000 --> 00:13:15.000
+And so, like I was showing before I started the recording here, we got GLM 5.2, KimiK 2.7. These models are getting closer and closer to the frontier and they're actually getting cheaper, at least it seems like it, definitely for the capability we have. If we're driving most of our loops with these smaller models
+
+00:13:15.000 --> 00:13:26.000
+And then orchestrating and planning with the more powerful ones, I think we can keep the reliability up there, especially with the right harness, but then keep the costs down very manageable
+
+00:13:26.000 --> 00:13:32.000
+And so that's what I'm working on, that's what I'm sharing with you guys here. And this is one of those workshops where
+
+00:13:32.000 --> 00:13:39.000
+I'm staying at the very forefront with you guys, at the cost of it being a bit more experimental
+
+00:13:39.000 --> 00:13:47.000
+And so I'm not trying to say that, like, I've solved for reliability and cost with loop engineering and what I built into my second brain, the co-founder
+
+00:13:47.000 --> 00:14:05.000
+But I've made good progress, and I've gotten to the point where, like, I am confident to show this to you guys, and be like, this is, like, the culmination of a lot of the recent work that I've been doing. Archon workflows, mixing models and providers, a lot of the stuff I've been testing recently with loop engineering and the benchmarking I've been doing
+
+00:14:05.000 --> 00:14:14.000
+And so, it's cool, like, a lot of over the last couple of months has just sort of led to this. Not that, like, loop engineering is always the way to go
+
+00:14:14.000 --> 00:14:22.000
+But even if you are, like, working for an enterprise company, or you're working on a platform where things have to be so, so
+
+00:14:22.000 --> 00:14:39.000
+well-engineered and, like, no bugs at all. There's still a place for loop engineering, because building any kinds of, like, proof of concepts, or even if you're just, like, working on that next sprint, and you want to figure out, or just ideate on some ideas.
+
+00:14:39.000 --> 00:14:55.000
+Loop engineering allows you to build out very large things for proof of concepts, or just testing different ideas, and then you can take that and then go into a more controlled approach, which is more like what I teach in the Agentic coding course. Like that in the end is still the best way for reliability and cost optimization
+
+00:14:55.000 --> 00:14:58.000
+There's just always going to be times in software development
+
+00:14:58.000 --> 00:15:15.000
+We're in product building, where, like, you want to move fast for a period, for something like an MVP. And so that's why I'm very interested. Like, the things that I'm building, like, we'll get into, this is, like, a little bit of a sneak peek of… I'm actually building a game with the co-founder, Loop Engineering System
+
+00:15:15.000 --> 00:15:32.000
+Because a video game, it's kind of silly, and it's not extremely professional, but it's such a good example of a system or an application where, like, you can take it extremely far, and it's challenging to, like, build a harness for validation and, like, build that into the loop
+
+00:15:32.000 --> 00:15:35.000
+And so, when I think about like
+
+00:15:35.000 --> 00:15:45.000
+How do I really push the limits of loop engineering and building this co-founder system? I need an application where I can continuously build on top of it without over-engineering.
+
+00:15:45.000 --> 00:16:02.000
+Because most kinds of applications that you create… like, if I just tasked my co-founder here, so I'll show you, like, how it works in Slack and everything, it's cool, but if I just tasked my co-founder to, like, build a Jira clone, or build a Netflix clone
+
+00:16:02.000 --> 00:16:22.000
+It's going to run out of features, because it gets to a point where, like, the more you build on top of it, you're just kind of making the platform bloated. But a video game is different because you always want to expand the features or you just want to make it so there's more playtime in the game. And so, yeah, I actually, like, deliberated for a long time for, like, what should I build
+
+00:16:22.000 --> 00:16:26.000
+as the first test for my co-founder as I'm continuing to work on it
+
+00:16:26.000 --> 00:16:29.000
+And that just kind of became the obvious answer
+
+00:16:29.000 --> 00:16:44.000
+Kash looks like, finally, another one is trying to game dev using AI. Love that. Yeah, I appreciate it, Kashik, and I remember for the Kiro Hackathon, you made a really cool game. So, yeah, it's, not like I'm gonna try to, like, turn this into some thing I sell on Steam or something
+
+00:16:44.000 --> 00:17:00.000
+Who knows, maybe it'll get there, but it's more like, this is just the use case to really push the limits of my co-founder, right? Like, I want a pretty difficult challenge for it so that I can really make sure that it does a good job with the loop and building the Archon workflows and building that harness for itself
+
+00:17:00.000 --> 00:17:12.000
+Yeah, cool. So that's like a little bit of an overview of loop engineering, downsides, why I'm trying to solve for it, even though there are these massive downsides
+
+00:17:12.000 --> 00:17:30.000
+And so, yeah, I just want to, like, show you guys now how I've built the system, how I built it directly into my second brain. So I'll give an overview of everything, and then that'll lead naturally into the example, plus the… the skill that I got for you guys here
+
+00:17:30.000 --> 00:17:38.000
+All right. But I'll take a second to go through the chat here. Before I continue
+
+00:17:38.000 --> 00:17:49.000
+Let's see. Erin said, I agree with you, Cole. The loop is a great selling point, but the outcome doesn't justify the means. You can spend less tokens without using a loop and gaining a better outcome.
+
+00:17:49.000 --> 00:17:55.000
+Yes, a lot of times that is very true. And by the way, the reason that the loop
+
+00:17:55.000 --> 00:18:01.000
+takes so much time. Let me open up the diagram here. So, I'm gonna get into this diagram in a bit
+
+00:18:01.000 --> 00:18:19.000
+With the actual loop, but the reason it takes so many tokens is because think about the number of different prompts that you have to send in just to get that next piece of work. Like you have your orchestrator that has to do some kind of like gather state of like where we're at in the loop
+
+00:18:19.000 --> 00:18:29.000
+And then it needs to, after it gathers the state, it needs to decide what comes next, so it has to deliberate, and then it has to
+
+00:18:29.000 --> 00:18:48.000
+Actually kick off the workers. So it has to prompt the workers, then the workers have to perform that next task, that next set of validation, whatever it is, and then you send the control back to the orchestrator to update the state or whatever kind of summary it might need to generate to give you notification, whatever
+
+00:18:48.000 --> 00:19:05.000
+And then you go to the next iteration of the loop. So there's just so much overhead because you have agents communicating with each other and multiple agents that are, like, you're enforcing there to be multiple agents in the loop whenever you're even doing the simplest thing
+
+00:19:05.000 --> 00:19:25.000
+So it becomes very token heavy in that way. It's kind of the same reason why dynamic workflows and agent teams and Claude Code are so token heavy. It's just inherently a flaw in the system, or I shouldn't say a flaw, it's a downside with the approach. Just whenever you have many agents involved
+
+00:19:25.000 --> 00:19:31.000
+Even using the sub-agents too much and not with smaller models, like that gets expensive as well. And so
+
+00:19:31.000 --> 00:19:48.000
+You could argue that it's a necessary evil. Like, if we really want to scale our workflows and make it so they accomplish things autonomously, they accomplish things faster, like, you do need agent coordination, because you also can't just overwhelm one LLM with a task just for the sake of trying to not
+
+00:19:48.000 --> 00:19:55.000
+have that overhead. So yeah, necessary evil, as we continue to push the boundaries of AI coding
+
+00:19:55.000 --> 00:20:12.000
+But it's just definitely not as realistic as these people like Peter and Boris are making it seem. Like, they're… like, Peter's, like, daily reminder, don't prompt your coding agents anymore. Like, that… honestly, like, that's kind of a stupid sentence. Like, that's a stupid hot take. Like, I get his point
+
+00:20:12.000 --> 00:20:21.000
+And he's trying to just go viral, which of course he does that successfully pretty often. But I do think that it is silly in the end
+
+00:20:21.000 --> 00:20:27.000
+Paul is also doing AI game dev for fun. Very cool. Yeah, it's such a fun thing to do.
+
+00:20:27.000 --> 00:20:43.000
+Let's see, Paula said, what are the folders in the workshop related to this? Found the co-founder projects. Are there any others? Yeah, thanks for bringing this up. Let me call that out quick. So, in the… and I usually try to say this earlier on, so thank you. In the description for our workshop for today
+
+00:20:43.000 --> 00:20:50.000
+I have the folder that has the main PRD skill that we'll cover at the end of our workshop here.
+
+00:20:50.000 --> 00:20:55.000
+So that's just when I hear the one that Paula called out, this is the one for today
+
+00:20:55.000 --> 00:21:06.000
+And so I don't like have the application that I'm building or anything shared in this. I'd be down to share that as I'm continuing to build it out here. The main thing is really just the skill
+
+00:21:06.000 --> 00:21:14.000
+And then also the diagram. The diagram that I'll go over, like, next here, I have that, so we'll cover this in a little bit
+
+00:21:14.000 --> 00:21:33.000
+I also love the gaming use case, working on porting a game from 2001 into a new engine, to then be able to get it to build more playtime. Very cool. That's awesome. Marley's also been testing game dev. Was watching the Unreal Engine event yesterday and tested the MCP with some Archon workflows
+
+00:21:33.000 --> 00:21:49.000
+No way, that's super cool. I've done a little bit with the Unreal Engine, maybe, like, half a decade ago. But yeah, obviously I didn't have AI coding or MCP at that point, that's cool. Trying to replicate a digital twin of my house was pretty mind-blowing, but burns tokens like crazy. I can imagine.
+
+00:21:49.000 --> 00:21:55.000
+Yeah, but wow, that is super cool. So, Marley, did it actually build a good replica
+
+00:21:55.000 --> 00:21:57.000
+of your house
+
+00:21:57.000 --> 00:22:05.000
+Or are you mind-blown in the sense where, like, it was still pretty bad, but it was crazy that it could even get close? I'm curious, like, how good it actually was
+
+00:22:05.000 --> 00:22:17.000
+Eris said the approach can be very useful for QA. Let it have the basic manual and let it attempt to crash the system as a goal. Yeah, that's a good use case too. Just loops for validation
+
+00:22:17.000 --> 00:22:35.000
+If you're kind of like red teaming it, sort of, yeah, I like that as well. So yeah, like I said, certainly a lot of good use cases for loop engineering, and I think that, like, as our harnesses and LLMs get more and more powerful, like, this is gonna be the future. We're just too early for it to be, like, the standard, or the default, right?
+
+00:22:35.000 --> 00:22:50.000
+Like if you are creating a new platform and you're like, what should my AI coding process be right now? Like, it should be what I cover in the agentic coding course. I don't cover loop engineering. And even with the new version, version two of the agentic coding course, I'll hit on it in a video
+
+00:22:50.000 --> 00:22:58.000
+And I'll talk about ideas around larger harnesses and loop engineering, but it's not like that's what I cover as the main thing
+
+00:22:58.000 --> 00:23:17.000
+So, yeah, let's get into the diagram here. So I'll show a couple of things like in my second brain itself. I'll talk about some of the Archon workflows I generated, but first I want to just cover at a really high level how the autonomous co-founder works. And this is everything that if you follow the skill I'll show, you have built into
+
+00:23:17.000 --> 00:23:20.000
+your own second brain or from scratch
+
+00:23:20.000 --> 00:23:24.000
+And so the way that it works is we start with a spec document.
+
+00:23:24.000 --> 00:23:39.000
+And so this outlines everything that we want it to build autonomously. And of course, you can keep adding on to this after it completes what you initially have here. And so the spec that I have, for example, for this game, which I'm calling North Star
+
+00:23:39.000 --> 00:23:57.000
+Thought it was a cool name. There's a bit more of, like, a vision behind it that I don't need to get into right now, but I might actually kind of, like, take this up as a hobby, more than just building this to test the harness. We'll see. Anyway, so for this game, this is the spec that I have. And it's actually very, very long, because it's a living document of all the work that it's doing between the different loops
+
+00:23:57.000 --> 00:24:07.000
+Not that you necessarily want your spec to have all of this, but it's more, especially just as I'm testing things and I want some more observability into what each loop is doing.
+
+00:24:07.000 --> 00:24:22.000
+So I have all of that there. And then I have, like, the top level, like, here's what I decided I wanted to build with the coding agent up front. And so I started by having a conversation with Claude Code, just giving it a brain dump of the game that I wanted to build. I created that as a spec document
+
+00:24:22.000 --> 00:24:31.000
+that is sort of like, every single time the loop runs, this is its grounding, right? Like, the input of what we're building and where we're currently at.
+
+00:24:31.000 --> 00:24:43.000
+And so we take this back and then we read that every single heartbeat. So I've actually just built this into the heartbeat part of the second brain that I've already had running. This is one of the core parts of the second brain course.
+
+00:24:43.000 --> 00:25:00.000
+And so after it handles all the other things that the heartbeat handles, like the communication, things like that, then it'll become the orchestrator for my co-founder, right? Like the heartbeat has its part of the process where it then acts as the orchestrator.
+
+00:25:00.000 --> 00:25:11.000
+And so, the big thing that I have is I have the index for my co-founder. So in my second brain, let me collapse these things here
+
+00:25:11.000 --> 00:25:14.000
+Sorry, I have way too much open right now.
+
+00:25:14.000 --> 00:25:28.000
+In my memories, like, this is where all the core documents live from my second brain, like the user.md and the soul.md. We have the repositories.md that I covered in the Archon as a second brain ARM workshop
+
+00:25:28.000 --> 00:25:40.000
+I have this new file called co-founder Projects, and this is very similar to repositories.md, where it's an index of all of the code bases that I'm currently working on.
+
+00:25:40.000 --> 00:25:55.000
+However, it's specifically geared towards like this is the starting point for a co-founder run. Like it should look here to see which projects I'm actively having it work on autonomously.
+
+00:25:55.000 --> 00:26:13.000
+So right now, it's just kind of simple, because it's really just like my only active project is the North Star. But that way if I wanted to actually have my co-founder building many things at once, this is indexed and then it'll go into each of the individual specs to figure out what's that next step, what's that next archon workflow it should invoke to
+
+00:26:13.000 --> 00:26:18.000
+continue the process or validate something, whatever that might be.
+
+00:26:18.000 --> 00:26:25.000
+And so, that's where the orchestrator then spins up Archon workflows. And a cool thing that I built with the system here
+
+00:26:25.000 --> 00:26:34.000
+is I've specifically prompted my second brain through co-founder projects. This is sort of like the system prompt for the whole loop
+
+00:26:34.000 --> 00:26:49.000
+I have specifically prompted it to actually build custom Archon workflows. So if it figures out based on the next requirement in the spec file, or if I'm just starting the project from scratch and I need to build the Archon workflows, it'll figure out
+
+00:26:49.000 --> 00:27:01.000
+You know, based on existing Archon workflows as an example, here is the process that I need to go through whenever I dispatch a new pull request build, or I dispatch a validation
+
+00:27:01.000 --> 00:27:06.000
+And it'll build the Archon workflow, and then reuse that through all the loops going forward
+
+00:27:06.000 --> 00:27:19.000
+And so the orchestrator really just becomes the high-level thinking. Like, what do I need to do right now? And then all of the actual work, the exploration, planning, implementing, validation, that all happens through Archon workflows
+
+00:27:19.000 --> 00:27:37.000
+And they'll validate their own work. I have the Slack gate as well, so if it figures out, like… because I still want human in the loop. I mean, that's one of the things that I really don't like about loop engineering, as Boris and Peter presented, is they basically say, like, you just let your agents go, go, go, go, go.
+
+00:27:37.000 --> 00:27:45.000
+And they never talk about success gates or anything like that. And I think that's really wrong. So I have it
+
+00:27:45.000 --> 00:28:02.000
+Again, as a part of kind of, like, the system prompt here, the co-founder projects markdown, I tell it to kind of like every single time there's a loop that happens, I have it think to itself, like, do we need Cole to approve this now? Like, have we gotten to a good stopping point where
+
+00:28:02.000 --> 00:28:19.000
+The application is ready for a real user to try it out and see if things are going according to plan. Because as much as the point-of-loop engineering is for the agent to work autonomously on larger tasks, I still want to have checkpoints so that it doesn't go completely off the rails
+
+00:28:19.000 --> 00:28:36.000
+Because if there's never any kind of gate for me to try the app out myself and approve it, it might have 20 loops where it deviated from my plan on loop number five, and that just sends it off the wrong track for the next 15 loops. And so by the time control passes back to me to evaluate something.
+
+00:28:36.000 --> 00:28:54.000
+It's burned millions and millions of tokens, and I have to scrap that work, or try to salvage it, and then that can be expensive in and of itself, and just incredibly painful. And so I have it, like, acknowledge when it needs my approval, and then it'll send that Slack message, like I was showing earlier here
+
+00:28:54.000 --> 00:29:09.000
+So I actually have an example of this for the North Star game where it performed its QA workflows. This is like one of the Archon workflows that it built here called Northstar Visual QA. It ran this after it built that next set of features
+
+00:29:09.000 --> 00:29:24.000
+And it, like, built for like six hours straight before it sent this, by the way. So it, like, built overnight. And then, like, final validation, and then it passes control back to me. So the… basically what happens is our spec file for Northstar
+
+00:29:24.000 --> 00:29:35.000
+the status is set to building. So, like, every single spec file has all of this YAML front matter that is rendered all nicely in my Obsidian vault here
+
+00:29:35.000 --> 00:29:51.000
+And it switches the status to awaiting Human so that triggers the… I have no idea why I'm getting all those GitHub login things. Anyway, it triggers the Slack message, and then when this is set to a waiting human
+
+00:29:51.000 --> 00:30:02.000
+that tells the second brain for all future heartbeats to not work on this yet, right? Like, this is a hard pause, and then once I approve things myself
+
+00:30:02.000 --> 00:30:19.000
+you know, just talking to my second brain, like, I can reply directly here in Slack, or I can just work with my second brain, like, locally on my computer. Once I approve things, then it's going to go back and switch it back to building. So you can see it's actually set to building right now
+
+00:30:19.000 --> 00:30:35.000
+with my second brain hosted on my DigitalOcean VPS, it is in the middle of working on this right now, and it's actually on iteration 59 currently. So it has been going, going, going, and I even reset this once or twice, just as I was building out the system, so
+
+00:30:35.000 --> 00:30:49.000
+I've been iterating constantly over the last couple of weeks, because actually, I meant to do this workshop last week, but then everything with Fable came up, and I thought it was a good pivot for then, so I've actually been working on this for a while now.
+
+00:30:49.000 --> 00:30:53.000
+So, yeah, the
+
+00:30:53.000 --> 00:30:58.000
+The other thing is that if you have already built your second brain
+
+00:30:58.000 --> 00:31:01.000
+Then this just sits right on top
+
+00:31:01.000 --> 00:31:18.000
+Right, so like the only thing you're doing outside of your second brain is creating that initial spec. Like I said earlier, I just had a conversation with Claude Code, gave it a massive brain dump. I wasn't using skills or anything. Like I was just doing a really freeform conversation. I didn't really care exactly
+
+00:31:18.000 --> 00:31:28.000
+What came out as the format in the spec here, because I knew that it was going to become much more structured once I sent this into the whole orchestration layer
+
+00:31:28.000 --> 00:31:46.000
+Right, like, it has the memory built into my second brain, so it knows how I like to work and structure documents. It has the integrations, it has the heartbeat. Like, the point is, like, now it becomes a part of your second brain. So the heartbeat, it runs and does everything that it already did, but just at the very end, it now has the new orchestration pass, where it
+
+00:31:46.000 --> 00:32:02.000
+turns itself into the co-founder. So it's… for the sake of simplicity, I don't even have it as a separate process, but you definitely could update the PRD I'll show in a little bit, to make it so it is a separate process, if you really wanted to do so.
+
+00:32:02.000 --> 00:32:10.000
+And, yeah, like, the other thing here, I want to just talk about the loop a little bit more, and then cover how it works with Archon
+
+00:32:10.000 --> 00:32:24.000
+And that'll be pretty much it for, like, just understanding the system at a high level. And it really is a Ralph Loop, right? Because, like, if you think about the Ralph Loop, which was super, super popular, like February, March of this year
+
+00:32:24.000 --> 00:32:28.000
+You have some kind of state file
+
+00:32:28.000 --> 00:32:43.000
+Right? And like I thought I had a better representation of it here, but let me go back up. So you have some kind of state file with the Ralph loop and the state file is like, here's the set of tasks that we have, a link to the PRD that's like the full scope of work
+
+00:32:43.000 --> 00:32:49.000
+And then you check the tasks off one by one. And the spec that I have here
+
+00:32:49.000 --> 00:32:57.000
+That pretty much is the state file in a Ralph loop, right? Like, we have the checklist here of everything that we want to accomplish
+
+00:32:57.000 --> 00:33:12.000
+That's pretty much what it is. And so then the orchestrator is going to pull, then it's going to see like, do we have any Archon workflows that are currently running? Because we don't want to spin up more and more Archon workflows every single heartbeat if there are existing ones that are already running
+
+00:33:12.000 --> 00:33:31.000
+And then, you know, after it figures out like what's already running right now, then the other context, it loads if there's any new feedback from me. So it'll look at the spec file to see if anything's changed or if I've sent any messages in Slack. And that's where it decides if it wants to dispatch more Archon workflows like I was covering earlier
+
+00:33:31.000 --> 00:33:47.000
+And you don't need to use Archon, like, you could just build this where Claude is invoking Claude, I just think it's very nice. Like, this is a perfect opportunity to build in Archon, because Archon defines these longer workflows in a more deterministic way. So it fires off, and then also, you know, Archon
+
+00:33:47.000 --> 00:34:03.000
+handling the work trees means that we can fire these things off in parallel. Like, maybe there's one feature that I want to build in one work tree, and then the previous heartbeat finished its other feature, and I want to run, like, a validation workflow in another word tree, because I'm working on potentially, like, multiple pull requests
+
+00:34:03.000 --> 00:34:21.000
+at the exact same time. And then it's also nice having the database in Archon, like using SQLite or Postgres with Neon, whatever, to manage the state of everything. So everything's also very stateful, and if my second brain ever crashes or Claude code crashes, whatever, like, I can resume everything and I don't lose any progress either.
+
+00:34:21.000 --> 00:34:40.000
+And so this does work like my classic AI coding workflow. Like I always end with a pull request. I guess I'm not really using like GitHub issues like I usually do because really the input of everything I want to work on just comes from the spec or the state file right here. But the output is always the pull requests that are going to review with the separate Archon workflow
+
+00:34:40.000 --> 00:34:47.000
+Merge it, and then update the spec, check off the tasks, and continue to move on in future iterations.
+
+00:34:47.000 --> 00:34:59.000
+And yeah, I mean, I think that's pretty much everything. Yeah, I've covered the guardrails, covered the awaiting human hard cap. That's really how the system works at a high level.
+
+00:34:59.000 --> 00:35:15.000
+And it's taken a lot of work to get it here and to make all this reliable, but it has been fun both to like build a game and then also just make this work. And it's definitely not at the point right now where it's perfect. Like, I'm not even trying to say it's close to perfect.
+
+00:35:15.000 --> 00:35:34.000
+But it's getting there. The first time I have ran this, it did a terrible job because without good steering, you have it make an entire video game and it's bad. I mean, people are able to do pretty cool things with Fable, but I'm not using Fable here. I've actually been using Kimmy for a lot of it
+
+00:35:34.000 --> 00:35:45.000
+So not even using the best of the best model. Like it was bad at first, but I'm continuing to refine the sort of like system prompt or top level instructions in the main markdown right here
+
+00:35:45.000 --> 00:35:57.000
+And then just, like, generally working on, like, how it builds Archon workflows and improving those individual workflows. Like, over time, I've gotten it to produce something pretty darn good.
+
+00:35:57.000 --> 00:36:02.000
+So I'll show you the workflows really quick, and then we can do a quick demo of the game itself
+
+00:36:02.000 --> 00:36:16.000
+These are just a couple of the core workflows that it built as it was getting started on the application. So this is the North Star build workflow
+
+00:36:16.000 --> 00:36:21.000
+So whenever it's handling that next feature in a spec, this is the workflow that it invokes
+
+00:36:21.000 --> 00:36:28.000
+So it performs the setup here to get everything installed and set up in the Archon worktree, so the application is ready to actually run
+
+00:36:28.000 --> 00:36:44.000
+And then we have the planning step, right? So, like, based on the feature that came in from the spec, like, that next feature, here is the prompting to plan things out. And, like, this isn't even that comprehensive of a planning prompt. Like, there's a lot more that I could actually do here, but I'm still
+
+00:36:44.000 --> 00:36:58.000
+getting quite good results. And then we pass that planning on to the implementation, separating it between different coding agent sessions, and so implement the next unfinished part based on the plan, and then it passes in, like, what we're actually building again.
+
+00:36:58.000 --> 00:37:02.000
+And then we're running our tests here, and then creating the pull request in the end.
+
+00:37:02.000 --> 00:37:08.000
+So now that pull request as the output for this workflow then goes into the validation
+
+00:37:08.000 --> 00:37:24.000
+And, we'll merge that in, and then update the spec after we've validated everything. So, the next workflow for the visual QA, again, we set up the environment, because we're copying the codebase into a work tree. We have to make sure everything is installed and ready to run.
+
+00:37:24.000 --> 00:37:29.000
+And then we have like a capture step right here
+
+00:37:29.000 --> 00:37:35.000
+So basically, it's just getting a sense of like all of the tests that were run
+
+00:37:35.000 --> 00:37:43.000
+And if there's anything that failed where I'd have to, like, pass that as context of, like, okay, we're not good, we have to… we have to iterate here. And then we have the judge
+
+00:37:43.000 --> 00:37:58.000
+And so this is just using Sonnet here to play the game. We have the entire command here for the process of how we can actually play the game with the whole testing harness that we built. That's one of the things I had in the spec. And then we produce that report
+
+00:37:58.000 --> 00:38:07.000
+That will either lead to the pull request getting merged, or we're gonna have to iterate with an agent.
+
+00:38:07.000 --> 00:38:16.000
+And so every time the orchestrator runs, it's gonna pick, like, you know, based on the spec, like, should I kick off an Archon workflow for North Star build, or should I do one for a visual Q&A
+
+00:38:16.000 --> 00:38:35.000
+Like, usually it'll alternate between them, because just for the sake of, well, not burning through my rate limits, and then also so that I can have more human in the loop, I usually have it just build one thing from the spec at a time. But it's doing that in a loop, like, overnight, even. I've had it run overnight many, many nights over the last couple of weeks, as I've just been testing different
+
+00:38:35.000 --> 00:38:39.000
+So, yeah, and then, for the game itself.
+
+00:38:39.000 --> 00:38:46.000
+I've restarted it a couple of times, just as I've been working on the harness. I don't have, like, something insane at this point
+
+00:38:46.000 --> 00:39:02.000
+But it is, like, pretty cool what it's able to build, like, the physics are good, the combat is good, it's a tower defense game, right? So, like, this is, like, my core that I have to protect. These are, like, some towers that shoot at the enemies autonomously, and then the guy in the middle here is a character that I can control.
+
+00:39:02.000 --> 00:39:09.000
+And so the enemies all come from the bottom, and I have, like, special abilities that you can see in the bottom left right here
+
+00:39:09.000 --> 00:39:25.000
+And then I'm building out, like, an economy system, so you get, like, coins or whatever, star essence from killing the enemies, and so, like, when you go into future waves, you can upgrade your abilities and your towers and things like that. So it's pretty comprehensive, like, I'm not gonna show too much here
+
+00:39:25.000 --> 00:39:31.000
+Because that's not the point of this workshop, but it's pretty comprehensive, like, what I've been able to build. So if I go to, like, the first tier here
+
+00:39:31.000 --> 00:39:48.000
+You can see, like, I can attack the enemies. I have, like, my special flame dash ability, so I'll show that, right here. Like, boom, like, I have my flame dash. And, like, the physics are good, like, the walls work and everything. Like, I don't know, it's not, like, overly complicated or anything, because I'm not
+
+00:39:48.000 --> 00:39:49.000
+trying to, like
+
+00:39:49.000 --> 00:40:00.000
+Like I said, I've been restarting a couple of times, so I didn't have time to, like, do some insanely complex thing, but yeah, I mean, it's pretty good overall. Like, that's all I really need to show for a demo right now.
+
+00:40:00.000 --> 00:40:19.000
+So yeah, like this isn't at this point, this isn't like necessarily the thing that you there's like no way you could build without loop engineering. Like you could build this with just like a classic Ralph Loop, but the bigger point here is that like now this is something ingrained in my second brain and this is the way to engineer the loop. I never even have to have anything running on my computer anymore
+
+00:40:19.000 --> 00:40:31.000
+And then also, like, it knows how I work because it is my second brain with access to my memories, and so that also helps guide it as it's thinking about the different ways to go about building Archon workflows and testing things, for example.
+
+00:40:31.000 --> 00:40:37.000
+So, yeah, I appreciate it, Scott. So yeah, that's the demo of the game there
+
+00:40:37.000 --> 00:40:51.000
+And yeah, really, I'll go back to the chat here and answer some of the questions that you guys have, but yeah, we'll get into the co-founder PRD skill in just a second here. So yeah, let me
+
+00:40:51.000 --> 00:40:55.000
+Take a sip and I'll scroll back up in the chat here.
+
+00:40:55.000 --> 00:40:57.000
+All right
+
+00:40:57.000 --> 00:41:00.000
+See where we're at.
+
+00:41:00.000 --> 00:41:15.000
+Let's see, Apollo said, been testing hybrid approaches with many loops going through plan tasks, which with each loop running on a fast and cheap model, have a tight feedback loop where each failure gets caught immediately and appended to the log for the next iterations to pick up
+
+00:41:15.000 --> 00:41:26.000
+It's tough to optimize, but getting good results, even on brownfield apps, eager to incorporate some of your research into this. Yeah, that's very cool, Paolo. Appreciate you sharing. Nice.
+
+00:41:26.000 --> 00:41:48.000
+Marley said, I use blueprints of my actual house paired with photos for each room. Finding the right fab assets was the hard manual part. Yeah, that makes sense. But once I had a good package for each room, it was pretty much a one-for-one visually after a few rounds. Wow, that is super cool. Just requires a bit of vibe iteration for the final things, like opening doors. Yeah, that makes sense. And then I think, Marley, you attached it or you put a screenshot here, but
+
+00:41:48.000 --> 00:42:03.000
+I have Zoom running in the browser, so I can't actually see it. Sometimes it does that, where, like, someone sends a screenshot, I can't see it, so… or maybe you didn't, but I see that Paul said that. It's amazing, so I don't know if you, like, sent a screenshot or not, but
+
+00:42:03.000 --> 00:42:05.000
+Anyway.
+
+00:42:05.000 --> 00:42:09.000
+Alright, let's see what else we have here.
+
+00:42:09.000 --> 00:42:26.000
+So Stefan asked a question regarding order of implementation. Just finished the second brain implementation from the course. So next options, pointing the repo at the following workshop repos or use the PRDs from the workshop to improve extent. So we have, yeah, the memory system deep dive
+
+00:42:26.000 --> 00:42:33.000
+Second brain security deep dive, Archon as an ARM and then the second brain migration. Do I suggest a certain order?
+
+00:42:33.000 --> 00:42:42.000
+So, I appreciate you bringing this up, and actually, Dan, someone in the community brought this up in a post today as well
+
+00:42:42.000 --> 00:42:51.000
+What I want to do to make this easier is I want to actually add these workshops directly into the course material for the second brain
+
+00:42:51.000 --> 00:43:07.000
+So there'll be like videos added on into the course in the community because I want to make that more clear. So I apologize. It is on me that I've been like doing these workshops and not like linking it up directly. So I definitely want to do that to make it easier for you guys. So I appreciate you bringing this up
+
+00:43:07.000 --> 00:43:22.000
+The memory system deep dive and the second brain security deep dive, both of those are not really add-ons. Like, I'm more just explaining things in more detail, there's nothing, like, new there that you don't already have if you follow the core Second Brain course
+
+00:43:22.000 --> 00:43:38.000
+But the Archon as the arm of the second brain and then the second brain migration, those do actually provide PRDs there like I'm doing right here if you want to incorporate those things. And so, Stefan, it's not like you necessarily have to
+
+00:43:38.000 --> 00:43:47.000
+Apply these PRDs to your second brain. But if you want to incorporate Archon, then I would suggest doing that one first.
+
+00:43:47.000 --> 00:43:49.000
+And then if you want to
+
+00:43:49.000 --> 00:44:06.000
+migrate off of Claude code, then, yeah, you would just do that one right after. But, Claude code, their whole, like, June 15th restriction they were going to impose where you couldn't use the Claude Agent SDK with Claude code, or sorry, you couldn't use the Claude Agent SDK
+
+00:44:06.000 --> 00:44:18.000
+With your subscription, they didn't enforce that. They actually made a public statement that, at least for now, they're not enforcing that. And so we still can use our Anthropic subscription with
+
+00:44:18.000 --> 00:44:34.000
+With our second brain and with Archon. And so, the migration is still an interesting thing, like, it's still a good workshop to go through and see how I did that, especially if you do want to, like, move it to Codex for other reasons, like you think it's going to be better, or you want to test other
+
+00:44:34.000 --> 00:44:50.000
+models like Pi, where you just don't want to use Claude code, whatever, like that's still a good workshop but like only go through that if you actually want to migrate off. There's not as much of a reason to do it after that restrictions, not taking place. It probably will at some point though, it's just it's been delayed for whatever reason
+
+00:44:50.000 --> 00:44:53.000
+I think because they got an insane amount of pushback.
+
+00:44:53.000 --> 00:44:55.000
+Yep
+
+00:44:55.000 --> 00:45:19.000
+Cool, so I hope that helps. Marley said Archon was used for sourcing assets with the pictures with LLM descriptions, semantic searching, the fab libraries for the assets and packaging it all together, and sending the initial MCP prompt. That's super cool. I love that you're using Archon to help with this. Then was the vibe iteration after, but this is definitely the initial infrastructure Archon workflow skills that could solve the manual work
+
+00:45:19.000 --> 00:45:26.000
+At least drastically reducing it. Nice. Yeah, I love that you're using Archon for this.
+
+00:45:26.000 --> 00:45:44.000
+Is the North Star build and visual QAML available for study? I appreciate you asking, Scott, but no, because I didn't like there's no human in the loop building those RCOL workflows, because I want to specifically test things up front where I don't review these things, and I want to see how reliable it can actually be
+
+00:45:44.000 --> 00:45:46.000
+I think like
+
+00:45:46.000 --> 00:46:07.000
+If I was, as I continue to evolve the loop engineering I built with the co-founder here, I actually probably want to add more human in the loop because that really is how you get the best results right now. And so I think that the workflows aren't at a good state where they're actually worth studying yet, but I'll get them there. I'll continue to share this with you guys. I'm sure I'll have more workshops
+
+00:46:07.000 --> 00:46:11.000
+Just as I continue to evolve this system
+
+00:46:11.000 --> 00:46:27.000
+Are these workflows being created automatically? Yep, so I have the co-founder as it's orchestrating. If it figures, like, okay, I'm about to orchestrate a job where I don't have an Archon workflow for it yet, then it'll actually go through the time, or it'll take the time to build the Archon workflow
+
+00:46:27.000 --> 00:46:47.000
+And yeah, like I just told Scott, like they're not worth studying yet. So I don't really want to share them. And there's so many other really good archon workflows that ship as like the default workflows with Archon that are worth studying over this. But I definitely do want to get like once I have Northstar, if I have the whole system
+
+00:46:47.000 --> 00:46:57.000
+chugging along nicely in the Archon workflows are working crisp, like, then I'll share everything. But it's not there yet, because, like I said earlier in the workshop, a lot of this is more experimental still
+
+00:46:57.000 --> 00:47:11.000
+So there's always that balance of, like, how refined do I get it before I share it with you guys, versus, like, let me share this early on so I can keep you on the cutting edge as well. And so, I think I found a good balance, but that definitely means there are still some things where it's like,
+
+00:47:11.000 --> 00:47:22.000
+like, take it at a high level still, I don't want you to study, like, don't bother studying this actual workflow, at least yet. Hope that makes sense.
+
+00:47:22.000 --> 00:47:26.000
+Cool. Helps a lot. Thanks, Cole. Yeah, you bet, Stefan.
+
+00:47:26.000 --> 00:47:28.000
+All right
+
+00:47:28.000 --> 00:47:47.000
+Derek said, when I was a kid, the Dallas Stars were the Minnesota North Stars. Oh, really? Minnesota's the North Star State. Cole's from MN, as am I. Just some fun facts for the chat. I didn't actually know that. And hey, that makes it even cooler that I called the game North Star. I didn't… I didn't know that it was the North Star State.
+
+00:47:47.000 --> 00:47:54.000
+Just so I can understand the vertical slice arc, is the spec sitting in second brain, or the actual app folder?
+
+00:47:54.000 --> 00:48:03.000
+The spec is in the second brain, Erin, like, I have that as a part of, like, if I go back to my Obsidian vault here
+
+00:48:03.000 --> 00:48:09.000
+The spec lives in, like, a co-founder projects folder that I have
+
+00:48:09.000 --> 00:48:18.000
+So I just want like all of the planning and higher level stuff. I just want that to remain in the repo in like the second brain memory.
+
+00:48:18.000 --> 00:48:21.000
+Cool. All right.
+
+00:48:21.000 --> 00:48:28.000
+Let's see, it may have missed this. How is the spec and plan defined for each loop? Is the co-founder that defines it prior to each loop?
+
+00:48:28.000 --> 00:48:48.000
+So, the spec is something that I create upfront with Claude Code. So like I show in this part of the diagram here, that is the only thing that lives outside of the second brain, that first step of initially creating the spec. But then as you continue to refine the spec, like you want to add in something where it's like, oh, I actually want you to build this as well.
+
+00:48:48.000 --> 00:48:59.000
+or the loop here, like, built the first iterations, you're like, alright, time to move on to the next thing. Then you're just talking to the second brain and having that conversation to edit it directly.
+
+00:48:59.000 --> 00:49:02.000
+All right. Yeah, you bet.
+
+00:49:02.000 --> 00:49:17.000
+Cool. So, yeah, with that, let's get into the last thing that I have for you guys here. We might actually end this workshop a little early. Nice and concise, but I mean, I covered really everything I wanted to here. So let me go back, because we'll talk about the PRD
+
+00:49:17.000 --> 00:49:19.000
+skill now
+
+00:49:19.000 --> 00:49:25.000
+So, you know, here's what I'm gonna do. Let me… I actually want to open this up
+
+00:49:25.000 --> 00:49:28.000
+Let me go to my second brain quick
+
+00:49:28.000 --> 00:49:45.000
+Oh, and by the way, one of the other things that I wanted to show here is just how easy it is to monitor the system, right? Like, because my second brain has full knowledge on the VPS where I have things deployed and the whole co-founder setup, I can literally just say, like, give me a North Star
+
+00:49:45.000 --> 00:49:55.000
+Status update, right? Like, it can be that simple, and it was to check the co-founder, log into the BPS, look at the Archon workflow logs, right? Like, that's how simple it can really be.
+
+00:49:55.000 --> 00:50:10.000
+So it starts by reading co-founder projects as the index and then reading the North Star like we can see this all happen live based on its memories. It knows how to sign into the VPS as well. It'll get there. It takes a little bit to go down those layers of progressive disclosure and query the
+
+00:50:10.000 --> 00:50:25.000
+the whole engine that's running in the VPS, but it's pretty awesome, like, how little I have to prompt it for it to know how to navigate through everything here. That's the beauty of having the co-founder built directly into the second brain. Like, you definitely can, and we'll actually see this with the PRD, like, you can definitely build this
+
+00:50:25.000 --> 00:50:37.000
+not in your second brain. It can be an isolated application, but, like, this is a clear example of why it's quite helpful for it to be directly built into the VPS.
+
+00:50:37.000 --> 00:50:45.000
+So I could even say, like, you know, go into the VPS and get the logs, the workflows for the Archon workflows
+
+00:50:45.000 --> 00:50:50.000
+Yeah, and then sorry, there's one other thing I was going to do here.
+
+00:50:50.000 --> 00:50:53.000
+You open up Claude again
+
+00:50:53.000 --> 00:50:59.000
+And then I'll say, pull the latest from the workshop repo
+
+00:50:59.000 --> 00:51:05.000
+and give the full path to the co-founder
+
+00:51:05.000 --> 00:51:13.000
+All right. So yeah, I am on my laptop here, so I don't have it pulled yet. And I actually, I was going to just show this
+
+00:51:13.000 --> 00:51:26.000
+In the browser, but I think it'll be easier to navigate if I have it locally. That's why just having it do that quick. But anyway, so this again is the link that I have in the description for our event here
+
+00:51:26.000 --> 00:51:41.000
+And it has the diagram, and then also the create co-founder PRD skill. And so, if you haven't been in some of the more, like, extensions of the Second Brain workshops that I've done, I love giving these as something where you can use this as a starting point to
+
+00:51:41.000 --> 00:51:44.000
+build what I show here, but customize it to you.
+
+00:51:44.000 --> 00:51:58.000
+And so you just can take this skill right here in the .claude folder, and you can just put it in the skills directory for your second brain, or whatever, and just say, like, you know, use this skill to then… or you can invoke it yourself, like, slash create co-founder PRD
+
+00:51:58.000 --> 00:52:04.000
+And then you give it a path to the template that I'll show in a little bit that you fill out.
+
+00:52:04.000 --> 00:52:13.000
+And so really like this entire document is covering everything that goes into the system that I was just showing you guys
+
+00:52:13.000 --> 00:52:29.000
+And the beauty of that is obviously when I built this myself, I didn't one shot it. Like this is a pretty complicated system to get this incorporated into the second brain. And so all of the things I ran into, the hard lessons that I had to learn, I have that all documented here
+
+00:52:29.000 --> 00:52:43.000
+So that your second brain can implement this very efficiently. And of course, you might run into your own little roadblocks, so I'm not saying that it'll one-shot it now that you have this, but it'll take you less time than it did for me, and you can customize things.
+
+00:52:43.000 --> 00:52:45.000
+And so
+
+00:52:45.000 --> 00:53:02.000
+I have the requirements here. So this is the template that you fill out, that you then pass into this skill, right? Like, once you fill out this template with all, like, checkboxes and freeform text, then you'll just do slash create co-founder PRD and give it the path to this file
+
+00:53:02.000 --> 00:53:08.000
+And so this is where we get to specify any kinds of customizations that you want.
+
+00:53:08.000 --> 00:53:15.000
+And then, if you want to literally build the exact same thing that I did, then I also have the example here
+
+00:53:15.000 --> 00:53:30.000
+Where this is the filled-out template, like, everything's already checked off, and free-form text is already filled in. This is, like, my exact co-founder system. If you want to not even tweak things to yourself. So if you just want to, like, build it really quickly, literally just run slash
+
+00:53:30.000 --> 00:53:36.000
+Create co-founder PRD, and then give it the path to this once you have it cloned locally
+
+00:53:36.000 --> 00:53:42.000
+So, very easy, no matter the level of customization that you actually want. So, yeah, let me go back here
+
+00:53:42.000 --> 00:54:00.000
+So you can see that it's in the middle of like looking through the archon logs right now, seeing how the workflows are progressing for the co-founder system. And then, okay. For some reason, it's being really slow. I'm surprised it didn't finish this already
+
+00:54:00.000 --> 00:54:07.000
+So, I was expecting to have it local already, but anyway, let me go back to the browser now
+
+00:54:07.000 --> 00:54:24.000
+And I'll just cover the requirements at a high level, just to give you guys an idea for the ways that you can customize it. And if you have any questions on running this, feel free to let me know right now. Or if you want to work on this, fill out this template, build the co-founder system after the fact and you run into anything at all
+
+00:54:24.000 --> 00:54:34.000
+like, again, I always feel free to DM me or make a post in the community. But yeah, I would encourage you guys to try this out. Like, it's really cool, the kinds of things, like
+
+00:54:34.000 --> 00:54:42.000
+you're just able to send off these loops to build proof of concept, whatever you want, like, it becomes very fun to just let it rip
+
+00:54:42.000 --> 00:54:49.000
+And then have it alert you in your… whatever your platform is for your second brain, like Slack, when it's time to take a look at something.
+
+00:54:49.000 --> 00:55:16.000
+So yeah, let's go back here. So the first thing that I have is a question, are you adding this to something that already exists or are you building it standalone? So this is what I promised earlier, where if you don't want to build this into a second brain or you don't have one already, you can still create this as an application from scratch. You don't need this in your second brain, it's just nice for it to rely on your memories and all your infrastructure that you have set up there.
+
+00:55:16.000 --> 00:55:29.000
+And then we asked, how does your interactive agent, so like the second brain, whatever is doing the orchestration, how does it learn what it knows at the start of the conversation, right? So how are we injecting in the context
+
+00:55:29.000 --> 00:55:34.000
+And maybe I can go to my example to show you, like, what my answer actually is.
+
+00:55:34.000 --> 00:55:40.000
+So let me go to example my co-founder requirements.
+
+00:55:40.000 --> 00:55:56.000
+So, I mean, if you went through the Second Brain course, you have this set up already, but you have the global rules, we have the start session hook that injects the context, and then we also have the memory index, so it can search through, like, of course, we have, like, the co-founder projects index file
+
+00:55:56.000 --> 00:56:01.000
+You could change this all if you want. Like, that's why I have that as something you can tune right here
+
+00:56:01.000 --> 00:56:11.000
+But I would encourage you to, like, check this box for a memory index. I just want to make it optional so you really have full control, but, like, that's referring to this file right here
+
+00:56:11.000 --> 00:56:25.000
+Where we have that primary index of all of the co-founder projects that we're working on right now, exactly how we want to create Archon workflows, how we want it to report when it's awaiting a human. Like this is the core system prompt that I was covering earlier.
+
+00:56:25.000 --> 00:56:31.000
+And then just information about you. Here are the targets, like, if you already have repositories in mind
+
+00:56:31.000 --> 00:56:38.000
+Here's how you want the orchestrator to wake up. Like, what is going to trigger this loop? What is the cron job?
+
+00:56:38.000 --> 00:56:50.000
+So you might have an existing heartbeat like I had already follow along with the course, you might want to build a standalone scheduler. However, you're going to set it up so that it triggers itself, whether that's on your machine or some BPS that you deploy it to.
+
+00:56:50.000 --> 00:57:07.000
+And then, what is your build engine? So again, Archon is optional. If you want to, you could use slash loop and clon code. Like, this is what Boris Cherney talks about a lot when he says, in his tweet, like, on the podcast, like, I never, I never ever prompt my agents anymore, I just prompt
+
+00:57:07.000 --> 00:57:16.000
+Or I just create my loops, right? Like, he's talking a lot about using routines and loops in Claude code
+
+00:57:16.000 --> 00:57:22.000
+Sorry, I'm looking at, I think my computer might have froze.
+
+00:57:22.000 --> 00:57:27.000
+Hold on.
+
+00:57:27.000 --> 00:57:31.000
+I might… oh, no, I might have froze.
+
+00:57:31.000 --> 00:57:33.000
+Okay.
+
+00:57:33.000 --> 00:57:39.000
+I think I'm back now. Did I freeze for you guys for a little bit, or was that just on my end?
+
+00:57:39.000 --> 00:57:47.000
+I don't know what's going on, but I think I'm like hitting memory issues with my computer.
+
+00:57:47.000 --> 00:57:55.000
+I wasn't frozen. Okay, I didn't freeze. Okay, that's really weird. I'm going to maybe like stop these Claude tasks
+
+00:57:55.000 --> 00:58:00.000
+Because something is
+
+00:58:00.000 --> 00:58:10.000
+The polls are stuck on a slow hanging network connection. Yeah, okay, I'm going to stop this here. I'm not sure what's going on. It's really weird, but something is up with my internet that's like freezing
+
+00:58:10.000 --> 00:58:27.000
+Yeah, okay. Well, anyway, let me go back here. So, yeah, I was saying that when Boris is talking about loop engineering, he's, of course, as the creator of Claude Code, he's just leaning on the features in Claude Code. So, that is, like, slash loop and routines, things like that.
+
+00:58:27.000 --> 00:58:31.000
+And actually, it's interesting because
+
+00:58:31.000 --> 00:58:40.000
+Someone said here, it's just cron jobs with a hat on. The best skeptic line in the corpus was four words. Cron jobs have a funny rebranding right now.
+
+00:58:40.000 --> 00:58:54.000
+Which also, that's not four words. I don't know why words. I don't know why the LinkedIn post says it's four words, but yeah, five words. Cron jobs have a funny rebranding. Like, literally, we're just creating a fancy cron job.
+
+00:58:54.000 --> 00:59:05.000
+But obviously, with what I'm doing with the co-founder here, it's a lot more of like, here's how we bring in context and orchestrate things for each iteration in the cron job. But yeah, so, like, that's an option if you want to in the PRD here
+
+00:59:05.000 --> 00:59:22.000
+If you don't want to use Archon, you can literally just use slash loop, or you can use GitHub actions like whatever that engine is that's actually running the workflows that the second brain wants, you can create something totally custom with the Cloud agent SDK if you want as well. There's definitely no dependency there
+
+00:59:22.000 --> 00:59:40.000
+And then, obviously, you want to pick that notification platform, like Discord, Teams, Slack, wherever you want it to, like, let you know, like, hey, it's awaiting your approval now, we got through the initial stuff in the spec file, now it's at a point where we want you to make sure that the game is fun, or the application works as you intended it to.
+
+00:59:40.000 --> 00:59:44.000
+So yeah, pretty much
+
+00:59:44.000 --> 01:00:01.000
+I guess I can go through these things, like where does the project markdown live? Like, do you want it to be in a Git repo, like in your Obsidian vault? What level of autonomy do you want for it? Should it approve things automatically when it passes from an Archon workflow? What kind of caps do you want? So guardrails that you have
+
+01:00:01.000 --> 01:00:07.000
+Maximum iterations, maximum wall clock, so it can't just, like, get stuck in an infinite loop
+
+01:00:07.000 --> 01:00:11.000
+If there's any kind of issue that comes up in the workflows that were built
+
+01:00:11.000 --> 01:00:26.000
+Yeah, any kind of, like, infrastructure that you have for it, like, where are you going to be actually running this? Like, is it going to be running on your machine or like a VPS? My second brain with the whole heartbeat system, I haven't running in a VPS, right? Like, that's one of the things that I cover at the end of the second brain course, and so
+
+01:00:26.000 --> 01:00:29.000
+I would recommend for something like this
+
+01:00:29.000 --> 01:00:45.000
+Especially because you don't want to, like, keep your computer on 24-7, I would recommend having this set up in a VPS. And just in general, like, with your second brain, that is what I would recommend. So yeah, you fill out all this, and then you just do slash create co-founder PRD, paste in the path to this file
+
+01:00:45.000 --> 01:00:58.000
+Bada-bing, bada boom. And yeah, I mean, obviously it's not like one shot necessarily, but that's what will get you down the whole path of building this into your second brain or from scratch.
+
+01:00:58.000 --> 01:01:08.000
+And then, like I said, going back to the diagram here, in order to really start using it to build something, you do want to have a spec file that you've already created
+
+01:01:08.000 --> 01:01:24.000
+So, like, the co-founder system is not going to… like, it's not responsible for creating the spec. So I know I already covered this, but I just want to reiterate, like, that is the one thing you do outside with whatever your usual process is for creating PRDs or specs
+
+01:01:24.000 --> 01:01:40.000
+Then, once you send that in, you're using the second brain for everything. It's running the heartbeats, you're talking to your second brain to iterate on the spec. I mean, I guess you could use your second brain to create it initially, but that initial thing is outside of the loop engineering. That's the input into
+
+01:01:40.000 --> 01:01:45.000
+the loop, right? Like, that's what… that's what this is really representing here.
+
+01:01:45.000 --> 01:01:46.000
+So
+
+01:01:46.000 --> 01:02:00.000
+All right, that is everything that I got for you guys for the autonomous co-founder. So yeah, we can just spend the rest of the time here just answering your guys' questions. And even if you don't want to, like, build this directly yourself
+
+01:02:00.000 --> 01:02:16.000
+I hope this workshop was good for you guys, just to get an idea of, you know, like what is loop engineering? What are the downsides? What does it look like to design a system to try to solve for those downsides? Not that I solve for them entirely.
+
+01:02:16.000 --> 01:02:31.000
+I'm on my way there, right? Like, this is the forefront of agentic engineering. Loop engineering might not ever be the default for building production-grade software, but it's certainly going to become the way to build proof of concepts, ideate on things quickly.
+
+01:02:31.000 --> 01:02:36.000
+The power of AI coding assistance is now when you want to ideate on something.
+
+01:02:36.000 --> 01:02:50.000
+you can move beyond the documents, right? Like, you can actually build it out just to prove an idea before then you would, you know, probably scrap that to then create the real thing in a more structured fashion
+
+01:02:50.000 --> 01:02:56.000
+So yeah, let me go back through the chat here and see what we've got next.
+
+01:02:56.000 --> 01:03:04.000
+Yeah, feel free to start putting some questions in, guys, and yeah, I appreciate all the questions that you've already had as well.
+
+01:03:04.000 --> 01:03:16.000
+Loic asks, does the co-founder automatically merge its own PRs into its main branch, or do you review it? Not sure to understand where your slack gate is. So that's one of the things that you can control.
+
+01:03:16.000 --> 01:03:21.000
+Right? Like, I had that in the PRD, where it's like, what's the level of autonomy that you want
+
+01:03:21.000 --> 01:03:25.000
+Right here, number seven, like, what is the merge policy?
+
+01:03:25.000 --> 01:03:29.000
+And so, for a lot of the testing that I've been doing
+
+01:03:29.000 --> 01:03:40.000
+I have… my merge policy is very lax. Like, I give full control. I let it, like, when you run the QA Archon workflow and it says things are good, you can just merge it right into main.
+
+01:03:40.000 --> 01:03:49.000
+But you can obviously tweak this, right? That just becomes a part of the system that you have. The Archon workflows and the core
+
+01:03:49.000 --> 01:03:59.000
+co-founder markdown document, like, that defines how it behaves when it decides when it should merge, or maybe wait for your approval before it does the merge.
+
+01:03:59.000 --> 01:04:15.000
+So if you want it to be even more in the loop, like, awaiting human, you can make it so it means that the branch is ready for you to test, but it hasn't merged to main. And then as soon as you talk to your second brain and your slack in the Claude Code terminal, whatever, and you say, like, okay, I tested it, and it's good.
+
+01:04:15.000 --> 01:04:20.000
+then it would merge domain entirely in your control how you set that up.
+
+01:04:20.000 --> 01:04:36.000
+Cool. Paul said, I haven't started using Archon yet, just the second brain. Could you show how this plus Archon plus the second brain work together? Like, just the visual? And then, yeah, Marley said, thank you for this. I have a whole workshop on it, incorporating Archon as an arm of the second brain. It goes over everything at a high level
+
+01:04:36.000 --> 01:04:43.000
+Yeah, thank you for mentioning that because that is what I'd recommend taking a look at. I'll show that here and give a link to it really quick.
+
+01:04:43.000 --> 01:04:47.000
+But yeah, let me go to
+
+01:04:47.000 --> 01:04:51.000
+Kohl's collection, or here, I'll just search for it here. So I'll search
+
+01:04:51.000 --> 01:04:54.000
+Arm
+
+01:04:54.000 --> 01:05:01.000
+Sorry, guys, my computer's being really slow. I don't know why.
+
+01:05:01.000 --> 01:05:16.000
+Yeah, something's going on with my memory right now. My machine. Well, let me search for this here. If someone else can pull it, if someone else could probably pull it up faster than I can because of what's going on here? Yeah, let me go to the events tab
+
+01:05:16.000 --> 01:05:20.000
+It's taking 2 seconds, or 5 seconds to load anything
+
+01:05:20.000 --> 01:05:24.000
+There we go. All right, so this is a link to the event
+
+01:05:24.000 --> 01:05:28.000
+All right
+
+01:05:28.000 --> 01:05:29.000
+Cool.
+
+01:05:29.000 --> 01:05:36.000
+Open highly mast outside of their biases towards using vanilla Claude code, what are the benefits of Archon over Claude loops?
+
+01:05:36.000 --> 01:05:47.000
+Yes, that's a good question. So hopefully it doesn't take too long to load this here, but let me go over to the repository for Archon
+
+01:05:47.000 --> 01:05:51.000
+Over to GitHub. All right. So the main thing is reliability.
+
+01:05:51.000 --> 01:06:05.000
+The problem with loops in Claude code or something like a Ralph loop, is you have no control over the actual workflow. Claude code itself defines the prompts for each iteration of the loop
+
+01:06:05.000 --> 01:06:23.000
+And so you really don't have much of a say of like what skills it's using, how it's validating things. I mean, you can try as much as you can to prompt it upfront to set the loop up in that way. But the beauty of Archon workflows is you're defining the process and you're making it as deterministic and repeatable as possible
+
+01:06:23.000 --> 01:06:38.000
+Because Archon allows you to define these workflows as YAML files where you set up the stages. This is how I want to plan, and then I want to go into another coding agent to take that plan and do the implementation, and then I want to run the tests
+
+01:06:38.000 --> 01:06:49.000
+But I want to do deterministically. Like, I'm not letting the LLM decide how to run the tests, because they are non-deterministic, they might get it wrong, or forget some of the tests that you tell it to run
+
+01:06:49.000 --> 01:07:05.000
+And so you're enforcing the test to be run in a certain way right after the implementation. And a lot of these problems of large language models being non-deterministic and forgetting to do things, they're exaggerated by loops, because loops are a longer set of work that you're laying out for it
+
+01:07:05.000 --> 01:07:21.000
+There's more for it to forget, and there's longer time in between you prompting it, so it's forgetting things that you're telling it to do in the system as a whole. Like, the orchestrator is going to lose track of your original goal over time. At least that's a risk that we have with loops in general
+
+01:07:21.000 --> 01:07:32.000
+So slash loop and quad code is cool because of how simple it is, but it's actually pretty limited in its reliability. And using slash loop in Claude code also, by the way, just keeps you in a single session.
+
+01:07:32.000 --> 01:07:50.000
+So it's a very token inefficient, and you start to get into that dumb zone for the large language model very quickly, because in between loops, it's not resetting the session, so you start to have, like, hundreds and hundreds of thousands of tokens in your context window, and the large language model gets completely overwhelmed with everything that you have. And so
+
+01:07:50.000 --> 01:08:03.000
+with our con workflows, we get to set up these independent nodes as separate coding agent sessions that are working together through handoff documents that we create. Like, handoffs, in general, are just a really big thing in the industry right now
+
+01:08:03.000 --> 01:08:18.000
+Because it's a way to keep your context lean and efficient, right? Like, you have one agent do the planning, and then it creates a plan document, and then you send that into another coding agent that does the implementation, and then it creates the implementation handoff that you then send into the review agent
+
+01:08:18.000 --> 01:08:29.000
+Right, like, we don't want to do everything all in one coding agent session, because we want to keep each individual agent as focused as possible. That's how we get the most reliable results. Archon helps you with that.
+
+01:08:29.000 --> 01:08:45.000
+And then also being able to even, like, do things in parallel. Like, my co-founder can look at a spec for North Star and decide, like, okay, I want to actually do 3 Archon workflows at the same time, because there are 3 features that I can easily build in parallel. Archon supports work trees under the hood
+
+01:08:45.000 --> 01:09:06.000
+So when you kick off an Archon workflow, it gets its own isolated environment, so that way it's not stepping on the toes of the other workflows that are running. Like, it has its own local copy of the code base, so it can work on its own thing and then create a pull request, and not worry about merge conflicts and tests breaking because the other coding agent was doing some edits as well
+
+01:09:06.000 --> 01:09:09.000
+We definitely want to avoid that kind of thing.
+
+01:09:09.000 --> 01:09:15.000
+So yeah, good question. And yeah, glad you think it's cool. Excited for you to implement it.
+
+01:09:15.000 --> 01:09:26.000
+What is your VPS setup for the second brain in Archon? So I cover this at the very end of the second brain course in the community
+
+01:09:26.000 --> 01:09:36.000
+So I'd highly recommend going through that, but I just use a DigitalOcean droplet. So that's like my cloud provider. And I have
+
+01:09:36.000 --> 01:09:52.000
+My Postgres, the second brain, and then Archon like all just deployed together on that VPS. And then I have an SSH key to get into that VPS that I've given to my second brain that's just running locally on my computer here. And so that way my second brain
+
+01:09:52.000 --> 01:09:56.000
+can work on itself on the VPS
+
+01:09:56.000 --> 01:10:07.000
+So actually, the first time that I installed Archon on my second brain VPS, I didn't actually go into the cloud machine and install it myself
+
+01:10:07.000 --> 01:10:25.000
+I literally said, like, okay, second brain, right? Like, this is me using it locally. Okay, second brain, you have the SSH key to get into the VPS. I want you to look at the Archon read me so you know how to install it, and then I want you to SSH into the VPS and get Archon set up, and, like, run a couple Archon workflows to make sure everything's working
+
+01:10:25.000 --> 01:10:43.000
+And I want you to, like, copy over the authentication from Claude, so that's set up. Or I guess it already had that at that point, so I didn't even need to do that, right? So it just set up everything for me. That's the beauty of a second brain knowing how you work, getting smarter over time, is you can give it that kind of request, and it knows exactly how to go through and
+
+01:10:43.000 --> 01:10:46.000
+deploy and validate everything.
+
+01:10:46.000 --> 01:10:47.000
+So yeah.
+
+01:10:47.000 --> 01:10:57.000
+Let's see here. Francisco said, "Using the second brain locally for a while. Time to try the VPS deploy soon. Yeah, it's nice, because then you don't have to have your
+
+01:10:57.000 --> 01:11:06.000
+And like if my computer's off and I have a question, like, I can just go on my phone on Slack and chat with it. Really nice
+
+01:11:06.000 --> 01:11:21.000
+Let's see. Thanks. Follow up on that response. To what extent is it then better archon for multi-step skills versus just listing out the steps in a skill file itself, meaning a skill with 15 steps to go through versus just using Archon instead
+
+01:11:21.000 --> 01:11:38.000
+Now, that is a good question and the answer to that is it goes back to the reliability. Like sure, everything in this Archon workflow, you could just have this as a single skill file, but then you're asking a single agent to do way too much at once
+
+01:11:38.000 --> 01:11:42.000
+Right? There's no splitting between different coding agent sessions there
+
+01:11:42.000 --> 01:11:53.000
+So the point of Archon is, instead of just one massive skill, we take the workflow, and we build it as a system. So kind of like the little elevator pitch for Archon
+
+01:11:53.000 --> 01:12:12.000
+is, you know, instead of building the system into the coding agent, like, relying on prompts that are brittle and it doesn't always follow, instead we're building the agent into the system. That flip is actually really, really important, because we have more control that way. We are deciding where we want the coding agent to run in a workflow
+
+01:12:12.000 --> 01:12:27.000
+Versus where we want a deterministic action. And then we also get to decide, like, when do we create a brand new session versus when do we have a separate step that just continues a conversation. So it allows us to have a lot more structure
+
+01:12:27.000 --> 01:12:43.000
+In our approach for our AI coding workflow. Like, literally, no matter your AI coding workflow, there is a way for you to package it up as an URCON workflow, and so you never have to have, like, a skill drive way too much at once. You're not going to get as good of results if you do.
+
+01:12:43.000 --> 01:12:49.000
+So hope that makes sense. That's a really good question though. It's always good for me to practice explaining the value of Archon.
+
+01:12:49.000 --> 01:12:59.000
+Might need to do a deep dive into Archon? Yeah, if you do, let me know. Let me know if you have any questions as well as you… as you use it. But yeah, working hard on this constantly.
+
+01:12:59.000 --> 01:13:13.000
+So cool guys. Yeah, Paul, so learn it now, too. Well, good. I'm glad that I can I can sell you guys on the value of it. And it's free and open source, so it doesn't hurt to try it. Very easy to set up and use a coding agent to help you do so as well.
+
+01:13:13.000 --> 01:13:23.000
+How do you handle failures in your workflow steps? We have retry logic in Archon. So if like there's any kind of issue with the tool call or cloud code crashes or whatever, then it'll just retry
+
+01:13:23.000 --> 01:13:38.000
+And because Archon workflows, the different coding agents communicate through handoffs, we don't actually lose any progress because if we have to restart the implement, we'll just go back off of the plan here, right? So we don't, like, restart the entire Archon workflow
+
+01:13:38.000 --> 01:13:49.000
+And then if you're talking about failures, as in it just, like, doesn't do a good job in a certain node, I mean, that's where you can add human in the loop. So that actually is yet another really good thing about Archon is human in the loop
+
+01:13:49.000 --> 01:13:55.000
+So we can make it so that, like, after implementation, the Archon workflow will literally pause itself
+
+01:13:55.000 --> 01:14:09.000
+And then you can, like, you can work with Archon in the CLI. We have a web UI, you can talk to it in an adapter, like Slack or Discord. Like, there'll be a notification for you there to then review the implementation, and you can approve it or reject it
+
+01:14:09.000 --> 01:14:25.000
+And then based on that action, like, the Archon workflow can go back to iterate on your feedback, or it can continue if you do approve. Like, you have all the primitives in Archon workflows, like looping and human in the loop, and you can switch the model and provider for each node, which is also another really cool thing with Archon
+
+01:14:25.000 --> 01:14:41.000
+Because, like I said at the start of the workshop, we're getting to the point now where these cheaper open source models are really, really powerful. They're not good enough where you want to use them for everything, but if you use the most powerful model, at least for the planning step in a workflow, like you use Opus for planning
+
+01:14:41.000 --> 01:14:52.000
+Then you can use GLM 5.2, KimiK 2.7, Claude Sonnet for everything else, like maybe your exploration, and then your planning and your review.
+
+01:14:52.000 --> 01:15:05.000
+Right, so you can get really good results by paying a fraction of the price. And Archon makes it so easy to manage different models and providers for the different steps in a workflow. You can't do that with just a single skill
+
+01:15:05.000 --> 01:15:07.000
+Yet another reason. So
+
+01:15:07.000 --> 01:15:18.000
+Yeah, I think that's enough of that, but talking about Archon is I can go on and on and on, but yeah, all right. So, cool. I'll take this last question from Stefan here
+
+01:15:18.000 --> 01:15:33.000
+When you say the co-founder approach is very suitable for systems like autonomous scaled content creation and content posting or other similar go-to-market system implementations? Can it act as a continuous marketing co-founder or content creation co-founder, if so
+
+01:15:33.000 --> 01:15:49.000
+So the answer is yes, definitely, but I haven't actually tested this myself. I'm just very confident, like, in theory, you definitely could. So, yeah, Stefan, you should try that out. Like, if you want to build and, like, go off of the PRD skill that I have in the workshop for today, but, like.
+
+01:15:49.000 --> 01:16:02.000
+the sake of content, you should try that, because you would just, like, customize the PRD and point it to do that instead as you're filling out the template and working on the plan before you implement everything
+
+01:16:02.000 --> 01:16:08.000
+But that would be super cool, like, if you end up doing that, you should make a post in the community, for sure.
+
+01:16:08.000 --> 01:16:23.000
+Okay, yeah, and then would you advise using the co-founder system on a project that already follows a PIV loop to speed development and build independent features in parallel? Well, Loic, if you want the most reliability possible, like I said, the classic Pibloop approach is still the best
+
+01:16:23.000 --> 01:16:28.000
+But if you're okay with sacrificing reliability for speed, then you definitely can
+
+01:16:28.000 --> 01:16:45.000
+But just be aware that, like, what you're working on right now is you're gonna notice a drop in reliability, probably, if you really want it to work autonomously in this way, no matter how good your harness is, if you have less semen in the loop, it's gonna go off the rails more. At least there's a much bigger risk of that
+
+01:16:45.000 --> 01:17:00.000
+So, all right, this was awesome, guys. I'm going to go ahead and stop sharing here. But yeah, I appreciate each and every one of you being here. Your awesome questions as well. Hope that you guys, if you want to just take this and run with it. Otherwise, I hope that you just got
+
+01:17:00.000 --> 01:17:06.000
+good ideas out of this for a loop engineering. The downsides, how we can engineer
+
+01:17:06.000 --> 01:17:14.000
+for them, and just in general, like, where are we going with the AI industry? Where is loop engineering, like, really signal versus noise?
+
+01:17:14.000 --> 01:17:24.000
+So, yeah, my computer is actually frozen again. But apparently last time I wasn't frozen for you guys, so hopefully you can still hear me and see me now. I don't know what's going on with my laptop
+
+01:17:24.000 --> 01:17:29.000
+But yeah, okay, I think I'm back now. Alright, cool. So
+
+01:17:29.000 --> 01:17:46.000
+Yeah, I wore it out today, that's right, Chad, I don't know, but… yeah, you're welcome, guys. Appreciate you guys being here, hope that you guys have a fantastic weekend and yeah, I'll see you guys all in the Dynamics community. Take it easy, everyone. Have a good one.
+

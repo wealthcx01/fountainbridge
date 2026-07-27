@@ -1,0 +1,2038 @@
+WEBVTT
+
+1
+00:00:00.550 --> 00:00:01.570
+Cole Medin: All right.
+
+2
+00:00:01.880 --> 00:00:12.300
+Cole Medin: So, welcome everyone to the next Dynamis Friday workshop. This is a workshop that is going to be tied directly to the first phase of
+
+3
+00:00:12.300 --> 00:00:23.559
+Cole Medin: the new Agentic Coding Course. And so, yes, you heard that right. The new version, the version 2 of the Agentic Coding Course is coming very, very soon. The first phase of it
+
+4
+00:00:23.560 --> 00:00:39.900
+Cole Medin: is going to be released on Monday. And I was telling everyone right before I, started the recording here that I'm working so hard on recording all the content for this right now. Rasmus and I spent, like, an entire month prepping just the first two phases. There's gonna be four in total.
+
+5
+00:00:40.000 --> 00:00:42.190
+Cole Medin: And this course is going to be
+
+6
+00:00:42.330 --> 00:00:45.319
+Cole Medin: Actually, more concise than the first version.
+
+7
+00:00:45.430 --> 00:01:00.390
+Cole Medin: fully up-to-date with all the new best practices and standards and harness engineering, and it's easier to follow. And so I took a lot of feedback from you guys and just generally working on the content more for, how I can make it so that it's more of a straightforward flow.
+
+8
+00:01:00.390 --> 00:01:19.560
+Cole Medin: And there's just, like, more mental models to help you guys, like, really grasp everything. So, I'm really excited to bring the first phase to you guys. And, yeah, first phase is gonna be longest of the four, because it is all the foundational stuff. So, yeah, that's part of why I'm putting so much effort into it right now. Because, yeah, I think there's gonna be, like, 13 videos in total for phase one.
+
+9
+00:01:19.740 --> 00:01:38.360
+Cole Medin: and they average, like, 15 to 20 minutes. So, like, it's a good few hours of content, but still more concise than the first version. But, like, man, if you dedicate, like, a few hours to go through the course, and, like, I actually encourage you heavily to follow along on your own codebase this time. It's another thing that makes it a lot better than the first version of the course is
+
+10
+00:01:38.360 --> 00:01:56.319
+Cole Medin: following along on your own codebase instead of trying to have you go through sample exercises that really aren't, like, providing value for you long-term besides just learning. So it's like learning and building at the same time. I'm really excited for that. So if you dedicate a few hours to go through Phase 1 over the next couple weeks, starting on Monday when it releases, like.
+
+11
+00:01:56.390 --> 00:02:11.329
+Cole Medin: you're gonna be so elevated in your approach to AI coding. And, one of the things I promised you guys that I also did in this version of the course is if you did the first version already, I call out specific things that you can skip or go through more quickly.
+
+12
+00:02:11.330 --> 00:02:17.740
+Cole Medin: So, also, you get to go through this fast and still get all the new good stuff if you've gone through the content before.
+
+13
+00:02:17.900 --> 00:02:26.249
+Cole Medin: Because I definitely want to, respect you guys who've already dedicated so much time to, everything that I'm bringing to you all.
+
+14
+00:02:27.230 --> 00:02:49.369
+Cole Medin: All right, Sean asked what's better using a Greenfield or Brownfield for the new version of the course. So I hit on both Greenfield and Brownfield constantly in the first phase. I want to make sure you guys feel well equipped for either. However, the example that I do go through as I ask you to follow along on your own code base is Brownfield, just because Brownfield is more common.
+
+15
+00:02:49.540 --> 00:03:02.700
+Cole Medin: Right, and I feel like I actually overemphasized Greenfield too much in the previous version of the course, because your code base is only Greenfield for so long. Like, you build out your first MVP,
+
+16
+00:03:02.950 --> 00:03:07.480
+Cole Medin: And then you're already jumping to Brownfield. And so I wanted my example to be Brownfield.
+
+17
+00:03:07.740 --> 00:03:16.830
+Cole Medin: And in the end, like, the strategies you apply, especially when you get into the individual loops of coding, like, it's very, very similar between Greenfield and Brownfield.
+
+18
+00:03:17.390 --> 00:03:22.889
+Cole Medin: So, alright, Tom said, our own code base and quick start for V1, folks. Awesome. Perfect timing. Yeah.
+
+19
+00:03:22.900 --> 00:03:38.299
+Cole Medin: yeah, glad to hear it. So, yeah, I'm excited for it. So, anyway, I just wanted to spend a couple of minutes talking about this up front, because this is a big deal for me, and hopefully for you as well. But yeah, we'll get right into the meat of it here. So, one of the things that I cover in the course that I haven't before
+
+20
+00:03:38.470 --> 00:03:45.419
+Cole Medin: is not just managing everything in Markdown. So Markdown is fantastic, especially if you're a solo builder.
+
+21
+00:03:45.420 --> 00:04:02.659
+Cole Medin: But generally, when you're working on a larger scope of work, usually called an epic, you are tracking things in something like GitHub, or Linear, or Jira. In fact, Jira is the most common at larger companies, and so that's actually the tooling that I use for my example in the course.
+
+22
+00:04:03.500 --> 00:04:13.409
+Cole Medin: Because you're usually not just managing your state of things and all the tasks that you have in just Markdown, because it just doesn't scale once you're working to… working with more than one person.
+
+23
+00:04:13.580 --> 00:04:25.110
+Cole Medin: And so in the course I cover using Jira and of course I generalize it to whatever tools you're using. But I wanted to specifically do a workshop showing the full process in GitHub as well.
+
+24
+00:04:25.110 --> 00:04:49.389
+Cole Medin: Because GitHub is probably like the best balance of like, you can use it on a team, but also it's quite easy for you to use just as a solo builder. Because generally when you want to version control your code base and store it in the cloud, so it's not just living on one computer, you're going to be using GitHub anyway. And GitHub makes it easy with the idea of issues to track all the different work that we are planning.
+
+25
+00:04:49.860 --> 00:05:04.920
+Cole Medin: And then each individual issue, you send into a PIV loop. If you've gone through the first version of the course, you know what I'm talking about. We have that core workflow for how we work on any individual task, where we go through the planning, and the implementing, and the validating.
+
+26
+00:05:04.920 --> 00:05:21.599
+Cole Medin: And so, for this workshop here, we're gonna be taking things very far. Like, we're gonna… I'm gonna show you the entire process of managing a larger set of work, from ideation all the way to creating the epic, splitting the epic into tickets, and running a PIV loop on one of the tickets.
+
+27
+00:05:21.600 --> 00:05:30.940
+Cole Medin: ending in a pull request, so it's going to be very comprehensive here, because I want this to be, like, honestly, I'll probably add this as sort of, like, a bonus resource on top of the course.
+
+28
+00:05:30.940 --> 00:05:36.210
+Cole Medin: for, like, the GitHub version of things that I demo in the core of Phase 1.
+
+29
+00:05:37.140 --> 00:05:53.240
+Cole Medin: And so, let me open up my, diagrams here. You'll get a little bit of a sneak peek as well as some of the diagrams that I have for the course. Like, this is the core diagram. It's actually pretty similar to the one for the first version of the course. The core diagram that, like, shows the full system.
+
+30
+00:05:53.240 --> 00:06:15.149
+Cole Medin: for how we plan things upfront and like build our AI layer. And then we have the R PIP loops for our implementation. And then I'll cover system evolution in a later phase as well. So like that's our core workflow, our core system. And then there's a lot of other diagrams that I have here to explain different things. So I love diagrams 'cause I just love breaking things down as simple as I possibly can for you guys.
+
+31
+00:06:15.150 --> 00:06:18.750
+Cole Medin: And so, the workflow that I'll be showing you guys in GitHub.
+
+32
+00:06:19.170 --> 00:06:24.659
+Cole Medin: Again, it's like what I show in Jira in the course I'm showing in GitHub here.
+
+33
+00:06:24.810 --> 00:06:32.599
+Cole Medin: We're gonna start by planning an epic on a brownfield codebase. So just to, like, show you guys, like, this is where we're starting today.
+
+34
+00:06:32.860 --> 00:06:39.299
+Cole Medin: We have an existing code base, and we're going to be building the next release on top of it.
+
+35
+00:06:39.530 --> 00:06:47.770
+Cole Medin: And so, I'm throwing around some terminology here that maybe you're familiar with, maybe you're not. Generally, like, when you have an existing code base.
+
+36
+00:06:47.770 --> 00:07:05.899
+Cole Medin: and you want to build that next set of features, you call it either an epic or a release. Or, like, sometimes you'll call it both, because, like, the epic is you planning the next set of features, and then the release is when you take those features and you bring them to production. Like, you actually publish it for your end users.
+
+37
+00:07:06.250 --> 00:07:14.369
+Cole Medin: And so we're gonna start by planning the… the, epic by creating two documents. We're gonna be creating our PRD,
+
+38
+00:07:14.370 --> 00:07:29.489
+Cole Medin: and our architecture document. And yeah, Sean, an Epic is, like, a milestone, definitely. And, like, especially for, like, Greenfield, like, an Epic is, like, getting that MVP for Greenfield, or for Brownfield, it's that next milestone that you have for your application.
+
+39
+00:07:29.760 --> 00:07:44.469
+Cole Medin: And, I don't know if everyone here was in the workshop that Rasmus ran a couple of weeks ago, but he covered the idea of whenever you're planning out work with a coding agent, you're never shoving everything into a PRD.
+
+40
+00:07:44.780 --> 00:07:50.449
+Cole Medin: Because your product requirement document is where you are specifying the what and the why.
+
+41
+00:07:50.800 --> 00:08:05.219
+Cole Medin: You're not getting into the details of how you're going to build the next set of features, you're just focusing on these are the problems we're solving, and why we're building this next set of features in the first place. So you start with that, that is your intent.
+
+42
+00:08:05.220 --> 00:08:14.339
+Cole Medin: and then you create the architecture document. This is where you get into the specifics, with the help of your coding agent, on how you're going to approach building
+
+43
+00:08:14.340 --> 00:08:19.959
+Cole Medin: this epic? Like, what are the… what… what is the approach we're taking to building these features?
+
+44
+00:08:20.280 --> 00:08:24.569
+Cole Medin: And then those two documents together, they become your epic.
+
+45
+00:08:24.570 --> 00:08:49.000
+Cole Medin: And then from that you're going to create your tickets because you have to split the larger epic into the bite sized tasks that you're going to have your coding agent handle one at a time going through the RPIP loops, right? Like you do the plan, implement, validate on each one of the tickets. That's why we want to split them out because you never want to just hand an entire PRD to a coding agent and ask it to knock it out because it's going to get totally overwhelmed.
+
+46
+00:08:49.070 --> 00:09:01.849
+Cole Medin: and hallucinate a ton of things, and it's just a mess. You never want to do that. You want to make sure that you have very granular tasks. I love using the word granular. You want to have granular tasks for your coding agent, and then you build those out one loop at a time.
+
+47
+00:09:02.000 --> 00:09:05.120
+Cole Medin: And so, we're gonna be covering this entire workflow here.
+
+48
+00:09:05.490 --> 00:09:09.160
+Cole Medin: And an hour and a half is not actually a lot of time for this.
+
+49
+00:09:09.580 --> 00:09:13.790
+Cole Medin: And so I'm going to try to make it as concise as I can.
+
+50
+00:09:13.830 --> 00:09:17.839
+Cole Medin: And so there might be some things that I cover rather quickly.
+
+51
+00:09:17.840 --> 00:09:38.359
+Cole Medin: But just don't worry, because in the new version of the course, I get into the explanations for everything. And also, I, you know, re-record things a lot. So I'm like doing second takes to like make sure everything's concise and explained really well. So right here, we're just doing like a live session to just try to show you this entire process in like an hour and 15 minutes. That's the goal.
+
+52
+00:09:38.360 --> 00:09:40.079
+Cole Medin: that I got for you guys here.
+
+53
+00:09:40.600 --> 00:09:59.490
+Cole Medin: And I hope in just showing you the entire workflow very quickly, you can just, like, grasp the entire process, because in the end, like, the specific strategy I used to build the PRD, and the architecture document, and the way that I split things into tickets, or I guess in GitHub it's, like, splitting into issues, you might do it very differently.
+
+54
+00:09:59.750 --> 00:10:18.569
+Cole Medin: I just want to show the core mental models here, right? And like you can use my approach as a starting point, but like I always say, I encourage you to take the skills that I give you and take like my approach and really customize it to what works best for you and your team if you're building with other people as well.
+
+55
+00:10:18.960 --> 00:10:20.570
+Cole Medin: And so…
+
+56
+00:10:20.720 --> 00:10:31.560
+Cole Medin: Yeah, I will say that, like, there are a lot of skills I'm gonna be using today that, you can have access to right now. So, hold on, let me pull up the code base here.
+
+57
+00:10:32.640 --> 00:10:37.169
+Cole Medin: And I have all of these skills right here in…
+
+58
+00:10:37.500 --> 00:10:47.200
+Cole Medin: this .claude skills folder for the repo. Let me actually pull that up quick. So, sorry, I apologize, that's one thing that I didn't have ready.
+
+59
+00:10:47.290 --> 00:11:02.700
+Cole Medin: is, oh, no, I do have it ready. I'm sorry, I do have this. I'm prepared here. Okay, there we go. So, I didn't link this in the description yet, so that's my bad, but I will link it right here. So, all of the skills that I'm going to be using for the full workflow today
+
+60
+00:11:03.360 --> 00:11:08.230
+Cole Medin: are right here in the URL that I just put in the Zoom chat.
+
+61
+00:11:08.400 --> 00:11:17.690
+Cole Medin: And the cool thing is, these are all of the skills, all of the core skills for the new version of the course, that I've made GitHub native.
+
+62
+00:11:17.770 --> 00:11:32.740
+Cole Medin: And so, another reason I wanted to do this workshop is because, like, if you are using GitHub instead of something like Jira or Linear, then you already have the GitHub customized skills ready for you to use as a starting point and evolve to your needs.
+
+63
+00:11:32.740 --> 00:11:44.800
+Cole Medin: And so I just have this living in the sample repository for today's workshop. But when I do publish the first phase of the course, I am going to actually bring this into the starter template for the course.
+
+64
+00:11:45.790 --> 00:11:51.919
+Cole Medin: And so, yeah, with that, let me actually explain the agent that we're gonna be building on top of today. Let me just take a sip break quick first.
+
+65
+00:11:53.860 --> 00:11:54.840
+Cole Medin: Okay.
+
+66
+00:11:55.390 --> 00:11:58.020
+Cole Medin: So, the agent that we're building on top of
+
+67
+00:11:58.300 --> 00:12:13.579
+Cole Medin: is the Orbit support agent. So I actually just put a video out on my YouTube channel just this morning covering Pydantic AI 2.0. So this is, like, basically always been my favorite AI agent framework. They just did a massive 2.0 release
+
+68
+00:12:13.580 --> 00:12:28.019
+Cole Medin: That is really impressive. I posted in the community a link to the video as well, if you're interested in checking it out. Obviously not gonna just, like, go in and cover Pydantic AI 2.0 right now. But this is just, like, a really cool agent to build on top of here.
+
+69
+00:12:28.200 --> 00:12:45.389
+Cole Medin: Because I want to demo Brownfield. Brownfield is when you're going to be creating epics and splitting them into tickets. For Greenfield, you don't do that as much, because you're more just, like, creating the application locally, phase by phase, and then it becomes Brownfield. Then you have things in GitHub, and you're working on epics like we're going to be doing here.
+
+70
+00:12:45.390 --> 00:12:49.579
+Cole Medin: So, Brownfield Agent. And right now, it's a pretty basic agent overall.
+
+71
+00:12:49.900 --> 00:13:04.849
+Cole Medin: It's just, like, a really classic support agent, right? So you can imagine this being within some larger platform where you have a widget for people to say, like, hey, I didn't receive my refund. Please help, right? Like, this kind of basic question.
+
+72
+00:13:04.970 --> 00:13:13.199
+Cole Medin: And so then the agent is going to, you know, like, escalate to a human. Like, we have a kind of mock tool for it to escalate this to a human.
+
+73
+00:13:13.270 --> 00:13:30.029
+Cole Medin: And so there we go, you can see it searched the knowledge base, it escalated to a human, and it used, like, some thinking tokens as well. So it's just, like, a very basic example of an AI agent that has different capabilities from Pydantic AI 2.0. So yeah, I mean, that's all I need to explain for the agent itself.
+
+74
+00:13:30.420 --> 00:13:33.650
+Cole Medin: Basically, it's just a really, really simple support agent.
+
+75
+00:13:33.840 --> 00:13:52.659
+Cole Medin: And for our epic today, we're going to be planning adding in better short-term memory and long-term memory to this agent. I just kind of pulled a random, pretty interesting example. Specifically, what we're building in this workshop is not important. I just need to have something concrete to go through the entire workflow with you guys.
+
+76
+00:13:52.660 --> 00:14:11.129
+Cole Medin: And so we are going to be planning this epic completely from scratch. Like, imagine we've just had this agent running in production for a while, and then working with the team and figuring out, like, okay, guys, it's time for the next release. Let's think about what we need. Oh, you know, this agent doesn't have any long-term memory, so it has no way to remember past conversations with customers.
+
+77
+00:14:11.130 --> 00:14:13.459
+Cole Medin: Let's go ahead and build that now.
+
+78
+00:14:13.760 --> 00:14:16.320
+Cole Medin: So that's what we're building for the Epic.
+
+79
+00:14:16.480 --> 00:14:20.049
+Cole Medin: And maybe this example is a little bit simple.
+
+80
+00:14:20.490 --> 00:14:28.820
+Cole Medin: But you can imagine for a more elaborate long-term memory system, it's not something we can just do in a single PIV loop.
+
+81
+00:14:29.120 --> 00:14:46.439
+Cole Medin: Because there is a lot that goes into building that, because we have to build it into the database, we have to integrate it into the agent so it has tools to search for the long-term memory, maybe we'd have to build some kind of authentication mechanism so it's able to store memories for specific customers when they're signed into the platform.
+
+82
+00:14:46.440 --> 00:14:55.500
+Cole Medin: Like, you can imagine that if we tried to have a coding agent knock this all out in one go, it would not do a good job. That'd be way too much for it to handle all at once.
+
+83
+00:14:55.770 --> 00:15:19.350
+Cole Medin: Generally, when you go through a single R PIV loop, as I call it, like you're you're building out a feature, you want to be a single concern. And as much as possible, you only want to touch a single part of your code base. And so if you have a larger feature, that's like, okay, we got to change the database schema, we got to change the agent, we have to change the front end, we have to change our authentication like that. That's a good indication there where you where you think about
+
+84
+00:15:19.350 --> 00:15:23.329
+Cole Medin: All these things you have to change. That definitely means that we should create an epic
+
+85
+00:15:23.490 --> 00:15:34.470
+Cole Medin: and split from the epic into smaller tickets, so that we're working on things one at a time with a larger goal, instead of trying to do it all at once. And so that is what we're going to be doing here.
+
+86
+00:15:35.400 --> 00:15:45.450
+Cole Medin: And, Sean called out that, like, we did have a little bit of an evolution to the PIV loop in the new version of the course. And so, if I go back over to the diagram here.
+
+87
+00:15:46.040 --> 00:15:50.469
+Cole Medin: For, so in the first version of the course, we used to just call it the PIV loop.
+
+88
+00:15:51.050 --> 00:15:52.759
+Cole Medin: And now there's an R.
+
+89
+00:15:52.910 --> 00:15:56.290
+Cole Medin: And the R is, it stands for research.
+
+90
+00:15:57.140 --> 00:15:59.000
+Cole Medin: And it's not like…
+
+91
+00:15:59.520 --> 00:16:12.260
+Cole Medin: this isn't really new. Generally, like, when you do your planning up front, if you guys have gone through the course, you know, I call it vibe planning, where you're just kind of, like, exploring the implementation before you create your structured plan.
+
+92
+00:16:12.330 --> 00:16:30.039
+Cole Medin: we've always done that, but now I'm just giving it more of a name, because I think that it is sort of, like, a distinct step. Like, you're researching how you're going to go about building something, and just ideating with the agent before you get into more of, like, that structured plan that you send into your implementing agent.
+
+93
+00:16:30.460 --> 00:16:42.569
+Cole Medin: Yeah, exactly. It's like the brainstorming step. We could call it the BPIV loop, but I think RPIV just rolls off the tongue nicer. So I call it the research step. So it's research, plan, implement, and validate.
+
+94
+00:16:42.720 --> 00:16:47.590
+Cole Medin: Be mad, PIV. That's too many letters. Yep.
+
+95
+00:16:47.720 --> 00:16:51.550
+Cole Medin: Alright, cool. So, yeah, let me go back to the codebase here.
+
+96
+00:16:52.790 --> 00:16:59.789
+Cole Medin: Let me open that up. So I'm gonna start Claude Code. We are going to start with a completely blank coding agent session here.
+
+97
+00:17:00.140 --> 00:17:12.569
+Cole Medin: And we're going to go through the entire process, and we're going to start by ideating around this next epic. Like, just talking to the coding agent and figuring out, hey, what are we even going to build here?
+
+98
+00:17:13.290 --> 00:17:17.709
+Cole Medin: And so, let me get one thing ready to show you guys that.
+
+99
+00:17:19.690 --> 00:17:33.020
+Cole Medin: I just have, like, the set of commands. I just have to remind myself of the order, just to make sure I'm not missing anything for you guys, because if I don't have it up on my other monitor, then I'll forget, like, little things, like doing the commits between planning and building and things like that.
+
+100
+00:17:33.300 --> 00:17:36.660
+Cole Medin: So, let me just make sure that is rock solid.
+
+101
+00:17:37.000 --> 00:17:38.940
+Cole Medin: Okay,
+
+102
+00:17:40.470 --> 00:17:45.590
+Cole Medin: There we go. Okay, alright, now we're good. So, okay, we have a brand new coding agent session.
+
+103
+00:17:45.790 --> 00:17:54.169
+Cole Medin: And the first thing that we're going to do is we're going to create an epic, and we're going to actually store it as a GitHub issue.
+
+104
+00:17:54.650 --> 00:17:58.910
+Cole Medin: And so we can use GitHub kind of like a tracker.
+
+105
+00:17:59.080 --> 00:18:02.100
+Cole Medin: in something like Jira or Linear.
+
+106
+00:18:02.430 --> 00:18:06.199
+Cole Medin: So we have the issue, that is the entire epic.
+
+107
+00:18:06.530 --> 00:18:11.370
+Cole Medin: And then we can, like, store our PRD and our architecture document in the repository.
+
+108
+00:18:12.020 --> 00:18:34.610
+Cole Medin: And then we're also going to have the individual GitHub issues for the individual tasks that we're going to build out. And so everything's an issue. The high level is an issue. The individual tasks are an issue. I love using GitHub issues. I mean, if you guys know, when I work with Archon, I am basically always using GitHub issues as the input into my Archon workflows.
+
+109
+00:18:34.610 --> 00:18:39.680
+Cole Medin: It's just a really good way to organize, like, okay, here's the next work that we have to tackle.
+
+110
+00:18:40.040 --> 00:18:48.580
+Cole Medin: Can I drop the diagram in the chat? I don't really have a way to, like, export it really fast. I mean, I guess I could, are you talking about the main diagram here?
+
+111
+00:18:48.930 --> 00:18:51.690
+Cole Medin: Because I could export it as an image really fast.
+
+112
+00:18:54.010 --> 00:18:56.409
+Cole Medin: Yeah, alright.
+
+113
+00:18:56.680 --> 00:18:59.780
+Cole Medin: Excal… yeah, I'll just, there we go.
+
+114
+00:19:00.070 --> 00:19:03.149
+Cole Medin: Let me pull up my downloads folder here.
+
+115
+00:19:04.140 --> 00:19:07.159
+Cole Medin: I'll drop this diagram in the chat for you guys, there we go.
+
+116
+00:19:07.950 --> 00:19:10.009
+Cole Medin: Oh, that didn't work. What?
+
+117
+00:19:13.020 --> 00:19:17.689
+Cole Medin: One second. Okay, there we go. There's the full diagram. Got it for you guys.
+
+118
+00:19:18.750 --> 00:19:33.499
+Cole Medin: Tim said, using sub-issues as tasks work really well. Yeah, you can definitely do that. Like, again, take this workshop as just, like, the core workflow and mental model. The specifics of how you guys organize things is totally up to you. You can certainly extend what I show you guys here.
+
+119
+00:19:34.160 --> 00:19:43.100
+Cole Medin: Eric said, so an epic is an issue, a sprint is an issue, a story is an issue. I mean, yes, everything can be an issue in GitHub.
+
+120
+00:19:43.140 --> 00:19:57.380
+Cole Medin: So let me, let me finish the explanation really quick here. So, yeah, pretty much everything can be organized as an issue, and then if you want to have, like, a Kanban board, like you have in other platforms like Jira, then you can use the projects view.
+
+121
+00:19:57.550 --> 00:20:17.579
+Cole Medin: that we have here in GitHub as well. So this is a way to like organize issues into like, here are the ones that are done, here are the ones that are currently in development or the ones that are in review. I don't have a project created for the orbit support agent. But if we go to github.com, I have this URL memorized colam00/arcon.
+
+122
+00:20:17.840 --> 00:20:33.599
+Cole Medin: we can see the project for Archon. So, if we go into projects, let me click into Archon, we don't really use this actively right now, but we have this sort of Kanban board, right? Like, here's what's in the backlog, here's what's ready to implement, in progress, review, and in staging, and done.
+
+123
+00:20:33.730 --> 00:20:45.769
+Cole Medin: And, like, each one of these items here is tied to a specific GitHub issue, right? So I can click into this here, and then boom, number 722. Like, this is issue number 722.
+
+124
+00:20:46.200 --> 00:21:05.609
+Cole Medin: And so this gives you like a nice human visualization layer on top of the issues. But really when you're using GitHub to drive your entire software development lifecycle, everything just simply starts as an issue. It's really nice. And so that's what we're going to be doing today. So let me, well actually I'll leave that open in case I want to reference the Kanban board again, but let me go back here.
+
+125
+00:21:05.610 --> 00:21:13.020
+Cole Medin: to issues. So we have nothing right now. We're gonna start by creating the very first issue, which is, the epic.
+
+126
+00:21:13.880 --> 00:21:30.089
+Cole Medin: So let me go to my coding agent, let me pull up my reference again. Let's see, so Paolo asked Prime. Yeah, we… Prime is going to happen very soon here, don't worry. You nailed it there. Actually, that is the very first thing that we do here, is Prime Codebase.
+
+127
+00:21:31.130 --> 00:21:32.000
+Cole Medin: Excuse me.
+
+128
+00:21:32.540 --> 00:21:38.199
+Cole Medin: So, yeah, I'm going to give a quick explanation of each of the skills here.
+
+129
+00:21:38.380 --> 00:21:50.089
+Cole Medin: But also, I know that, like, a lot of you have gone through the course already, so I'm not going to explain all of them in depth. That's also, like, the only way for me to fit everything in the hour and a half here. So we're going to start by priming our code base.
+
+130
+00:21:50.470 --> 00:22:09.019
+Cole Medin: This is what I do at the beginning of every single planning session with a coding agent, because I wanted to get that initial understanding of the code base so it's primed to go into the planning with me. That's why I call it the prime command. And so this skill right here is really just a workflow.
+
+131
+00:22:09.080 --> 00:22:12.040
+Cole Medin: That walks the coding agent through.
+
+132
+00:22:12.220 --> 00:22:19.670
+Cole Medin: how to, like, understand the codebase. So let me open up the skill.md here. I'll open up, like, the nicer view.
+
+133
+00:22:20.180 --> 00:22:39.680
+Cole Medin: So we have step zero, which is loading external context because we can supply specific GitHub issue numbers if we wanted to prime, but like specific to what we're building in these issues. So it's more of like a focused context loading session. But in this case, right, I'm starting from scratch with this epic. I don't have any GitHub issues to specify.
+
+134
+00:22:39.990 --> 00:22:51.599
+Cole Medin: And then it's going to analyze the project structure, look at Git log history, because that can give a good context of what we've built recently. Just exploring the codebase so that we have context to go into a conversation here.
+
+135
+00:22:52.150 --> 00:23:11.050
+Cole Medin: And so that's what we have now. And it runs pretty fast. Like this is a pretty simple prime command, you can definitely build on top of this if you want. But it read through the core files, it has an understanding of our project now. And so we can use this context to have the coding agent better walk us through the planning that we want to do for this epic.
+
+136
+00:23:11.510 --> 00:23:17.829
+Cole Medin: And, as promised, I have a skill to walk through every single part.
+
+137
+00:23:18.040 --> 00:23:27.890
+Cole Medin: of this workflow. So, one of the biggest skills that I improved upon since the first version of the course is the PRD Create skill.
+
+138
+00:23:28.520 --> 00:23:30.900
+Cole Medin: So let me… let me open this up really fast.
+
+139
+00:23:31.100 --> 00:23:38.370
+Cole Medin: And so this is the next skill we're going to run because it is an interactive problem first PRD slash epic generator.
+
+140
+00:23:38.370 --> 00:23:55.560
+Cole Medin: And the most important thing that I've added is we instruct the agent to interview us. We want to grill us with questions, in order to, really, like, validate all of the ideas and make sure we are on the same page with the coding agent for everything that we are building. And that's, like, the core part of the workflow.
+
+141
+00:23:55.860 --> 00:24:04.389
+Cole Medin: We have it, of course, like, do research on our behalf as well, but we want it to ask us a ton of questions, and then use that to create a structured document.
+
+142
+00:24:04.390 --> 00:24:19.730
+Cole Medin: And so I've always been a fan of, like, having the coding agent ask you a lot of questions or grill you, but I've never… but I didn't, like, have it built directly into the PRD skill in the first version of the course, and so that's one of the biggest evolutions that Rasmus and I have done for this skill.
+
+143
+00:24:19.830 --> 00:24:25.499
+Cole Medin: And so we'll run that right now. I'll do slash and plan create PRD.
+
+144
+00:24:25.750 --> 00:24:27.989
+Cole Medin: And so, right here.
+
+145
+00:24:28.270 --> 00:24:45.190
+Cole Medin: the input to it is either going to be a file where you've documented what you want to build for the next epic, or you can just give a free-form description. And I'm going to do the latter, just because it's easier for me here. And so, this is the point where it's very unstructured.
+
+146
+00:24:45.610 --> 00:24:56.189
+Cole Medin: So, when we want to create our initial PRD, we are… we're gonna… we're gonna get to the point where we have it all documented as our PRD and architecture file.
+
+147
+00:24:56.650 --> 00:25:07.269
+Cole Medin: But to start, we just kind of give a brain dump of what we want to build. In fact, you can make this a lot longer than I'm doing here for the sake of a demonstration. Like, when you're working on an epic.
+
+148
+00:25:07.270 --> 00:25:20.000
+Cole Medin: this is where you're at the higher level, well beyond just a single task. Like, you could be describing a lot of different features here. The point is to just give a brain dump to the agent of what you want to build. Like, in this case, I want to give the Orbit support agent
+
+149
+00:25:20.000 --> 00:25:33.569
+Cole Medin: short-term memory, and long-term memory. So I'm building in a couple of new memory systems here. Definitely gonna be at least, like, I don't know, probably, like, 4 to 6 tickets that it'll split in the end. But we're doing our initial PRB planning, though.
+
+150
+00:25:34.220 --> 00:25:46.479
+Cole Medin: Terrance asked, are we going to use Archon? We're not going to use Archon in this workshop. So, Archon comes later in the course. It's… we're going to be covering that in, Phase 3 of the course.
+
+151
+00:25:46.500 --> 00:26:01.159
+Cole Medin: And so I want you to understand the core systems of AI coding first, then I introduce you to Archon and how we use Archon to build those systems as Archon workflows. But I don't want to jump straight to Archon.
+
+152
+00:26:01.160 --> 00:26:08.650
+Cole Medin: Because, first of all, I don't expect everyone to use it, and then also, you want to understand the underlying systems before you're building them in workflows.
+
+153
+00:26:09.950 --> 00:26:13.660
+Cole Medin: Sean asked, how do you control over-grilling or under-grilling?
+
+154
+00:26:13.780 --> 00:26:29.020
+Cole Medin: So really what it comes down to, Sean, is if you… if you find that the agent is over or under-grilling you, it's just an opportunity to improve the skill. Like, maybe you want to be more specific, like, ask this number of questions, or like, here's when you know to stop asking questions.
+
+155
+00:26:29.020 --> 00:26:45.219
+Cole Medin: And so this is like, you know, what gets into system evolution that we cover a bit later in the course, but anytime the agent doesn't behave as you want, just ask it why it did what it did and how you can change the skill or rules or whatever so that it's more in line with how you want it to behave.
+
+156
+00:26:45.690 --> 00:26:51.239
+Cole Medin: And so, yeah, I mean, it really comes down to the specific skill you're using, and you just adjust that.
+
+157
+00:26:51.560 --> 00:26:59.009
+Cole Medin: But generally, I find that coding agents are surprisingly good at understanding the gaps that they need to fill.
+
+158
+00:26:59.190 --> 00:27:05.730
+Cole Medin: Like, I often… like, okay, I'll be totally honest, like, sometimes when I have the agent grill me, like we're about to get into right here.
+
+159
+00:27:06.000 --> 00:27:23.040
+Cole Medin: I do get kind of annoyed with the number of questions that it's asking me. It's kind of like, man, you're asking me 20 questions, like, do I really want to spend the time doing this? But it's like, you know, when you think about it in the way that, like, every single question it asks you is an assumption that you are removing. That's important.
+
+160
+00:27:23.140 --> 00:27:33.459
+Cole Medin: And, like, so I just roll with it. Like, I just… I take the time, I'm patient with it, because it just makes your plan documents so much better when you have everything clarified with the agent.
+
+161
+00:27:33.490 --> 00:27:45.729
+Cole Medin: And especially using… most coding agents now have something like this, where it's able to ask you multiple choice questions, and so that way you can take its recommendation for a lot of them. You're able to move through the questions very quickly.
+
+162
+00:27:46.130 --> 00:28:01.850
+Cole Medin: So, like, this one is, who is the real customer this PRD should be written for? You know, like, what makes it succeed? So, again, we're not getting into the how for this implementation, we're just getting into the what and the why right now. The PRD is all about what is the problem that we are solving.
+
+163
+00:28:02.800 --> 00:28:12.069
+Cole Medin: And so, yeah, it's saying I can build this as a teaching demo, but I think it's actually better to build it as a real feature, so we are solving this for real customers right now.
+
+164
+00:28:12.930 --> 00:28:17.379
+Cole Medin: For long-term memory, what should the agent remember about a returning customer to greet them?
+
+165
+00:28:17.580 --> 00:28:20.700
+Cole Medin: So, yeah, we… let's say,
+
+166
+00:28:21.770 --> 00:28:40.540
+Cole Medin: let's see, I don't care about the specific questions too much, so I'm not really gonna, like, read them a ton right now. Like, I don't want to waste time on, like, understanding exactly what it's asking for all of them, because again, I just want to… I just want to cover the workflow with you guys here. So, all right, we'll answer the questions, and then usually it'll ask a couple of batches of questions.
+
+167
+00:28:40.590 --> 00:28:58.690
+Cole Medin: Right, because it wants to ask a couple, and then the way we answer those questions might dictate the next questions that it asks, and so that's why it doesn't just do them all at once. It's also less overwhelming for us if it doesn't just ask 20 questions all at the same time, so just roll with the punches here as it asks you sets of questions.
+
+168
+00:29:00.520 --> 00:29:10.559
+Cole Medin: Tim was just playing around with Matt Pocock's Grill and Wayfinder skills, really good stuff. Yeah, it is. Yeah, Matt has some good stuff, and yeah, I've definitely, like, leaned on…
+
+169
+00:29:10.900 --> 00:29:20.959
+Cole Medin: his skills, like, he doesn't do anything, like, brand new for me, but it's just, like, the way that he has, like, simple approaches I appreciate, so I've definitely incorporated some of those ideas here.
+
+170
+00:29:21.390 --> 00:29:32.909
+Cole Medin: Tom asks, is the intent to create a PRD for each significant new feature? I would frame it, Tom, more as you are creating a PRD for each significant new set of features.
+
+171
+00:29:33.210 --> 00:29:49.820
+Cole Medin: Because if a feature is small enough, where you could just do it in a single PIV loop, then you're not going to go through this entire process of creating your PRD and architecture document, and then splitting into tickets, right? Like, if you just have, like, one new feature you have to build on top of something, don't overcomplicate it.
+
+172
+00:29:49.820 --> 00:30:04.730
+Cole Medin: But generally, when you're working in a brownfield codebase, you don't just have, like, that one little thing to work on. Like, usually there's, like, a whole set of new features you want to build that you don't want the coding agent to just knock out at once, because it's going to get totally overwhelmed by that.
+
+173
+00:30:06.810 --> 00:30:19.079
+Cole Medin: Let's see, Ganesh said, in an enterprise setting, PRD is, normally used to refer to production environment. Maybe we can consider changing PRD and plan create PRD to plan create spec.
+
+174
+00:30:20.270 --> 00:30:27.039
+Cole Medin: I mean, it's a little too late for me to change the name of things, because I've already recorded everything, but I can see where you're coming from.
+
+175
+00:30:27.330 --> 00:30:35.089
+Cole Medin: I think they'll, like… the phrase PRD is common enough outside of production environments.
+
+176
+00:30:35.390 --> 00:30:39.860
+Cole Medin: Like, I see, especially, like, in the AI space, it is used, kind of, like.
+
+177
+00:30:40.350 --> 00:30:42.370
+Cole Medin: As a synonym to spec.
+
+178
+00:30:42.680 --> 00:30:51.700
+Cole Medin: So, I don't think it necessarily needs to be changed, but I could see for, like, some people, like, in organizations, how it could be confusing.
+
+179
+00:30:52.040 --> 00:31:00.119
+Cole Medin: And like, maybe that is something I should even clarify in the course, is like, hey, PRD is a spec. For what we're doing here, it is just a spec.
+
+180
+00:31:00.380 --> 00:31:03.779
+Cole Medin: But the reason that I want to call it a PRD
+
+181
+00:31:03.920 --> 00:31:08.530
+Cole Medin: is because I'm specifically referring to the fact that our,
+
+182
+00:31:09.220 --> 00:31:26.720
+Cole Medin: let me see if I have the right document up. Oh, no, I don't right now. Alright, well, yeah, anyway, the PRD is the… well, I guess I can just use this. The PRD is the intent. It's the what and the why, and then the architecture is the how. And we separate those into two documents, because then it's easier to review them.
+
+183
+00:31:26.810 --> 00:31:29.629
+Cole Medin: And it's easier for us to manage that.
+
+184
+00:31:30.700 --> 00:31:32.210
+Cole Medin: So, okay.
+
+185
+00:31:33.030 --> 00:31:42.849
+Cole Medin: it looks like, our coding agent surprisingly only asks us a couple of questions. Usually, it'll ask you more. In all of the times I've tested this.
+
+186
+00:31:43.090 --> 00:32:06.189
+Cole Medin: As I've been working on the course, it's asked me a lot more questions, but I guess at this point, it's pretty confident how we're going to implement it. So again, the number of questions it asks you is really just going to be based on how confident it is in implementing what we've described. So in this case, it already created our PRD, which I guess is nice because I want to move faster for our workshop here anyway. So we have our PRD markdown document.
+
+187
+00:32:07.250 --> 00:32:14.580
+Cole Medin: And so, we're going to create this as a GitHub issue after we create our architecture document.
+
+188
+00:32:14.880 --> 00:32:22.579
+Cole Medin: So we have our thesis, our hypothesis, here's the evidence versus what is assumed. I can open up this document really quickly here.
+
+189
+00:32:22.610 --> 00:32:40.230
+Cole Medin: So we have our epic, this is our orbit memory PRD. Let's open this up. And the structure here is exactly as described in our skill, right? That's one of the points of our skill, is it's a workflow that makes it so that our documents look the same every single epic. That just makes it more reliable for us.
+
+190
+00:32:40.770 --> 00:32:44.199
+Cole Medin: And so, we're solving the agent forgets problem.
+
+191
+00:32:45.180 --> 00:33:02.599
+Cole Medin: And so today, a returning customer… oh, let me open up the preview again. Oh man, I gotta find where I am… where I was. Yeah, okay, so today, a returning customer copes by retyping their whole situation. That's a funny way to put it, Claude, but sure, I guess that's true. Or by giving up on the bot and asking for a human.
+
+192
+00:33:02.600 --> 00:33:17.540
+Cole Medin: An agent that already knows who they are and what they've dealt with beats both. It removes the re-explanation entirely instead of just tolerating it. So we're specifically calling out… we're not talking about how we're building things, we're just talking about why we are building this. Like, what is the point of this epic?
+
+193
+00:33:17.540 --> 00:33:26.920
+Cole Medin: And then, it even recognizes this, the next step is to decide, to decide how to build it. So we're gonna run the plan architecture skill.
+
+194
+00:33:27.410 --> 00:33:30.969
+Cole Medin: And so we can do this in a brand new coding agent session.
+
+195
+00:33:30.970 --> 00:33:51.059
+Cole Medin: You guys know that I'm a big fan of going between different coding agent sessions as much as you can, because we want to keep our context lean and our agent focused. And so now I'll do the plan architecture. It's a pretty similar skill to plan PRD, but now we're getting into the how are we going to build this and then we're going to ground it in the PRD.
+
+196
+00:33:51.060 --> 00:33:54.059
+Cole Medin: So we also give it the path to the PRD,
+
+197
+00:33:54.060 --> 00:34:03.339
+Cole Medin: as the input to this workflow. We're not building them in isolation. We build the PRD first, and then that guides our approach. That's why we have it as input here.
+
+198
+00:34:04.460 --> 00:34:11.909
+Cole Medin: And so I can open up this skill really quick, just to show you guys a high level while we wait for it to run here. Plan architecture.
+
+199
+00:34:12.120 --> 00:34:31.619
+Cole Medin: Let me open up the preview here. So this is an interactive skill yet again. And so the way that this one works is it's going to do some investigation, right? We have to understand the code base. It basically does the same thing as a prime. So like before we created our PRD, we ran a prime, this skill kind of has the prime built right into it.
+
+200
+00:34:31.840 --> 00:34:36.570
+Cole Medin: Because the input is the PRD, we just want to get right into its investigation.
+
+201
+00:34:36.980 --> 00:34:43.359
+Cole Medin: And so then, after it looks at the codebase, it is going to surface options to us with trade-offs.
+
+202
+00:34:43.739 --> 00:35:02.109
+Cole Medin: And so this is one of the most important things that I always cover for you guys. I make big points on this in the Agentic Coding course. We want to delegate all of the coding to the agent, but we still want to remain in the driver's seat. So we want to lean on the coding agent to save us as much time as possible.
+
+203
+00:35:02.110 --> 00:35:07.389
+Cole Medin: But we still want to make the final calls. And so the way that we do that here is we have it
+
+204
+00:35:07.390 --> 00:35:15.020
+Cole Medin: give us options. So that way, we don't have to dig into things as much, because it's explaining the trade-offs, we can ask it questions as it follows up.
+
+205
+00:35:15.020 --> 00:35:28.550
+Cole Medin: But then it gives us a recommendation, and then it asks for us, right? Like, what option do you want to go with? Here's my recommendation, but I'm not just going to move forward with this without asking you as the human to give the final call.
+
+206
+00:35:28.800 --> 00:35:44.070
+Cole Medin: And then this is also your opportunity to have a longer conversation if you need to with the agent. Especially if you're less technical, and you don't understand the options it's surfacing, you should ask, right? Like, take your time with this to make sure you're really understanding the options and their trade-offs.
+
+207
+00:35:44.070 --> 00:36:09.040
+Cole Medin: Because if you don't, it could lead to a bad plan and a bad plan can lead to thousands of lines of bad code. So take your time with this. It's worth being patient here. I mean, that's like one of the core messages is like, you know, be patient with the agent as you're going through the planning, because that's going to pay dividends when you get into the actual implementation. Once you have your epic planned out here, you start to rip through those pivot loops once you have things split into tickets.
+
+208
+00:36:09.040 --> 00:36:11.849
+Cole Medin: And we'll get to see that at the end of our workshop here
+
+209
+00:36:13.510 --> 00:36:24.830
+Cole Medin: Right, so, okay, great timing. We went back to our coding agent, and now it's asking us some questions. And so, for example, how ambitious should the persistence be? This drives the whole storage data model call.
+
+210
+00:36:25.010 --> 00:36:29.280
+Cole Medin: And so it can be workshop-grade, self-contained, or it can be production-shaped
+
+211
+00:36:29.570 --> 00:36:35.780
+Cole Medin: I mean, it seems like a lot of the coding agents' questions here are, like, based on how much of this I want to be demo versus real.
+
+212
+00:36:35.820 --> 00:36:55.750
+Cole Medin: So maybe this isn't like the best example of questions, but like I said earlier, I don't really care too much about the specific questions here. The point is that it's giving me options and I can add notes. If I want to clarify something, I can chat about this. If I want to ask the coding agent to explain some of these options, whatever I need to do, I'll move forward here.
+
+213
+00:36:56.260 --> 00:37:15.129
+Cole Medin: if workshop grade, what should back the long-term store, right? So, like, these are, like, we could do JSON, we could do a memory framework like MEM0 and have, like, a Postgres database behind it. We could just use something really simple with SQLite. I'll keep it simple for the sake of our demo here, because I do want it to build fast.
+
+214
+00:37:15.130 --> 00:37:18.330
+Cole Medin: How is a returning customer recognized across conversations?
+
+215
+00:37:18.330 --> 00:37:20.120
+Cole Medin: We can do…
+
+216
+00:37:20.490 --> 00:37:35.789
+Cole Medin: captured in conversation. I mean, if this was, like, a full-blown platform, you'd have some kind of authentication already built, so we'd just integrate with that. So I'll go with that, and there we go, I'll answer these questions. So yeah, surfacing options, we can chat as much as we want, just getting to the point where
+
+217
+00:37:35.930 --> 00:37:42.029
+Cole Medin: we're going to create an architecture document as markdown, just like we did with our PRD.
+
+218
+00:37:44.470 --> 00:37:45.430
+Cole Medin: Okay.
+
+219
+00:37:46.320 --> 00:37:49.340
+Cole Medin: So, let's see, I'll go back to the chat while we're
+
+220
+00:37:49.540 --> 00:37:59.699
+Cole Medin: Stefan said, so far I always created one gigantic PRD document, then used Archon Create Plan to create the next phase's plan, then Archon Plan to PR to build it.
+
+221
+00:38:00.180 --> 00:38:10.170
+Cole Medin: Is what you're going through in this workshop here today a similar approach, just going via GitHub with GitHub issues instead of creating plan files? Yes, Stefan, that is exactly right.
+
+222
+00:38:10.320 --> 00:38:18.450
+Cole Medin: This is the full workflow from idea to epic to tickets to implementation, but leveraging GitHub as much as we possibly can.
+
+223
+00:38:19.580 --> 00:38:35.689
+Cole Medin: And the reason that I like doing this over Markdown… I mean, Markdown is a good approach, but it doesn't scale. Like, if you're using Markdown to manage everything, that's more for solo builders, which maybe that is you guys, and that's totally good, but even as a solo builder, it can be nice
+
+224
+00:38:35.690 --> 00:38:44.010
+Cole Medin: to have things in GitHub. Because first of all, you're using GitHub already as a way to store your code bases and have version control.
+
+225
+00:38:44.080 --> 00:38:50.069
+Cole Medin: And it just gives you a really nice user interface, because you also have things that you don't have with just Markdown, like…
+
+226
+00:38:50.290 --> 00:38:54.889
+Cole Medin: Going back to Archon here, let me, open up the codebase really quick.
+
+227
+00:38:56.110 --> 00:39:01.710
+Cole Medin: There, sorry, let me open that up. Like, you have the whole tagging system.
+
+228
+00:39:01.860 --> 00:39:14.159
+Cole Medin: Tagging is really, really nice. Like, this is a bug, this is a feature in the CLI area, so it's a way to organize things better. You have that connection to the Kanban board, like I shared here.
+
+229
+00:39:14.160 --> 00:39:27.279
+Cole Medin: And you can also use GitHub Actions, so you, like, automatically trigger issue analysis or pull request reviews. You can have a coding agent that runs right when you open the pull request, so you don't have to invoke it yourself. It's just very, very feature-rich.
+
+230
+00:39:27.880 --> 00:39:47.480
+Cole Medin: And then if you are working with more than just yourself, with other people, you generally need some kind of interface to have conversations about these things, right? Like, you can click into an issue, and I mean, this one, we don't have any comments, but like, you could have comments here, where you're having a conversation about this before you go into your implementation. So it's just a way to build context
+
+231
+00:39:47.480 --> 00:39:56.730
+Cole Medin: either in the issue or the pull request. So, just a few reasons off the cuff for why it's really nice to use GitHub to manage everything.
+
+232
+00:39:58.860 --> 00:40:06.950
+Cole Medin: So yeah, let me go back here. I know there's more in the chat, but I think we're, yeah, we're at the next set of questions here, so… or I guess it just asked
+
+233
+00:40:07.130 --> 00:40:12.370
+Cole Medin: Let's see… yeah, so I'm just gonna go with what it recommended here, so we can keep moving along.
+
+234
+00:40:12.980 --> 00:40:30.450
+Cole Medin: Sean said, using GitHub this way for me is, like, a nice comprehensive form of state management. Yeah, exactly. It's just like a task… we're using it just like a task tracker, like Linear or Jira, and I know, like, solo builders all the time using this, even though it is, like, especially powerful for when you're working in a team or in an enterprise setting.
+
+235
+00:40:32.280 --> 00:40:40.039
+Cole Medin: Sean said, what I love to see is you breaking the flow and then continuing the work. Like, restart your computer when the agent is running a task.
+
+236
+00:40:40.730 --> 00:40:42.940
+Cole Medin: What you would love to see.
+
+237
+00:40:43.490 --> 00:40:44.770
+Cole Medin: Yeah.
+
+238
+00:40:45.410 --> 00:40:48.349
+Cole Medin: I mean, typically, I try not to just cut an agent off.
+
+239
+00:40:48.610 --> 00:40:55.340
+Cole Medin: But, I mean, you can resume a conversation. So, if you guys didn't know this, this is really nice, really good to know.
+
+240
+00:40:56.120 --> 00:40:58.170
+Cole Medin: When you go into Claude.
+
+241
+00:40:58.650 --> 00:41:06.260
+Cole Medin: You have the slash… I don't know why PowerShell keeps doing this. Okay, let me go into Claude. You have the slash resume command.
+
+242
+00:41:07.390 --> 00:41:26.330
+Cole Medin: And this allows you to pick up where a conversation left off. And so, if your computer ever crashes, or you accidentally, like, close out of a terminal or something, you can immediately pick up where you left off, and you lost nothing at all. Like, even if the agent is in the middle of building stuff, like, all of that conversation is saved up until, like, that last file it edited.
+
+243
+00:41:26.330 --> 00:41:29.830
+Cole Medin: And so you, you like open up the conversation, excuse me.
+
+244
+00:41:29.830 --> 00:41:41.019
+Cole Medin: And you just type continue, and then, boom, you're off to the races. So there's not too much to cover for, like, resuming. You just slash resume and you're good to go, as long as you remember the conversation to resume.
+
+245
+00:41:42.550 --> 00:41:45.309
+Cole Medin: So, okay, it wrote our architecture document.
+
+246
+00:41:45.320 --> 00:42:03.299
+Cole Medin: So within the EPIC here, we have the memory architecture and the memory PRD. And looking at the architecture now, we're restating the problem in our goals, right? So, like, that's our link to the EPIC, and then here are the approaches that were considered, and what we actually went with, and the key decisions that we made.
+
+247
+00:42:03.300 --> 00:42:14.460
+Cole Medin: And so we're getting into the details here of the data model, the stack and the libraries, not specific to an individual task, but at the high level for these features, here is how we're going to approach them.
+
+248
+00:42:15.660 --> 00:42:31.889
+Cole Medin: And, I don't need to get into, like, spikes and experiments and stuff right now, because we don't really have time for this, but I covered that in the course as well. Like, there… there's definitely a lot of strategy around, like, what tickets do we handle first, what things are high risk that we want to tackle, before other things.
+
+249
+00:42:31.890 --> 00:42:36.050
+Cole Medin: I cover all of that because it's important to have a right ordering to things here.
+
+250
+00:42:36.180 --> 00:42:44.449
+Cole Medin: So anyway, the point is, now that we have our architecture and our PRD, we can start to move things into GitHub.
+
+251
+00:42:45.080 --> 00:42:47.700
+Cole Medin: And so here's what I'm going to do, really simple.
+
+252
+00:42:48.490 --> 00:42:52.180
+Cole Medin: So let me, let me go to my, my Akko voice here.
+
+253
+00:42:52.500 --> 00:42:55.229
+Cole Medin: Sorry, let me open up,
+
+254
+00:42:56.940 --> 00:43:06.089
+Cole Medin: I was gonna show you guys the stats here. Yeah, I'm up to 1,200,000 words spoken with AquaVoice now. So, anyway, so I'll go to AquaVoice here, and I'll say.
+
+255
+00:43:06.170 --> 00:43:23.749
+Cole Medin: Alright, now what I want you to do is I want you to commit and push these two documents to source control, so we have a record of our planning documents going into this epic. And then what I want you to do is create a GitHub issue linking to these documents so that we have a central issue for the highest level of our epic.
+
+256
+00:43:24.590 --> 00:43:34.319
+Cole Medin: And by the way, I could probably make this as a skill as well, but it's just such a simple prompt that I want to just send it off right here. Because essentially, now I just want to bring everything into GitHub.
+
+257
+00:43:34.320 --> 00:43:52.550
+Cole Medin: So, like, as the individual, like, developer, product manager, whatever, you created these documents locally, now we're gonna bring that into the repository and as an issue. And then from that main Epic issue, that is where we're going to split into our tickets. That's the next skill that we have for a workflow here.
+
+258
+00:43:54.000 --> 00:43:54.860
+Cole Medin: All right.
+
+259
+00:43:55.320 --> 00:44:13.929
+Cole Medin: this will happen pretty quick, so I'll go through one more thing that we have in the chat here. So, Paulo said, a problem I have even after a year of developing with AI is that I use development frameworks like the PIV loop, and I also built a variant with OpenSpec that includes all steps, like office hour steps for product ideation, research, writing a PRD, and so on.
+
+260
+00:44:14.280 --> 00:44:29.259
+Cole Medin: A frequent issue is that some things are more convenient inside Cursor because they are faster. So, for example, every quick UI style tweak takes ages in Clodder Codex, that's true, even simple things are just, like, long for no reason, while a few seconds in Cursor.
+
+261
+00:44:29.260 --> 00:44:39.219
+Cole Medin: How do you tackle this in general? I mean, the not-one-size-fits-all problem. Love Archon, too, but some tasks are simple, not a good fit for all the ceremony. Yeah.
+
+262
+00:44:39.480 --> 00:44:42.940
+Cole Medin: So this is a question for the upcoming course version 2, mainly.
+
+263
+00:44:44.120 --> 00:45:02.539
+Cole Medin: So, Paulo, maybe you'll have to expand on your question a bit for me, because, like, I see the problem, but I don't… but, like, are you asking, like, how do I go between different coding agents for different things? Because, to be honest, I just keep it simple. Like, yeah, some things take longer than I really need, but, like, that's a sacrifice I'm willing to make.
+
+264
+00:45:02.540 --> 00:45:05.029
+Cole Medin: Just to keep everything in a single coding agent.
+
+265
+00:45:05.130 --> 00:45:19.159
+Cole Medin: And so, whenever I do want to lean on different coding agents, it's usually because some are better than others at certain things. It's not really a speed problem for me, because most of the time, I try to create a system, like the PIV loop, where
+
+266
+00:45:19.160 --> 00:45:29.049
+Cole Medin: like, your coding agent is going for, like, a solid 10 to 30 minutes, like, creating the plan or doing the implementation validation, and so an extra, like, few seconds, like, I just don't care.
+
+267
+00:45:29.200 --> 00:45:33.570
+Cole Medin: Like, I'm not optimizing for speed, I'm optimizing for the best results possible.
+
+268
+00:45:34.040 --> 00:45:48.969
+Cole Medin: And so I totally understand when you're trying to make just really quick adjustments to the UI, like, you want it to go fast, but, like, even that, like, I just care more about, like, that change being the best possible, so I'm just gonna do it in Claude Code, because I think Claude Code is better than Cursor.
+
+269
+00:45:49.070 --> 00:45:53.880
+Cole Medin: But yeah, definitely feel free to, like, expand on your question or… or push back if you want.
+
+270
+00:45:54.110 --> 00:45:55.510
+Cole Medin: So, yeah.
+
+271
+00:45:57.070 --> 00:46:04.000
+Cole Medin: Yeah, okay, so we have everything pushed to GitHub now, so let's actually take a look at this. So let's go into GitHub.
+
+272
+00:46:04.160 --> 00:46:07.119
+Cole Medin: And if we go into our code here.
+
+273
+00:46:07.610 --> 00:46:18.040
+Cole Medin: And, of course, I have to go to the… our specific branch, and I go into docs epics, there we go. And maybe we'd want to create, like, a folder to store all these things for when we create more epics.
+
+274
+00:46:18.350 --> 00:46:33.539
+Cole Medin: definitely some optimizations I can do here, but either way, we have our markdown documents now, so this is stored, we have a record of the planning that went into this epic, and then we also have our GitHub issue, and it's also tagged, right? Like that, like I was just talking about, the tagging is really nice.
+
+275
+00:46:33.540 --> 00:46:45.800
+Cole Medin: So if we click into this here, we have full information, we have the link to the PRD and the architecture. This issue right here is going to be our input to create all of the other issues when we split up our epic.
+
+276
+00:46:46.750 --> 00:47:03.469
+Cole Medin: And this is also your time to, you know, if you're working with other people, you can share this issue with others and have them review things, make sure everything looks good before you go and split things into tickets, because it's harder to adjust things once you already have all the other GitHub issues created. I mean, it's not impossible, of course.
+
+277
+00:47:03.470 --> 00:47:09.740
+Cole Medin: But just having everything in one place, you are iterating on the high leverage stuff, and then you're creating the tickets from that.
+
+278
+00:47:10.660 --> 00:47:11.750
+Cole Medin: So, cool.
+
+279
+00:47:11.870 --> 00:47:19.540
+Cole Medin: Alright, with this, let's go into Claude Code again, and we will run the next skill, and then I'll answer more questions here.
+
+280
+00:47:19.800 --> 00:47:34.609
+Cole Medin: And so, yeah, natural next move, run the piv slice epic against the PRD and architecture doc. And we can even do this in another Cloud Code session as well, right? Like, I can just slash clear here. I love using different coding agent sessions. So, piv slice epic.
+
+281
+00:47:34.700 --> 00:47:50.200
+Cole Medin: And then all we have to do is give the path to the Epic PRD and the architecture document. Although, in this case, I'm just going to give something a little bit different here. I'm just going to say… because I could give it, like, the path in GitHub, but I'm just going to say, look at issue 1.
+
+282
+00:47:52.140 --> 00:47:55.810
+Cole Medin: Because issue one, it'll just use the GitHub CLI to pull this.
+
+283
+00:47:55.970 --> 00:48:15.010
+Cole Medin: And this has full context for our epic here. Oh, sorry, it's issue 23. I forgot that I already created a bunch of issues in this repo at one point. So, okay, piv slice epic, look at issue 23. And so now this workflow is going to guide the coding agent through reasoning about how we can split things into granular tasks.
+
+284
+00:48:15.010 --> 00:48:20.949
+Cole Medin: And one of the things that I cover quite a bit in the course is exactly how we split.
+
+285
+00:48:21.360 --> 00:48:30.230
+Cole Medin: Right, so we're gonna either split by dependency, by concern, Or slim end-to-end slices.
+
+286
+00:48:30.470 --> 00:48:40.180
+Cole Medin: Not gonna cover this too much right now, because I gotta leave a lot of stuff for the course for you guys, right? I more just want to focus on, like, the GitHub-specific things right now.
+
+287
+00:48:40.590 --> 00:49:02.020
+Cole Medin: But there are definitely different ways that we can split and like everything that I explained in this diagram, like split the different types of splits, building up the dependency graph. So the coding agent knows like these tickets are dependent on these ones being done or these ones can actually be run in parallel. Like all of what you're seeing in the diagram here is built into the skill that we just ran.
+
+288
+00:49:02.020 --> 00:49:05.610
+Cole Medin: And that's another thing that I worked really, really hard on in.
+
+289
+00:49:05.610 --> 00:49:20.270
+Cole Medin: the second version of the course is making it so that like all the best practices that I teach in the diagrams and like just verbally are built directly into the skills. And there were a couple of discrepancies in the first version of the course where that wasn't always the case.
+
+290
+00:49:20.270 --> 00:49:27.790
+Cole Medin: And it led to a little bit of confusion. Like, that was good feedback for me, guys, and I really took that to heart. So yeah, like, this skill, like, if we click into it here
+
+291
+00:49:28.130 --> 00:49:29.689
+Cole Medin: Piv…
+
+292
+00:49:29.770 --> 00:49:41.840
+Cole Medin: Sorry, I got to find the right one. There we go, piv slice epic. So you can see if we open this up here, we have the decompose into piv size slices.
+
+293
+00:49:41.840 --> 00:50:01.460
+Cole Medin: And so is it one testable concern, we can split by dependency concern or slim end to end slice, like exactly the three laid out in the diagram, we map out the dependencies for parallelism, just like I talked about there. And then we're just instructing it how to use the GitHub CLI to create each of these, these issues, as we have the tickets for implementation.
+
+294
+00:50:02.260 --> 00:50:03.110
+Cole Medin: Cool.
+
+295
+00:50:03.510 --> 00:50:14.210
+Cole Medin: Alright, so let's let that run, and I will, go through the chat here as it is. Oh, okay, one thing I wanted to ask you guys quick. This is so annoying. Has your guys' Claude code
+
+296
+00:50:14.210 --> 00:50:23.700
+Cole Medin: been really glitchy. Like, when you exit the terminal and go back in the terminal, it, like… see, it's better now, but you saw, like, just a second ago where there was, like… see, it's doing
+
+297
+00:50:23.860 --> 00:50:42.059
+Cole Medin: really, I guess, jank, for a lack of better words. I don't know if your guys' Claude is doing that either. The fix for it, by the way, is just to zoom in and zoom out. So if you just, like, do Ctrl-plus really fast, then it's better. I don't know, it's so random and annoying, but I have the most up-to-date version of Claude code.
+
+298
+00:50:42.940 --> 00:50:48.480
+Cole Medin: Thais does that. Eric hasn't seen it. Sean said, delete your VNV directory.
+
+299
+00:50:49.420 --> 00:50:51.979
+Cole Medin: I guess I don't need it.
+
+300
+00:50:52.590 --> 00:50:55.720
+Cole Medin: I'll probably test that later, but okay, I'll try that, Sean
+
+301
+00:50:56.740 --> 00:51:16.319
+Cole Medin: All right, let's see. So go back up in the chat here. Sean said, to your point on spikes, are you still using confidence scores in your skills? I've been using something like use the plan feature skill to plan phase X. I want a confidence score of 9.5 or greater. Run sprints if you need it so you can achieve the best score.
+
+302
+00:51:16.490 --> 00:51:23.250
+Cole Medin: So that's a cool approach, Sean. I still use confidence scores, but not very heavily.
+
+303
+00:51:23.520 --> 00:51:27.540
+Cole Medin: And so, hopefully we'll have… yeah, we should have time for this,
+
+304
+00:51:27.800 --> 00:51:41.950
+Cole Medin: I will run a single PIV loop pretty quickly today, and you'll see that, like, when I create the structured plan, not for the epic level, but for the individual ticket level, when I create the plan there, I do have it produce a confidence score still.
+
+305
+00:51:42.570 --> 00:51:53.789
+Cole Medin: But I'm not leaning on that very heavily, because coding agents are very arbitrary. Whoa, that sounded weird. Coding agents are very arbitrary when it comes to scoring something.
+
+306
+00:51:53.790 --> 00:52:03.190
+Cole Medin: like, even going between different models and providers, like, Codex's 8 might actually be way more confident than Claude Code's 9.5. Like, you really don't know.
+
+307
+00:52:03.580 --> 00:52:18.589
+Cole Medin: And so I find it useful to at least give, like, a sort of indication, because it also gives me the language to say, like, okay, Claude, what can we do to take your self-proclaimed confidence of 8 up to a 9+, right? So, like, giving it that framing is nice.
+
+308
+00:52:18.590 --> 00:52:43.019
+Cole Medin: But I'm never trying to like reach a certain level of confidence. Cause it also really depends on what you're building and coding agents will sometimes say like, oh, I could never get above a confidence nine because this thing just needs to be manually tested. And it's like, oh, come on. You know what I mean? But yeah, sometimes they'll just do that. So I never ask it to reach for a certain confidence level. It's more just like I have it score itself just so I can frame it. The next question of like, you know, how do we make it?
+
+309
+00:52:43.020 --> 00:52:47.950
+Cole Medin: more confident if it doesn't seem like it is in something. I hope that makes sense.
+
+310
+00:52:48.510 --> 00:52:50.320
+Cole Medin: And yeah, glad you're loving it
+
+311
+00:52:50.320 --> 00:53:09.950
+Cole Medin: Appreciate it, Sean. So Tom says, you use VS Code now for everything. I know you used to like Windsurf. I do use VS Code, yep. So I used Windsurf as my IDE for the longest time, but it was just more because I had used to actually use Windsurf for my coding agent, and then I just didn't migrate over to using VS Code.
+
+312
+00:53:09.950 --> 00:53:28.190
+Cole Medin: But it's been a long time since I've legitimately used the AI capabilities in Windsurf. So yeah, I just do everything in VS Code. Like that's my recommendation. Like if you're using Claude Code, Codex or Pi, those are like the three best coding agents right now in my mind. And any of those, you're just going to have a terminal open in your VS Code.
+
+313
+00:53:30.360 --> 00:53:35.660
+Cole Medin: Okay. Free ESCO. That's right, Sean. Yeah, it's free. It's fantastic.
+
+314
+00:53:36.230 --> 00:53:49.399
+Cole Medin: Alright, cool. So we have all of our epics, or all of our issues sliced from the epic now. So epic number 23, or issue number 23, is now sliced into 5 PIV-sized GitHub issues.
+
+315
+00:53:49.510 --> 00:54:08.349
+Cole Medin: And if you disagree with any of the slicing here, just have that conversation with the coding agent. I'm going to gloss over that a little bit right now, but yeah, it's definitely worth taking a look and seeing if everything makes sense to you. Like, so let me go back to issues, and there we go. Now we have six, because we have the five sliced ones, and then we have our primary epic one with the epic label.
+
+316
+00:54:09.140 --> 00:54:22.600
+Cole Medin: And you'll click into this, and when you read through it, especially if you're more confident in working with coding agents, you'll be able to determine, like, is this really a good enough slice? Like, maybe this is way too big still, and we want to split it out more.
+
+317
+00:54:22.600 --> 00:54:40.280
+Cole Medin: Or maybe we look at a couple of these tickets, and we're like, you know what, we could probably do a couple of these at the same time. Like, if you make any of that sort of determination, you can always just go back to the coding agent and say, hey, like, you should split this more, or you could actually combine a couple of these things. For the sake of demo right now, I'm just gonna assume that this is good
+
+318
+00:54:40.360 --> 00:54:50.329
+Cole Medin: But yeah, each epic is beautiful. We have it linked to the epic, we have the scope, this is… it's split by one testable concern. So we decided here to split by concern.
+
+319
+00:54:50.740 --> 00:55:03.090
+Cole Medin: Here's the acceptance criteria, and then this is the context that the agent dove into, specific to this implementation. So, going into our PIV loop, we already have some context here, which is very nice.
+
+320
+00:55:03.560 --> 00:55:23.170
+Cole Medin: And so, yeah, we got that for every single ticket. Very nice. And then, of course, this being, like, just hosted in GitHub here, you can have all the other people review these before you go into the implementation. And if you're the product manager getting this organized for developers, then you can have developers handle each one of these, at the same time.
+
+321
+00:55:23.170 --> 00:55:27.040
+Cole Medin: Assuming that there are independent ones that can be handled in parallel.
+
+322
+00:55:27.390 --> 00:55:47.709
+Cole Medin: Right, so that's another one of the core things the skill does is it helps you identify which of these can be handled at the same time versus, you know, one ticket might actually rely on the code base being in the state when another ticket is already implemented. So those dependencies, it helps you map out, and I do get into that more in the second version of the course coming soon too.
+
+323
+00:55:47.940 --> 00:55:49.899
+Cole Medin: So, okay, let's just take one of these.
+
+324
+00:55:50.280 --> 00:55:58.479
+Cole Medin: I want to make sure that I get through the whole, RPIV loop in the next half hour here, and have time for questions, too. So, let's just pick a random one.
+
+325
+00:56:02.640 --> 00:56:10.350
+Cole Medin: let's do the spike. Usually you want to do the spikes first. I have this built into the skill, because a spike is, like, the riskiest thing.
+
+326
+00:56:10.500 --> 00:56:12.409
+Cole Medin: You want to de-risk it first.
+
+327
+00:56:12.520 --> 00:56:18.129
+Cole Medin: Because that also can guide later implementations, the way that you resolve this risk that you're spiking.
+
+328
+00:56:18.550 --> 00:56:37.900
+Cole Medin: And so, yeah, I mean, like, quick, like, 2 seconds on a… or 10 seconds on a spike. When you spike something, that means that you're taking a riskier implementation, and you're building the simplest form possible to validate the idea, because yourself, or your coding agent, or both, are just less confident in that implementation.
+
+329
+00:56:37.900 --> 00:56:39.420
+Cole Medin: That's what a spike is.
+
+330
+00:56:39.830 --> 00:56:48.170
+Cole Medin: So we'll take this, this is issue number 24, it's the first ticket that it created when it split into the five. So cool, let's go to our coding agent now.
+
+331
+00:56:48.710 --> 00:56:56.859
+Cole Medin: And, again, we're gonna start a brand new conversation here, slash clear, and I'm going to start with, there's two things we can do here.
+
+332
+00:56:56.900 --> 00:57:12.140
+Cole Medin: So, let me go back to the diagrams. I'll go to the, so I'm actually in the middle of recording this video right now with this diagram. So, we have the, the, the main RPidBlue. This is like a, sort of like a simplified version of what we have in the main course diagram right here.
+
+333
+00:57:12.800 --> 00:57:19.259
+Cole Medin: So, okay, we always start, or I guess optionally, the start of this is the research.
+
+334
+00:57:19.670 --> 00:57:27.170
+Cole Medin: And this is where you run the prime, and you do any other kind of exploration that you need before you create your structured plan.
+
+335
+00:57:27.570 --> 00:57:36.050
+Cole Medin: But I'm gonna actually skip this here. So, when I go through the R-Piv loop in the course, I go through all of the optional research and the priming.
+
+336
+00:57:36.160 --> 00:57:40.720
+Cole Medin: But I'm going to skip this to give an example here of, you don't always need this.
+
+337
+00:57:41.070 --> 00:57:46.820
+Cole Medin: And so, the research stage is only really important when you have a lot of novelty.
+
+338
+00:57:47.210 --> 00:57:55.929
+Cole Medin: And what I mean by that is either you are doing greenfield development where there's no context going into the build besides your PRD.
+
+339
+00:57:56.300 --> 00:58:01.010
+Cole Medin: Or, you're doing brownfield where the ticket isn't specific.
+
+340
+00:58:01.420 --> 00:58:15.180
+Cole Medin: Because sometimes you're on a team with a product manager that isn't technical, and he or she is creating these tickets for you based more on, like, the business needs versus, like, the technical how we're going to implement this.
+
+341
+00:58:15.420 --> 00:58:26.019
+Cole Medin: And so, if you have a fairly vague ticket, you're always going to prime the code base, because you need to load context around how you're going to accomplish the task. Like, before you even plan it, you want to have that context.
+
+342
+00:58:26.870 --> 00:58:33.790
+Cole Medin: But we have a good example here where we really don't need to do a prime going into the implementation.
+
+343
+00:58:34.250 --> 00:58:37.330
+Cole Medin: Because we already have the per-ticket context.
+
+344
+00:58:37.500 --> 00:58:54.460
+Cole Medin: the files that are touched, we have the scope, and we're getting into the details of individual functions and classes that we have within the codebase. Like, we've already gotten technical, we've sort of done the priming when we turned the Epic into tickets and created this GitHub issue.
+
+345
+00:58:54.730 --> 00:58:59.950
+Cole Medin: And so, really, we're good to go right into the implementation. So let's actually do that.
+
+346
+00:59:00.720 --> 00:59:09.600
+Cole Medin: Let's go… and yeah, exactly, better context management. If you can get specific when you're creating the tickets up front, then you also just save on context going into the implementation.
+
+347
+00:59:09.790 --> 00:59:14.909
+Cole Medin: It still takes more tokens to get to that point earlier, but I think it is more efficient overall.
+
+348
+00:59:15.210 --> 00:59:18.559
+Cole Medin: And so I will do PIV plan implementation.
+
+349
+00:59:18.870 --> 00:59:25.750
+Cole Medin: And the argument here is simply the GitHub issue number, 24. Boom. Alright, send it off. I'll explain it as it runs, for the sake of time.
+
+350
+00:59:26.300 --> 00:59:47.490
+Cole Medin: And so when we get into the R PIV loop, I explained this in the video we're working on recording right now too. The PIV loop is the thing that's actually changed the least from the first version of the course. It's the most stable thing that I put an insane amount of time into refining last before I created the first version of the course.
+
+351
+00:59:47.490 --> 01:00:01.809
+Cole Medin: And so a lot of these skills are quite similar. I did a lot more evolution with Rasmus's help to the way we create epics and do our PRD creation and architecture document creation, but a lot of these are going to look pretty similar.
+
+352
+01:00:02.100 --> 01:00:15.149
+Cole Medin: And I mean that, hopefully, in a good way, where it's like, you know, that core PIV loop workflow is, like, the base of the prior version of the course is also the, like, a very solid base of this version of the course.
+
+353
+01:00:15.290 --> 01:00:26.650
+Cole Medin: So I'll go to, PIV plan implementation. It should look very similar, right? But this also, again, is made GitHub-specific for the sake of this workshop, so I… I literally…
+
+354
+01:00:26.800 --> 01:00:42.639
+Cole Medin: I mean, I one-shotted this entire thing. I took all of the skills from version 2 of the course, and I gave it to Claude, and I said, hey, make this GitHub-specific for this workshop. Like, I didn't have to do much to make it so that, like, for example, the arguments accept the GitHub issue number.
+
+355
+01:00:43.470 --> 01:00:49.370
+Cole Medin: And so transform a feature request or a bug into a comprehensive implementation plan.
+
+356
+01:00:50.200 --> 01:01:13.010
+Cole Medin: We're not writing code here. We're just building up the plan. So here's the process step by step, like, you know, understanding the problem and the code and then creating that as a plan here in this format where we have the user story, the problem statement, the task list. I mean, all of this is the exact same validation strategy, right? That's like the most important part of your structured plan is how is the coding agent going to check its own work?
+
+357
+01:01:13.010 --> 01:01:15.910
+Cole Medin: Because you don't want to just give you something back on the first pass.
+
+358
+01:01:16.500 --> 01:01:18.720
+Cole Medin: That is everything that we are creating here.
+
+359
+01:01:18.840 --> 01:01:38.270
+Cole Medin: And so it did all of its research and exploration and it's already getting to the point where it is going to write the plan. And like Sean and I were chatting about, we are going to see the confidence score at the end here as well, once it creates the plan. So I just have the confidence score at like the very bottom of the plan and then it'll like have that at the bottom of its output here as well.
+
+360
+01:01:38.270 --> 01:01:49.039
+Cole Medin: And we can even search for this here, like, if I go back into the markdown and search confidence, right, we're just telling it to estimate the confidence score for a one-pass success.
+
+361
+01:01:50.320 --> 01:02:02.900
+Cole Medin: So, cool. Alright, there's the clawed glitch again. Do you see that? It, like, changes as I highlight it. It's so weird. There, I'll do the plus-minus thing to fix it. Alright.
+
+362
+01:02:03.220 --> 01:02:05.250
+Cole Medin: Let's see here…
+
+363
+01:02:06.780 --> 01:02:25.269
+Cole Medin: So I'll take the question from Stefan as the plan is being written here. Stefan says, this is great. I appreciate it. Been wanting to move all steps to GitHub. In my current building setup, I use Archon with Archon workflows for everything, which is great, by the way. Like, I want you guys all to get to Archon. I'm just focusing on the fundamentals right now.
+
+364
+01:02:25.270 --> 01:02:27.999
+Cole Medin: Before we cover that more later in the course.
+
+365
+01:02:29.070 --> 01:02:43.230
+Cole Medin: How can we use this workshop's approach with Archon? Are there Archon equivalents of all these Claude skills available somewhere? Or maybe it's smart to do the first part without Archon, like the Prime, Plan, PIP, Slice, Epic, and then the phases after that with Archon.
+
+366
+01:02:43.510 --> 01:02:48.399
+Cole Medin: Or would you say, for now, it makes sense to go back away from Archon to purely the workflow you're present
+
+367
+01:02:48.440 --> 01:02:59.949
+Cole Medin: Yeah, so again, Archon is the ultimate evolution. You can do everything we're doing here as Archon workflows. In fact, Stefan, I would present it as a challenge to you to take
+
+368
+01:02:59.950 --> 01:03:11.159
+Cole Medin: the skills here, give it to your coding agent with the Archon skill, and tell it to, like, build Archon workflows around these things. Now, a lot of the defaults that we have shipped with Archon
+
+369
+01:03:11.480 --> 01:03:26.700
+Cole Medin: they have a similar process, like the Archon fix GitHub issue that you mentioned just now. It's very similar to the PIV loop, but it's just kind of with less human in the loop, unfortunately. But you could build an Archon fix GitHub issue workflow that has more human in the loop built into it.
+
+370
+01:03:26.860 --> 01:03:38.780
+Cole Medin: And you could create a PRD creation skill, or Archon workflow, that, like, kind of goes through the same process as the skill here. It'd be very easy to translate these things, because…
+
+371
+01:03:38.810 --> 01:03:50.079
+Cole Medin: I mean, really, what you… another thing you could do is you could build a single Archon workflow that goes through the entire process of creating the epic all the way to splitting it into tickets.
+
+372
+01:03:50.390 --> 01:03:59.599
+Cole Medin: Because we've gone through a few different coding agent sessions here. We had one session to create the PRD, one for the architecture, and then one to split things up.
+
+373
+01:04:00.540 --> 01:04:11.279
+Cole Medin: And so you could build an Archon workflow that, like, strings together all three of those coding agent sessions with human in the loop. So you could make it so that, like, everything is just one nice and simple workflow, but that'd be pretty
+
+374
+01:04:11.340 --> 01:04:21.880
+Cole Medin: So yeah, there's a lot of things you could do here. I have actually thought about, like, taking this workshop and doing an Archon-specific one after, because it definitely is time for another Archon workshop in Dynamis, I would say.
+
+375
+01:04:22.550 --> 01:04:23.580
+Cole Medin: So, yeah.
+
+376
+01:04:24.480 --> 01:04:29.980
+Cole Medin: Alright, love the challenge, yeah, I'm glad, Stefan. Yeah, I mean, it'd probably be something you could knock out pretty
+
+377
+01:04:30.340 --> 01:04:34.129
+Cole Medin: This and Archon. Yeah, that would be a fantastic workshop.
+
+378
+01:04:34.450 --> 01:04:44.350
+Cole Medin: So, okay, we got the plan created, and, you know, we're on the individual ticket level now. So, ticket number 24 is a Wave 1 spike from our Orbit Memory Epic.
+
+379
+01:04:45.030 --> 01:04:52.860
+Cole Medin: So, okay, it created the plan right here in .cloud plans, and then it gave us a confidence score of 9 out of 10.
+
+380
+01:04:52.860 --> 01:05:07.060
+Cole Medin: So, pretty confident overall. And of course, you can ask it, like, you know, what would get it to the point where you have a confidence score of 9.5 out of 10 or higher? So you can have the conversation with the agent to iterate on the plan based on the confidence if you want.
+
+381
+01:05:07.500 --> 01:05:23.700
+Cole Medin: And then, of course, we can look at the plan, review it, and make sure that everything makes sense to us. You want to spend your time with this. Remember, one bad line of a plan can lead to a thousand bad lines of code. So, problem statement, solution statement, all the sections exactly as described in our skill.
+
+382
+01:05:23.830 --> 01:05:31.039
+Cole Medin: We have the context to reference, so it's grounded in the codebase and the task-by-task implementation plan.
+
+383
+01:05:31.350 --> 01:05:38.090
+Cole Medin: And then we have, of course, our testing strategy. Unit testing, integration testing, yeah.
+
+384
+01:05:38.220 --> 01:05:39.990
+Cole Medin: Manual validation…
+
+385
+01:05:40.440 --> 01:05:55.729
+Cole Medin: Okay, cool. You know, I could iterate for a while on this. I'm sure there's gonna be some things I could find that isn't ideal, but for the sake of time, I'm just going to assume this plan is good. So let's go and send this off into implementation. Or I guess we'll wait here, because it did say…
+
+386
+01:05:56.970 --> 01:05:59.610
+Cole Medin: That it has a way to make it so it's more confident.
+
+387
+01:06:02.760 --> 01:06:10.990
+Cole Medin: Okay, so I guess it just did, like, basically a bit of extra verification. It's gonna adjust the plan here, and now apparently it'll be more confident, magically.
+
+388
+01:06:11.030 --> 01:06:23.159
+Cole Medin: So, yeah, I mean, I don't know why I didn't just do this research on the first pass, but yeah, that's why you iterate with coding agents, because they'll discover things that you wish they had right away, but just having iterate a bit is always a good idea.
+
+389
+01:06:25.430 --> 01:06:37.009
+Cole Medin: All right, Paolo said, Yeah, like asking an agent how long it would take hours or days for five minutes agent? Exactly. Yeah. So like asking a confidence score is kind of arbitrary sometimes.
+
+390
+01:06:37.010 --> 01:06:50.179
+Cole Medin: just like asking how long something will take is also arbitrary, because if I asked it right here how long it would take to build this ticket, it would probably say a couple of hours, and we're going to be doing it in, like, less than a half hour, so… Yep, it is very arbitrary.
+
+391
+01:06:50.180 --> 01:06:54.899
+Cole Medin: So, okay, now we have it raised to a 9.5 plus for our confidence score.
+
+392
+01:06:55.400 --> 01:07:05.399
+Cole Medin: And then it even says, like, why there's a residual .5, so it's not a 10 out of 10, but usually this kind of gets to stuff where it isn't even worth your time.
+
+393
+01:07:05.920 --> 01:07:10.860
+Cole Medin: It's inherently probabilistic. No planning removes it.
+
+394
+01:07:11.070 --> 01:07:18.840
+Cole Medin: The live model's greeting word… yeah, so it's just, like, some super stupid cheesy thing that says that it can't be perfect no matter what, so it can't
+
+395
+01:07:19.110 --> 01:07:20.930
+Cole Medin: So, okay.
+
+396
+01:07:21.230 --> 01:07:31.529
+Cole Medin: we're good now. So I'm going to slash clear, and actually, you know what, before I do that, let me create a commit, because that's another thing I don't want to miss, not compact, goodness, piv commit.
+
+397
+01:07:32.420 --> 01:07:52.269
+Cole Medin: A best practice that, I've kind of glossed over before is after you create your plan, I recommend making a commit in Git, because that way, when you go into implementation, if you ever want to redo it, you can just scrap everything there and just go back to the current direct… the current state where we have just the plan, because then we can just redo
+
+398
+01:07:52.270 --> 01:08:08.759
+Cole Medin: the implementation, maybe iterating a bit more on the plan before we go into the next implementation. So, yeah, always make a commit after the plan. So you make a commit after the plan and after implementation when you go into the pull request. So, okay, now we did that.
+
+399
+01:08:08.840 --> 01:08:13.949
+Cole Medin: And now we'll do a slash clear and do the piv implement with a path to our plan.
+
+400
+01:08:14.150 --> 01:08:23.339
+Cole Medin: So I'm gonna move a little bit faster here, just to make sure we get things done in time. But, this PIV implement skill is one of the simplest ones, because it really is just, like.
+
+401
+01:08:23.340 --> 01:08:45.600
+Cole Medin: Here's your plan. Here's your step or your process to go through it. Make sure you implement all the tasks and run the validation like that's it. Then mark like just the output at the end for us to review. That's all we are running here. The step might take the longest though, because it has to go through all the validation that's laid out in the plan. But that's a good thing. We want it to iterate and check its own work before it passes control back to us.
+
+402
+01:08:45.600 --> 01:08:49.029
+Cole Medin: Because we don't just want an AI slop back that we have to refine a bunch.
+
+403
+01:08:52.399 --> 01:08:53.350
+Cole Medin: Alright.
+
+404
+01:08:54.439 --> 01:09:04.420
+Cole Medin: Sean said, next thing Cole will say, you could even turn this into your own Dark Factory. Dark Factory is, something that I'm going to add as an extension to the course.
+
+405
+01:09:05.010 --> 01:09:07.799
+Cole Medin: But I'm not going to make it a core part of the course.
+
+406
+01:09:08.010 --> 01:09:24.399
+Cole Medin: Because I really don't recommend you operate at that level of autonomy with your coding agents. We're just not there yet, it's not reliable. I did a very, very elaborate experiment with that, and yeah, you just… it's important to be in the loop, at least at every plan, and after every implementation.
+
+407
+01:09:26.640 --> 01:09:40.270
+Cole Medin: All right. Eric said, love the workshop. Appreciate it, Eric. Curious how much change is required to use Jira and GitHub or Atlassian tools using Jira and Bitbucket. It is… that's right, another job for Claude. It is very straightforward.
+
+408
+01:09:40.529 --> 01:09:55.719
+Cole Medin: Because in the end, the only thing I had to change in these skills to make them GitHub-specific is just saying, like, hey, your input's gonna come from GitHub. Or, hey, I want you to use the GitHub CLI to push this epic to a GitHub issue after you're done writing it, right?
+
+409
+01:09:56.120 --> 01:10:01.579
+Cole Medin: And if we want to use something else like Jira, then we're just leveraging the Atlassian MCP server.
+
+410
+01:10:01.730 --> 01:10:11.649
+Cole Medin: And I showcase that, like I said, in the main course content for the entire Phase 1. My example is building everything in Jira and Confluence as well.
+
+411
+01:10:12.270 --> 01:10:22.219
+Cole Medin: So I can show you guys an example of that here, because of course I have all these tabs up right now as I'm in the middle of recording, but, like, I have the Epic PRD as a Confluence document.
+
+412
+01:10:22.220 --> 01:10:37.670
+Cole Medin: architecture document as a Confluence document, right? Same thing like we're doing in GitHub with it being, like, checked in Markdown and that Epic issue, we got it in Confluence. And then we have, of course, our Epic in Jira with the individual tasks that we split from the Epic
+
+413
+01:10:38.240 --> 01:10:51.140
+Cole Medin: like we got our spikes, just like we're working on a spike right now from GitHub, the workflow is exactly the same. And coding agents, they are very good at just understanding, like, here are the tools I have at my disposal.
+
+414
+01:10:51.390 --> 01:10:59.790
+Cole Medin: Eric told me we're working in Jira, so, okay, everything's just gonna be Jira, and then, you know, like, Confluence as well for our PRD and architecture docs.
+
+415
+01:11:00.280 --> 01:11:09.339
+Cole Medin: very straightforward. Like, when I moved everything over to GitHub for our workshop today, it was a one-shot, just having Claude make the skills all GitHub-specific.
+
+416
+01:11:10.990 --> 01:11:11.690
+Cole Medin: Okay.
+
+417
+01:11:14.120 --> 01:11:15.220
+Cole Medin: All right.
+
+418
+01:11:16.870 --> 01:11:31.649
+Cole Medin: What else we got here? Can you make the co-founder agent connect to the second brain to implement the GitHub issues? Aha! Yes, you can! Definitely. So, GitHub, it's so easy to connect to, because the GitHub CLI
+
+419
+01:11:31.840 --> 01:11:41.089
+Cole Medin: Is something that coding agents understand without you having to even explain it because it's built into its training data or it's trained on it so naturally.
+
+420
+01:11:42.470 --> 01:11:59.470
+Cole Medin: So if you wanted to, like, have your second brain go and work on GitHub issues, you literally just say, use the GitHub CLI. And if you don't have it already, you say, hey Claude, hey Codex, hey second brain, install the GitHub CLI, because it knows how to do that. You don't even have to train it. Because a lot of different,
+
+421
+01:11:59.470 --> 01:12:06.189
+Cole Medin: CLI tools you give a coding agent, you also have to give it a skill so it knows how to use it.
+
+422
+01:12:06.230 --> 01:12:19.930
+Cole Medin: like the agent browser skill, for example, that I cover a lot in my content. You have to give it a skill because it's not trained on that, but the GitHub CLI has been around for, you know, probably like a decade and a half now. Like, coding agents are masters at using it.
+
+423
+01:12:21.720 --> 01:12:28.999
+Cole Medin: Alright, so there we go. Spike is complete. We did our full implementation here, and it did its verification as well.
+
+424
+01:12:29.230 --> 01:12:33.140
+Cole Medin: So, yeah, there we go. We built it.
+
+425
+01:12:33.300 --> 01:12:35.130
+Cole Medin: I can't really, like…
+
+426
+01:12:36.640 --> 01:12:49.660
+Cole Medin: I mean, I guess I kind of have… okay, I'll ask you here, like, okay, now if I wanted to test this manually to verify your work, how can I do that? I want you to spin up the agent for me, like, and, like, actually test it, make sure we're good to go.
+
+427
+01:12:49.880 --> 01:13:02.169
+Cole Medin: So I'll just, like, describe a bit more verification that I wanted to do here. But at this point, again, we make the commit, we do a save state after our implementation, and then we create the pull request from that.
+
+428
+01:13:03.100 --> 01:13:07.409
+Cole Medin: And so maybe I'll just do that. No, I'll wait here. I'll let it do its
+
+429
+01:13:07.900 --> 01:13:12.210
+Cole Medin: Spike testing end-to-end, and then we'll create the pull request.
+
+430
+01:13:13.080 --> 01:13:15.710
+Cole Medin: Because the end of every single…
+
+431
+01:13:16.220 --> 01:13:35.960
+Cole Medin: piece of work that we do, even if we're not like making the whole thing GitHub based, you're going to be using GitHub, like in the course, even when I'm using JIRA, like I still end every single R piv loop with a pull request, because we work in a branch. And we get that branch into main through a pull request, you never want to push your changes straight to main.
+
+432
+01:13:37.240 --> 01:13:53.450
+Cole Medin: And so, I mean, we've already… we blew through this, we did this already, we implemented, we had the agent check its own work, I guess we're finishing that right now, and then we end with the pull request. And we, of course, have another skill to walk us through that. Now, we're not going to have the time today to do the pull request review.
+
+433
+01:13:53.500 --> 01:14:04.230
+Cole Medin: So, I'll save that for the course, but also, if you went through the first version of the course, like, we've seen that a lot before. You just have a coding agent in a separate session review the pull request.
+
+434
+01:14:05.410 --> 01:14:21.869
+Cole Medin: And by the way, the reason I have validation and pull request review is because we're answering two different questions here. Like, when we have the coding agent check its own work, like, right after implementation, it's more like, hey, does this even work in the first place? Like, are the unit tests passing?
+
+435
+01:14:21.870 --> 01:14:29.029
+Cole Medin: Does the end-to-end test pass? And then when we do the code review, that's a different question. It's more like, is this built optimally?
+
+436
+01:14:29.270 --> 01:14:38.720
+Cole Medin: Right, like, is this the fastest it can be? Is it the most efficient it can be? Is the code as clean as it can be? Like, that's more what we're addressing when we do a pull request review.
+
+437
+01:14:38.900 --> 01:14:44.080
+Cole Medin: So, I'm not actually being redundant here when I have both of these steps in the workflow.
+
+438
+01:14:44.610 --> 01:15:02.589
+Cole Medin: And then it's also nice to have the pull request, because then we can have other people also review our work with our coding agent. So, again, going to, like, when you're working in a team, GitHub becomes even more powerful, because it gives that visibility for other engineers, or PMs, or QA engineers, or whatever, to review things with you.
+
+439
+01:15:04.050 --> 01:15:10.199
+Cole Medin: Alright, so it's, gave us instructions, run it ourself, it tested it too, and things are looking good.
+
+440
+01:15:12.220 --> 01:15:20.699
+Cole Medin: Cool. So yeah, it looks like there's a couple of caveats here that I'm just going to ignore for now because I just want to get to the example of creating the pull request here.
+
+441
+01:15:21.110 --> 01:15:39.329
+Cole Medin: So, piv create pr, and this workflow will specifically create a branch if you're not already working in one. Because, again, we don't want to push right to main, right? So, because this is a spike, and that changes what a pr even means here. So, checking the git state, making sure we're not pushing straight to main, first of all.
+
+442
+01:15:40.140 --> 01:15:42.349
+Cole Medin: So let me open up this skill here.
+
+443
+01:15:42.850 --> 01:15:45.910
+Cole Medin: Right, push current feature branch and open up a pull request.
+
+444
+01:15:46.480 --> 01:16:01.589
+Cole Medin: pretty short overall. It's more just like, you know, here's the format we want for the pull request. It's very similar to creating our PRD, an architecture document, a structure plan. We want to make it, like, very repeatable in what the format looks like, so we can build that sense over time of what to expect.
+
+445
+01:16:03.140 --> 01:16:04.060
+Cole Medin: Alright.
+
+446
+01:16:09.360 --> 01:16:11.190
+Cole Medin: Okay.
+
+447
+01:16:12.230 --> 01:16:18.289
+Cole Medin: This is getting a little in the weeds here. PR doesn't fit with a ticket actually produced, and pushing would do something you probably don't want
+
+448
+01:16:18.300 --> 01:16:29.430
+Cole Medin: Let me explain. This was a spike. It committed no code. The plan was explicit. The deliverable is a decision, not a merged production code. The proof script lives in a throwaway location, and its output is the product.
+
+449
+01:16:29.430 --> 01:16:39.469
+Cole Medin: Oh, you know what, this actually makes a lot of sense. I have to correct myself a little bit here, because sometimes with a spike, like I said, you're just trying to do the smallest thing possible to validate an idea.
+
+450
+01:16:39.570 --> 01:16:45.549
+Cole Medin: And so we validated the idea here. We didn't actually create code that we want to merge into main.
+
+451
+01:16:47.190 --> 01:16:56.450
+Cole Medin: And so, I guess this is kind of a… not the best example, so I apologize. I actually probably should… for the sake of this demo here, I should have built something that isn't a spike.
+
+452
+01:16:56.780 --> 01:17:07.230
+Cole Medin: Because you build the decision from the spike, and then usually you'll create a separate ticket to then work on that, once you have the decision established from your spike.
+
+453
+01:17:07.840 --> 01:17:18.660
+Cole Medin: And so, I'm actually gonna chat about this. This is gonna be kinda silly, I'm gonna say, like, okay, now that we made the decision from the spike, I want you to actually write the code, and then that is what we'll submit as the pull request.
+
+454
+01:17:21.320 --> 01:17:27.850
+Cole Medin: All right, so yeah, we'll course correct a little bit here. Fred said spikes can be implemented as tests.
+
+455
+01:17:27.940 --> 01:17:41.530
+Cole Medin: Definitely, yeah, we could do that too. I'm just gonna have it, like, turn the decision into code here, essentially, because we still have a pretty lean conversation overall, so we can continue the conversation. We're not getting into the dumb zone for the LLM here.
+
+456
+01:17:43.440 --> 01:17:48.690
+Cole Medin: Benjamin said, side question, do you think the dark factory is better than the software factory term?
+
+457
+01:17:49.040 --> 01:17:50.700
+Cole Medin: I think it's cooler.
+
+458
+01:17:51.100 --> 01:17:59.929
+Cole Medin: I think it doesn't matter too much in the end, like, the exact term you're using, Software Factory or Dark Factory, I think they really do mean the same thing.
+
+459
+01:18:00.400 --> 01:18:14.889
+Cole Medin: Dark Factory just has a cool connotation, because it's, like, the idea that it's, like, it's dark. There's no human that needs to see into the repository, because with the Dark Factory, it's your spec is the input, and then your shipped code is the output.
+
+460
+01:18:17.850 --> 01:18:18.780
+Cole Medin: Alright.
+
+461
+01:18:22.060 --> 01:18:37.520
+Cole Medin: So, hopefully it can create a pull request here. So, we're moving from spike to real feature. Now that the dynamic get instructions is proven, right, like, we spiked to prove this, now we're going to implement the production memory capability with that decision and turn that into a pull request.
+
+462
+01:18:37.640 --> 01:18:55.319
+Cole Medin: So I guess this kind of actually worked out nice to have this as a demo for you guys, because it shows you, like, when we spike, it's not code that we're producing, it's the decision that we're making, and then typically you would turn that into another GitHub issue, or Jira ticket, or whatever, and then you would go through the RPIV loop again on that.
+
+463
+01:18:55.900 --> 01:19:10.589
+Cole Medin: And so, I cut corners a little bit by not creating another ticket, usually you… or another issue, usually you would do that. But again, our conversation is pretty lean here, so we can just get right into building it. And honestly, that kind of fits into the RPib loop that we're doing right here.
+
+464
+01:19:12.480 --> 01:19:13.370
+Cole Medin: Cool.
+
+465
+01:19:13.720 --> 01:19:32.599
+Cole Medin: Looks like Sean left, unfortunately, but he did have a question. So, leveraging GitHub the way you are, where do GitHub Actions come into play? Only during PR creation and merge. Yes, that is correct, Sean. So, hopefully you're watching the recording for the last part of the workshop here, but typically, the most common use of a GitHub Action for me
+
+466
+01:19:32.600 --> 01:19:40.390
+Cole Medin: is running, first of all, our CI, so when we create the pull requests, like having the unit tests and things run automatically, just in case the agent missed running some.
+
+467
+01:19:40.390 --> 01:19:47.380
+Cole Medin: during the RPIV loop, and then also a GitHub action can also automatically trigger a pull request review.
+
+468
+01:19:47.980 --> 01:19:55.990
+Cole Medin: And so in the course, at least in phase one, I only talk about, like, manually running a pull request review in a separate coding agent session.
+
+469
+01:19:55.990 --> 01:20:18.929
+Cole Medin: But later, more like getting into phases three and four, I'll cover how we can use GitHub Actions to automate some of these things at the end of our pipeline here, like having that code review get kicked off automatically. So a human doesn't even have to do that. And then they'll like automatically post the review of the pull request as a comment in the PR so that you can iterate on it from there.
+
+470
+01:20:21.390 --> 01:20:28.449
+Cole Medin: Awesome. So, yeah, I mean, we're pretty much at time here. It's gonna take a little bit longer for it to, like, implement things.
+
+471
+01:20:28.450 --> 01:20:42.980
+Cole Medin: So we didn't quite get to the point where we have a pull request, but you guys get the idea of the full workflow here. Once it does, it finishes the RPIB loop, we end with the pull request, just like you would if you're working in Markdown, Jira, Linear, anything else.
+
+472
+01:20:43.140 --> 01:20:56.589
+Cole Medin: And then at that point, you review the pull request, make sure that everything is implemented optimally, which, if you're more technical, that means, like, actually looking at the git diffs yourself, like clicking into a pull request here that I've created before.
+
+473
+01:20:57.460 --> 01:21:01.460
+Cole Medin: We would, like, actually look at the files that are changed and make sure this all looks good.
+
+474
+01:21:01.540 --> 01:21:19.369
+Cole Medin: Or, if you're less technical, this is just where you have the coding agent perform a review and help explain things to you. Either way, you get to the point where you're confident in the pull request, and then you will merge the code from your feature branch or your bug fix branch into the main branch. And that is the end of your RPIV loop.
+
+475
+01:21:19.370 --> 01:21:30.710
+Cole Medin: And then, of course, you would take the GitHub issue, and you would mark it as done, right? Like, we'd close the issue. You can see we also had a comment here for the spike verdict, so that's cool. So we also updated the issue when we were going through the planning
+
+476
+01:21:31.070 --> 01:21:44.270
+Cole Medin: and testing the spike. But yeah, then once you're done immersion to main, then you have the GitHub issue closed. And generally, in GitHub, actually, the way it works in GitHub is when you merge a pull request, it automatically closes the related issue.
+
+477
+01:21:44.380 --> 01:21:53.400
+Cole Medin: So that way, you keep your list only maintaining, or you only have to maintain the issues that you're currently in the middle of working on, or that you haven't worked on yet.
+
+478
+01:21:53.730 --> 01:22:08.150
+Cole Medin: So this is just a running list of the stuff that actually matters to you. And then if you have, like, the project layer on top of it, like we have in Archon, then you're moving things throughout the Kanban board as you're going through this development process. And so I didn't do that for this course.
+
+479
+01:22:08.150 --> 01:22:30.010
+Cole Medin: But if you want it to be really GitHub native, you could also build it into the skills where it's using the CLI to move things between the different stages here as you're going through the planning and implementing and validating. So you can kind of get a setup that looks sort of like the old version of Archon, if you guys remember that, where we had the Kanban board, like updating things in real time as the agent is progressing through the R piv loop.
+
+480
+01:22:31.050 --> 01:22:40.539
+Cole Medin: So, cool. I think that's a good place to end it here, because we don't need to wait for the coding agent to create the PR, and you see the full process in the course as well. So, alright.
+
+481
+01:22:40.740 --> 01:22:50.479
+Cole Medin: And, I think I got through all of the questions here. I'll stay a little bit longer for questions if anyone has any. But, yeah, I hit through everything that's in the chat right now.
+
+482
+01:22:50.700 --> 01:22:56.189
+Cole Medin: Stefan said, could you quickly mention one more time what the commands are after PIV implement?
+
+483
+01:22:56.540 --> 01:23:07.129
+Cole Medin: Yes, of course. So, let me go back here. So, after you do the implementation, let me collapse this and make it look nice, then you do your PIV commit. So, you make another commit.
+
+484
+01:23:07.130 --> 01:23:18.610
+Cole Medin: And then you do the piv create pr, which this skill will also make a commit if you haven't already, because obviously you have to to make a pull request, so after your piv implement, you can just run piv create pr.
+
+485
+01:23:19.540 --> 01:23:30.200
+Cole Medin: And then once you have the pull request, you go into a brand new coding agent session, and you can run PIV review changes, because this is the separate review process you run on the pull request itself.
+
+486
+01:23:31.290 --> 01:23:51.129
+Cole Medin: So yeah, where do you bake in your regression tests in the flow? Cole and CI actions are earlier. Regression testing is something I'll cover more later, like phase three or four of the course, but that's kind of like outside of the core flow because you're generally running the regression testing whenever you want. And then yes, you do also have that as a part of your CI as well, Tom. Yeah.
+
+487
+01:23:51.130 --> 01:23:52.740
+Cole Medin: Definitely fits in CI.
+
+488
+01:23:53.830 --> 01:24:02.159
+Cole Medin: Stefan asked, is PIV validate not being used? So, PIV validate is pretty much the same as running through the validation that we build into the plan.
+
+489
+01:24:02.160 --> 01:24:21.000
+Cole Medin: And so, when you're going through the R PIV loop, you don't actually use PIV validate. I'd more just have this here for if you ever want to do, like, isolated validation on your existing code base. Like, if you want to make sure that before you go into the next Epic, for example, all of your unit tests and integration tests and everything, like, your linting and type checking is all passing.
+
+490
+01:24:21.170 --> 01:24:29.990
+Cole Medin: But if we were to run this after we'd run the implement step, it would be redundant, because we're already instructing the agent in the structured plan to go through all these steps.
+
+491
+01:24:31.410 --> 01:24:34.010
+Cole Medin: Yeah, exactly. Validate is included in Implement.
+
+492
+01:24:34.260 --> 01:24:48.420
+Cole Medin: Do I still have a system review step? I do, Tom. Yep, we will cover that when we get to system evolution. So it's outside of the scope of this workshop, because this workshop is made to be tied with phase one of the course, but we get to system evolution in phases two and three.
+
+493
+01:24:48.420 --> 01:25:04.039
+Cole Medin: And then we'll cover the system review. So all the skills I have here are only the Phase 1 skills that I made GitHub-specific, but the full set of skills that I have in the AI Layer Starter Template for you guys in the new version of the course, like, that includes a lot more.
+
+494
+01:25:06.160 --> 01:25:11.329
+Cole Medin: Alright, Loic asked, do the prime skillet, does it have the history of GitHub issues? Know where we are at on
+
+495
+01:25:11.630 --> 01:25:18.890
+Cole Medin: So, if we go to… it doesn't look at the GitHub issues, it looks at the commit history.
+
+496
+01:25:19.050 --> 01:25:28.539
+Cole Medin: So, it basically has the same effect, because when you make a commit message, it should be tied to the issue number, or ideally, that would be included in the commit message.
+
+497
+01:25:28.540 --> 01:25:40.109
+Cole Medin: So there might be a couple of optimizations that could be made here, but we're relying on the Git log to tell us the recent things that were implemented. I think it'd be redundant if we had to look at the recently worked on issues as well.
+
+498
+01:25:40.910 --> 01:25:42.759
+Cole Medin: Because they should be the same thing, really.
+
+499
+01:25:43.050 --> 01:25:56.179
+Cole Medin: Right, like, every single GitHub issue we work on with an RPID loop, it's gonna be one commit for the plan, and one commit for the implementation. And then if you do any, like, iteration on the pull request after, maybe you'd have multiple commits for that, too.
+
+500
+01:25:57.620 --> 01:25:58.790
+Cole Medin: So, cool.
+
+501
+01:25:58.910 --> 01:26:16.649
+Cole Medin: All right, I think we'll go ahead and call it there. So, this was an awesome workshop. I made it through the entire process. I mean, I guess we didn't quite get to the review at the end of the PR, but yeah, the whole, like, we got an idea, create the epic and the documents associated with it, split it into tickets, and knock out a ticket. So.
+
+502
+01:26:16.650 --> 01:26:19.850
+Cole Medin: Awesome, guys. Yeah, you're welcome, Billy. I appreciate
+
+503
+01:26:19.850 --> 01:26:26.650
+Cole Medin: Thank you, Eric. Appreciate all you guys being here, going through the process. I'm excited for the release of Phase 1 of the new version of the course.
+
+504
+01:26:26.790 --> 01:26:45.969
+Cole Medin: So yeah, thanks all for being here and your awesome questions as well. Hope you guys have a fantastic weekend and I will see you all in the community. Oh, and one more spoiler, we got a guest coming in for the workshop on next Friday, so that's going to be really exciting. I'll just say here for you guys who stuck around to the end of the workshop.
+
+505
+01:26:45.970 --> 01:26:53.819
+Cole Medin: we have the creator of BMAD coming in for a guest workshop, next Friday, so that's… it's gonna be… it's gonna be exciting, because he's actually doing
+
+506
+01:26:53.820 --> 01:27:00.569
+Cole Medin: to make BMAD a lot better. Like, some of the critiques I've shared with you guys in the community before,
+
+507
+01:27:00.680 --> 01:27:19.410
+Cole Medin: on BMAD, like, he's fixing those things. Super cool. I'm so excited for that. So, yeah, he's coming in on Friday. So, the workshop will actually be a half hour later than usual, but otherwise, yeah, just 11… 11.30 a.m. Central Time. So, yeah. Alright, sneak feed for those of you guys who stuck around to the end. Anyway, I hope you guys have a fantastic weekend.
+
+508
+01:27:19.410 --> 01:27:21.359
+Cole Medin: I'll see you guys in the community.
+
+509
+01:27:21.360 --> 01:27:22.560
+Cole Medin: Take care, everyone. Bye.
+
