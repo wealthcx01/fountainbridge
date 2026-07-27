@@ -18,6 +18,12 @@ export class GitHubError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /**
+     * True only when this is genuinely a rate limit (429, or 403 with `x-ratelimit-remaining: 0`).
+     * A 403 is otherwise a *permission* error ("Resource not accessible by integration" — an App/PAT
+     * without `contents: read`), which callers must not treat as transient. See FB-021.
+     */
+    readonly rateLimited: boolean = false,
   ) {
     super(message);
     this.name = 'GitHubError';
@@ -78,6 +84,15 @@ export class GitHubClient {
     this.sleepImpl = opts.sleepImpl ?? realSleep;
     this.maxRetries = opts.maxRetries ?? 3;
     this.now = opts.now ?? Date.now;
+  }
+
+  /**
+   * Whether any auth is configured (a PAT or a GitHub App). When false, every request to a private
+   * repo comes back 404 — so callers can tell "the studio isn't connected to GitHub" apart from
+   * "this specific repo is missing/inaccessible" (both are otherwise a bare 404). See FB-021.
+   */
+  hasCredentials(): boolean {
+    return Boolean(this.staticToken) || this.app !== null;
   }
 
   /** Resolve the bearer token for a request: PAT if set, else a (cached) App installation token. */
@@ -166,7 +181,7 @@ export class GitHubClient {
       }
 
       if (!res.ok) {
-        throw new GitHubError(`GitHub ${res.status} for ${path}`, res.status);
+        throw new GitHubError(`GitHub ${res.status} for ${path}`, res.status, rateLimited);
       }
       return (await res.json()) as T;
     }

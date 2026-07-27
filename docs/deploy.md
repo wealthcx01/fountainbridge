@@ -38,6 +38,32 @@ raw App token pasted into `GITHUB_TOKEN` would stop working after ~1 hour) — s
 Do **not** set `E2E_TEST_LOGIN`, `*_FIXTURE_DIR`, or `E2E_TEST_LOGIN_SECRET` in production — those
 are test-only seams and the app treats them as such.
 
+### Onboarding a venture repo (so its board isn't empty) — FB-021
+
+A venture board reads tickets from `docs/tickets/` on the repo's **default branch**, via the GitHub
+auth above. For a board to populate, the repo must be onboarded on **both** axes — access *and* content:
+
+1. **Access** — the studio's credential must be able to *read* the repo:
+   - **GitHub App path:** install the Foundry GitHub App **on that specific repository** (or the whole
+     account) with **`Contents: read`** + **`Metadata: read`** permissions. A private repo the App
+     isn't installed on returns HTTP 404 — indistinguishable from a missing repo — so an install/scope
+     gap looks like "not found". Installing the App is a **human action** (GitHub → the App →
+     *Install / Configure* → select the repos); it cannot be done from this lane.
+   - **PAT path:** the `GITHUB_TOKEN` PAT must be scoped to read the repo.
+2. **Content** — the ticket backlog must live under `docs/tickets/` on the **default branch**
+   (`main`/`master`). Tickets on a side branch won't show; the default branch is the contract (D2).
+
+**Repos to onboard now:** `wealthcx01/arca` (default `master`), `wealthcx01/thereset-platform`,
+`wealthcx01/thereset-marketing`.
+
+How the board reports each state (so a founder can tell "not set up yet" from "broken"):
+
+| Studio shows | Meaning | Fix |
+|---|---|---|
+| "isn't connected to GitHub yet" | No `GITHUB_TOKEN`/`GITHUB_APP_*` configured at all | Set the auth vars above |
+| "Can't read <repo> … credentials don't have read access" | Auth set, but no access to this repo — App not installed, or App/PAT lacks `contents: read` (both a missing repo and a 403 "not accessible by integration" land here) | Install/scope the App on the repo, or scope the PAT |
+| "No tickets on the default branch (`<ref>`)" | Reachable, but backlog not on the default branch | Merge the backlog to the default branch (e.g. FB-030 for arca) |
+
 ## 3. Domain (Holy Corner vertical-login pattern)
 
 Point a subdomain at the Railway service — e.g. **`foundry.<main-domain>`**, consistent with how

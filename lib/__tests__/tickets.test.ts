@@ -1,11 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   groupRepoTickets,
+  githubTicketFetcher,
   loadVentureTickets,
   clearTicketCache,
   applyStatusInference,
   type RepoTicketFetcher,
 } from '../tickets';
+import { GitHubClient } from '../github';
 import { inferenceKey } from '../attention';
 import type { VentureSummary } from '../ventures';
 
@@ -121,5 +123,119 @@ describe('loadVentureTickets — caching + refresh', () => {
     t = 3 * 60_000; // past the TTL
     await loadVentureTickets(venture, { fetcher, now });
     expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+});
+
+// FB-021: the live githubTicketFetcher must tell apart "not connected", "can't read this repo",
+// "empty backlog", and "rate limit" — a bare 404 otherwise conflates missing with no-access.
+describe('githubTicketFetcher — failure states are distinct (FB-021)', () => {
+  function res(status: number, body: unknown, headers: Record<string, string> = {}): Response {
+    return new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers });
+  }
+  // Routes /repos meta vs the docs/tickets dir listing vs a file read.
+  function routing(repoStatus: number, repoBody: unknown, entries: Array<{ name: string; type: string }> = [], fileContent = '') {
+    return vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/contents/docs/tickets/')) {
+        return res(200, { content: Buffer.from(fileContent, 'utf8').toString('base64'), encoding: 'base64' });
+      }
+      if (u.includes('/contents/docs/tickets')) return res(200, entries);
+      return res(repoStatus, repoBody);
+    });
+  }
+
+  beforeEach(() => {
+    // Guarantee "no credentials" regardless of the runner's environment.
+    vi.stubEnv('GITHUB_TOKEN', '');
+    vi.stubEnv('GITHUB_APP_ID', '');
+    vi.stubEnv('GITHUB_APP_PRIVATE_KEY', '');
+    vi.stubEnv('GITHUB_APP_INSTALLATION_ID', '');
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('404 with NO credentials → no-credentials ("not connected"), not "not found"', async () => {
+    const client = new GitHubClient({ fetchImpl: routing(404, { message: 'Not Found' }) as unknown as typeof fetch });
+    expect(client.hasCredentials()).toBe(false);
+    const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
+    expect(out.errorKind).toBe('no-credentials');
+    expect(out.error).toMatch(/isn.t connected to GitHub/i);
+    expect(out.error).not.toMatch(/not provisioned/i);
+    expect(out.files).toEqual([]);
+  });
+
+  it('404 WITH credentials → unreadable (missing or no read access)', async () => {
+    const client = new GitHubClient({ token: 'pat', fetchImpl: routing(404, { message: 'Not Found' }) as unknown as typeof fetch });
+    expect(client.hasCredentials()).toBe(true);
+    const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
+    expect(out.errorKind).toBe('unreadable');
+    expect(out.error).toMatch(/don.t have read access|doesn.t exist/i);
+  });
+
+  it('permission 403 (no rate-limit header) WITH creds → unreadable, NOT rate-limit', async () => {
+    // "Resource not accessible by integration": an App/PAT lacking contents:read. A permanent
+    // access problem, not a transient rate limit — must not tell the founder to "try refresh".
+    const client = new GitHubClient({
+      token: 'pat',
+      maxRetries: 0,
+      sleepImpl: async () => {},
+      fetchImpl: vi.fn(async () => res(403, { message: 'Resource not accessible by integration' })) as unknown as typeof fetch,
+    });
+    const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
+    expect(out.errorKind).toBe('unreadable');
+    expect(out.error).not.toMatch(/rate limit|refresh/i);
+  });
+
+  it('an unexpected (non-GitHub) error degrades the lane, never blanks the board', async () => {
+    // e.g. a malformed App key throwing in the token mint. Must resolve to an error lane, not reject.
+    const client = new GitHubClient({
+      token: 'pat',
+      fetchImpl: vi.fn(async () => {
+        throw new TypeError('boom');
+      }) as unknown as typeof fetch,
+    });
+    const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
+    expect(out.errorKind).toBe('error');
+    expect(out.files).toEqual([]);
+  });
+
+  it('reachable repo with tickets → reads them on the default branch, no error', async () => {
+    const client = new GitHubClient({
+      token: 'pat',
+      fetchImpl: routing(200, { default_branch: 'master' }, [{ name: 'ARCA-1.md', type: 'file' }], ticketMd('ARCA-1', 'Planned')) as unknown as typeof fetch,
+    });
+    const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
+    expect(out.error).toBeNull();
+    expect(out.errorKind ?? null).toBeNull();
+    expect(out.ref).toBe('master');
+    const lane = groupRepoTickets('arca', out);
+    expect(lane.total).toBe(1);
+  });
+
+  it('reachable repo with NO docs/tickets → empty backlog (error null, total 0), not an error state', async () => {
+    // listDir 404 → [] (no tickets dir yet).
+    const fetchImpl = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/contents/docs/tickets')) return res(404, { message: 'Not Found' });
+      return res(200, { default_branch: 'master' });
+    });
+    const client = new GitHubClient({ token: 'pat', fetchImpl: fetchImpl as unknown as typeof fetch });
+    const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
+    expect(out.error).toBeNull();
+    expect(out.errorKind ?? null).toBeNull();
+    const lane = groupRepoTickets('arca', out);
+    expect(lane.total).toBe(0);
+    expect(lane.error).toBeNull();
+  });
+
+  it('rate limit → rate-limit kind (transient), distinct from an access problem', async () => {
+    // A 403 with x-ratelimit-remaining:0 is a rate limit; maxRetries:0 makes it surface at once.
+    const client = new GitHubClient({
+      token: 'pat',
+      maxRetries: 0,
+      sleepImpl: async () => {},
+      fetchImpl: vi.fn(async () => res(403, { message: 'rate limited' }, { 'x-ratelimit-remaining': '0' })) as unknown as typeof fetch,
+    });
+    const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
+    expect(out.errorKind).toBe('rate-limit');
   });
 });
