@@ -36,3 +36,12 @@ Thumbs.db
 *.log
 npm-debug.log*
 .gbrain-source
+
+# Source reference material — kept locally (and on the VM) but NEVER committed:
+# - reference-pdfs: Aulet (Disciplined Entrepreneurship) + Helmer (7 Powers) are licensed to us
+#   for USE/guidance, not redistribution; also large binaries. Chapter authoring must produce
+#   original, transformed markdown — not commit the source books.
+# - media: workshop recordings (mp4/m4a) are hundreds of MB; transcripts (.vtt/.txt) are tracked.
+docs/source/reference-pdfs/
+*.mp4
+*.m4a
