@@ -1,0 +1,150 @@
+00:06:26	Sean Wright:	I've been waiting for this for a LONG time Cole
+00:07:17	John Bewley:	Reacted to "I've been waiting for this for a LONG time Cole" with 👍
+00:07:21	Pat Shanks:	Reacted to "I've been waiting for this for a LONG time Cole" with 👍
+00:07:54	Eric Soriano:	Reacted to "I've been waiting for this for a LONG time Cole" with 👍
+00:08:27	Sean Wright:	What's better?  Using a greenfield or brownfield for the new version of the course?
+00:08:56	Tom Cohen:	Our own codebase and quick-start for v1 folks?  Awesome.  Perfect timing!
+00:10:32	Sean Wright:	Part 2 of the question: should the Brownfield be a codebase created using principals from the courses OR a really, messy, sloppy codebase I may (or may not) have vibe-coded (cringe)?
+00:10:54	Tom Cohen:	Reacted to "Part 2 of the question: should the Brownfield be a codebase created using principals from the courses OR a really, messy, sloppy codebase I may (or may not) have vibe-coded (cringe)?" with 👍
+00:10:58	Sergii Shilingov:	Reacted to "I've been waiting for this for a LONG time Cole" with 👍
+00:12:06	Tom Cohen:	I built my current codebase based on v1 course principals.  Will v2 build on top of a codebase that already has the guardrails, skills, etc. we built based on v1?
+00:13:19	Sean Wright:	Epic = Milestone?
+00:14:35	Ganesh:	Epic -> Stories -> Tasks -> Subtasks
+00:15:00	Paolo Furini:	Yeah scrum terms
+00:15:57	Paolo Furini:	Then there are initiatives for even higher level scope
+00:17:15	Cole Medin:	https://github.com/coleam00/orbit-support-agent/tree/workshop/github-piv/.claude/skills
+00:17:30	Paolo Furini:	Reacted to "https://github.com/coleam00/orbit-support-agent/tree/workshop/github-piv/.claude/skills" with 👍
+00:18:11	Basel Sadik:	Reacted to "https://github.com/coleam00/orbit-support-agent/tree/workshop/github-piv/.claude/skills" with ❤️
+00:21:37	Sean Wright:	Wait... RPIV?  R=?
+00:22:19	Sean Wright:	aaaaaahhhhh.... brainstorming
+00:22:56	Sean Wright:	BMAD-PIV
+00:23:45	Paolo Furini:	Prime?
+00:24:17	Sean Wright:	maybe drop a diagram in the chat? 😊
+00:24:34	Pat Shanks:	Reacted to "maybe drop a diagram in the chat? 😊" with 👍
+00:24:55	Tim Carter:	Using sub-issues as tasks works really well
+00:25:04	Eric Clepper:	So - 
+Epic = Issue
+Sprint = Issue
+Story = Issue
+etc. ?
+00:25:19	Sean Wright:	yes please
+00:25:22	Sean Wright:	and thank you
+00:25:33	Purva Patel:	Reacted to "Celebrating our 44th anniversary 🎉" with 👍
+00:26:10	Sean Wright:	Replying to "So - 
+Epic = Issue
+Sprint = Issue
+Story = Issue
+etc. ?"
+
+that's an issue.
+00:28:25	Terence:	are we going to use archon?
+00:30:45	Sean Wright:	How do you control 'over-grill'?
+00:31:50	Sean Wright:	or under-grill?
+00:32:48	Tim Carter:	Was just playing around with Matt Pocock's grill and wayfinder skills. Really good stuff
+00:33:01	Sean Wright:	Reacted to "Was just playing around with Matt Pocock's grill and wayfinder skills. Really good stuff" with 👍
+00:33:23	Tom Cohen:	is the intent to create a PRD for each significant new feature?
+00:33:28	Ganesh:	In an enterprise setting, prd is normally used to refer to production environment. Maybe, we can consider changing prd in plan-create-prd to plan-create-spec?
+00:34:59	Sean Wright:	Replying to "In an enterprise setting, prd is normally used to refer to production environment. Maybe, we can consider changing prd in plan-create-prd to plan-create-spec?"
+
+but this is not the production environment - you would not do this in production.
+00:35:11	Paolo Furini:	Replying to "In an enterprise set..."
+
+PRD is a standard term, Product Requirements Document. Spec is another thing..
+00:36:14	Ganesh:	Replying to "In an enterprise set..."
+
+That is the point I was making Sean
+00:36:28	Steffen:	So far I always created one gigantic big PRD document, then used ‘archon create-plan’ to create the next phase’s plan, then ‘archon plan-to-pr’ to build it.
+
+Is what you’re going through in this workshop here today a similar approach, just going via GitHub with GitHub issues instead of creating phase-xx-plan.md files?
+
+Since in my project I am already using Archon for everything, is there an easy way to use the approach from this workshop with Archon?
+00:37:03	Ganesh:	Fair enough
+00:37:16	Sean Wright:	Replying to "In an enterprise setting, prd is normally used to refer to production environment. Maybe, we can consider changing prd in plan-create-prd to plan-create-spec?"
+
+We're in development, not production.
+00:37:40	Paolo Furini:	Replying to "In an enterprise set..."
+
+There are a ton of products around writing PRDs, for example chatprd (just to prove the point is standard in the field 😊)
+00:38:07	Ganesh:	Reacted to "There are a ton of p..." with 👍
+00:41:33	Sean Wright:	What I would LOVE to see is you breaking the flow and then continuing the work... like restart your computer when the agent is running a task...
+00:45:36	Sean Wright:	Using GitHub this way, for me, is like a nice comprehensive form of state management
+00:46:11	Sean Wright:	Replying to "What I would LOVE to see is you breaking the flow and then continuing the work... like restart your computer when the agent is running a task..."
+
+or just close out claude mid task
+00:46:24	Paolo Furini:	A problem I have even after an year of developing with AI is that I use development frameworks like the PIV loop, and I also built a variant with OpenSpec that includes all steps, including an “office-hours” step for product ideation and research, writing the PRD and so on. 
+
+A frequent issue is that some things are more convenient inside Cursor because they are faster. 
+
+For example every quick UI style tweaks takes ages in claude or codex, while few seconds in cursor… how do you tackle this in general? I mean the “not one size fits all” problem. Love Archon too, but some tasks are simple not a good fit for all the “ceremony”…
+00:47:16	Paolo Furini:	PS: this is a Q for the upcoming course v2, mainly
+00:50:27	Sean Wright:	To your point on spikes - are you still using confidence scores in your skills?  I've been using something like "Use the plan feature skill to plan phase X.  I want a confidence score of 9.5 or greater.  Run sprints if you need to so you can achieve the best score"
+00:52:58	Tom Cohen:	so do you use VS code now for everything?  I know you used to like Windsurf.
+00:53:14	Sean Wright:	I LOVE THIS!!
+00:56:09	Steffen:	This is great - I’ve been wanting to move all steps to GitHub.
+
+In my current building setup I use Archon with Archon workflows for everything.
+
+How can we use this workshop’s approach with archon?
+Are there the Archon equivalents of all these claude skills available somewhere?
+
+Or maybe it’s smart to do the first part without Archon:
+prime, 
+plan-create-prd, 
+plan-architecture and 
+Piv-slice-epic
+
+And then the phases after that with Archon:
+(Probably) archon fix-github-issue
+
+?
+
+Or would you say for now it makes sense to go back away from Archon to purely the workflow you’re presenting here today?
+00:56:47	Eric Clepper:	have not seen that yet.
+00:56:56	Sean Wright:	delete your .venv directory
+00:56:57	Ty Wells:	Yes, mine does that
+00:57:06	Loïc Meuzeret:	Not yet
+00:57:19	Ty Wells:	I was getting duplicating responses for awhile about 2 weeks ago
+00:57:26	Ty Wells:	And it went away on it’s own
+00:59:27	Eric Soriano:	Replying to "I was getting duplic..."
+
+I still observed this behavior yesterday on my end.
+00:59:30	Sean Wright:	FreeSCode
+00:59:36	Paolo Furini:	Yeah, like asking an agent how long it will take. Hours or days for 5 minutes agent work… 😂
+00:59:39	Tom Cohen:	Reacted to "FreeSCode" with 👍
+01:05:12	Sean Wright:	Better context management!!
+01:08:18	Sean Wright:	.venv....
+01:09:50	Steffen:	Love the challenge 🙂
+01:10:39	Sean Wright:	Next thing Cole will say "you could even turn this into your own dark factory"... taking bets
+01:10:43	Steffen:	Yesss please! This in archon 🙂 🙂
+01:12:10	Eric Soriano:	Love this workshop! Curious how much change is required to use Jira and Github or Atlassian tools using Jira and Bitbucket. Another job for Claude.
+01:12:41	Nan:	Can you make the co founder agent connected to the Second Brain to implement the GitHub issues.
+01:15:27	Benjamin:	side question do you think the dark factory is better than the software factory term?
+01:17:24	Sean Wright:	So, leveraging GitHub the way you are, where do GitHub actions come into play?  Only during PR creation and merge?
+01:17:27	Eric Soriano:	Thank you Cole!
+01:17:49	Loïc Meuzeret:	Reacted to "So, leveraging GitHub the way you are, where do GitHub actions come into play?  Only during PR creation and merge?" with ❤️
+01:18:33	Frederick Brier:	Reacted to "So, leveraging GitHub the way you are, where do GitHub actions come into play?  Only during PR creation and merge?" with 👍
+01:23:31	Frederick Brier:	Spikes can be implemented as tests.
+01:24:31	Benjamin:	ah I thought it was different
+01:29:02	Steffen:	Sorry could you quickly mention one more time what the commands are after piv-implement
+01:29:21	Ganesh:	Thank you so much, Cole!
+01:29:44	Tom Cohen:	Where do you bake in your regression tests in the flow, Cole?  In the CI actions or earlier?
+01:29:57	Loïc Meuzeret:	Do the prime skill has the history of GitHub issues?  to know where we at on the epic ?
+01:30:01	Steffen:	Ah and piv-validate not being used?
+01:30:41	Tom Cohen:	Do you still have a /system-review step?
+01:30:43	Steffen:	I see. So validate is kind of included in implement already
+01:30:50	Steffen:	top
+01:31:08	Tom Cohen:	cool - thx
+01:32:31	Billy:	great workshop … thank you :-)
+01:32:33	Eric Clepper:	Excellent content, Cole! Thanks!
+01:32:36	John Bewley:	Have a great weekend everyone, thanks Cole!
+01:32:37	Loïc Meuzeret:	ok thanks great workshop I wil to use it to my workflow
+01:32:41	Tom Cohen:	Awesome, Cole!  looking forward to evolving my system!
+01:32:46	Steffen:	THANK YOU
+01:33:03	Purva Patel:	Thank you Cole.
+01:33:11	Tom Cohen:	THanks, Cole!
+01:33:12	Tim Carter:	Sweet!!
+01:33:12	Paolo Furini:	Great
+01:33:15	Steffen:	wow
+01:33:32	Loïc Meuzeret:	teaser in workshop  !
+01:33:34	John Bewley:	Cool
+01:33:38	J:	Won't BMAD about that!

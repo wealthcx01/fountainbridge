@@ -1,0 +1,98 @@
+00:13:27	Paul:	I love new skills, and I LOVE the Second Brain system.  Using mine every day, all day.
+00:13:39	Eric Soriano:	this is gold
+00:13:48	Daniel B:	oh yeah, I much prefer the skill based approach, I do everything myself, customize things, combine things, etc...so being able to use the skill and tell it how I want it to work is the best
+00:14:27	John Bewley:	I think the transition to providing the base PRD to customize has been a game changer!  At least for me 🌟
+00:14:49	Loïc Meuzeret:	Yeah it is great if he can personalize easily to our project
+00:15:10	Erez Shilat:	Reacted to "I think the transiti..." with 👍
+00:16:05	Rasmus Widing:	Prp - piv- agentic engineering course - and many many others had loops years ago 😄
+00:16:24	Rasmus Widing:	Its literally called piv loop 😄
+00:16:52	John Bewley:	Reacted to "Its literally called..." with 😂
+00:17:41	Cole Medin:	https://www.linkedin.com/pulse/wtf-loop-peter-steinberger-vs-boris-cherny-matt-van-horn-cpslc/
+00:17:51	Eric Soriano:	Reacted to "Its literally call..." with 😂
+00:23:47	Uran T:	I agree with you Cole, the loop is a great selling point but the outcome doesn’t justify the means. You can spend less token without using loop and gaining better outcome.
+00:25:02	Kaushik:	Finally another one is trying game dev using AI... love that 🙂
+00:25:40	Uran T:	When do you know when you over engineering?
+00:26:06	Paul:	Yeah man, I want to use AI for game dev too, just for fun. :)
+00:26:43	Paolo Furini:	What are the folders in the workshops repo related to this? Found this “cofounder-projects”, are there any others? Thx
+00:27:40	sherv:	I also love the gaming usecase, I working on porting a game from 2001 into a new engine to then be able to get it to build more playtime me 😄
+00:28:05	Marley Comerford:	i have also been testing gamedev, was watching the unreal engine event yesterday and tested the mcp with some archon workflows, trying to replicate a digital twin of my house,  was pretty mindblown, but burns tokens like crazzzy
+00:29:49	Erez Shilat:	the approach can be very useful for QA - let have the basic manual and let it attempt to crash the system  as a goal :)
+00:31:53	Paul:	@Marley Comerford would you be willing to share any screenshot of what u created?
+00:33:03	Paolo Furini:	Been testing hybrid approaches, with mini loops going through plan tasks, with each loop running on a fast and cheap model, and have a tight feedback loop where each failure get caught immediately and appended to the log for the next iterations to pick up.. it’s tough to optimize, but getting good results even on brownfield apps. I’m eager to incorporate some of your research into this!
+00:34:01	Marley Comerford:	i used blueprints of my actual house paired with photos for each room, finding the right fab assets was the hard maual part, but one i had a good package for each room (blueprint, photos and assets) it was pretty much 1:1 visually after a few rounds, just requires abit of vibe iteration for the final things like (opening doors, tunring on the fire ect)
+00:35:50	Paul:	@Marley Comerford - That is amazing.
+00:36:14	Uran T:	Reacted to "i used blueprints of..." with 👍
+00:36:23	Francesco:	Reacted to "i used blueprints of..." with 👏
+00:37:28	Erez Shilat:	Reacted to "i used blueprints of..." with 👏
+00:38:16	Steffen:	Question regarding order of implementation:
+
+I just finished the Second Brain implementation from the course. Next options - pointing the repo at the following workshop repos or use the PRDs from the workshops to improve / extend:
+Memory System Deep Dive (LLM Wiki etc)
+2nd brain security deep dive
+Archon as an Arm of the Second Brain
+Second Brain Migration: Off the Claude Agent SDK (Pi and Codex)
+—> and now the co-founder extension.
+
+Do you suggest a certain order?
+
+Is this assumption true:
+
+The workshops for which the implementation into my second brain is being done best by pointing the repo at the workshop repo should be done first, the workshops that I can implement myself with a PRD from the workshop can be implemented any time.
+00:38:23	Marley Comerford:	archon was used for sourcing assets via the pcitures via llm descrioption, semantic searching the fab libaries for the assets and then packaging it all together, and sending the initial mcp prompt, then was vibe iteration after, but there is deffo addition infra and archon workflows / skills that could solve the manual work, or atleast drastically reducing it
+00:48:01	Scott Seaburn:	Is the north-star-build and visual-qa yaml available for study?
+00:48:24	Paolo Furini:	These workflows are being created automatically? Maybe I’ve missed a step. Can you share those to study them? Thx!
+00:49:15	Scott Seaburn:	Looks cool!
+00:50:18	Derek Krueger:	When I was a kid, the Dallas Stars were the Minnesota North Stars. Minnesota is the "North Star State" Cole is from MN, as am I :)  - just some fun facts for the chat
+00:50:36	John Bewley:	Reacted to "When I was a kid, th..." with 😂
+00:51:38	Uran T:	Just so I can understand the vertical slice arch, is the spec sits in second brain or the actual app folder?
+00:51:45	Eric Soriano:	I may have missed this. How is the spec and plan defined for each loop? Is it the cofounder that defines it prior to each loop?
+00:54:08	Uran T:	Reacted to "When I was a kid, th..." with 👍
+00:54:18	Steffen:	That helps a lot thanks @Cole Medin
+00:56:37	Scott Seaburn:	Makes sense
+00:57:33	Uran T:	Thank you
+00:58:31	Loïc Meuzeret:	Does the cofounder automatically merge its own PRs into its main branch, or do you review it ? I am not sure to understand where you slack gate is ?
+01:00:31	Cole Medin:	https://github.com/dynamous-community/workshops/tree/main/cofounder-projects
+01:03:41	Paul:	I haven't started using Archon yet, just 2nd brain.  Could you show how this + Archon + 2nd brain work together?  Like just the visual?
+01:04:30	Marley Comerford:	Replying to "I haven't started ..."
+
+he has a whole workshop on it "incorperating archon as a arm of the second brain" it goes over everything at a highlevel
+01:04:53	Paul:	Replying to "I haven't started us..."
+
+ok cool, I'll watch that, thnx.
+01:05:10	Marley Comerford:	Replying to "I haven't started ..."
+
+no problem sir
+01:06:55	Derek Krueger:	No, you weren't frozen
+01:06:57	Eric Soriano:	you didn't freeze
+01:07:04	Paul:	Replying to "I haven't started us..."
+
+btw, I didn't see the screenshot either if you shared one.
+01:08:28	Oppenheim, Ethan:	Outside of their biases towards using vanilla Claude Code, what are the benefits of archon over claude loops?
+01:10:59	Uran T:	Very cool @Cole Medin , I can’t wait to implement this!
+01:11:23	Mikko Paalasmaa:	Cole, what is your VPS setup for 2nd brain and Archon.
+01:14:32	Cole Medin:	https://community.dynamous.ai/c/live-events/community-workshop-29ee1b
+01:14:51	Francesco:	I’ve been using second brain locally for a while, time to try the VPS deploy soon
+01:16:01	Oppenheim, Ethan:	Thanks - follow up on that response Cole… To what extend is it then better to use archon for multi step skills vs just listing out steps in the still file itself?
+01:16:20	Oppenheim, Ethan:	Meaning a skill with 15 steps to go through vs just using archon instead
+01:21:54	Oppenheim, Ethan:	Ah very nice - thanks I think I may need to do a deep dive into archon
+01:22:08	Paul:	Replying to "Ah very nice - thank..."
+
+Yeah I want to learn it now too. :)
+01:22:19	Frederick Brier:	How do you handle failures in your workflow steps?
+01:24:12	Steffen:	Would you say the cofounder approach is very suitable for systems like autonomous scaled content creation and content posting?
+Or other similar go-to-market system implementations?
+
+Like can it act as a continuous “Marketing-Cofounder” or “Content Creation Cofounder” or so?
+
+Just trying to get a grasp on the use cases of this
+01:24:50	Loïc Meuzeret:	Would you advise using the cofounder system on a project that already follows a PIV loop, to speed up development and build independent features in parallel?
+01:25:23	Steffen:	Will do 🙂
+01:26:14	Eric Soriano:	Thank you Cole!
+01:26:17	Loïc Meuzeret:	Thanks !
+01:26:17	Paolo Furini:	Thanks Cole, great session!
+01:26:23	Marley Comerford:	thanks for the hard work cole 💪
+01:26:30	Scott Seaburn:	Have a great weekend!  Freeze frame on time
+01:26:36	Steffen:	Thank u !!
+01:26:36	chad williams:	You wore it out today Cole!
+01:26:37	John Bewley:	Have a great weekend everyone!🏗️ Go build.
+01:26:44	Mikko Paalasmaa:	Thanks

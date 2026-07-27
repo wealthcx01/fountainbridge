@@ -1,0 +1,1445 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:01.000
+So let me start the recording locally and then do it in the Zoom
+
+00:00:01.000 --> 00:00:23.000
+All right. So welcome, everyone, to the next Dynamis Friday Workshop. This is a workshop that is going to be tied directly to the first phase of the new Agentic coding course. And so, yes, you heard that right. The new version, the version two of the Agentic coding course is coming very, very soon. The first phase of it
+
+00:00:23.000 --> 00:00:40.000
+is going to be released on Monday, and I was telling everyone right before I started the recording here that I'm working so hard on recording all the content for this right now. Rasmus and I spent, like, an entire month prepping just the first two phases. There's gonna be four in total
+
+00:00:40.000 --> 00:00:56.000
+And this course is going to be actually more concise than the first version, fully up to date with all the new best practices and standards and harness engineering, and it's easier to follow. And so I took a lot of feedback from you guys and just generally working on the content more
+
+00:00:56.000 --> 00:01:12.000
+for how I can make it so that it's more of a straightforward flow, and there's just, like, more mental models to help you guys, like, really grasp everything. So, I'm really excited to bring the first phase to you guys. And, yeah, first phase is going to be longest of the four, because it is all the foundational stuff
+
+00:01:12.000 --> 00:01:20.000
+So, yeah, that's part of why I'm putting so much effort into it right now. Because, yeah, I think there's gonna be, like, 13 videos in total for Phase
+
+00:01:20.000 --> 00:01:38.000
+And they average, like, 15 to 20 minutes. So, like, it's a good few hours of content, but still more concise than the first version. But, like, man, if you dedicate, like, a few hours to go through the course, and, like, I actually encourage you heavily to follow along on your own code base this time. It's another thing that makes it a lot better than the first version of the course, is
+
+00:01:38.000 --> 00:01:56.000
+Following along on your own code base instead of trying to have you go through sample exercises that really aren't, like, providing value for you long-term, besides just learning. So it's like learning and building at the same time. I'm really excited for that. So if you dedicate a few hours to go through phase one over the next couple weeks, starting on Monday when it releases, like.
+
+00:01:56.000 --> 00:02:11.000
+You're gonna be so elevated in your approach to AI coding. And one of the things I promised you guys that I also did in this version of the course is if you did the first version already, I call out specific things that you can skip or go through more quickly
+
+00:02:11.000 --> 00:02:18.000
+So, also, you get to go through this fast and still get all the new good stuff if you've gone through the content before
+
+00:02:18.000 --> 00:02:27.000
+Because I definitely want to respect you guys who've already dedicated so much time to everything that I'm bringing to you all.
+
+00:02:27.000 --> 00:02:42.000
+All right, Sean asked, what's better, using a greenfield or brownfield for the new version of the course? So I hit on both greenfield and brownfield constantly in the first phase. I want to make sure you guys feel well equipped for either. However, the example that I do go through
+
+00:02:42.000 --> 00:02:50.000
+As I ask you to follow along on your own code base, is Brownfield. Just because Brownfield is more common.
+
+00:02:50.000 --> 00:03:03.000
+Right, and I feel like I actually overemphasize Greenfield too much in the previous version of the course, because your code base is only greenfield for so long. Like, you build out your first MVP
+
+00:03:03.000 --> 00:03:08.000
+And then you're already jumping to Brownfield. And so I wanted my example to be Brownfield
+
+00:03:08.000 --> 00:03:17.000
+And in the end, like, the strategies you apply, especially when you get into the individual loops of coding, like it's very, very similar between Greenfield and brownfield
+
+00:03:17.000 --> 00:03:35.000
+So, all right, Tom said our own code base and quick start for V1 folks. Awesome, perfect timing. Yeah, yeah, glad to hear it. So yeah, I'm excited for it. So anyway, I just wanted to spend a couple of minutes talking about this upfront because this is a big deal for me, and hopefully for you as well. But yeah, we'll get right into the meat of it here. So.
+
+00:03:35.000 --> 00:03:50.000
+One of the things that I cover in the course that I haven't before is not just managing everything in Markdown. So markdown is fantastic, especially if you're a solo builder. But generally, when you're working on a larger scope of work, usually called an epic
+
+00:03:50.000 --> 00:04:03.000
+You are tracking things in something like GitHub or Linear or Jira. In fact, Jira is the most common at larger companies, and so that's actually the tooling that I use for my example in the course.
+
+00:04:03.000 --> 00:04:14.000
+Because you're usually not just managing your state of things and all the tasks that you have in just Markdown, because it just doesn't scale once you're working to… working with more than one person.
+
+00:04:14.000 --> 00:04:30.000
+And so in the course, I cover using Jira, and of course I generalize it to whatever tools you're using. But I wanted to specifically do a workshop showing the full process in GitHub as well, because GitHub is probably the best balance of like you can use it on a team
+
+00:04:30.000 --> 00:04:46.000
+But also, it's quite easy for you to use just as a solo builder, because generally when you want to version control your code base and store it in the cloud, so it's not just living on one computer, you're going to be using GitHub anyway. And GitHub makes it easy with the idea of issues
+
+00:04:46.000 --> 00:04:50.000
+to track all the different work that we are planning
+
+00:04:50.000 --> 00:05:05.000
+And then each individual issue you send into a PIV loop. If you've gone through the first version of the course, you know what I'm talking about. We have that core workflow for how we work on any individual task, where we go through the planning and the implementing and the validating.
+
+00:05:05.000 --> 00:05:21.000
+And so for this workshop here, we're going to be taking things very far. Like we're going to… I'm going to show you the entire process of managing a larger set of work from ideation all the way to creating the epic, splitting the epic into tickets, and running a piv loop on one of the tickets
+
+00:05:21.000 --> 00:05:37.000
+ending in a pull request. So it's going to be very comprehensive here, because I want this to be, like, honestly, I'll probably add this as sort of like a bonus resource on top of the course for, like, the GitHub version of things that I demo in the core of Phase 1.
+
+00:05:37.000 --> 00:05:53.000
+And so let me open up my diagrams here. You'll get a little bit of a sneak peek as well as some of the diagrams that I have for the course. Like this is the core diagram. It's actually pretty similar to the one for the first version of the course. The core diagram that like shows the full system
+
+00:05:53.000 --> 00:06:15.000
+for how we plan things up front and, like, build our AI layer. And then we have the rpiv loops for our implementation. And then I'll cover system evolution in a later phase as well. So, like, that's our core workflow, our core system. And then there's a lot of other diagrams that I have here to explain different things. So I love diagrams because I just love breaking things down as simple as I possibly can for you guys
+
+00:06:15.000 --> 00:06:19.000
+And so, the workflow that I'll be showing you guys in GitHub
+
+00:06:19.000 --> 00:06:25.000
+Again, it's like what I show in Jira in the course I'm showing in GitHub here.
+
+00:06:25.000 --> 00:06:33.000
+We're gonna start by planning an epic on a brownfield code base. So just to show you guys, like, this is where we're starting today.
+
+00:06:33.000 --> 00:06:48.000
+We have an existing code base, and we're going to be building the next release on top of it. And so I'm throwing around some terminology here that maybe you're familiar with, maybe you're not. Generally, like when you have an existing code base
+
+00:06:48.000 --> 00:07:04.000
+And you want to build that next set of features, you call it either an epic or a release, or like sometimes you'll call it both, because, like, the epic is you planning the next set of features, and then the release is when you take those features and you bring them to production. Like, you actually publish it for
+
+00:07:04.000 --> 00:07:06.000
+your end users
+
+00:07:06.000 --> 00:07:28.000
+And so we're going to start by planning the epic by creating two documents. We're going to be creating our PRD and our architecture document. And yeah, Sean, an epic is like a milestone, definitely. And, like, especially for, like, Greenfield, like, an Epic is like getting that MVP for Greenfield, or for Brownfield, it's that next milestone that you have for
+
+00:07:28.000 --> 00:07:45.000
+your application. And I don't know if everyone here was in the workshop that Rasmus ran a couple of weeks ago, but he covered the idea of whenever you're planning out work with the coding agent, you're never shoving everything into a PRD.
+
+00:07:45.000 --> 00:07:51.000
+Because your product requirement document is where you are specifying the what and the why.
+
+00:07:51.000 --> 00:08:11.000
+You're not getting into the details of how you're going to build the next set of features, you're just focusing on these are the problems we're solving, and why we're building this next set of features in the first place. So you start with that, that is your intent, and then you create the architecture document. This is where you get into the specifics with the help of your coding agent
+
+00:08:11.000 --> 00:08:20.000
+on how you're going to approach building this epic. Like, what are the… what is the approach we're taking to building these features
+
+00:08:20.000 --> 00:08:35.000
+And then those 2 documents together, they become your epic. And then from that, you're going to create your tickets, because you have to split the larger epic into the bite-sized tasks that you're going to have your coding agent handle one at a time
+
+00:08:35.000 --> 00:08:54.000
+going through the RPIB loops, right? Like, you do the plan, implement, validate on each one of the tickets, that's why you want to split them out, because you never want to just hand an entire PRD to a coding agent and ask it to knock it out, because it's going to get totally overwhelmed and hallucinate a ton of things, and it's just a mess. You never want to do that. You want to make sure that you have very granular tasks
+
+00:08:54.000 --> 00:09:02.000
+I love using the word granular. You want to have granular tasks for your coding agent, and then you build those out one loop at a time.
+
+00:09:02.000 --> 00:09:05.000
+And so, we're going to be covering this entire workflow here.
+
+00:09:05.000 --> 00:09:09.000
+In an hour and a half is not actually a lot of time for this.
+
+00:09:09.000 --> 00:09:31.000
+And so, I'm going to try to make it as concise as I can. And so there might be some things that I cover rather quickly, but just don't worry, because in the new version of the course, I get into the explanations for everything. And also, I, you know, re-record things a lot, so I'm, like, doing second takes to, like, make sure everything's concise and explained really well.
+
+00:09:31.000 --> 00:09:40.000
+So right here, we're just doing, like, a live session to just try to show you this entire process in, like, an hour and 15 minutes. That's the goal that I got for you guys here.
+
+00:09:40.000 --> 00:09:57.000
+And I hope in just showing you the entire workflow very quickly, you can just grasp the entire process because in the end, the specific strategy I use to build the PRD and the architecture document and the way that I split things into tickets, or I guess in GitHub, it's like splitting into issues
+
+00:09:57.000 --> 00:10:00.000
+You might do it very differently.
+
+00:10:00.000 --> 00:10:15.000
+I just want to show the core mental models here, right? And, like, you can use my approach as a starting point, but like I always say, I encourage you to take the skills that I give you and take, like, my approach and really customize it to what works best for you
+
+00:10:15.000 --> 00:10:19.000
+and your team, if you're building with other people as well.
+
+00:10:19.000 --> 00:10:32.000
+And so yeah, I will say that there are a lot of skills I'm going to be using today that you can have access to right now. So hold on, let me pull up the code base here
+
+00:10:32.000 --> 00:10:37.000
+And I have all of the skills right here
+
+00:10:37.000 --> 00:10:47.000
+this .claude skills folder for the repo. Let me actually pull that up quick. So, sorry, I apologize. That's one thing that I didn't have ready
+
+00:10:47.000 --> 00:10:59.000
+Oh, no, I do have it ready. I'm sorry, I do have this. I'm prepared here. Okay, there we go. So I didn't link this in the description yet, so that's my bad, but I will link it right here
+
+00:10:59.000 --> 00:11:03.000
+So all of the skills that I'm going to be using for the full workflow today
+
+00:11:03.000 --> 00:11:09.000
+are right here in the URL that I just put in the Zoom chat.
+
+00:11:09.000 --> 00:11:25.000
+And the cool thing is, these are all of the skills, all of the core skills for the new version of the course that I've made GitHub native. And so another reason I wanted to do this workshop is because if you are using GitHub instead of something like Jira or linear
+
+00:11:25.000 --> 00:11:41.000
+then you already have the GitHub customized skills ready for you to use as a starting point and evolve to your needs. And so I just have this living in the sample repository for today's workshop, but when I do publish the first phase of the course, I am going to actually bring
+
+00:11:41.000 --> 00:11:46.000
+this into the starter template for the course.
+
+00:11:46.000 --> 00:11:54.000
+And so, yeah, with that, let me actually explain the agent that we're going to be building on top of today. Let me just take a sip break quick first.
+
+00:11:54.000 --> 00:11:55.000
+Okay
+
+00:11:55.000 --> 00:11:58.000
+So the agent that we're building on top of
+
+00:11:58.000 --> 00:12:13.000
+is the Orbit Support Agent. So I actually just put a video out on my YouTube channel just this morning covering Pydantic AI 2.0. So this is, like, basically always been my favorite AI agent framework. They just did a massive 2.0 release
+
+00:12:13.000 --> 00:12:28.000
+That is really impressive. I posted in the community a link to the video as well if you're interested in checking it out. Obviously, not gonna just, like, go in and cover Pydantic AI 2.0 right now, but this is just, like, a really cool agent to build on top of here.
+
+00:12:28.000 --> 00:12:45.000
+Because I want to demo Brownfield. Brownfield is when you're going to be creating epics and splitting them into tickets. For Greenfield, you don't do that as much, because you're more just, like, creating the application locally, phase by phase, and then it becomes Brownfield. Then you have things in GitHub, and you're working on Epics like we're going to be doing here
+
+00:12:45.000 --> 00:12:50.000
+So, Brownfield agent. And right now, it's a pretty basic agent overall
+
+00:12:50.000 --> 00:13:05.000
+it's just like a really classic support agent, right? So you can imagine this being within some larger platform where you have a widget for people to say, like, hey, I didn't receive my refund. Please help, right? Like, this kind of basic question
+
+00:13:05.000 --> 00:13:19.000
+And so then the agent is going to, you know, like, escalate to a human. Like, we have a kind of mock tool for it to escalate this to a human. And so there we go, you can see it searched the knowledge base, it escalated to a human, and it used, like, some thinking to
+
+00:13:19.000 --> 00:13:21.000
+So it's just, like.
+
+00:13:21.000 --> 00:13:30.000
+A very basic example of an AI agent that has different capabilities from Pydantic AI 2.0. So yeah, I mean, that's all I need to explain for the agent itself
+
+00:13:30.000 --> 00:13:52.000
+Basically, it's just a really, really simple support agent. And for our Epic today, we're going to be planning adding in better short-term memory and long-term memory to this agent. I just kind of pulled a random, pretty interesting example, specifically what we're building in this workshop is not important. I just need to have something concrete to go through the entire workflow with you guys
+
+00:13:52.000 --> 00:14:11.000
+And so we are going to be planning this epic completely from scratch. Like, imagine we've just had this agent running in production for a while, and then working with the team and figuring out, like, okay, guys, it's time for the next release. Let's think about what we need. Oh, you know, this agent doesn't have any long-term memory, so it has no way to remember past conversations with customers
+
+00:14:11.000 --> 00:14:14.000
+Let's go ahead and build that now.
+
+00:14:14.000 --> 00:14:20.000
+So that's what we're building for the epic. And maybe this example is a little bit simple
+
+00:14:20.000 --> 00:14:29.000
+But you can imagine for a more elaborate long-term memory system, it's not something we can just do in a single PIV loop
+
+00:14:29.000 --> 00:14:46.000
+Because there is a lot that goes into building that, because we have to build it into the database, we have to integrate it into the agent so it has tools to search through the long-term memory. Maybe we'd have to build some kind of authentication mechanism so it's able to store memories for specific customers when they're signed into the platform
+
+00:14:46.000 --> 00:14:56.000
+Like, you can imagine that if we tried to have a coding agent knock this all out in one go, it would not do a good job. That'd be way too much for it to handle all at once.
+
+00:14:56.000 --> 00:15:16.000
+Generally, when you go through a single RPIV loop, as I call it, like, you're building out a feature, you want to be a single concern. And as much as possible, you only want to touch a single part of your code base. And so if you have a larger feature that's like, okay, we gotta change the database schema, we gotta change the agent, we have to change the front end, we have to change our authentication
+
+00:15:16.000 --> 00:15:24.000
+That's a good indication there, where you think about all these things you have to change. That definitely means that we should create an epic
+
+00:15:24.000 --> 00:15:35.000
+and split from the epic into smaller tickets so that we're working on things one at a time with a larger goal, instead of trying to do it all at once. And so that is what we're going to be doing here.
+
+00:15:35.000 --> 00:15:46.000
+And, Sean called out that, like, we did have a little bit of an evolution to the PIV loop in the new version of the course, and so if I go back over to the diagram here
+
+00:15:46.000 --> 00:15:51.000
+So in the first version of the course, we used to just call it the PIV loop
+
+00:15:51.000 --> 00:15:57.000
+And now there's an R and the R is, it stands for research
+
+00:15:57.000 --> 00:15:59.000
+And it's not like
+
+00:15:59.000 --> 00:16:10.000
+This isn't really new. Generally, like, when you do your planning up front, if you guys have gone through the course, you know I call it vibe planning, where you're just kind of, like, exploring the implementation
+
+00:16:10.000 --> 00:16:25.000
+Before you create your structured plan. We've always done that, but now I'm just giving it more of a name because I think that it is sort of like a distinct step. Like you're researching how you're going to go about building something and just ideating with the agent
+
+00:16:25.000 --> 00:16:30.000
+you get into more of, like, that structured plan that you send into your implementing agent
+
+00:16:30.000 --> 00:16:43.000
+Yeah, exactly, it's like the brainstorming step. We could call it the BPIT loop, but I think RPIV just rolls off the tongue nicer. So I call it the research step. So it's research, plan, implement, and validate.
+
+00:16:43.000 --> 00:16:48.000
+Be mad, Piv. That's too many letters. Yeah
+
+00:16:48.000 --> 00:16:53.000
+Alright, cool. So, yeah, let me go back to the code base here
+
+00:16:53.000 --> 00:17:00.000
+Let me open that up. So I'm going to start Claude code. We are going to start with a completely blank coding agent session here
+
+00:17:00.000 --> 00:17:13.000
+And we're going to go through the entire process, and we're going to start by ideating around this next epic, like just talking to the coding agent and figuring out, hey, what are we even going to build here?
+
+00:17:13.000 --> 00:17:19.000
+And so let me get one thing ready to show you guys that
+
+00:17:19.000 --> 00:17:33.000
+I just have, like, the set of commands. I have to remind myself of the order, just to make sure I'm not missing anything for you guys, because if I don't have it up on my other monitor, then I'll forget, like, little things like doing the commits between planning and building and things like that.
+
+00:17:33.000 --> 00:17:37.000
+So, let me just make sure that is rock solid
+
+00:17:37.000 --> 00:17:40.000
+Okay.
+
+00:17:40.000 --> 00:17:54.000
+There we go, okay, alright, now we're good. So we have a brand new coding agent session. And the first thing that we're going to do is we're going to create an epic and we're going to actually store it as a GitHub issue.
+
+00:17:54.000 --> 00:18:02.000
+And so we can use GitHub kind of like a tracker in something like Jira or Linear
+
+00:18:02.000 --> 00:18:07.000
+So we have the issue that is the entire epic
+
+00:18:07.000 --> 00:18:12.000
+And then we can, like, store our PRD and our architecture document in the repository
+
+00:18:12.000 --> 00:18:29.000
+And then we're also going to have the individual GitHub issues for the individual tasks that we're going to build out. And so everything's an issue. The high level is an issue, the individual tasks are an issue. I love using GitHub issues. I mean, if you guys know, when I work with Archon.
+
+00:18:29.000 --> 00:18:40.000
+I basically always using GitHub issues as the input into my Archon workflows. It's just a really good way to organize, like, okay, here is the next work that we have to tackle
+
+00:18:40.000 --> 00:18:49.000
+Can I drop the diagram in the chat? I don't really have a way to, like, export it really fast. I mean, I guess I could, are you talking about the main diagram here?
+
+00:18:49.000 --> 00:18:54.000
+Because I could export it as an image really fast.
+
+00:18:54.000 --> 00:18:57.000
+Yeah, alright.
+
+00:18:57.000 --> 00:19:00.000
+Excal… yeah, I'll just there we go.
+
+00:19:00.000 --> 00:19:04.000
+Let me pull up my downloads folder here
+
+00:19:04.000 --> 00:19:08.000
+I'll drop this diagram in the chat for you guys. There we go.
+
+00:19:08.000 --> 00:19:13.000
+Oh, that didn't work. What?
+
+00:19:13.000 --> 00:19:19.000
+One second. Okay, there we go. There's the full diagram. Got it for you guys.
+
+00:19:19.000 --> 00:19:34.000
+Tim said, using sub-issues as tasks work really well. Yeah, you can definitely do that. Like, again, take this workshop as just, like, the core workflow and mental model, the specifics of how you guys organize things is totally up to you. You can certainly extend what I show you guys here
+
+00:19:34.000 --> 00:19:50.000
+Eric said, so an epic is an issue, a sprint is an issue, a story is an issue. I mean, yes, everything can be an issue in GitHub. So let me finish the explanation really quick here. So yeah, pretty much everything can be organized as an issue
+
+00:19:50.000 --> 00:19:58.000
+And then, if you want to have, like, a Kanban board, like you have in other platforms like Jira, then you can use the projects view
+
+00:19:58.000 --> 00:20:13.000
+That we have here in GitHub as well. So, this is a way to, like, organize issues into, like, here are the ones that are done, here are the ones that are currently in development, or the ones that are in review. I don't have a project created for the Orbit support agent, but if we go to github.com
+
+00:20:13.000 --> 00:20:18.000
+I have this URL memorized, colam 00 slash archon
+
+00:20:18.000 --> 00:20:34.000
+We can see the project for Archon. So if we go into projects, let me click into Archon. We don't really use this actively right now, but we have this sort of Kanban board, right? Like, here's what's in the backlog, here's what's ready to implement in progress, review, and in staging and done
+
+00:20:34.000 --> 00:20:46.000
+And each one of these items here is tied to a specific GitHub issue, right? So I can click into this here, and then boom, number 722. It is issue number 722.
+
+00:20:46.000 --> 00:21:05.000
+And so this gives you a nice human visualization layer on top of the issues. But really when you're using GitHub to drive your entire software development lifecycle, everything just simply starts as an issue. It's really nice. And so that's what we're going to be doing today. So actually, I'll leave that open in case I want to reference the Kanban board again, but let me go back here
+
+00:21:05.000 --> 00:21:14.000
+to issues. So we have nothing right now. We're gonna start by creating the very first issue, which is the epic
+
+00:21:14.000 --> 00:21:30.000
+So let me go to my coding agent. Let me pull up my reference again. Let's see. So Apollo asked Prime. Yeah, Prime is going to happen very soon here. Don't worry. You nailed it there. Actually, that is the very first thing that we do here is prime code base
+
+00:21:30.000 --> 00:21:32.000
+Excuse me
+
+00:21:32.000 --> 00:21:38.000
+So, yeah, I'm going to give a quick explanation of each of the skills here
+
+00:21:38.000 --> 00:21:50.000
+But also, I know that, like, a lot of you have gone through the course already, so I'm not going to explain all of them in depth. That's also like the only way for me to fit everything in the hour and a half here. So we're going to start by priming our code base
+
+00:21:50.000 --> 00:22:07.000
+This is what I do at the beginning of every single planning session with a coding agent because I wanted to get that initial understanding of the code base so it's primed to go into the planning with me. That's why I call it the prime command. And so this skill right here
+
+00:22:07.000 --> 00:22:12.000
+is really just a workflow that walks the coding agent through
+
+00:22:12.000 --> 00:22:20.000
+how to, like, understand the code base. So let me open up the skill.md here. I'll open up, like, the nicer view
+
+00:22:20.000 --> 00:22:37.000
+So we have step zero, which is loading external context, because we can supply specific GitHub issue numbers if we wanted to prime, but like specific to what we're building in these issues. So it's more of like a focused context loading session. But in this case, right, I'm starting from scratch with this Epic
+
+00:22:37.000 --> 00:22:40.000
+I don't have any GitHub issues to specify
+
+00:22:40.000 --> 00:22:52.000
+And then it's going to analyze the project structure, look at Git log history, because that can give a good context of what we built recently, just exploring the code base so that we have context to go into a conversation here.
+
+00:22:52.000 --> 00:23:11.000
+And so that's what we have now, and it runs pretty fast. This is a pretty simple prime command. You can definitely build on top of this if you want, but it read through the core files. It has an understanding of our project now. And so we can use this context to have the coding agent better walk us through the planning that we want to do for this epic
+
+00:23:11.000 --> 00:23:18.000
+And as promised, I have a skill to walk through every single part
+
+00:23:18.000 --> 00:23:28.000
+of this workflow. So, one of the biggest skills that I improved upon since the first version of the course is the PRD create skill
+
+00:23:28.000 --> 00:23:31.000
+So let me open this up really fast.
+
+00:23:31.000 --> 00:23:54.000
+And so this is the next skill we're going to run because it is an interactive, problem-first PRD slash epic generator. And the most important thing that I've added is we instruct the agent to interview us. We want to grill us with questions in order to really like validate all of the ideas and make sure we are on the same page with the coding agent for everything that we are building
+
+00:23:54.000 --> 00:23:56.000
+That's, like, the core part of the workflow
+
+00:23:56.000 --> 00:24:16.000
+We have it… of course, like, do research on our behalf as well, but we wanted to ask us a ton of questions, and then use that to create a structured document. And so, I've always been a fan of, like, having the coding agent ask you a lot of questions, or grill you, but I've never… but I didn't, like, have it built directly into the PRD skill in the first version of the course, and so that's one of the
+
+00:24:16.000 --> 00:24:26.000
+Biggest evolutions that Erasmus and I have done for this skill. And so we'll run that right now. I'll do slash and plan create PRD.
+
+00:24:26.000 --> 00:24:28.000
+And so, right here
+
+00:24:28.000 --> 00:24:42.000
+the input to it is either going to be a file where you've documented what you want to build for the next epic, or you can just give a free-form description. And I'm going to do the latter, just because it's easier for me here.
+
+00:24:42.000 --> 00:24:46.000
+And so this is the point where it's very unstructured.
+
+00:24:46.000 --> 00:24:56.000
+So when we want to create our initial Prd, we're gonna get to the point where we have it all documented as our PRD and architecture file
+
+00:24:56.000 --> 00:25:17.000
+But to start, we just kind of give a brain dump what we want to build. In fact, you can make this a lot longer than I'm doing here for the sake of a demonstration. When you're working on an epic, this is where you're at the higher level, well beyond just a single task. Like you could be describing a lot of different features here. The point is to just give a brain dump to the agent of what you want to build.
+
+00:25:17.000 --> 00:25:34.000
+Like, in this case, I want to give the orbit support agent short-term memory and long-term memory. So I'm building in a couple of new memory systems here. Definitely going to be at least like, I don't know, probably like four to six tickets that it'll split in the end. But we're doing our initial PRD planning though
+
+00:25:34.000 --> 00:25:52.000
+Terrence asked, are we going to use Archon? We're not going to use Archon in this workshop. So Archon comes later in the course. We're going to be covering that in phase three of the course. And so I want you to understand the core systems of AI coding first
+
+00:25:52.000 --> 00:26:10.000
+Then I introduce you to Archon and how we use Archon to build those systems as Archon workflows. But I don't want to jump straight to Archon, because first of all, I don't expect everyone to use it, and then also you want to understand the underlying systems before you're building them in workflows
+
+00:26:10.000 --> 00:26:26.000
+Sean asked, how do you control over-grilling or under-grilling? So really what it comes down to, Sean, is if you find that the agent is over or under grilling you, it's just an opportunity to improve the skill. Like, maybe you want to be more specific, like, ask this number of questions
+
+00:26:26.000 --> 00:26:45.000
+Or like, here's when you know to stop asking questions. And so this is, like, you know, what gets into system evolution that we cover a bit later in the course, but anytime the agent doesn't behave as you want, just ask it why it did what it did, and how you can change the skill or rules or whatever so that it's more in line with how you want it to behave.
+
+00:26:45.000 --> 00:26:51.000
+And so, yeah, I mean, it really comes down to the specific skill you're using and you just adjust that.
+
+00:26:51.000 --> 00:26:59.000
+But generally, I find that coding agents are surprisingly good at understanding the gaps that they need to fill.
+
+00:26:59.000 --> 00:27:06.000
+Like, I often like, okay, I'll be totally honest, like, sometimes when I have the agent grill me, like we're about to get into right here
+
+00:27:06.000 --> 00:27:22.000
+I do get kind of annoyed with the number of questions that it's asking me. It kind of, like, man, you're asking me 20 questions, like, do I really want to spend the time doing this? But it's like, you know, when you think about it in the way that, like, every single question it asks you is an assumption that you are removing
+
+00:27:22.000 --> 00:27:34.000
+That's important. And like, so I just roll with it. Like I just I take the time I'm patient with it because it just makes your plan documents so much better when you have everything clarified with the agent
+
+00:27:34.000 --> 00:27:46.000
+And especially using most coding agents now have something like this, where it's able to ask you multiple choice questions. And so that way you can take its recommendation for a lot of them. You're able to move through the questions very quickly.
+
+00:27:46.000 --> 00:28:03.000
+So this one is, who is the real customer this PRD should be written for? What makes it succeed? So again, we're not getting into the how for this implementation. We're just getting into the what and the why right now. The PRD is all about what is the problem that we are solving
+
+00:28:03.000 --> 00:28:12.000
+And so, yeah, it's saying I can build this as a teaching demo, but I think it's actually better to build it as a real feature. So we are solving this for real customers right now.
+
+00:28:12.000 --> 00:28:18.000
+For long-term memory, what should the agent remember about a returning customer to greet them?
+
+00:28:18.000 --> 00:28:22.000
+So yeah, we… let's say
+
+00:28:22.000 --> 00:28:37.000
+Let's see, I don't care about the specific questions too much, so I'm not really going to read them a ton right now. Like, I don't want to waste time on understanding exactly what it's asking for all of them because again, I just want to cover the workflow with you guys here. So, all right, we'll answer the questions, and then
+
+00:28:37.000 --> 00:28:54.000
+Usually, it'll ask a couple of batches of questions, right? Because it wants to ask a couple, and then the way we answer those questions might dictate the next questions that it asks. And so that's why it doesn't just do them all at once. It's also less overwhelming for us if it doesn't just ask 20 questions all at the same time
+
+00:28:54.000 --> 00:29:00.000
+So just roll with the punches here as it asks you sets of questions.
+
+00:29:00.000 --> 00:29:11.000
+Tim was just playing around with Matt Pocock's Grill and Wayfinder skills, really good stuff. Yeah, it is. Yeah, Matt has some good stuff, and yeah, I've definitely, like, leaned on
+
+00:29:11.000 --> 00:29:21.000
+his skills… like, he doesn't do anything, like, brand new for me, but it's just, like, the way that he has, like, simple approaches I appreciate, so I've definitely incorporated some of those ideas here.
+
+00:29:21.000 --> 00:29:33.000
+Tom asks, is the intent to create a PRD for each significant new feature? I would frame it, Tom, more as you are creating a PRD for each significant new set of features.
+
+00:29:33.000 --> 00:29:50.000
+Because if a feature is small enough where you could just do it in a single PIV loop, then you're not going to go through this entire process of creating your PRD and architecture document and then splitting into tickets, right? Like, if you just have, like, one new feature you have to build on top of something, don't overcomplicate it
+
+00:29:50.000 --> 00:30:07.000
+But generally, when you're working in a brownfield codebase, you don't just have, like, that one little thing to work on. Like, usually there's, like, a whole set of new features you want to build that you don't want the coding agent to just knock out at once, because it's going to get totally overwhelmed by that.
+
+00:30:07.000 --> 00:30:20.000
+Let's see, Ganesh said, in an enterprise setting, PRD is normally used to refer to production environment. Maybe we can consider changing PRD and plan create PRD to plan create spec
+
+00:30:20.000 --> 00:30:27.000
+I mean, it's a little too late for me to change the name of things, because I've already recorded everything, but I can see where you're coming from
+
+00:30:27.000 --> 00:30:30.000
+I think, though, that.
+
+00:30:30.000 --> 00:30:35.000
+The phrase PRD is common enough outside of production environments
+
+00:30:35.000 --> 00:30:40.000
+Like, I see, especially, like, in the AI space, it is used kind of like
+
+00:30:40.000 --> 00:30:43.000
+as a synonym to spec
+
+00:30:43.000 --> 00:30:52.000
+So I don't think it necessarily needs to be changed, but I could see for like some people like in organizations, how it could be confusing
+
+00:30:52.000 --> 00:31:00.000
+And, like, maybe that is something I should even clarify in the course, is like, hey, PRD is a spec. For what we're doing here is just a spec.
+
+00:31:00.000 --> 00:31:09.000
+But the reason that I want to call it a PRD is because I'm specifically referring to the fact that our
+
+00:31:09.000 --> 00:31:24.000
+Let me see if I have the right document up. Oh, no, I don't right now. Yeah, anyway, the PRD is the, well, I guess I can just use this. The PRD is the intent. It's the what and the why, and then the architecture is the how. And we separate those into two documents
+
+00:31:24.000 --> 00:31:30.000
+Because then it's easier to review them and it's easier for us to manage that.
+
+00:31:30.000 --> 00:31:33.000
+So, okay.
+
+00:31:33.000 --> 00:31:43.000
+It looks like our coding agent surprisingly only asked us a couple of questions. Usually it'll ask you more. All the times I've tested this
+
+00:31:43.000 --> 00:32:01.000
+As I've been working on the course, it's asked me a lot more questions, but I guess at this point, it's pretty confident how we're going to implement it. So again, the number of questions it asks you is really just going to be based on how confident it is in implementing what we've described. So, in this case, it already created our PRV, which I guess is nice, because I want to move faster for
+
+00:32:01.000 --> 00:32:07.000
+our workshop here anyway. So we have our PRD Markdown document
+
+00:32:07.000 --> 00:32:15.000
+And so, we're going to create this as a GitHub issue after we create our architecture document.
+
+00:32:15.000 --> 00:32:36.000
+So we have our thesis, our hypothesis. Here's the evidence versus what is assumed. I can open up this document really quickly here. So we have our epic. This is our orbit memory PRD. It's open this up. And the structure here is exactly as described in our skill, right? That's one of the points of our skill is it's a workflow that makes it so that our
+
+00:32:36.000 --> 00:32:41.000
+Documents look the same every single epic. That just makes it more reliable for us
+
+00:32:41.000 --> 00:32:45.000
+And so, we're solving the agent for gets problem.
+
+00:32:45.000 --> 00:33:02.000
+And so today a returning customer, oh, let me open up the preview again. Oh man, I got to find where I am, where I was. Yeah, okay, so today a returning customer copes by retyping their whole situation. That's a funny way to put it, Claude, but sure, I guess that's true. Or by giving up on the bot and asking for a human
+
+00:33:02.000 --> 00:33:17.000
+An agent that already knows who they are and what they've dealt with beats both. It removes the re-explanation entirely instead of just tolerating it. So we're specifically calling out… we're not talking about how we're building things, we're just talking about why we are building this. Like, what is the point of this epic
+
+00:33:17.000 --> 00:33:27.000
+And then it even recognizes this. The next step is to decide how to build it. So we're going to run the plan architecture skill
+
+00:33:27.000 --> 00:33:44.000
+And so we can do this in a brand new coding agent session. You guys know that I'm a big fan of going between different coding agent sessions as much as you can because we want to keep our context lean and our agent focused. And so now I'll do the plan architecture. It's a pretty similar skill
+
+00:33:44.000 --> 00:34:04.000
+to plan PRD, but now we're getting into the how. Are we going to build this? And then we're going to ground it in the PRD, so we also give it the path to the PRD as the input to this workflow. We're not building them in isolation. We build the PRD first, and then that guides our approach. That's why we have it as input here.
+
+00:34:04.000 --> 00:34:12.000
+And so I can open up this skill really quick just to show you guys a high level while we wait for it to run here. Plan architecture
+
+00:34:12.000 --> 00:34:29.000
+Let me open up the preview here. So this is an interactive skill yet again. And so the way that this one works is it's going to do some investigation, right? We have to understand the code base. It basically does the same thing as a prime. So, like, before we created our PRD, we ran a prime
+
+00:34:29.000 --> 00:34:37.000
+This skill kind of has the prime built right into it because the input is the PRD. We just want to get right into its investigation
+
+00:34:37.000 --> 00:34:44.000
+And so then after it looks at the code base, it is going to surface options to us with trade-offs
+
+00:34:44.000 --> 00:35:02.000
+And so this is one of the most important things that I always cover for you guys. I make big points on this in the Agentic Coding course. We want to delegate all of the coding to the agent, but we still want to remain in the driver's seat. So we want to lean on the coding agent to save us as much time as possible
+
+00:35:02.000 --> 00:35:18.000
+But we still want to make the final calls. And so the way that we do that here is we have it give us options. So that way we don't have to dig into things as much because it's explaining the trade-offs. We can ask it questions as it follows up. But then it gives us a recommendation
+
+00:35:18.000 --> 00:35:29.000
+And then it asks for us, right? Like, what option do you want to go with? Here's my recommendation, but I'm not just going to move forward with this without asking you as the human to give the final call
+
+00:35:29.000 --> 00:35:44.000
+And then this is also your opportunity to have a longer conversation if you need to with the agent, especially if you're less technical and you don't understand the options at surfacing, you should ask, right? Like, take your time with this to make sure you're really understanding the options and their trade-offs
+
+00:35:44.000 --> 00:36:00.000
+Because if you don't, it could lead to a bad plan, and a bad plan can lead to thousands of lines of bad code. So take your time with this. It's worth being patient here. I mean, that's, like, one of the core messages, is like, you know, be patient with the agent as you're going through the planning, because that's going to pay
+
+00:36:00.000 --> 00:36:13.000
+dividends when you get into the actual implementation. Once you have your EPIC planned out here, you start to rip through those PIV loops. Once you have things split into tickets, and we'll get to see that at the end of our workshop here.
+
+00:36:13.000 --> 00:36:25.000
+So, okay, great timing. We went back to our coding agent and now it's asking us some questions. And so, for example, how ambitious should the persistence be? This drives the whole storage data model call.
+
+00:36:25.000 --> 00:36:30.000
+And so it can be workshop grade, self-contained, or it can be production-shaped.
+
+00:36:30.000 --> 00:36:36.000
+I mean, it seems like a lot of the coding agents' questions here are, like, based on how much of this I want to be demo versus real
+
+00:36:36.000 --> 00:36:54.000
+So maybe this isn't like the best example of questions, but like I said earlier, I don't really care too much about the specific questions here. The point is that it's giving me options, and I can add notes if I want to clarify something, I can chat about this if I want to, ask the coding agent to explain some of these options, whatever I need to do
+
+00:36:54.000 --> 00:36:56.000
+I'll move forward here.
+
+00:36:56.000 --> 00:37:13.000
+If Workshop grade, what should back the long-term store, right? So, like, these are, like, we could do JSON, we could do a memory framework like Mem0, and have, like, a Postgres database behind it. We could just do something really simple with SQLite. I'll keep it simple for the sake of our demo here
+
+00:37:13.000 --> 00:37:20.000
+Because I do want it to build fast. How is a returning customer recognized across conversations? We can do
+
+00:37:20.000 --> 00:37:36.000
+captured in conversation. I mean, if this is, like, a full-blown platform, you'd have some kind of authentication already built, so we'd just integrate with that. So I'll go with that. And there we go, I'll answer these questions. So yeah, surfacing options, we can chat as much as we want, just getting to the point where
+
+00:37:36.000 --> 00:37:44.000
+We're going to create an architecture document as Markdown, just like we did with our PRD.
+
+00:37:44.000 --> 00:37:46.000
+Okay.
+
+00:37:46.000 --> 00:37:50.000
+So let's see, I'll go back to the chat while we're waiting for this here.
+
+00:37:50.000 --> 00:38:00.000
+Stephan said, so far I always created one gigantic PRD document, then used archon create plan to create the next phase's plan. Then Archon plan to PR to build it
+
+00:38:00.000 --> 00:38:10.000
+Is what you're going through in this workshop here today a similar approach, just going via GitHub with GitHub issues instead of creating plan files? Yes, Stefan, that is exactly right.
+
+00:38:10.000 --> 00:38:19.000
+This is the full workflow from Idea to Epic to tickets to implementation, but leveraging GitHub as much as we possibly can.
+
+00:38:19.000 --> 00:38:35.000
+And the reason that I like doing this over Markdown, I mean, Markdown is a good approach, but it doesn't scale. Like, if you're using Markdown to manage everything, that's more for solo builders, which maybe that is you guys, and that's totally good. But even as a solo builder, it can be nice
+
+00:38:35.000 --> 00:38:50.000
+To have things in GitHub, because first of all, you're using GitHub already as a way to store your code bases and have version control, and it just gives you a really nice user interface, because you also have things that you don't have with just Markdown. Like.
+
+00:38:50.000 --> 00:38:56.000
+Going back to Archon here, let me open up the code base really quick
+
+00:38:56.000 --> 00:39:02.000
+Sorry, let me open that up. Like you have the whole tagging system
+
+00:39:02.000 --> 00:39:18.000
+Tagging is really, really nice. Like, this is a bug. This is a feature in the CLI area, so it's a way to organize things better. You have that connection to the Kanban board, like I shared here, and you can also use GitHub actions, so you like automatically trigger
+
+00:39:18.000 --> 00:39:28.000
+issue analysis or pull request reviews. You can have a coding agent that runs right when you open the pull request, so you don't have to invoke it yourself. It's just very, very feature-rich.
+
+00:39:28.000 --> 00:39:43.000
+And then if you are working with more than just yourself, with other people, you generally need some kind of interface to have conversations about these things, right? Like you can click into an issue. And I mean, this one we don't have any comments, but like you could have comments here where you're having a conversation about this
+
+00:39:43.000 --> 00:39:59.000
+Before you go into your implementation. So it's just a way to build context, either in the issue or the pull request. So, just a few reasons off the cuff for why it's really nice to use GitHub to manage everything.
+
+00:39:59.000 --> 00:40:07.000
+So yeah, let me go back here. I know there's more in the chat, but I think we're, yeah, we're at the next set of questions here. So, or I guess it just asked me one question.
+
+00:40:07.000 --> 00:40:13.000
+Let's see, yeah, so I'm just gonna go with what it recommended here, so we can keep moving along.
+
+00:40:13.000 --> 00:40:32.000
+Sean said, using GitHub this way for me is like a nice comprehensive form of state management. Yeah, exactly. It's just like a task. We're using it just like a task tracker, like linear or Jira, and I know, like, solo builders all the time using this, even though it is, like, especially powerful for when you're working in a team or in an enterprise setting.
+
+00:40:32.000 --> 00:40:40.000
+Sean said, what I love to see is you breaking the flow and then continuing the work. Like, restart your computer when the agent is running a task
+
+00:40:40.000 --> 00:40:45.000
+What you would love to see
+
+00:40:45.000 --> 00:40:49.000
+I mean, typically, I try not to just cut an agent off
+
+00:40:49.000 --> 00:40:56.000
+But, I mean, you can resume a conversation. So, if you guys didn't know this, this is really nice, really good to know
+
+00:40:56.000 --> 00:40:58.000
+When you go into Claude
+
+00:40:58.000 --> 00:41:07.000
+You have the slash… I don't know why PowerShell keeps doing this. Okay, let me go into Claude. You have the slash resume command
+
+00:41:07.000 --> 00:41:24.000
+And this allows you to pick up where a conversation left off. And so if your computer ever crashes or you accidentally close out of a terminal or something, you can immediately pick up where you left off and you lost nothing at all. Even if the agent is in the middle of building stuff, all of that conversation is saved
+
+00:41:24.000 --> 00:41:42.000
+Up until, like, that last file it edited. And so you, you, like, open up the conversation, excuse me, and you just type continue, and then, boom, you're off to the races. So there's not too much to cover for, like, resuming. If you slash resume and you're good to go, as long as you remember the conversation to resume.
+
+00:41:42.000 --> 00:41:59.000
+So, okay, it wrote our architecture document. So within the epic here, we have the memory architecture and the memory PRD. And looking at the architecture now, we're restating the problem in our goals, right? So, like, that's our link to the epic, and then here are the approaches that were considered
+
+00:41:59.000 --> 00:42:15.000
+And what we actually went with and the key decisions that we made. And so we're getting into the details here of the data model, the stack and the libraries, not specific to an individual task, but at the high level for these features, here is how we're going to approach them.
+
+00:42:15.000 --> 00:42:32.000
+And I don't need to get into like spikes and experiments and stuff right now, because we don't really have time for this, but I covered that in the course as well. There's definitely a lot of strategy around what tickets do we handle first, what things are high risk that we want to tackle before other things
+
+00:42:32.000 --> 00:42:45.000
+I cover all of that because it's important to have a right ordering to things here. So anyway, the point is, now that we have our architecture and our PRD, we can start to move things into GitHub
+
+00:42:45.000 --> 00:42:48.000
+And so, here's what I'm going to do really simple.
+
+00:42:48.000 --> 00:42:53.000
+So let me… let me go to my, my Aqua voice here
+
+00:42:53.000 --> 00:42:57.000
+sorry, let me open up
+
+00:42:57.000 --> 00:43:15.000
+I was gonna show you guys the stats here. Yeah, I'm up to 1,200,000 words spoken with Aquavoice now. So anyway, so I'll go to Aquavoice here and I'll say, all right, now what I want you to do is I want you to commit and push these two documents to source control. So we have a record of our planning documents going into this epic
+
+00:43:15.000 --> 00:43:24.000
+And then what I want you to do is create a GitHub issue linking to these documents so that we have a central issue for the highest level of our epic.
+
+00:43:24.000 --> 00:43:40.000
+And by the way, I could probably make this as a skill as well, but it's just such a simple prompt that I want to just send it off right here. Because essentially, now I just want to bring everything into GitHub. So, like, as the individual, like, developer, product manager, whatever, you created these documents locally
+
+00:43:40.000 --> 00:43:54.000
+Now we're going to bring that into the repository and as an issue. And then from that main Epic issue, that is when we're going to split into our tickets. That's the next skill that we have for a workflow here.
+
+00:43:54.000 --> 00:43:55.000
+All right.
+
+00:43:55.000 --> 00:44:14.000
+This will happen pretty quick, so I'll go through one more thing that we have in the chat here. So, Apollo said, a problem I have even after a year of developing with AI is that I use development frameworks like the PIV loop, and I also built a variant with OpenSpec that includes all steps, like office hour steps for product ideation, research, writing a PRD, and so on.
+
+00:44:14.000 --> 00:44:29.000
+A frequent issue is that some things are more convenient inside Cursor because they are faster. So, for example, every quick UI style tweak takes ages in Claude or codecs. That's true, even simple things are just, like, long for no reason, while a few seconds in cursor
+
+00:44:29.000 --> 00:44:39.000
+How do you tackle this in general? I mean, the not one-size-fits-all problem. Love Archon too, but some tasks are simple, not a good fit for all the ceremony. Yeah.
+
+00:44:39.000 --> 00:44:44.000
+So this is a question for the upcoming course version, too, mainly.
+
+00:44:44.000 --> 00:45:02.000
+So, Paolo, maybe you'll have to expand on your question a bit for me, because I see the problem, but I don't… but, like, are you asking, like, how do I go between different coding agents for different things? Because, to be honest, I just keep it simple. Like, yeah, some things take longer than I really need, but, like, that's a sacrifice I'm willing to make
+
+00:45:02.000 --> 00:45:19.000
+Just to keep everything in a single coding agent. And so whenever I do want to lean on different coding agents, it's usually because some are better than others at certain things. It's not really a speed problem for me because most of the time I try to create a system like the piv loop where
+
+00:45:19.000 --> 00:45:29.000
+like, your coding agent is going for, like, a solid 10 to 30 minutes, like, creating the plan, or doing the implementation validation. And so an extra, like, few seconds, like, I just don't care.
+
+00:45:29.000 --> 00:45:34.000
+Like, I'm not optimizing for speed, I'm optimizing for the best results possible.
+
+00:45:34.000 --> 00:45:49.000
+And so I totally understand when you're trying to make just really quick adjustments to the UI, like, you want it to go fast, but, like, even that, like, I just care more about, like, that change being the best possible, so I'm just gonna do it in Claude code, because I think Claude Code is better than Cursor
+
+00:45:49.000 --> 00:45:54.000
+But yeah, definitely feel free to, like, expand on your question or push back if you want.
+
+00:45:54.000 --> 00:45:57.000
+So yeah
+
+00:45:57.000 --> 00:46:04.000
+Yeah, okay, so we have everything pushed to GitHub now, so let's actually take a look at this. So let's go into GitHub
+
+00:46:04.000 --> 00:46:07.000
+And if we go into our code here
+
+00:46:07.000 --> 00:46:18.000
+And, of course, I have to go to the… our specific branch, and I go into Docs Epics, there we go. And maybe we'd want to create, like, a folder to store all these things for when we create more epics
+
+00:46:18.000 --> 00:46:33.000
+Definitely some optimizations I can do here, but either way, we have our Markdown documents now, so this is stored, we have a record of the planning that went into this epic, and then we also have our GitHub issue, and it's also tagged, right? Like I was just talking about, the tagging is really nice
+
+00:46:33.000 --> 00:46:46.000
+So if we click into this here, we have full information, we have the link to the PRD and the architecture. This issue right here is going to be our input to create all of the other issues when we split up our Epic.
+
+00:46:46.000 --> 00:47:03.000
+And this is also your time to, you know, if you're working with other people, you can share this issue with others and have them review things, make sure everything looks good before you go and split things into tickets, because it's harder to adjust things once you already have all the other GitHub issues created. I mean, it's not impossible, of course
+
+00:47:03.000 --> 00:47:10.000
+But just having everything in one place, you are iterating on the high leverage stuff, and then you're creating the tickets from that.
+
+00:47:10.000 --> 00:47:20.000
+So, cool. All right. With this, let's go into Claude Code again, and we will run the next skill. And then I'll answer more questions here.
+
+00:47:20.000 --> 00:47:35.000
+And so, yeah, natural next move, run the piv slice epic against the PRD and architecture doc. And we can even do this in another Cloud Code session as well, right? Like, I can just slash clear here. I love using different coding agent sessions. So piv slice epic.
+
+00:47:35.000 --> 00:47:52.000
+And then all we have to do is give the path to the Epic PRD and the architecture document. Although in this case, I'm just going to give something a little bit different here. I'm just going to say, because I could give it like the path in GitHub, but I'm just going to say look at issue
+
+00:47:52.000 --> 00:48:07.000
+Because issue 1, it'll just use the GitHub CLI to pull this. And this has full context for our epic here. Oh, sorry, it's issue 23. I forgot that I already created a bunch of issues in this repo at one point. So, okay, piv slice epic, look at issue 23.
+
+00:48:07.000 --> 00:48:21.000
+And so now this workflow is going to guide the coding agent through reasoning about how we can split things into granular tasks. And one of the things that I cover quite a bit in the course is exactly how we split
+
+00:48:21.000 --> 00:48:26.000
+Right? So we're gonna either split by dependency
+
+00:48:26.000 --> 00:48:28.000
+By concern
+
+00:48:28.000 --> 00:48:31.000
+or slim end-to-end slices
+
+00:48:31.000 --> 00:48:40.000
+Not going to cover this too much right now, because I got to leave a lot of stuff for the course for you guys, right? I more just want to focus on, like, the GitHub specific things right now.
+
+00:48:40.000 --> 00:48:59.000
+But there are definitely different ways that we can split, and, like, everything that I explain in this diagram, like, split the different types of splits, building up the dependency graph so the coding agent knows, like, these tickets are dependent on these ones being done, or these ones can actually be run in parallel. Like, all of what you're seeing in the diagram here
+
+00:48:59.000 --> 00:49:15.000
+is built into this skill that we just ran. And that's another thing that I worked really, really hard on in the second version of the course, is making it so that, like, all the best practices that I teach in the diagrams and, like, just verbally, are built directly into the skills
+
+00:49:15.000 --> 00:49:28.000
+And there were a couple of discrepancies in the first version of the course where that wasn't always the case, and it led to a little bit of confusion. Like, that was good feedback for me guys, and I really took that to heart. So yeah, like, this skill, like, if we click into it here
+
+00:49:28.000 --> 00:49:44.000
+Sorry, I gotta, like, find the right one. There we go, PIV slice epic. So you can see if we open this up here, we have the decompose into PIV-sized slices, and so is it one testable concern
+
+00:49:44.000 --> 00:50:02.000
+We can split by dependency concern or slim end-to-end slice, like exactly the three laid out in the diagram. We map both the dependencies for parallelism, just like I talked about there, and then we're just instructing it how to use the GitHub CLI to create each of these issues as we have the tickets for implementation.
+
+00:50:02.000 --> 00:50:03.000
+Cool.
+
+00:50:03.000 --> 00:50:19.000
+Alright, so let's let that run, and I will go through the chat here as it is. Oh, okay, one thing I wanted to ask you guys quick, this is so annoying. Has your guys' Claude code been really glitchy? Like, when you exit the terminal and go back in the terminal, it, like
+
+00:50:19.000 --> 00:50:24.000
+See, it's better now, but you saw it just a second ago, where there's, like, see, it's doing it again. It's like
+
+00:50:24.000 --> 00:50:43.000
+really, I guess, jank, for a lack of better words. I don't know if your guys' Claude is doing that either. The fix for it, by the way, is just to zoom in and zoom out. So if you just like do control minus plus really fast, then it then it's better. I don't know, it's so random and annoying, but I have the most up-to-date version of Claude code
+
+00:50:43.000 --> 00:50:49.000
+Ties does that. Eric hasn't seen it. Sean said delete your VNV directory.
+
+00:50:49.000 --> 00:50:52.000
+I guess I don't need it
+
+00:50:52.000 --> 00:50:56.000
+I'll probably test that later, but okay, I'll try that, Sean.
+
+00:50:56.000 --> 00:51:13.000
+All right, let's see. So go back up in the chat here. Sean said, to your point on spikes, are you still using confidence scores in your skills? I've been using something like use the plan feature skill to plan phase X. I want a confidence score of 9.5 or greater
+
+00:51:13.000 --> 00:51:23.000
+Run sprints if you need it, so you can achieve the best score. So that's a cool approach, Sean. I still use confidence scores, but not very heavily
+
+00:51:23.000 --> 00:51:28.000
+And so hopefully we'll have… yeah, we should have time for this.
+
+00:51:28.000 --> 00:51:42.000
+I will run a single PIV loop pretty quickly today, and you'll see that like when I create the structure plan, not for the epic level, but for the individual ticket level, when I create the plan there, I do have it produce a confidence score still.
+
+00:51:42.000 --> 00:52:03.000
+But I'm not leaning on that very heavily because coding agents are very arbitrary. Whoa, that sounded weird. Coding agents are very arbitrary when it comes to scoring something. Like even going between different models and providers, like Codexes eight might actually be way more confident than Claude Code's 9.5. Like you really don't know
+
+00:52:03.000 --> 00:52:18.000
+And so I find it useful to at least give like a sort of indication because it also gives me the language to say like, okay, Claude, what can we do to take your self-proclaimed confidence of eight up to a nine plus? So like giving it that framing is nice
+
+00:52:18.000 --> 00:52:35.000
+But I'm never trying to, like, reach a certain level of confidence, because it also really depends on what you're building, and coding agents will sometimes say, like, oh, I could never get above a confidence 9 because this thing just needs to be manually tested. And it's like, oh, come on, I… you know what I mean. But yeah, sometimes they'll just do that. So
+
+00:52:35.000 --> 00:52:48.000
+I never ask it to reach for a certain confidence level. It's more just, like, I have it score itself just so I can frame it the next question of, like, you know, how do we make it more confident if it doesn't seem like it is in something? I hope that makes sense.
+
+00:52:48.000 --> 00:53:08.000
+And yeah, glad you're loving it there. Appreciate it, Sean. So Tom says you use VS Code now for everything. I know you used to like Windsurf. I do use VS Code. Yep. So I used Windsurf as my IDE for the longest time, but it was just more because I had used to actually use Windsurf for my coding agent.
+
+00:53:08.000 --> 00:53:24.000
+And then I just didn't migrate over to using VS Code. But it's been a long time since I've legitimately used the AI capabilities in Windsurf. So yeah, I just do everything in VS Code. Like that's my recommendation. Like, if you're using Claude code, Codex or PI, those are like the three best coding agents right now in my mind
+
+00:53:24.000 --> 00:53:30.000
+And any of those, you're just going to have a terminal open in your VS Code
+
+00:53:30.000 --> 00:53:36.000
+Okay, free SCO. That's right, Sean. Yeah, it's free. It's fantastic.
+
+00:53:36.000 --> 00:53:50.000
+Alright, cool. So we have all of our epics, or all of our issues sliced from the Epic now. So Epic number 23, or issue number 23, is now sliced into five PIV-sized GitHub issues.
+
+00:53:50.000 --> 00:54:09.000
+And if you disagree with any of the slicing here, just have that conversation with the coding agent. I'm going to gloss over that a little bit right now. But yeah, it's definitely worth taking a look and seeing if everything makes sense to you. Like, so let me go back to issues and there we go. Now we have six because we have the five sliced ones, and then we have our primary epic one with the epic label
+
+00:54:09.000 --> 00:54:28.000
+And you'll click into this, and when you read through it, especially if you're more confident in working with coding agents, you'll be able to determine, like, is this really a good enough slice? Like, maybe this is way too big still, and we want to split it out more. Or maybe we look at a couple of these tickets, and we're like, you know what, we could probably do a couple of these at the same time.
+
+00:54:28.000 --> 00:54:40.000
+Like, if you make any of that sort of determination, you can always just go back to the coding agent and say, hey, like, you should split this more, or you could actually combine a couple of these things. For the sake of demo right now, I'm just going to assume that this is good
+
+00:54:40.000 --> 00:54:50.000
+But yeah, each epic is beautiful. We have it linked to the epic, we have the scope. This is split by one testable concern. So we decided here to split by concern.
+
+00:54:50.000 --> 00:55:03.000
+Here's the acceptance criteria, and then this is the context that the agent dove into specific to this implementation. So going into our piv loop, we already have some context here, which is very nice
+
+00:55:03.000 --> 00:55:20.000
+And so, yeah, we got that for every single ticket. Very nice. And then, of course, this being, like, just hosted in GitHub here, you can have all the other people review these before you go into the implementation. And if you're the product manager getting this organized for developers, then you can have developers handle
+
+00:55:20.000 --> 00:55:27.000
+Each one of these at the same time, assuming that there are independent ones that can be handled in parallel.
+
+00:55:27.000 --> 00:55:44.000
+Right, so that's another one of the core things the skill does, is it helps you identify which of these can be handled at the same time, versus, you know, one ticket might actually rely on the code base being in the state when another ticket is already implemented. So those dependencies, it helps you map out
+
+00:55:44.000 --> 00:55:48.000
+And I do get into that more in the second version of the course coming soon, too.
+
+00:55:48.000 --> 00:55:50.000
+So, okay, let's just take one of these
+
+00:55:50.000 --> 00:56:02.000
+I want to make sure that I get through the whole RPIV loop in the next half hour here, and have time for questions, too. So let's just pick a random one.
+
+00:56:02.000 --> 00:56:11.000
+Let's do the spike. Usually you want to do the spikes first. I have this built into the skill because a spike is like the riskiest thing
+
+00:56:11.000 --> 00:56:18.000
+You want to de-risk it first because that also can guide later implementations, the way that you resolve this risk that you're spiking
+
+00:56:18.000 --> 00:56:36.000
+And so, yeah, I mean, like, quick, like, 2 seconds or 10 seconds on a spike. When you spike something, that means that you're taking a riskier implementation, and you're building the simplest form possible to validate the idea, because yourself or your coding agent, or both, are
+
+00:56:36.000 --> 00:56:40.000
+less confident in that implementation. That's what a spike is.
+
+00:56:40.000 --> 00:56:48.000
+So we'll take this, this is issue number 24. It's the first ticket that it created when it split into the five. So cool. Let's go to our coding agent now
+
+00:56:48.000 --> 00:57:13.000
+And again, we're gonna start a brand new conversation here, slash clear, and I'm going to start with… there's two things we can do here. So let me go back to the diagrams. I'll go to the — so I'm actually in the middle of recording this video right now with this diagram. So we have the main rib loop. This is like a sort of like a simplified version of what we have in the main course diagram right here
+
+00:57:13.000 --> 00:57:19.000
+So okay, we always start, or I guess optionally, the start of this is the research
+
+00:57:19.000 --> 00:57:27.000
+And this is where you run the prime. And you do any other kind of exploration that you need before you create your structured plan.
+
+00:57:27.000 --> 00:57:41.000
+But I'm going to actually skip this here. So when I go through the rPiv loop in the course, I go through all of the optional research and the priming, but I'm going to skip this to give an example here of you don't always need this.
+
+00:57:41.000 --> 00:57:47.000
+And so, the research stage is only really important when you have a lot of novelty
+
+00:57:47.000 --> 00:57:56.000
+And what I mean by that is either you are doing greenfield development, where there's no context going into the build, besides your PRD.
+
+00:57:56.000 --> 00:58:01.000
+or you're doing brownfield where the ticket isn't specific
+
+00:58:01.000 --> 00:58:15.000
+Because sometimes you're on a team with a product manager that isn't technical, and he or she is creating these tickets for you based more on, like, the business needs versus, like, the technical how we're going to implement this.
+
+00:58:15.000 --> 00:58:27.000
+And so if you have a really vague ticket, you're always going to prime the code base because you need to load context around how you're going to accomplish the task, like, before you even plan it, you want to have that context.
+
+00:58:27.000 --> 00:58:34.000
+But we have a good example here where we really don't need to do a prime going into the implementation
+
+00:58:34.000 --> 00:58:50.000
+Because we already have the per-ticket context, the files that are touched, we have the scope, and we're getting into the details of individual functions and classes that we have within the code base. Like, we've already gotten technical. We've sort of done the priming
+
+00:58:50.000 --> 00:58:55.000
+When we turn the Epic into tickets and created this GitHub issue.
+
+00:58:55.000 --> 00:59:00.000
+And so, really, we're good to go right into the implementation. So let's actually do that.
+
+00:59:00.000 --> 00:59:10.000
+Let's go… and yeah, exactly, better context management. If you can get specific when you're creating the tickets up front, then you also just save on context going into the implementation.
+
+00:59:10.000 --> 00:59:15.000
+It still takes more tokens to get to that point earlier, but I think it is more efficient overall.
+
+00:59:15.000 --> 00:59:19.000
+And so I will do piv plan implementation
+
+00:59:19.000 --> 00:59:26.000
+And the argument here is simply the GitHub issue number 24. Boom. All right, send it off. I'll explain it as it runs for the sake of time.
+
+00:59:26.000 --> 00:59:45.000
+And so when we get into the rpiv loop, I explained this in the video working on recording right now too. The piv loop is the thing that's actually changed the least from the first version of the course. It's the most stable thing that I put an insane amount of time into refining before
+
+00:59:45.000 --> 01:00:02.000
+I created the first version of the course. And so a lot of these skills are quite similar. I did a lot more evolution with Rasmus' help to the way we create epics and do our PRD creation and architecture document creation, but a lot of these are going to look pretty similar
+
+01:00:02.000 --> 01:00:15.000
+And I mean that hopefully in a good way where it's like that core PIV loop workflow is like the base of the prior version of the course is also like a very solid base of this version of the course
+
+01:00:15.000 --> 01:00:27.000
+So I'll go to HIV plan implementation. It should look very similar, right? But this also, again, is made GitHub specific for the sake of this workshop. So I literally
+
+01:00:27.000 --> 01:00:43.000
+I mean, I one-shotted this entire thing. I took all of the skills from version 2 of the course, and I gave it to Claude, and I said, hey, make this GitHub specific for this workshop. Like, I didn't have to do much to make it so that, like, for example, the arguments accept the GitHub issue number
+
+01:00:43.000 --> 01:00:50.000
+And so transform a feature request or a bug into a comprehensive implementation plan.
+
+01:00:50.000 --> 01:01:06.000
+We're not writing code here. We're just building up the plan. So here's the process, step by step, like, you know, understanding the problem and the code, and then creating that as a plan here in this format, where we have the user story, the problem statement, the task list. I mean, all of this is the exact same
+
+01:01:06.000 --> 01:01:16.000
+the validation strategy, right? That's, like, the most important part of your structure plan, is how is the coding agent going to check its own work? Because you don't want to just give you something back on the first pass.
+
+01:01:16.000 --> 01:01:34.000
+That is everything that we are creating here. And so it did all of its research and exploration, and it's already at the point where it is going to write the plan. And like Sean and I were chatting about, we are going to see the confidence score at the end here as well once it creates the plan. So I just have the confidence score at the very bottom.
+
+01:01:34.000 --> 01:01:50.000
+Of the plan and then it'll like have that at the bottom of its output here as well. And we can even search for this here. Like, if I go back into the markdown and search confidence, right, we're just telling it to estimate the confidence score for a one pass success.
+
+01:01:50.000 --> 01:02:03.000
+So cool. All right, there's the claw glitch again. Do you see that? It changes as I highlight it. It's so weird. There, I'll do the plus minus thing to fix it. All right.
+
+01:02:03.000 --> 01:02:07.000
+Let's see here…
+
+01:02:07.000 --> 01:02:25.000
+So I'll take the question from Stefan as the plan is being written here. Stefan says this is great. I appreciate it. Been wanting to move all steps to GitHub. In my current building setup, I use Archon with Archon workflows for everything, which is great, by the way. Like, I want you guys all to get to Archon, I'm just focusing on the fundamentals right now
+
+01:02:25.000 --> 01:02:29.000
+Before we cover that more later in the course.
+
+01:02:29.000 --> 01:02:43.000
+How can we use this workshop's approach with Archon? Are there Archon equivalents of all these Claude skills available somewhere? Or maybe it's smart to do the first part without RCOD, like the Prime plan, PIB slice, Epic, and then the phases after that with Archon
+
+01:02:43.000 --> 01:02:59.000
+Or when you say for now, it makes sense to go back away from Archon to purely the workflow you're presenting here today. Yeah, so again, Archon is the ultimate evolution. You can do everything we're doing here as Archon workflows. In fact, Stefan, I would present it as a challenge to you
+
+01:02:59.000 --> 01:03:11.000
+To take the skills here, give it to your coding agent with the Archon skill, and tell it to, like, build Archon workflows around these things. Now, a lot of the defaults that we have shipped with Archon
+
+01:03:11.000 --> 01:03:27.000
+they have a similar process, like the Archon fixed GitHub issue that you mentioned just now. It's very similar to the PIV loop, but just kind of with less human in the loop, unfortunately. But you could build an archon fixed GitHub issue workflow that has more human in the loop built into it
+
+01:03:27.000 --> 01:03:39.000
+And you could create a PRD creation skill or Archon workflow that kind of goes through the same process as the skill here. It'd be very easy to translate these things because
+
+01:03:39.000 --> 01:03:50.000
+I mean, really what you… another thing you could do is you could build a single archon workflow that goes through the entire process of creating the Epic all the way to splitting it into tickets.
+
+01:03:50.000 --> 01:04:00.000
+Because we've gone through a few different coding agent sessions here. We had one session to create the PRD, one for the architecture, and then one to split things up
+
+01:04:00.000 --> 01:04:11.000
+And so you could build an Archon workflow that strings together all three of those coding agent sessions with human in the loop. So you could make it so that everything is just one nice and simple workflow but that'd be pretty cool.
+
+01:04:11.000 --> 01:04:22.000
+So yeah, there's a lot of things you could do here. I have actually thought about, like, taking this workshop and doing an Archon-specific one after, because it definitely is time for another Archon Workshop in Dynamis, I would say.
+
+01:04:22.000 --> 01:04:24.000
+So yeah
+
+01:04:24.000 --> 01:04:30.000
+Alright, love the challenge, yeah, I'm glad, Stefan. Yeah, I mean, it'd probably be something you can knock out pretty fast, I would say.
+
+01:04:30.000 --> 01:04:34.000
+This and Archon, yeah, that would be a fantastic workshop
+
+01:04:34.000 --> 01:04:46.000
+So, okay, we got the plan created, and, you know, we're on the individual ticket level now. So ticket number 24 is a wave one spike from our orbit memory epic
+
+01:04:46.000 --> 01:05:00.000
+So okay, it created the plan right here in .clog plans and then it gave us a confidence score of 9 out of 10. So pretty confident overall. And of course, you can ask it like, you know, what would get it to the point where you have a confidence score of 9.5
+
+01:05:00.000 --> 01:05:07.000
+out of 10 or higher. So you can have the conversation with the agent to iterate on the plan based on the confidence if you want
+
+01:05:07.000 --> 01:05:24.000
+And then, of course, we can look at the plan, review it, and make sure that everything makes sense to us. You want to spend your time with this. Remember, one bad line of a plan can lead to a thousand bad lines of code. So problem statement, solution statement, all the sections exactly as described in our skill
+
+01:05:24.000 --> 01:05:31.000
+We have the context to reference, so it's grounded in the code base and the task by task implementation plan.
+
+01:05:31.000 --> 01:05:36.000
+And then we have, of course, our testing strategy. Unit testing, integration testing
+
+01:05:36.000 --> 01:05:40.000
+Yeah, manual validation
+
+01:05:40.000 --> 01:05:51.000
+Okay, cool. You know, I could iterate for a while on this. I'm sure there's gonna be some things I could find that isn't ideal, but for the sake of time, I'm just going to assume this plan is good.
+
+01:05:51.000 --> 01:05:57.000
+So let's go and send this off into implementation, or I guess we'll wait here, because it did say
+
+01:05:57.000 --> 01:06:03.000
+That it has a way to make it so it's more confident.
+
+01:06:03.000 --> 01:06:20.000
+Okay, so I guess it just did basically a bit of extra verification. It's going to adjust the plan here. And now, apparently it'll be more confident magically. So yeah, I mean, I don't know why I didn't just do this research on the first pass, but yeah, that's why you iterate with coding agents, because they'll discover things that you wish they had right away, but
+
+01:06:20.000 --> 01:06:25.000
+Just having it iterate a bit is always a good idea.
+
+01:06:25.000 --> 01:06:40.000
+All right, Paula said, yeah, like, asking an agent how long it would take hours or days for 5 minutes. Exactly. Yeah, so, like, asking a confidence score is kind of arbitrary sometimes, just like asking how long something will take is also arbitrary
+
+01:06:40.000 --> 01:06:55.000
+Because if I asked it right here, how long it would take to build this ticket, it would probably say a couple of hours, and we're going to be doing it in, like, less than a half hour, so… Yep, it is very arbitrary. So, okay, now we have it raised to a 9.5 plus for our confidence score.
+
+01:06:55.000 --> 01:07:06.000
+And then it even says, like, why there's a residual 0.5, so it's not a 10 out of 10, but usually this kind of gets to stuff where it isn't even worth your time.
+
+01:07:06.000 --> 01:07:11.000
+It's inherently probabilistic. No planning removes it.
+
+01:07:11.000 --> 01:07:19.000
+The live model's greeting word. Yeah, so it's just like some super stupid cheesy thing that says that it can't be perfect no matter what, so it can't be a 10.
+
+01:07:19.000 --> 01:07:21.000
+So, okay.
+
+01:07:21.000 --> 01:07:32.000
+We're good now. So I'm going to slash clear. And actually, you know what, before I do that, let me create a commit, because that's another thing I don't want to miss, not compact, goodness, piv commit
+
+01:07:32.000 --> 01:07:49.000
+A best practice that I've kind of glossed over before is after you create your plan, I recommend making a commit in Git because that way when you go into implementation, if you ever want to redo it, you can just scrap everything there and just go back to the current direct, the current state where we have
+
+01:07:49.000 --> 01:08:06.000
+just the plan, because then we can just redo the implementation, maybe iterating a bit more on the plan before we go into the next implementation. So, yeah, always make a commit after the plan. So you make a commit after the plan, and after implementation, when you go into
+
+01:08:06.000 --> 01:08:14.000
+the pull request. So, okay, now we did that. And now we'll do a slash clear and do the piv implement with a path to our plan.
+
+01:08:14.000 --> 01:08:30.000
+So I'm going to move a little bit faster here just to make sure we get things done in time. But this piv implement skill is one of the simplest ones, because it really is just like, here's your plan, here's your step, or your process to go through it, make sure you implement all the tasks and run the validation. Like, that's it.
+
+01:08:30.000 --> 01:08:45.000
+Then mark, like, just the output at the end for us to review. That's all we are running here. The step might take the longest, though, because it has to go through all the validation that's laid out in the plan, but that's a good thing. We want it to iterate and check its own work before it passes control back to us
+
+01:08:45.000 --> 01:08:52.000
+Because we don't just want an AI slop back that we have to refine a bunch.
+
+01:08:52.000 --> 01:08:54.000
+All right.
+
+01:08:54.000 --> 01:09:05.000
+Sean said, next thing Cole will say you could even turn this into your own dark factory. Dark factory is something that I'm going to add as an extension to the course.
+
+01:09:05.000 --> 01:09:08.000
+But I'm not going to make it a core part of the course.
+
+01:09:08.000 --> 01:09:26.000
+Because I really don't recommend you operate at that level of autonomy with your coding agents. We're just not there yet. It's not reliable. I did a very, very elaborate experiment with that. And yeah, you just… it's important to be in the loop, at least at every plan and after every implementation.
+
+01:09:26.000 --> 01:09:41.000
+All right. Eric said, I love the workshop. Appreciate it, Eric. Curious how much change is required to use Jira and GitHub or Atlassian tools using Jira and Bitbucket? That's right, another job for Claude. It is very straightforward.
+
+01:09:41.000 --> 01:09:56.000
+Because in the end, the only thing I had to change in these skills to make them GitHub-specific is just saying, like, hey, your input's gonna come from GitHub. Or, hey, I want you to use the GitHub CLI to push this Epic to a GitHub issue after you're done writing it, right?
+
+01:09:56.000 --> 01:10:02.000
+And if we want to use something else like Jira, then we're just leveraging the Atlassian MCP server.
+
+01:10:02.000 --> 01:10:12.000
+And I showcase that, like I said, in the main course content for the entire phase one. My example is building everything in Jira and Confluence as well
+
+01:10:12.000 --> 01:10:30.000
+So I can show you guys an example of that here because of course I have all these tabs up right now as I'm in the middle of recording, but I have the Epic PRD as a Confluence document, architecture document as a Confluence document, right? Same thing like we're doing in GitHub with it being like checked in Markdown and that epic issue
+
+01:10:30.000 --> 01:10:38.000
+We got it in Confluence, and then we have, of course, our Epic in Jira with the individual tasks that we split from the Epic
+
+01:10:38.000 --> 01:10:51.000
+Like we got our spikes, just like we're working on a spike right now from GitHub. The workflow is exactly the same. And coding agents, they are very good at just understanding, like, here are the tools I have at my disposal
+
+01:10:51.000 --> 01:11:00.000
+Eric told me we're working in Jira, so okay, everything's just gonna be Jira, and then, you know, like, Confluence as well for our PRD and architecture docs
+
+01:11:00.000 --> 01:11:14.000
+Very straightforward. When I moved everything over to GitHub for our workshop today, it was a one shot. Just having Claude make the skills all GitHub specific
+
+01:11:14.000 --> 01:11:17.000
+All right.
+
+01:11:17.000 --> 01:11:29.000
+What else we got here? Can you make the co-founder agent connect to the second brain to implement the GitHub issues? Yes, you can. Definitely. So GitHub, it's so easy to connect to.
+
+01:11:29.000 --> 01:11:32.000
+Because the GitHub CLI
+
+01:11:32.000 --> 01:11:42.000
+is something that coding agents understand without you having to even explain it because it's built into its training data, or it's trained on it so naturally
+
+01:11:42.000 --> 01:11:57.000
+So if you wanted to, like, have your second brain go and work on GitHub issues, you literally just say, use the GitHub CLI. And if you don't have it already, you say, hey, Claude, hey, Codex, hey second brain, install the GitHub CLI, because it knows how to do that. You don't even have to train it
+
+01:11:57.000 --> 01:12:14.000
+Because a lot of different CLI tools you give a coding agent, you also have to give it a skill so it knows how to use it. The agent browser skill, for example, that I cover a lot in my content. You have to give it a skill because it's not trained on that, but the GitHub CLI has been around for
+
+01:12:14.000 --> 01:12:21.000
+You know, probably like a decade and a half now. Like, coding agents are masters at using it.
+
+01:12:21.000 --> 01:12:29.000
+Alright, so there we go. Spike is complete. We did our full implementation here and it did its verification as well.
+
+01:12:29.000 --> 01:12:36.000
+So, yeah, there we go. We built it. I can't really like
+
+01:12:36.000 --> 01:12:50.000
+I mean, I guess I kind of have… okay, I'll ask you here, like, okay, now if I wanted to test this manually to verify your work, how can I do that? I want you to spin up the agent for me and actually test it, make sure we're good to go
+
+01:12:50.000 --> 01:13:03.000
+So I'll just like describe a bit more verification that I wanted to do here. But at this point, again, we make the commit, we do a save state after our implementation, and then we create the pull request from that.
+
+01:13:03.000 --> 01:13:08.000
+And so maybe I'll just do that. No, I'll wait here. I'll let it do
+
+01:13:08.000 --> 01:13:13.000
+Spike testing end-to-end, and then we'll create the pull request.
+
+01:13:13.000 --> 01:13:16.000
+Because the end of every single
+
+01:13:16.000 --> 01:13:34.000
+piece of work that we do, even if we're not, like, making the whole thing GitHub-based, you're going to be using GitHub. Like, in the course, even when I'm using Jira, like, I still end every single rpiv loop with a pull request, because we work in a branch, and we get that branch into main through a pull request. You never want to push your changes
+
+01:13:34.000 --> 01:13:37.000
+straight to Maine
+
+01:13:37.000 --> 01:13:53.000
+And so, I mean, we blew through this, we did this already. We implemented, we had the agent check its own work. I guess we're finishing that right now. Then we end with the pull request. And we, of course, have another skill to walk us through that. Now, we're not going to have the time today to do the pull request review
+
+01:13:53.000 --> 01:14:05.000
+So I'll save that for the course, but also if you went through the first version of the course, like we've seen that a lot before. You just have a coding agent in a separate session review the pull request
+
+01:14:05.000 --> 01:14:22.000
+And by the way, the reason I have validation and pull request review is because we're answering two different questions here. Like when we have the coding agent check its own work, like right after implementation, it's more like, hey, does this even work in the first place? Like, are the unit tests passing
+
+01:14:22.000 --> 01:14:29.000
+Does the end-to-end test pass? And then when we do the code review, that's a different question. It's more like, is this built optimally
+
+01:14:29.000 --> 01:14:39.000
+Right, like, is this the fastest it can be? Is it the most efficient it can be? Is the code as clean as it can be? Like, that's more what we're addressing when we do a pull request review.
+
+01:14:39.000 --> 01:14:44.000
+So, I'm not actually being redundant here when I have both of these steps in the workflow
+
+01:14:44.000 --> 01:15:01.000
+And then it's also nice to have the pull request, because then we can have other people also review our work with our coding agent. So again, going to like when you're working in a team, GitHub becomes even more powerful because it gives that visibility for other engineers or PMs or QA engineers or whatever
+
+01:15:01.000 --> 01:15:04.000
+review things with you
+
+01:15:04.000 --> 01:15:12.000
+All right, so it's, gave us instructions to run it ourself, it tested it too, and things are looking good.
+
+01:15:12.000 --> 01:15:21.000
+Cool. So yeah, it looks like there's a couple caveats here that I'm just gonna ignore for now, because I just want to get to the example of creating the pull request here.
+
+01:15:21.000 --> 01:15:40.000
+So, PIV create PR and this workflow will specifically create a branch if you're not already working in one. Because again, we don't want to push right to main. Because this is a spike and that changes what a PR even means here. So checking the get state, making sure we're not pushing straight to main, first of all
+
+01:15:40.000 --> 01:15:43.000
+So let me open up this skill here
+
+01:15:43.000 --> 01:15:46.000
+Right, push current feature branch and open up a pull request.
+
+01:15:46.000 --> 01:16:03.000
+Pretty short overall. It's more just like, you know, here's the format we want for the pull request. It's very similar to creating our PRD and architecture document and structure plan. We want to make it like very repeatable in what the format looks like so we can build that sense over time of what to expect
+
+01:16:03.000 --> 01:16:09.000
+All right.
+
+01:16:09.000 --> 01:16:12.000
+Okay.
+
+01:16:12.000 --> 01:16:29.000
+This is getting a little in the weeds here. PR doesn't fit what the ticket actually produced and pushing would do something you probably don't want. Let me explain. This was a spike. It committed no code. The plan was explicit. The deliverable is a decision, not a merged production code. The proof script lives in a throwaway location and its output is the product
+
+01:16:29.000 --> 01:16:40.000
+oh, you know what, this actually makes a lot of sense. I have to correct myself a little bit here, because sometimes with a spike, like I said, you're just trying to do the smallest thing possible to validate an idea.
+
+01:16:40.000 --> 01:16:47.000
+And so we validated the idea here. We didn't actually create code that we want to merge into main
+
+01:16:47.000 --> 01:16:57.000
+And so I guess this is kind of not the best example, so I apologize. I actually probably should, for the sake of this demo here, I should have built something that isn't a spike
+
+01:16:57.000 --> 01:17:08.000
+Because you build the decision from the spike, and then usually you'll create a separate ticket to then work on that. Once you have the decision established from your spike
+
+01:17:08.000 --> 01:17:21.000
+And so I'm actually going to chat about this. This is going to be kind of silly. I'm going to say like, okay, now that we made the decision from the spike, I want you to actually write the code. And then that is what we'll submit as the pull request.
+
+01:17:21.000 --> 01:17:40.000
+We'll course correct a little bit here. Fred said spikes can be implemented as tests. Definitely, yeah, we could do that too. I'm just going to have it turn the decision into code here, essentially, because we still have a pretty lean conversation overall, so we can continue the conversation. We're not getting into the dumb zone for
+
+01:17:40.000 --> 01:17:43.000
+LLM here
+
+01:17:43.000 --> 01:17:51.000
+Benjamin said, side question, do you think the dark factory is better than the software factory term? I think it's cooler.
+
+01:17:51.000 --> 01:18:00.000
+I think it doesn't matter too much in the end, like, the exact term you're using, software factory or Dark Factory. I think they really do mean the same thing.
+
+01:18:00.000 --> 01:18:18.000
+Dark Factory just has a cool connotation because it's like the idea that it's like it's dark. There's no human that needs to see into the repository, because with a dark factory, it's your spec is the input, and then your shipped code is the output.
+
+01:18:18.000 --> 01:18:22.000
+All right.
+
+01:18:22.000 --> 01:18:37.000
+So hopefully it can create a pull request here. So we're moving from spike to real feature. Now that the dynamic get instructions is proven, right? Like we spiked to prove this, now we're going to implement the production memory capability with that decision and turn that into a pull request.
+
+01:18:37.000 --> 01:18:56.000
+So I guess this kind of actually worked out nice to have this as a demo for you guys, because it shows you, like, when we spike, it's not code that we're producing, it's the decision that we're making. And then typically you would turn that into another GitHub issue or Jira ticket or whatever, and then you would go through the Riv loop again on that
+
+01:18:56.000 --> 01:19:12.000
+And so I cut corners a little bit by not creating another ticket, usually or another issue, usually you would do that. But again, our conversation is pretty lean here, so we can just get right into building it. And honestly, that kind of fits into the RP loop that we're doing right here.
+
+01:19:12.000 --> 01:19:14.000
+Cool.
+
+01:19:14.000 --> 01:19:29.000
+Looks like Sean left, unfortunately, but he did have a question. So, leveraging GitHub the way you are, where do GitHub actions come into play? Only during PR creation and merge. Yes, that is correct, Sean. So hopefully you're watching the recording for the last part of the workshop here, but
+
+01:19:29.000 --> 01:19:44.000
+typically, the most common use of a GitHub action for me is running, first of all, our CI. So when we create the pull request, like having the unit tests and things run automatically, just in case the agent missed running some during the rpiv loop. Then also a GitHub action
+
+01:19:44.000 --> 01:19:48.000
+can also automatically trigger a pull request review
+
+01:19:48.000 --> 01:20:04.000
+And so in the course, at least in phase one, I only talk about manually running a pull request review in a separate coding agent session. But later, more like getting into phases three and four, I'll cover how we can use GitHub Actions to automate some of these things at the end of our
+
+01:20:04.000 --> 01:20:21.000
+pipeline here, like, having that, that code review get kicked off automatically, so a human doesn't even have to do that. And then it'll, like, automatically post the review of the pull request, like, as a comment in the PR, so that you can iterate on it from there.
+
+01:20:21.000 --> 01:20:37.000
+Awesome. So, yeah, I mean, we're pretty much at time here. It's going to take a little bit longer for it to, like, implement things, so we didn't quite get to the point where we have a pull request, but you guys get the idea of the full workflow here. Once it does, it finishes the RPIB loop
+
+01:20:37.000 --> 01:20:54.000
+We end with the pull request, just like you would if you're working in Markdown, Jira, Linear, anything else. And then at that point, you review the pull request, make sure that everything is implemented optimally, which if you're more technical, that means actually looking at the git diffs yourself, like clicking into
+
+01:20:54.000 --> 01:20:57.000
+a pull request here that I created before
+
+01:20:57.000 --> 01:21:16.000
+We would actually look at the files that are changed to make sure this all looks good. Or if you're less technical, this is just where you have the coding agent performer review and help explain things to you. Either way, you get to the point where you're confident in the pull request, and then you will merge the code from your feature branch or your bug fix branch into
+
+01:21:16.000 --> 01:21:31.000
+the main branch, and that is the end of your rpiv loop. And then, of course, you would take the GitHub issue, and you'd mark it as done, right? Like, we'd close the issue. We can see we also had a comment here for the spike verdict, so that's cool, so we also updated the issue when we were going through the planning here
+
+01:21:31.000 --> 01:21:44.000
+And testing the spike. But yeah, then once you're done immersion to main, then you have the GitHub issue closed. And generally in GitHub, actually the way it works in GitHub is when you merge a pull request, it automatically closes the related issue.
+
+01:21:44.000 --> 01:21:54.000
+So that way you keep your list only maintaining, or you only have to maintain the issues that you're currently in the middle of working on, or that you haven't worked on yet.
+
+01:21:54.000 --> 01:22:14.000
+So this is just a running list of the stuff that actually matters to you. And then if you have, like, the project layer on top of it, like we have in Archon, then you're moving things throughout the Kanban board as you're going through this development process. And so I didn't do that for this course, but if you want it to be really GitHub native, you could also build it into the skills where it's using the CLI to move things
+
+01:22:14.000 --> 01:22:31.000
+between the different stages here, as you're going through the planning and implementing and validating. So you can kind of get a setup that looks sort of like the old version of Archon, if you guys remember that, where we had the Kanban board, like, updating things in real time as the agent is progressing through the RPIV loop
+
+01:22:31.000 --> 01:22:41.000
+So, cool. I think that's a good place to end it here, because we don't need to wait for the coding agent to create the PR. And you see the full process in the course as well. So all right.
+
+01:22:41.000 --> 01:22:51.000
+And I think I got through all of the questions here. I'll stay a little bit longer for questions if anyone has any. But yeah, I hit through everything that's in the chat right now
+
+01:22:51.000 --> 01:22:56.000
+Stefan said, could you quickly mention one more time what the commands are after piv implement
+
+01:22:56.000 --> 01:23:15.000
+Yes, of course. So, let me go back here. So, after you do the implementation, let me collapse this and make it look nice. Then you do your piv commit. So you make another commit, and then you do the piv create PR, which this skill will also make a commit if you haven't already, because obviously you have to to make a pull request, so
+
+01:23:15.000 --> 01:23:19.000
+After your PIV implement, you can just run piv create PR.
+
+01:23:19.000 --> 01:23:31.000
+And then once you have the pull request, you go into a brand new coding agent session, and you can run PIV review changes, because this is the separate review process that you run on the pull request itself.
+
+01:23:31.000 --> 01:23:51.000
+So yeah, where do you bake in your regression tests in the flow call, and CI actions or earlier? Regression testing is something I'll cover more later in like phase three or four of the course, but that's kind of like outside of the core flow, because you're generally running the regression testing whenever you want, and then, yes, you do also have that as a part of your CI as well, Tom. Yep.
+
+01:23:51.000 --> 01:23:54.000
+Definitely fits in CI.
+
+01:23:54.000 --> 01:24:14.000
+Stefan asked, is PIV validate not being used? So PIV validate is pretty much the same as running through the validation that we build into the plan. And so when you're going through the rpiv loop, you don't actually use PIV validate. I more just have this here for if you ever want to do, like, isolated validation on your existing code base. Like, if you want to make sure that
+
+01:24:14.000 --> 01:24:21.000
+Before you go into the next epic, for example, all of your unit tests and integration tests and everything, like your linting and type checking is all passing.
+
+01:24:21.000 --> 01:24:31.000
+But if we were to run this after we'd run the implement step, it would be redundant because we're already instructing the agent in the structure plan to go through all these steps.
+
+01:24:31.000 --> 01:24:34.000
+Yeah, exactly. Validate is included in implement
+
+01:24:34.000 --> 01:24:50.000
+Do I still have a system review step? I do, Tom. Yep, we will cover that when we get to system evolution. So that's outside of the scope of this workshop because this workshop is made to be tied with phase one of the course, but we get to system evolution and phases two and three, and then we'll cover the system review
+
+01:24:50.000 --> 01:25:06.000
+So all the skills I have here are only the phase one skills that I made GitHub specific, but the full set of skills that I have in the AI layer starter template for you guys in the new version of the course, like that includes a lot more
+
+01:25:06.000 --> 01:25:12.000
+Alright, low gas, do the prime skill is I have the history of GitHub issues. Know where we are at on the Epic
+
+01:25:12.000 --> 01:25:19.000
+So if we go to… it doesn't look at the GitHub issues, it looks at the commit history
+
+01:25:19.000 --> 01:25:35.000
+So it basically has the same effect, because when you make a commit message, it should be tied to the issue number, or ideally that would be included in the commit message. So there might be a couple of optimizations that could be made here, but we're relying on the git log to tell us the recent things
+
+01:25:35.000 --> 01:25:41.000
+That were implemented. I think it'd be redundant if we had to look at the recently worked on issues as well.
+
+01:25:41.000 --> 01:25:43.000
+Because they should be the same thing really
+
+01:25:43.000 --> 01:25:57.000
+Right? Like, every single GitHub issue we work on with an RPIV loop, it's going to be one commit for the plan and one commit for the implementation. And then if you do any, like, iteration on the pull request after, maybe you'd have multiple commits for that, too.
+
+01:25:57.000 --> 01:26:16.000
+So cool. All right. I think we'll go ahead and call it there. So this was an awesome workshop. I made it through the entire process. I mean, I guess we didn't quite get to the review at the end of the PR, but yeah, the whole like we got an idea, create the epic and the documents associated with it, split it into tickets and knock out a ticket.
+
+01:26:16.000 --> 01:26:27.000
+Awesome, guys. Yeah, you're welcome, Billy, I appreciate it. Thank you, Eric. Appreciate all you guys being here, going through the process. I'm excited for the release of Phase 1 of the new version of the course.
+
+01:26:27.000 --> 01:26:42.000
+So yeah, thanks all for being here and your awesome questions as well. Hope you guys have a fantastic weekend, and I will see you all in the community. Oh, and one more spoiler. We got a guest coming in for the workshop on next Friday, so that's gonna be really exciting. It is
+
+01:26:42.000 --> 01:26:59.000
+I'll just say it here. For you guys who stuck around to the end of the workshop, we have the creator of BeMad coming in for a guest workshop next Friday, so it's gonna be exciting, because he's actually doing some things to make BMAD a lot better. Like, some of the critiques I've shared with you guys in the community before.
+
+01:26:59.000 --> 01:27:14.000
+On BMAD, like, he's fixing those things. It's super cool. I'm so excited for that. So yeah, he's coming in on Friday. So the workshop will actually be a half hour later than usual, but otherwise, yeah, just 11:30 a.m. Central Time. So yeah
+
+01:27:14.000 --> 01:27:25.000
+Alright, sneak peek for those of you guys who stuck around to the end. Anyway, hope you guys have a fantastic weekend, and I'll see you guys in the community. Take care, everyone.
+

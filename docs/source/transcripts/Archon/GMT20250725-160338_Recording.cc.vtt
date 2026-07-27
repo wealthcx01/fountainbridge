@@ -1,0 +1,1391 @@
+WEBVTT
+
+00:00:02.000 --> 00:00:08.000
+Alright, welcome everyone to the Alpha release of Archon version 2. It's been a long time coming.
+
+00:00:08.000 --> 00:00:19.000
+A lot of work, especially that Sean has been putting in the last couple of months. So, Sean Buck, he is a guest on the workshop here. He's going to be doing a lot of the presenting today, especially diving into.
+
+00:00:19.000 --> 00:00:23.000
+A lot of the philosophy behind the user experience that he's built into Archon.
+
+00:00:23.000 --> 00:00:24.000
+Um, so, let me go ahead and, uh, share my screen.
+
+00:00:24.000 --> 00:00:28.000
+Cool.
+
+00:00:28.000 --> 00:00:37.000
+And, um, maybe… actually, you know what? I wasn't planning on doing this. Maybe I'll start by showing the original version of Archon, just to give some context.
+
+00:00:37.000 --> 00:00:40.000
+For everyone. Because we are… we're changing things up a lot.
+
+00:00:40.000 --> 00:00:46.000
+But we are really building off of the foundation of what I created way back in, like, March.
+
+00:00:46.000 --> 00:00:57.000
+With Archon version 1. So, alright, sharing my screen now. So, Archon… The original purpose for Archon was to be an AI agent builder.
+
+00:00:57.000 --> 00:01:01.000
+So, it's an application that you took as an MCP server.
+
+00:01:01.000 --> 00:01:04.000
+Or you could just use it directly in an interface that I built.
+
+00:01:04.000 --> 00:01:11.000
+And you can plug it into an AI coding assistant, and basically it augments an AI coding assistant.
+
+00:01:11.000 --> 00:01:17.000
+With this, like, entire workflow behind the scenes, that, like, your cloud code or your windsurf, or your cursor, whatever, could call upon.
+
+00:01:17.000 --> 00:01:25.000
+To craft an AI agent. Like, you could say, help me build a, you know, customer support agent, or help me build a research agent that can.
+
+00:01:25.000 --> 00:01:33.000
+Um, also, like. Draft messages for Slack, like, right? Like, no matter the agent that you want to build, you just describe it, and then Archon built it.
+
+00:01:33.000 --> 00:01:37.000
+And it was pretty cool. And obviously, the repository, like, blew up.
+
+00:01:37.000 --> 00:01:43.000
+Quite a bit, 5.2 thousand stars, and I haven't focused on it in a while now.
+
+00:01:43.000 --> 00:01:44.000
+Three months ago, last commit.
+
+00:01:44.000 --> 00:01:53.000
+Because I… yeah, 3 months ago, last commit, right? Yeah, it's been a while. And it's not because I just wanted to let it go stale. There's a very big reason.
+
+00:01:53.000 --> 00:01:58.000
+It's a video, and I'm cooking.
+
+00:01:58.000 --> 00:01:59.000
+Yeah.
+
+00:01:59.000 --> 00:02:08.000
+And… Oh, yeah, I think we had someone that wasn't, um, unmuted, or that wasn't muted, it's all good. So, yeah, Archon version 2, as you guys will see, is the big reason why I took a step back.
+
+00:02:08.000 --> 00:02:17.000
+Not to abandon the project, but to completely overhaul it, and that's what we're gonna get into today. Because the big reason that I wanted to do this with Archon.
+
+00:02:17.000 --> 00:02:25.000
+Is it was very cool. That we have this AI agent that can build other AI agents. That's what Archon was originally.
+
+00:02:25.000 --> 00:02:43.000
+But also, a lot of people were telling me, like, I got a lot of feedback that actually the coolest part of Archon is the way that it manages a knowledge base of documentation behind the scenes. Like, you crawl… Pydantic AI, and then you have the Pydantic AI documentation that your AI coding assistant can reference through REG.
+
+00:02:43.000 --> 00:02:49.000
+And a lot of people thought that, like, that was the cool part of it. And I actually agreed.
+
+00:02:49.000 --> 00:02:54.000
+Because the thing with Archon is as cool as it is that it's an AI agent that can build other AI agents.
+
+00:02:54.000 --> 00:03:03.000
+What if we took this whole knowledge base functionality, like being able to crawl documentation, store it in our own private Supabase knowledge base, and then reference that.
+
+00:03:03.000 --> 00:03:13.000
+To augment our coding, what if we took that and extended it to anything? Not just building AI agents, but we could crawl any documentation, store it in our knowledge base, and I have all these, like.
+
+00:03:13.000 --> 00:03:26.000
+More advanced reg strategies. That I've been building out with, um, the Crawl for AI RAG MCP server that maybe a lot of you guys have seen me cover on my YouTube channel. So, a lot of the work that I did there was also kind of leading into Archon version 2.
+
+00:03:26.000 --> 00:03:33.000
+And so, that's our conversion one, and kind of, like, why I want to take a step back. I basically wanted to make it more general.
+
+00:03:33.000 --> 00:03:39.000
+To turn Archon into, like, just this knowledge and task management backbone for AI coding assistance.
+
+00:03:39.000 --> 00:03:54.000
+And now, with Archon version 2. That's what we have here. We have a complete overhaul of Archon that I'm going to, once we do a public release next month, you guys are getting the alpha release right now, but once we do a public release.
+
+00:03:54.000 --> 00:04:08.000
+I'm just gonna replace this repository, kind of do, like, an in-place update, so we can still keep this repo and, um, like, all the stars and activity that we have in this, and I can kind of show how it evolved over time by staying in the same repository.
+
+00:04:08.000 --> 00:04:19.000
+But in many senses, it is, like, a separate project. Um, but it still kind of keeps the same ethos, just expanded to be more general, and in my mind, a lot more powerful.
+
+00:04:19.000 --> 00:04:24.000
+And Sean, and he'll be talking about this a lot in this workshop, it's super exciting.
+
+00:04:24.000 --> 00:04:35.000
+He's created this entire. Front end, this application that we have that turns Archon into, like, quite a beautiful product. Like, it's actually insane.
+
+00:04:35.000 --> 00:04:41.000
+What he's been able to do here. And I'll kind of just, like, cover the different sections in a second here for Archon.
+
+00:04:41.000 --> 00:04:49.000
+Um, but the first thing that I want to cover before we get into that is this is available for you guys to try right now.
+
+00:04:49.000 --> 00:04:53.000
+And please, please keep in mind that, like, this is an alpha right now.
+
+00:04:53.000 --> 00:05:02.000
+So it's, like, very much, you're gonna find things that aren't perfect yet, and we're continuing to work on it here. We want to have, like, kind of like a beta release next month, when we actually make this, like, fully public.
+
+00:05:02.000 --> 00:05:09.000
+Um, but yeah, you can go to this link that we have in the description for this event for the workshop.
+
+00:05:09.000 --> 00:05:14.000
+And that'll take you to this page right here. So we kind of just took.
+
+00:05:14.000 --> 00:05:24.000
+The GitHub repository that Sean and I have been working on privately, and we just dumped a copy in the workshops repository for Dynamis, just for now, so you guys can try it out.
+
+00:05:24.000 --> 00:05:30.000
+And then, obviously, when we go on to the beta release, it'll be a different repository, so we just have it here.
+
+00:05:30.000 --> 00:05:32.000
+For you guys to try out right now.
+
+00:05:32.000 --> 00:05:43.000
+Um, Sumit, uh, just to answer your question, MCP's like. Content 7 Make Archon version 1 strategy somewhat dated, or as relevant now. In fact, it's the opposite.
+
+00:05:43.000 --> 00:05:53.000
+It was context 7 that created Archon v2, and the reason for that is, um, yes, Contact 7's been great. It was something I used a ton.
+
+00:05:53.000 --> 00:06:02.000
+But what Cole's done is being able to give you the ability to crawl documentation that might not be on Context 7, it might be your own business documents you want to upload.
+
+00:06:02.000 --> 00:06:12.000
+It might be… and it pulls out code examples in a way that gives you more flexibility. So, think of, like, Archon in some ways as having your own Contact 7.
+
+00:06:12.000 --> 00:06:17.000
+But also your own project management and document management on top of that.
+
+00:06:17.000 --> 00:06:27.000
+Yeah. Thanks, Sean, that's really good. And actually, one way to explain Archon very simply, if you guys are familiar with some of, like, the really popular MCP servers, you can kind of think of it like.
+
+00:06:27.000 --> 00:06:36.000
+Contact 7 and Claude Taskmaster combined together. But also just, like, much more customized, and like Sean said, you can have your own private knowledge base.
+
+00:06:36.000 --> 00:06:47.000
+For the task management, it's just, like, super beautiful. We'll cover this in a second here, like, it's, in my mind, better than Cloud Taskmaster, at least in some ways. I mean, Cloud Taskmaster does some things, like.
+
+00:06:47.000 --> 00:06:55.000
+Really, really well. And we're gonna continue to take inspiration from it as we incorporate it. Like, just the way that it uses perplexity, for example, is really cool.
+
+00:06:55.000 --> 00:07:03.000
+Uh, but, like, it doesn't have a UI like this. And, um, maybe, maybe, actually, let's go ahead and start. I'll start by talking about task management here.
+
+00:07:03.000 --> 00:07:13.000
+Let me just zoom in a little bit. So… Yeah, we'll start with task management, I'll talk about, like, knowledge as well, and then the MCP server, and then I'll give you a quick demo.
+
+00:07:13.000 --> 00:07:17.000
+Um, and then Sean, I'll turn it over to Sean to, like, really dive into.
+
+00:07:17.000 --> 00:07:18.000
+His ethos and philosophy.
+
+00:07:18.000 --> 00:07:28.000
+Yeah, real quick, Cole, could you pull up… to help with that, could you pull up the just quick diagram… the visual diagram to people… give people, like, an orientation of the tasks and knowledge, and then go into tasks, or…?
+
+00:07:28.000 --> 00:07:29.000
+On the diagram there, because I think it'll help people on the, uh, if you click, uh, go up to the home, not the intro.
+
+00:07:29.000 --> 00:07:35.000
+Yeah.
+
+00:07:35.000 --> 00:07:36.000
+This one right here? Yeah, okay, yeah.
+
+00:07:36.000 --> 00:07:54.000
+Yeah, right, right there. Yeah, just… just kind of seeing here, so, um… And the reason why this is important is because what you're gonna see in the UI is accessible via the MCP, and the whole intent of this is for Archon to be a coding… it's like the bridge between your AI and you. It's your communication layer, and your content. When you talk about context engineering.
+
+00:07:54.000 --> 00:07:58.000
+Mm-hmm.
+
+00:07:58.000 --> 00:08:04.000
+It's the hub that helps bring all this together, and so, yeah, I just kind of wanted that context there to help.
+
+00:08:04.000 --> 00:08:12.000
+Yeah. Yeah, thanks, Sean. I meant to show this, but I forgot to, so this is good. This is a beautiful diagram that, um, that Sean created.
+
+00:08:12.000 --> 00:08:19.000
+That just shows that, like, this can be expanded to really any AI coding assistant. Like, it's not just the ones that we have listed here.
+
+00:08:19.000 --> 00:08:24.000
+Because it's an MCP server, like, you can connect it to Kiro, you can connect it to Cloud Code, Augment Code.
+
+00:08:24.000 --> 00:08:36.000
+Windsor of Cursor. Even just, like, Claw Desktop, for example. Like, the other really cool thing with Archon, which… I want to stay focused on AI coding assistance for this workshop, but, like, theoretically.
+
+00:08:36.000 --> 00:08:40.000
+You can use Archon just as, like, a RAG MCP server for your agents.
+
+00:08:40.000 --> 00:08:41.000
+Or a tool like Cloud Desktop. Like, it isn't even just AI coding assistance. Now, that's our focus.
+
+00:08:41.000 --> 00:08:45.000
+Yeah.
+
+00:08:45.000 --> 00:08:59.000
+And the way that the UI is shaped… shaping up, and the way that we, um… Just like, for example, have the global rules. Like, we have, like, recommended global rules to put in to tell it how to use our archon. Like, this is obviously very focused on AI coding assistance, but.
+
+00:08:59.000 --> 00:09:04.000
+One of the very future things that we have as a vision for this is.
+
+00:09:04.000 --> 00:09:11.000
+To make it just, like, THE REG solution. No matter what. Like, it doesn't matter if you're coding, it doesn't matter if you're creating an agent.
+
+00:09:11.000 --> 00:09:14.000
+And you just want to have it as available tools, like.
+
+00:09:14.000 --> 00:09:30.000
+This is gonna be the solution for that. Um, because we have the crawling figured out, we have… chunking strategies and retrieval strategies built in, like, there's a lot going on behind the scenes that we don't even have time to get into today, but yeah, like I said, a lot of the RAG strategies that I've just been experimenting with and.
+
+00:09:30.000 --> 00:09:38.000
+Working on the Crawl for AI reg MCP workshops with you guys, things like re-ranking and hybrid search and contextual embedding, contextual retrieval, like.
+
+00:09:38.000 --> 00:09:49.000
+These things were building into Archon. To make it so that it's not just a cool UI, which it definitely is, but, like, there's also just a lot of power behind the scenes. And things that are customized to you as well.
+
+00:09:49.000 --> 00:09:56.000
+Like, you can go into the settings panel here, and we're working on making it so you can use different providers, um, like Gemini and OpenAI and Olama.
+
+00:09:56.000 --> 00:10:03.000
+Probably adding more later as well. You can select the different strategies that you want to use for rank.
+
+00:10:03.000 --> 00:10:14.000
+Sean's been working on code extraction. This is for agentic reg, where whenever we do a crawl, maybe I'm getting a little bit ahead of myself here. We'll look at this more when we look at knowledge, but whenever we crawl.
+
+00:10:14.000 --> 00:10:21.000
+We also extract code examples from the documentation, from, you know, like, Superbase or Podantic AI, or MCP.
+
+00:10:21.000 --> 00:10:27.000
+And so, like, being able to, like, tweak exactly how it looks for those code examples, like, there's just so much customization.
+
+00:10:27.000 --> 00:10:32.000
+And one of the beautiful things that Sean told me, actually right before this workshop, is.
+
+00:10:32.000 --> 00:10:38.000
+Like, a lot of these things, you can just leave the default values and never touch it, and it'll work well. But it's just here to, like.
+
+00:10:38.000 --> 00:10:44.000
+Show you how much goes on behind the scenes, and then also, if you really want, you can, like, dig deep and.
+
+00:10:44.000 --> 00:11:01.000
+Tweak things to work for your use cases specifically. So, yeah, let me take it from the top here. The project management, like I said I was gonna do. Um, so… What you can do within the projects here, you kind of turn yourself into a project manager for the AI coding assistant.
+
+00:11:01.000 --> 00:11:10.000
+Like, I can make a new project here, just giving it a name and a description, and then we'll have something like this, where we have a Kanban board. So I can create a new task.
+
+00:11:10.000 --> 00:11:24.000
+And I could, you know, put it in the backlog, or put it in… progress, whatever. I can assign priorities to it. A lot of things that you would have in something like ClickUp or Jira, or Asana, right? But it's this beautiful Kanban board that is directly accessible for the AI coding assistant.
+
+00:11:24.000 --> 00:11:34.000
+Through MCP. And I'll show you this in a demo in a little bit here, but, like, we can have it create the project when it starts something new for us in Cloud Code.
+
+00:11:34.000 --> 00:11:46.000
+We could have it define these tasks, and then move them through the different stages in real time. Sean has… A lot of things set up with WebSockets here, connecting the front end to our backend, so that.
+
+00:11:46.000 --> 00:11:51.000
+Like, if the AI agent moves something from the backlog to in process, like, we'll just see it.
+
+00:11:51.000 --> 00:11:59.000
+Move, like, in real time. Um, so it makes the MCP call to update the task, and then we'll see it in, like, less than a second. It'll be updated.
+
+00:11:59.000 --> 00:12:10.000
+Um, and then also, like, we can edit these tasks in real time. So, like, as… the AI coding assistant is going, let's say it creates a bunch of tasks in the backlog, it starts to knock them off one by one.
+
+00:12:10.000 --> 00:12:19.000
+Um, but, like, we see, like, oh, shoot, something is wrong in the description here, or maybe we want to add more context. We can do that, and then by the time it gets to that task.
+
+00:12:19.000 --> 00:12:22.000
+It'll read the updated context, and so we can very much, like.
+
+00:12:22.000 --> 00:12:29.000
+Pair program, and like I said, manage the AI Coding assistant as a project manager, just with this UI as our way to do it.
+
+00:12:29.000 --> 00:12:38.000
+And I haven't seen anything like this before. Definitely not something that looks as good, but honestly, I don't think I've seen this kind of, like, we can manage a Kanban board live for an AI coding assistant.
+
+00:12:38.000 --> 00:12:46.000
+Um, or… Oh, yeah.
+
+00:12:46.000 --> 00:12:47.000
+I'll go all tasks, yeah.
+
+00:12:47.000 --> 00:12:59.000
+Hey, Cole, can you click on the table view real quick? Someone was asking about that. They wanted to see the table view. So, and the table view, maybe go to one of the tabs that has more things on it. Yeah, so, um, the table view is something I created for me, like, scroll all the way down.
+
+00:12:59.000 --> 00:13:00.000
+Yeah, right here.
+
+00:13:00.000 --> 00:13:05.000
+Um, uh, or scroll all the way to the bottom where you can get the entry point, uh… Yeah, so you can just sit here and type, and type all the tasks. So what I do is, while Claude's working on something.
+
+00:13:05.000 --> 00:13:13.000
+I'm thinking of next steps in here, and I always use the table view for my interactions, and then I use the board view when I just want to see what Claude's doing.
+
+00:13:13.000 --> 00:13:18.000
+Um, and how it's moving things through. But, um, and a couple other questions.
+
+00:13:18.000 --> 00:13:26.000
+I'll get to my background in just a second as we turn it over, and thanks for the comments on the UI. I'll talk a little bit about that in.
+
+00:13:26.000 --> 00:13:33.000
+My inspiration, and thanks for sharing some of the other things. I'll take a look at those, too. But yeah, keep the questions coming and stuff, this is good for… I'm reading them.
+
+00:13:33.000 --> 00:13:42.000
+Yeah, cool. Thanks, Sean. Yeah, so we'll see this in action with the demo in a sec, but we also have Docs, which I'll let Sean speak to this one more.
+
+00:13:42.000 --> 00:13:46.000
+Uh, which is also really cool. A lot more planned for this, too.
+
+00:13:46.000 --> 00:13:52.000
+Um, and then for the knowledge base. This is a lot of, like, what we had with Archon version 1.
+
+00:13:52.000 --> 00:14:07.000
+And what I've been working on with the Crawl for AIRAG MCP server, because it still uses Crawl for AI behind the scenes to do the crawling, but… We can add our knowledge, and this can be… documentation, like, I can, you know, do the pedantic AI LLMs.txt, for example.
+
+00:14:07.000 --> 00:14:14.000
+Elims-ful dot text, like, I can take this, I can do a sitemap, it can recursively crawl just any web page that I give it.
+
+00:14:14.000 --> 00:14:19.000
+Uh, it's super robust in that way, it's just like the MCP that I was working on, but you can also, like, upload.
+
+00:14:19.000 --> 00:14:26.000
+Business documents, like, if you wanted to… have access to your company information, because maybe whatever it's trying to code.
+
+00:14:26.000 --> 00:14:36.000
+Like, it's actually very pertinent to look at, like, our company mission, or maybe we upload, like, best practices for our code bases, like, whatever that might be, you can upload that as well.
+
+00:14:36.000 --> 00:14:43.000
+And so there's a lot of different customization… there's just, like, ways that we can add different types of knowledge into Archon.
+
+00:14:43.000 --> 00:14:47.000
+And then when you add a source, and maybe I'll just, like, recrawl one of these to show you what it looks like.
+
+00:14:47.000 --> 00:14:53.000
+Um, the UX is just so good. Like, if I recrawl Pydantic AI, for example.
+
+00:14:53.000 --> 00:15:01.000
+We can watch the progress in real time. And it's not just, like, watching one little progress bar. Like, we can see all the different stages of the crawling, where it, like.
+
+00:15:01.000 --> 00:15:09.000
+Crawls the webpage, and then it chunks everything, and then it's embedding everything, and then we're pulling the code examples, and we're inserting those in.
+
+00:15:09.000 --> 00:15:14.000
+We can watch that in real time. And it's all, like, using WebSockets under the hood, so it's also just, like, a really.
+
+00:15:14.000 --> 00:15:20.000
+Clean architecture. And Archon itself, it's just a tool where you could just dive into the code.
+
+00:15:20.000 --> 00:15:28.000
+And learn a lot from that, even. Um, and that's kind of, like, the ethos that I've always had, even with Archon version 1.
+
+00:15:28.000 --> 00:15:35.000
+Way back in the day, is, like, I wanted to build it as a tool to educate as well. And it's not, like, the focus as much for Archon now, like.
+
+00:15:35.000 --> 00:15:47.000
+We really are, like, focusing on just making it, like, a really kick-ass tool, but, like, that still is a big part of it, is, like, you can go and… in the code in Archon, like, learn a lot about RAG strategies, and WebSockets, and…
+
+00:15:47.000 --> 00:16:00.000
+You can see how Sean has built an incredibly beautiful UI, and, like, what the different React components are, and things like that, too, so… Yeah, it's just so cool. Um, and then, yeah, I'll kind of leave it at this, like, this will go for a little bit, obviously, because, I mean, there's…
+
+00:16:00.000 --> 00:16:08.000
+Quite a bit of pedantic AI documentation.
+
+00:16:08.000 --> 00:16:16.000
+Oh, yeah, yeah. Yeah.
+
+00:16:16.000 --> 00:16:17.000
+Mm-hmm.
+
+00:16:17.000 --> 00:16:23.000
+Maybe, maybe pull up… maybe go… maybe go to the other… one of the other ones and pull up one of the code examples so they can see, kind of, like, what it actually crawls, and then… so you can see what the AI is doing. Some of it, we still need to work on the formatting and stuff, but… Um, it's actually pulling out snippets and stuff and logical blocks to help your coding assistant find the right things. Now.
+
+00:16:23.000 --> 00:16:38.000
+Somebody asked one question, what is the one-liner for Archon? And I would say it's your… Ponzex Engineering Hub that bridges you and your coding, um, IDE, whether it's cloud code, whether it's cursor, whether it's.
+
+00:16:38.000 --> 00:16:39.000
+Mm-hmm.
+
+00:16:39.000 --> 00:16:45.000
+Quen 3 CLI, Geminol CLI, it's an MCP server that allows you to set all the context your ID needs.
+
+00:16:45.000 --> 00:16:54.000
+And have it work. Um, one of the reasons why I wanted to do this, and.
+
+00:16:54.000 --> 00:16:55.000
+Okay, good.
+
+00:16:55.000 --> 00:17:10.000
+Create this, and, you know, somebody's calling me right now. Apologize for that. Um, the, uh, is because… a lot of my frustrations with coding IDs and stuff like that, I… so my background, I come from… Um, somebody mentioned Agile. I used to be an Agile consultant. I've spoken at conferences, I've, um…
+
+00:17:10.000 --> 00:17:16.000
+I've, uh… I have a very diverse background, starting from the military and the Marine Corps, getting into technology.
+
+00:17:16.000 --> 00:17:23.000
+Um, I worked in the corporate world for a long time. I've been a program manager on programs that are as high as.
+
+00:17:23.000 --> 00:17:43.000
+Half a billion dollars, $500 million technology initiatives. Um, I've… I've worked for very large companies in this space. I also have ADHD, so… Um, I left the corporate world to… because I'm just interested in too many things. I own multiple businesses now. Level Method is a health and fitness business.
+
+00:17:43.000 --> 00:17:49.000
+Um, we do CB… medical… medicinal-grade CBD extraction with one of my businesses and a lab up in Oregon.
+
+00:17:49.000 --> 00:17:53.000
+Um, we also have Polar Bold CBD, which is our retail brand for people.
+
+00:17:53.000 --> 00:18:07.000
+Um, but my passion lies in… Usability and… and… and human-AI interaction when I started getting into AI space. I started getting into just learning to see how it can help my business.
+
+00:18:07.000 --> 00:18:17.000
+Um, and I became passionate about. People really teaching people, and that's why I got connected with Cole, and this community's been great. I've met a lot of you through the community.
+
+00:18:17.000 --> 00:18:22.000
+And, um, so now, when it comes to user experience and user design.
+
+00:18:22.000 --> 00:18:28.000
+Um, I've worked with Alan Cooper, uh, who wrote the book Inmates Are Running Asylum. He was one of the.
+
+00:18:28.000 --> 00:18:37.000
+Founders of user-centered design, um, personas. Is, uh, if you've heard of the word personas and use of that, he was a big champion of that.
+
+00:18:37.000 --> 00:18:45.000
+You know, I put a sport on NBC Sports for 3 years called Grid, not just put the sport, I helped create the sport, I created all the technology.
+
+00:18:45.000 --> 00:18:57.000
+I've done things from live TV, to film to… every industry you can name of. And so, without ADHD's been fun, um… But that's my background, uh, if that helps.
+
+00:18:57.000 --> 00:19:10.000
+And what I wanted to share, too, a little bit is… My diving into AI, where I think you and UX and user experience is just the experience people have, and it needs to be a good experience even if it's an agent, right? Even if there is no beautiful-looking user interface. And so…
+
+00:19:10.000 --> 00:19:14.000
+Mm-hmm.
+
+00:19:14.000 --> 00:19:28.000
+If I can distill everything I've learned from. All of this. The golden rule, like, when I got into writing and was doing writing for a while, all the famous writers said, you need to be a reader first. So, what I would tell you guys, if you want to build good user experiences.
+
+00:19:28.000 --> 00:19:31.000
+Be a user first. And what I mean by that is.
+
+00:19:31.000 --> 00:19:37.000
+Being an analytical user, like, look at tools and see what you like about using them, see what you don't like, take notes.
+
+00:19:37.000 --> 00:19:50.000
+Um, because you really… and build something for yourself, because you're the ultimate persona, right? And… you can kind of do things that way. But what I want to do is kind of talk about some user interface, and we can.
+
+00:19:50.000 --> 00:19:53.000
+If you want to stop sharing, I can share my screen.
+
+00:19:53.000 --> 00:19:54.000
+Um… oh, go ahead. Oh, yeah, go ahead, give the demo, give the demo. Go ahead.
+
+00:19:54.000 --> 00:20:03.000
+I even want to give a demo before you, uh, continue on, Sean, because I… Yeah, because I wanted to do that quick, and then I want to hand it over to you pretty much for the rest of the workshop.
+
+00:20:03.000 --> 00:20:11.000
+Um, but I mean, yeah, thanks for sharing that, though, Sean, because, I mean, there's a reason why when Sean reached out to me, and he's like.
+
+00:20:11.000 --> 00:20:19.000
+I'm… I want to help you with Archon. Like, a lot of people have told me that, but… I just latched onto Sean very quickly, um, and, like.
+
+00:20:19.000 --> 00:20:26.000
+We formed a pretty awesome relationship as we just started to dive into Archon. So, I've always been impressed with Sean and his philosophy.
+
+00:20:26.000 --> 00:20:34.000
+And, um, that's why I wanted to go, like, all in on this with him. And so, that's what we're doing now. And, like, obviously, this is gonna be, like, a massive community project.
+
+00:20:34.000 --> 00:20:40.000
+For Dynamus and beyond, but… Like, he and I are kind of, like, really kicking it off for everyone, so.
+
+00:20:40.000 --> 00:21:06.000
+Yeah, uh, that's why I wanted to say there. Thank you, Sean. Um, and yeah, the last thing that I wanted to show just is the demo really quickly, which this is almost done processing, and then I'll be able to give the demo. I need this to be done here. I probably should have recrawled something else, because I wanted to… show a pedantic AI specifically, but yeah, the last thing I'll show is the MCP server. You manage this from the dashboard as well. So, like, if you're changing your environment variables or anything.
+
+00:21:06.000 --> 00:21:11.000
+Like, changing your configuration, you can just stop and restart the server, and you can even view the logs for the MCP.
+
+00:21:11.000 --> 00:21:16.000
+Directly here as well. And then there's… instructions here, which we'll expand this to other.
+
+00:21:16.000 --> 00:21:21.000
+Coding assistance as well, where there's instructions for how you can connect Archon.
+
+00:21:21.000 --> 00:21:29.000
+Very simply to your AI coding assistant. Like, this is, uh, how we connect it for Claude code. So I can just, like, copy this line.
+
+00:21:29.000 --> 00:21:40.000
+I can go into my Cloud code. And I can just paste this in. And, uh, I already did that, so I'm gonna delete this line here, but I've added Archon as my MCP server.
+
+00:21:40.000 --> 00:21:50.000
+And so I can go into Claude now, and the other, the other, like, really, really big thing that I want to focus on for this demo, and I'll keep this demo pretty short as well, because I definitely want to give Sean as much time as possible.
+
+00:21:50.000 --> 00:21:58.000
+The other big thing I want to focus on here is that Archon works extremely well with the PRP framework.
+
+00:21:58.000 --> 00:22:04.000
+Which has been, like, a very big focus for us as a community here with what Rasmus has been sharing with his framework, and just our.
+
+00:22:04.000 --> 00:22:10.000
+Methods for context engineering that we've been talking about and covering in workshops, and I've been talking about on my channel as well.
+
+00:22:10.000 --> 00:22:16.000
+Because the PRP framework is all about providing. The context, like.
+
+00:22:16.000 --> 00:22:21.000
+Examples and documentation and talking about validation loops or validation gates.
+
+00:22:21.000 --> 00:22:27.000
+But there's not as much for RAG here, and REG is a very important part of.
+
+00:22:27.000 --> 00:22:38.000
+Context engineering. Same thing with task management, and that's what Archon does. So it's, like, very… And it goes along very well with the PRP framework, and I'm actually going to be showing that in this demo really quick, which.
+
+00:22:38.000 --> 00:22:44.000
+If you guys know Claude Code, it goes for, like, 35 minutes when you ask it to do something, so I'm not gonna be able to show the full demo here.
+
+00:22:44.000 --> 00:22:51.000
+But I can show what it looks like, too. We'll actually execute a PRP, and I've had prepared ahead of time.
+
+00:22:51.000 --> 00:23:02.000
+Um, and we can just see it in action here, so let me… PRPs… multi-agent research, email, it's just an agent that, um… I actually built, like, for my channel recently.
+
+00:23:02.000 --> 00:23:11.000
+So I took the… base of the repo, where, like, I just have the PRPs set up already, and then I've got my slash commands.
+
+00:23:11.000 --> 00:23:16.000
+Um, so I don't, like, want to dive into the framework a ton right now, but I'm executing this PRP.
+
+00:23:16.000 --> 00:23:23.000
+And what I've done in my global rules. Is I've just copied over the thing that we had in the Archon UI. If I go back to the settings here.
+
+00:23:23.000 --> 00:23:33.000
+I just clicked here, copied the Claude code rules here. Added that into my klon.md, along with all the other rules that I already have for other things. You just kind of, like, tack this on.
+
+00:23:33.000 --> 00:23:37.000
+And now we're telling Cloud Code how to use Archon. So we just connect Cloud Code.
+
+00:23:37.000 --> 00:23:41.000
+Update the rules to tell it how to use it, and then boom, we're good to go.
+
+00:23:41.000 --> 00:23:46.000
+And also, let me go to the knowledge and see if we have, um… crawled here.
+
+00:23:46.000 --> 00:23:54.000
+Um, okay, we got our code examples here, which, by the way, for code examples, Sean did a fantastic job of just showing, like.
+
+00:23:54.000 --> 00:23:58.000
+You can click in here and you can see. All the different examples.
+
+00:23:58.000 --> 00:24:04.000
+Um, like, we got the whole stream whale data example, which I'm actually very familiar with from the documentation.
+
+00:24:04.000 --> 00:24:11.000
+In financial AI. So, yeah, these are, like, examples that it'll pull through RAG, just as it's building something. It'll find things that are.
+
+00:24:11.000 --> 00:24:16.000
+Similar in the documentation and use that as a reference implementation.
+
+00:24:16.000 --> 00:24:27.000
+And, I mean, it looks like we got, like, a little bug in the UI. So, like, there's little things like that, because it is an alpha release, but… It's… I mean, it works, and, like, this is fantastic, so we can literally use this now, so…
+
+00:24:27.000 --> 00:24:34.000
+Going back to the depth. Right.
+
+00:24:34.000 --> 00:24:35.000
+Yep, yeah, I mean, that's how it goes, but yeah, let me execute this here.
+
+00:24:35.000 --> 00:24:38.000
+Yeah, we literally did a merge and pushed the repo up right before this call, so that was working just a few minutes ago. We'll get it cleaned up, but um…
+
+00:24:38.000 --> 00:24:45.000
+So we'll see what it looks like for it to, like, actually create a project and define tasks, and it'll start doing some research by.
+
+00:24:45.000 --> 00:25:01.000
+Performing REG, so… Alright, I guess it wants to do a health check first, so I'm just gonna approve all the tools that it wants to use here.
+
+00:25:01.000 --> 00:25:02.000
+Yeah, I was getting API errors right before.
+
+00:25:02.000 --> 00:25:11.000
+Which, by the way, this is a risky demo right now, because Claude and Anthropic, they're just having a lot of issues right now. Like, if you go… if you… Yeah, it's not… it's not looking good. So, we'll see if this demo works, but if it doesn't, it won't be Archon's fault, it'll be, uh, Anthropic's fault.
+
+00:25:11.000 --> 00:25:17.000
+But, okay, so, yeah, so now it's calling the MCP tool to list the projects that we have here.
+
+00:25:17.000 --> 00:25:28.000
+Which, uh, I wanted to just make a new one here, so… I might have to interrupt and tell it to you, just because I already have a project for this agent, so that would be my fault, but we'll see what it does in a second here. Yeah, it says there's already a project called.
+
+00:25:28.000 --> 00:25:30.000
+Yeah, as he had found it already.
+
+00:25:30.000 --> 00:25:40.000
+Yeah, which is all good, because, um, here's, like, literally what I can do is, like, I'll just say no, I'll say, make a new project for me.
+
+00:25:40.000 --> 00:25:59.000
+Um, and continue. There we go. And, uh, I'll actually pull up my… Archons, we can see this in real time, so… We'll see this in a second here. There we go. Alright, we have our new project. So this is the old one that I had when I was testing this earlier. It's just, like, the same agent, but then here's our new one.
+
+00:25:59.000 --> 00:26:04.000
+So there we go, made a new project for us, and then in a little bit here, it'll start adding some tasks.
+
+00:26:04.000 --> 00:26:10.000
+And there's quite a few tool calls, like MCP calls, that have to happen.
+
+00:26:10.000 --> 00:26:29.000
+For it to make all these tasks and perform all these RAG queries, but overall, it doesn't actually take that many tokens. So, like, Archon… definitely, like, you have to be patient as the AI coding assistant will, like, use the MCP tools for REG and for task management, you have to be patient, but, like, it doesn't actually take that many tokens.
+
+00:26:29.000 --> 00:26:41.000
+Like, it's only, like, a couple hundred tokens every time it wants to perform an action, which is really not that much in the grand scheme of things, and it takes a little bit for sure, but… I mean, the results speak for themselves. Like, it's definitely worth waiting.
+
+00:26:41.000 --> 00:26:44.000
+And that's kind of generally. What people are…
+
+00:26:44.000 --> 00:26:49.000
+Did you want to pull up the UI to see, uh, as it's doing stuff, it should… or… I don't know, just the… Yeah.
+
+00:26:49.000 --> 00:27:00.000
+Yeah, well, it's doing… well, it's doing REG first, now it's creating the task, so I'll show the UI in a second, but yeah, I mean, right here, you can see that it was performing RAG queries with the Podantic AI documentation.
+
+00:27:00.000 --> 00:27:07.000
+So, doing everything, searching in the knowledge base behind the scenes with what we had just crawled with Podantic AI, or I guess in my case, I re-crawled.
+
+00:27:07.000 --> 00:27:15.000
+Now, now it's creating the tasks here, so I will… say yes, and then I'll go back to the UI.
+
+00:27:15.000 --> 00:27:17.000
+And then we'll just see the tasks start to pop up.
+
+00:27:17.000 --> 00:27:21.000
+In real time here. There we go. Alright, step one, configuration environment.
+
+00:27:21.000 --> 00:27:32.000
+And then, uh, it'll probably do another one as well. Well, I don't… sometimes it'll create… yeah, okay, there we go. So it's creating them all at once here, so now we want to implement the brave search tool.
+
+00:27:32.000 --> 00:27:48.000
+And then there'll probably be a task for implementing the Gmail tool. Yep, there we go, I guessed it right, there we go. So, it's building all the tasks in real time here, and the beauty of it, like I was saying earlier, is we can, like, go in, and we can edit this. Like, we can look at the description and see, like, if it got anything wrong in its research, or if there's something that wasn't.
+
+00:27:48.000 --> 00:27:54.000
+Like, reference correctly in the PRP, like, we can edit this in real time. So by the time it actually goes back to.
+
+00:27:54.000 --> 00:28:00.000
+Grab this task, and you know, like, move it to in-process and start implementing it, it'll take in that context from us.
+
+00:28:00.000 --> 00:28:09.000
+And then also, like, the task management here is just beautiful to go, like, working in between sessions as well. Like, I can… totally wipe the conversation with Cloud Code.
+
+00:28:09.000 --> 00:28:15.000
+Come back in and tell it to just look at the Kanban board to figure out what to do next, and to pull the context for that. So, like.
+
+00:28:15.000 --> 00:28:24.000
+The tasks plus the whole PRP, that's, like, all the context we need for the AI coding assistant to pick up where it left off, even if I completely clear the conversation.
+
+00:28:24.000 --> 00:28:29.000
+And so that's just, like, another way that, like, the whole PRP framework works really well.
+
+00:28:29.000 --> 00:28:43.000
+With the… the whole thing that we got going on here with Archon, and, like, a lot of these descriptions, we… like, it… understands what to put here, like testing the happy path, edge cases, errors, ensure 80% coverage, like, this is coming from the PRP.
+
+00:28:43.000 --> 00:28:48.000
+And so that is providing all the context. It's, like, also dictating the tasks that it creates for us here.
+
+00:28:48.000 --> 00:28:53.000
+Um, so, yeah, it's pretty cool. And, oh, I've reached my Opus limit already.
+
+00:28:53.000 --> 00:29:01.000
+Which, I'm actually not on the $200 a month plan, I'm on the $100 a month plan right now, which is why I reached the limit so fast, and Anthropic is just, like.
+
+00:29:01.000 --> 00:29:06.000
+Being really picky about that now, but… yeah, so, I mean, that's pretty much everything I wanted to cover for the demo here.
+
+00:29:06.000 --> 00:29:14.000
+Because most of what happens with Archon is up front. When you first start a project or a new feature in existing codebase, when it's.
+
+00:29:14.000 --> 00:29:24.000
+Performing reg, to, like, understand the documentation, it's creating the project and the tasks. I mean, obviously, as we keep going here, it'll move things in process and review and complete, like it did with our first.
+
+00:29:24.000 --> 00:29:28.000
+Step right here. So, like, that happens throughout the whole thing.
+
+00:29:28.000 --> 00:29:34.000
+And then in the end, it'll just look something like this, right? Where you just have all the tasks that are complete, but I don't need to show the whole thing right now.
+
+00:29:34.000 --> 00:29:48.000
+Um, because, like I said, up front is, like, really where we see most of Archon happen. So, yeah, I mean, you guys have really seen it in action here, and it's pretty simple overall, like, it's pretty easy to set up, and Sean has this beautiful UI to make it easy for you to configure things, and then the way that you.
+
+00:29:48.000 --> 00:29:55.000
+Plug it in. It's just so simple, because you add in these global rules, and now your coding system knows how to do everything that I just showed you here, and.
+
+00:29:55.000 --> 00:30:12.000
+Yeah, it's just, like… the RAG plus task management just makes such a huge difference in the result that we get with whatever we want to code. This applies to anything we want to code. And I've tested this, like, I've built the exact same thing with Archon and without Archon, just to, like, really validate, like, is this actually…
+
+00:30:12.000 --> 00:30:20.000
+Like, are we actually building something useful here? And the answer is very clearly yes, from all the testing that I've done, so… Yeah, I'm gonna go ahead and…
+
+00:30:20.000 --> 00:30:36.000
+So there's a… yeah, there's a lot of questions, so I'll kind of go through and address some of those. Can you pause the entire process right now? Um, yeah, you can… pause Claude, and it'll stop adding tasks, right? But the… part of the reason for why I… I wanted to build this is…
+
+00:30:36.000 --> 00:30:48.000
+I don't know if you guys, but when Claude creates tasks, you're like, okay, cool, work on them, and it starts working on them, and then it hallucinates and goes off somewhere else, and I'm like, stop, go back to the tasks, and then it's like.
+
+00:30:48.000 --> 00:30:49.000
+Yeah.
+
+00:30:49.000 --> 00:30:55.000
+I don't know where I'm at, and I'm like, I don't know where you're at. Like, what the hell's going on right now? So, part of the reason for this was to just have me have visibility over Claude.
+
+00:30:55.000 --> 00:31:08.000
+Who is my employee, in a way, doing something for me, and I just want to see what it's doing. Um, so that was kind of the reason for that. Um, the numbers in the board are the priority order, so when you drag and drop.
+
+00:31:08.000 --> 00:31:14.000
+Uh, I gotta look at the MCP and why it's just adding certain numbers. I don't know why it's putting in numbers. It should be automatically generated.
+
+00:31:14.000 --> 00:31:21.000
+Um, can you control progress across the combine? Yeah, if you just drag it and move it to a different state, it will move it and change the state.
+
+00:31:21.000 --> 00:31:22.000
+Yep.
+
+00:31:22.000 --> 00:31:28.000
+Um, as far as task dependencies, I wanted things to be… the task management is super simple.
+
+00:31:28.000 --> 00:31:36.000
+There is the ability to do subtasks, but I removed it for now, because in practice, we weren't using a lot, and I think it overcomplicated things a little bit.
+
+00:31:36.000 --> 00:31:42.000
+But all I did in the task repo was just add a parent task ID to tasks.
+
+00:31:42.000 --> 00:31:48.000
+So, if a task has a parent ID, it's now a subtask. It's a pretty simple thing we can re-implement.
+
+00:31:48.000 --> 00:32:01.000
+Um, some people have asked about… so it's using Supabase, some people asked about local. Local shouldn't be a problem. Um, it's… it's… you just connect… to, um, your database, and, uh.
+
+00:32:01.000 --> 00:32:06.000
+Um, if you haven't… somebody was asking about graphs, too, and that's… we'll get into some of that. It's really exciting, but I do want to cover the UI, but I do have a whole UI built out.
+
+00:32:06.000 --> 00:32:10.000
+Yeah, yeah.
+
+00:32:10.000 --> 00:32:17.000
+For knowledge graphs, and the work that, um… uh, Cole's been doing in the graph rag stuff.
+
+00:32:17.000 --> 00:32:25.000
+Um, I already have the UI built out, we just need… we just need to release this, and hopefully get more people in the community involved and contributing.
+
+00:32:25.000 --> 00:32:27.000
+And then now we're gonna build… so there's a lot coming.
+
+00:32:27.000 --> 00:32:33.000
+Um, and what I want to do, because somebody, uh, thank you for your nice comments on the UI and stuff, but somebody said.
+
+00:32:33.000 --> 00:32:45.000
+You know, was really brave to push up right before this demo, and somebody said, we're all family here. And I feel that way, too. Like, I hope you guys feel… Um, I just feel a lot of us, like, we're all in this together, we're all here to help each other out, um.
+
+00:32:45.000 --> 00:33:02.000
+As far as this UI, and let me share a few things. So, I am… I know I do look a little younger than I am, but, um, I am a… Sport in the 70s, I am an 80s… uh… kid, and so Tron was my inspiration for this user interface.
+
+00:33:02.000 --> 00:33:18.000
+Um, now, talking a little bit about user interfaces. To me, is… it needs to be… if you notice, I like physical things. I like… I like to write, and I like to interact with physical objects, so I like user interfaces to be intuitive like that.
+
+00:33:18.000 --> 00:33:24.000
+For me, and I like to have information, so that's why you see things will… you can, you know, drag and drop.
+
+00:33:24.000 --> 00:33:35.000
+Move things around. Um, you know, just be really intuitive. I don't have any tasks in that project there, right? So just being able to drag and drop. And there's things.
+
+00:33:35.000 --> 00:33:43.000
+You don't… you shouldn't be able… you can just look, like, oh, what's this? Oh, I… oh, look, the details are on the back. I just clicked and I flipped, and oh!
+
+00:33:43.000 --> 00:33:57.000
+Task ID, now I can copy this by clicking it and just paste it into Claude if I want it to go into… just go look up this task, and… fix this task, right? There's… Little things in here that I hope you will find are useful as you just start using it.
+
+00:33:57.000 --> 00:34:01.000
+And that's where I go back to this philosophy of, like.
+
+00:34:01.000 --> 00:34:12.000
+If you try to build a tool for somebody else that you're not gonna use, it's gonna be… very difficult, you know, to get it… the UI really intuitive and useful, you kind of got to be a user first.
+
+00:34:12.000 --> 00:34:19.000
+Um, so now, in user interface design too, right? Like, you'll notice there's some very purposeful things I did here.
+
+00:34:19.000 --> 00:34:37.000
+There's the background. So with glass morphism, a lot of times it just looks like gray, so I wanted this notion of a background, which is these things you're interacting with on the page are just kind of thrown up there, and you can move them around, and it just gives the feeling that these are more physical things.
+
+00:34:37.000 --> 00:34:43.000
+Um, also, you notice visually, I know which one's selected, it's very colorful, everything's shaded out.
+
+00:34:43.000 --> 00:34:50.000
+Um, I could even copy the project ID right here, just click copy, and get it, and give it to Claude to go look up the project.
+
+00:34:50.000 --> 00:34:59.000
+Um, with the crawling, right? Now, this is a different thing, but information is very powerful in people understanding the stuff behind the scenes, like.
+
+00:34:59.000 --> 00:35:11.000
+By the way, like, a lot of this stuff. Cole built a long time ago, and I just was looking at it, and I'm like, this does some amazing things if we just put a UI on it, people could see it. Like, when I watched it crawl, I'm like, man, it's doing some crazy stuff.
+
+00:35:11.000 --> 00:35:16.000
+Ai coding assistant in your reference.
+
+00:35:16.000 --> 00:35:17.000
+I think it's someone that didn't mean to be, uh, mute, so you're good to go.
+
+00:35:17.000 --> 00:35:28.000
+So that's why you see the re-crawls. Oh. Does somebody have a question? Oh, um… Oh, okay. But you can also, um, re… like, so I started using MilkDown Editor, right? And if you want to crawl, you can just click Recrawl and have it go through.
+
+00:35:28.000 --> 00:35:40.000
+Um, and then as it's, uh, working, it might be a little delay right here, right now, if you notice, if you click off the screen, we have things running in background tasks, so when you click back.
+
+00:35:40.000 --> 00:35:44.000
+Um, you actually, it'll refresh, and you can see where it's at in the process.
+
+00:35:44.000 --> 00:35:57.000
+Although it didn't… there it is. So it'll… it'll… you'll… you can have multiple things going, they run in the background, but the user always is informed of what's going on, right? Like, that's the feedback. Now, if you're building agents.
+
+00:35:57.000 --> 00:36:04.000
+This is called Human in the Loop, so if the agent's working on something, you should be able to see progress and feedback. This gives users comfort that.
+
+00:36:04.000 --> 00:36:10.000
+It's doing something, not, is it broken, right? And so, the interaction and feedback that you see in user interfaces.
+
+00:36:10.000 --> 00:36:19.000
+Is really important, and if you can get really good at building user interfaces that don't have AI, now when you have agents interact and build together, you can just have.
+
+00:36:19.000 --> 00:36:28.000
+Them interact together. Um… Any question… I'm not looking at chat, I don't know if anybody has any questions. I wanted this to be open and answer any questions about.
+
+00:36:28.000 --> 00:36:29.000
+Yeah.
+
+00:36:29.000 --> 00:36:42.000
+Ideas or things people have, or things we want to show, or anything about UX, UI, design, um… Oh, okay.
+
+00:36:42.000 --> 00:36:43.000
+Oh, and… light mode.
+
+00:36:43.000 --> 00:36:52.000
+Yeah, and I'm trying to answer some questions as they come into the chat as well, but um… Yeah, uh, there are a couple, though. Like, um… So, Thomas was asking about… oh yeah, light mode is really cool, too. I mean, I prefer dark mode, but also the light mode is really slick.
+
+00:36:52.000 --> 00:37:02.000
+Um, yeah, so Thomas had a question. Would it be impossible to enhance the PRP with tunnels slash subtunnels? I'm not sure if this applies specifically to Archon.
+
+00:37:02.000 --> 00:37:12.000
+I was just throwing this one out here. Um, that would enable parallel dev for the PRP, which I'm gonna… Thomas, I'm gonna take your question and kind of, like, apply it to Archon here.
+
+00:37:12.000 --> 00:37:19.000
+Um, Sean, how well does… and this is something we have to build out, how well does Archon work if we're, like, developing.
+
+00:37:19.000 --> 00:37:24.000
+Multiple projects at the exact same time. Like, maybe we have two instances of Claude code.
+
+00:37:24.000 --> 00:37:29.000
+That are each working on a different PRP for, like, a different feature of the codebase. Like, would it work well for it to be using the MCP server?
+
+00:37:29.000 --> 00:37:35.000
+Yeah, I've done that. I've used cursor using Archon, while Cloud Code is using Archon, two different agents on two different projects.
+
+00:37:35.000 --> 00:37:37.000
+Nice.
+
+00:37:37.000 --> 00:37:48.000
+Um, it… it… because it's an MCP server, right? And that… Archon is really your interface. The UI is your interface to just see what's going on with all these other things, right?
+
+00:37:48.000 --> 00:37:59.000
+And so, it's your control command center, right, for all the stuff going on. And that's why it's not being really used yet, but if you look at the task management, um, there is the notion.
+
+00:37:59.000 --> 00:38:05.000
+You can assign to Archon or your IDE, um, if I go to a project that actually has some tasks.
+
+00:38:05.000 --> 00:38:16.000
+Um, you know, you have the notion of Archon IDE, because we can eventually add things like, once you schedule it, or it can actually kick off a task or do something.
+
+00:38:16.000 --> 00:38:32.000
+The other thing, and what's interesting, what's coming soon, and you would think this is kind of funny, this release has really no AI built into it except in the backend, we do have the ability… I did build the user interface for the knowledge chat panel, and it's got a pedantic AI Agent background.
+
+00:38:32.000 --> 00:38:41.000
+But it's… it's not, uh, it's not working. Great yet, because I was focusing on the UI. But the ability here is to connect it to the same MCP.
+
+00:38:41.000 --> 00:38:50.000
+And then you could ask and discuss with your RAG, but then you could even also say, hey, can you add this task? And when it adds the task, you'll actually see it pop up across the board here, too.
+
+00:38:50.000 --> 00:39:00.000
+So, I want people to feel physically first, you know, play around with Archons, see your workflow, see how you work things, and then… and then have the assistant sort of augment with you as well.
+
+00:39:00.000 --> 00:39:15.000
+Um. So yeah, so you can use… and the other thing is why I use hosted Supabase instead of local, because multiple people can work on the same platform. So, if you have multiple developers, like, for my different companies, I have different developers in different areas.
+
+00:39:15.000 --> 00:39:26.000
+I'm getting them to use Archon, and now we're using the same task board and the same crawl documents, and we just connect our Archon to the same Supabase, and we can work on it together.
+
+00:39:26.000 --> 00:39:27.000
+Um, so there's a lot of things that you can do from there, too.
+
+00:39:27.000 --> 00:39:37.000
+Loved it, yeah. Yeah, that's good. Also, it's really cool to see that you have projects in Archon for working on Archon, right? Like, it shows that you're actually using it. Yeah, that's so cool.
+
+00:39:37.000 --> 00:39:50.000
+Yeah, yeah. Well, I finally cleaned this out, but I cleaned it out because the context was getting too large, but in the done task, there was something like 160 done tasks before I cleaned it out for this demo, so…
+
+00:39:50.000 --> 00:39:51.000
+Wow. Yes.
+
+00:39:51.000 --> 00:40:02.000
+Yes, I… and… but that was… I needed to use it to improve the user experience, right? Like, again, my first principle is be a user.
+
+00:40:02.000 --> 00:40:03.000
+Mm-hmm.
+
+00:40:03.000 --> 00:40:10.000
+If you want to design good user experiences, be a user and say, well, this sucks. Oh, wait, I could change it. You know, so… Um, yeah, so if I wouldn't use it, I wouldn't be eating my own dog food on, you know, user interface design.
+
+00:40:10.000 --> 00:40:11.000
+Um, the other thing I'll show you, by the way, and when I say I built this user interface and I'm trying to give, like.
+
+00:40:11.000 --> 00:40:16.000
+Right.
+
+00:40:16.000 --> 00:40:27.000
+My best to the community and to Archon and everybody, not just something I wanted to build. I'm actually using this for my business apps, right? So I've built a, um… a complete… this is, as you can see, on the same.
+
+00:40:27.000 --> 00:40:39.000
+And you guys can take this code and use the Docker container and build this in your own apps. This is open source, this is what I'm giving to everybody, so don't just look at it as Archon if you're interested in user interfaces and stuff.
+
+00:40:39.000 --> 00:40:50.000
+Learn from it, use it, let Claude build your own things. But, um, it's… everything's the same here. I have, like, a planning module for, um, doing our project management and our resource management.
+
+00:40:50.000 --> 00:40:56.000
+I've even built a, um… because this is for my, uh, cannabis company, an app called Cana Do It?
+
+00:40:56.000 --> 00:41:04.000
+Which is a task tracking tool which allows people to just log their updates and complete their tasks and get XP points and stuff like that.
+
+00:41:04.000 --> 00:41:17.000
+But yeah, I mean, I'm… and you know, I have the same chat over here, um, but… Yeah, this is also Archon can be something for you guys to use to play around with user experiences if you want to play around and get into that type of stuff.
+
+00:41:17.000 --> 00:41:21.000
+Uh, there's a lot of cool things to do there. Any other questions, or…?
+
+00:41:21.000 --> 00:41:23.000
+Sweet. Yeah, I mean, I can read off a couple more to you.
+
+00:41:23.000 --> 00:41:25.000
+Things people want to see? Yeah.
+
+00:41:25.000 --> 00:41:30.000
+Yeah, um, Benedict asked what you use to handle background tasks.
+
+00:41:30.000 --> 00:41:32.000
+Like, when you have the crawling going in the background, how's that working?
+
+00:41:32.000 --> 00:41:41.000
+So I'm just using FastAPI right now. We could use Celery, or, you know, Redis and Celery, right?
+
+00:41:41.000 --> 00:41:50.000
+There are things… well, and that's where, like, just to be super clear, I'm not a Python… And back-end isn't my forte, you know.
+
+00:41:50.000 --> 00:41:57.000
+Uh, somebody said they're a product manager. I would consider myself, even though I've built software before, more in the product management.
+
+00:41:57.000 --> 00:42:08.000
+Space, um, even though I can code. I mainly code with AI assistants and stuff, so there are things that I am aware of that I'd love to implement, but just didn't either have the time to, or.
+
+00:42:08.000 --> 00:42:19.000
+I'd love for everybody else in the community, if they have other ideas to improve it, like, we can… our con can be our thing, we can all make it our own, make it better for everybody, and um… you know, contribute, and that's why I'm…
+
+00:42:19.000 --> 00:42:33.000
+I'm really excited to announce this to you guys more than publicly or anything, because I think it's… A lot of you guys in seeing your discussions of what you guys have been trying to solve and do were some of the fuel for what I put into this, even if you didn't know it, so…
+
+00:42:33.000 --> 00:42:37.000
+That's awesome, yeah, and that's the beauty of community, for sure. Yeah, I appreciate that, Sean.
+
+00:42:37.000 --> 00:42:49.000
+Um, Jeffrey asked about deploying this to Kubernetes. Which, I don't know if, like, we have that kind of… we don't really have deployment in mind for Archon yet. Like, right now, it's meant to be run locally.
+
+00:42:49.000 --> 00:42:50.000
+Local.
+
+00:42:50.000 --> 00:42:57.000
+Like, you run it yourself, and you plug it into your AI coding assistance, though… We do have that in mind at some point.
+
+00:42:57.000 --> 00:43:05.000
+To make it where, like, you can host Archon in the cloud. And we're already halfway there, because we're using Supabase for everything.
+
+00:43:05.000 --> 00:43:08.000
+Even storing credentials, like your OpenAI API key. And by the way, we do handle… we do handle encryption for that.
+
+00:43:08.000 --> 00:43:11.000
+Oh, yeah.
+
+00:43:11.000 --> 00:43:14.000
+Um, super important to call out, like, it's all safe. We have encrypted values.
+
+00:43:14.000 --> 00:43:22.000
+Yeah, so you're… the only thing, um… It decrypts for you locally, but you can turn this off, um, if you have a secret value, um, but it is stored encrypted in the database.
+
+00:43:22.000 --> 00:43:27.000
+Mm-hmm.
+
+00:43:27.000 --> 00:43:40.000
+And you can add your own credentials here into the settings. There's even RAG settings. If you look in the backend, all of this… and I made… even on the back end, I tried to make things really extensible, like using JSONB fields or settings fields.
+
+00:43:40.000 --> 00:43:44.000
+And having a category type, so if you want to add settings for different things.
+
+00:43:44.000 --> 00:43:50.000
+You don't have to make database changes. Um, you can just add it in there with a different category type, and then.
+
+00:43:50.000 --> 00:43:51.000
+Yep.
+
+00:43:51.000 --> 00:43:59.000
+Code to use it, right? So the… really, there's a lot of that thought that went into make this not just a one-trick pony or hard-coded.
+
+00:43:59.000 --> 00:44:11.000
+But a lot of extensibility that you guys can do. And I built it that way because I used it for the basis to build all my business apps, so you guys can do that, too. Contribute to Archon, but use it as a basis to build other things.
+
+00:44:11.000 --> 00:44:17.000
+Yeah, that's awesome. And also, you're speaking to something else that I don't think we've emphasized enough here, is that, like.
+
+00:44:17.000 --> 00:44:35.000
+Especially, like, with the work you've been doing, Sean. Just making it really easy for people to come in and contribute, because, like, we very much want this to be a community-driven project. So we have the whole docs page that I was showing earlier that Sean has created, which also has a lot of, like, best practices for if you want to implement new things in Archon.
+
+00:44:35.000 --> 00:44:40.000
+We have, you know, everything that he just talked about here with making it really easy to add a new category.
+
+00:44:40.000 --> 00:44:47.000
+Of, uh, settings without having to do database changes, because database changes are always the hardest thing.
+
+00:44:47.000 --> 00:44:54.000
+For an open source project, it's like, everyone has to run a migration. It's super painful. Um, so, like, we're taking steps to make it so that.
+
+00:44:54.000 --> 00:45:00.000
+It's easy to contribute as well, because, like, when I say that I want to make this a dynamis-driven project.
+
+00:45:00.000 --> 00:45:05.000
+Also, like, a public project, like, I mean it. Like, I want to get as many of you guys on board as possible.
+
+00:45:05.000 --> 00:45:12.000
+Not just using it, I mean, that's awesome too, but, like, even contributing. If you guys ever find an issue, or you want a new feature, like.
+
+00:45:12.000 --> 00:45:17.000
+You can build it, and we're trying to make that as easy as possible, and you can use Archon to improve Archon.
+
+00:45:17.000 --> 00:45:22.000
+Just like how, you know, Anthropic uses Cloud Code to improve Cloud Code.
+
+00:45:22.000 --> 00:45:26.000
+Amazon uses Kiro to improve Kiro. We're using Archon to improve Archon.
+
+00:45:26.000 --> 00:45:35.000
+Um, yeah, and then, like, last thing for deployment that I just wanted to… I just wanted to wrap up that comment there, like, having everything managed in the database means that.
+
+00:45:35.000 --> 00:45:43.000
+We're not relying on, like, JSON files to manage credentials, like I was doing with Archon version 1. Like, everything is stored in a way where it's, like.
+
+00:45:43.000 --> 00:45:47.000
+I mean, we could deploy it in, like, a serverless environment, even.
+
+00:45:47.000 --> 00:45:55.000
+Well, maybe. I guess the main thing is, like, we don't have to rely on local files to, like, manage any state or credentials or anything.
+
+00:45:55.000 --> 00:45:58.000
+So it's not like it's tied to running on our own computers.
+
+00:45:58.000 --> 00:46:06.000
+Um, so at some point, we'll definitely make it so that it's, like, deployable, and maybe even having, like, a self-serve, like, hosted version, like N8N in Superbase have.
+
+00:46:06.000 --> 00:46:08.000
+That could be cool, too.
+
+00:46:08.000 --> 00:46:15.000
+Yeah, so, um, Joe asked, I think this is a good, good question of some common use cases for Archon.
+
+00:46:15.000 --> 00:46:31.000
+Kind of from a high level. Um… One is just to help you feel… Again, me having ADHD, high anxiety, and by the way, I do work a lot. I've seen some of you guys talk about that. I think I work 39 hours straight at Archon without sleeping.
+
+00:46:31.000 --> 00:46:43.000
+And… but the, uh… for me, it's like having organization, knowing what's going on all the time, because sometimes I'll let my agents work, and it'll… threw up the code base, and I don't know where to go.
+
+00:46:43.000 --> 00:46:54.000
+So for me, that was the start, and making it code things better, because how many times do you, like, give it a URL, and you're saying, the code's right here, just look up this document, and it just doesn't do it. And then Context7 helped a little bit.
+
+00:46:54.000 --> 00:47:02.000
+And it was a game changer for me, but it just… Arcon took it to that next level. Some other use cases… oh, so what tech stack is used for the UI? It's React.
+
+00:47:02.000 --> 00:47:08.000
+Um, it's just a Vite app, I didn't put Next.js or anything, because I wanted to keep it simple, but it is React.
+
+00:47:08.000 --> 00:47:13.000
+Chad Cien, so I'm a huge fan of Shad CN. By the way, Shad Sien has an MCP server.
+
+00:47:13.000 --> 00:47:14.000
+If you want to build UIs, connect to the ShadCon MCP server, it'll change your life.
+
+00:47:14.000 --> 00:47:18.000
+Hm.
+
+00:47:18.000 --> 00:47:35.000
+Um, I use magic patterns for my design, uh, Magic Patterns is an AI… I've also used, um… Polymet, uh, it's a Y Combinator company. It's… it's like, Magic Patterns are more like a Figma with AI, so you can build things, but you can make reusable components.
+
+00:47:35.000 --> 00:47:43.000
+And you can then bring that React code down using ShadCN, pull it into Claude, connect it to Python, so that's kind of my workflow there.
+
+00:47:43.000 --> 00:47:52.000
+Um, and… but some other use cases are teams collaborating on codebases, right? Being able to have, again, the.
+
+00:47:52.000 --> 00:48:09.000
+People be able to see who's working on what, and… or having multiple code… I… if you guys haven't seen my studio, I've got my la- I've got multiple servers and laptops running. If you name an ID, I have it running, I have it connected, I use Cloud Code. I'm now using Quen 3, I'm trying… I use Geminel CLI.
+
+00:48:09.000 --> 00:48:17.000
+Tapping into Quen 3, but I have multiple things going, and Archon is my, sort of, center hub to manage things, if that makes sense.
+
+00:48:17.000 --> 00:48:19.000
+Yeah, that is awesome.
+
+00:48:19.000 --> 00:48:28.000
+How much time have I put into version 2? Um, I put a lot, but because this was the base… I was gonna go build my business apps.
+
+00:48:28.000 --> 00:48:33.000
+And the mindset I had was to, hey, what if I just built something really good for the community.
+
+00:48:33.000 --> 00:48:57.000
+And then, when it's there, I can then use it. So… Yes, I've put… several hundred hours, um… into this. And… but it… and that's why, like, hopefully… and the nice notes of the way it looks and how it feels and stuff is… it means a lot to me as someone with ADHD and perfectionism mindset, because sometimes I don't want to release things.
+
+00:48:57.000 --> 00:49:07.000
+But this was a huge step for me to… to give back and just kind of see. But, um… Yeah, and so I put a lot into it, the WebSocket, the Socket.io, like.
+
+00:49:07.000 --> 00:49:15.000
+A lot of the feel, a lot of the things to it, there's a lot of things behind the scenes you don't see that I probably spent 20, 30 hours working on that you may never notice.
+
+00:49:15.000 --> 00:49:23.000
+But that's part of the point. If you don't notice it, it's because the user experience is good and you shouldn't notice it. So… Um.
+
+00:49:23.000 --> 00:49:28.000
+Yeah. Yeah, Chris, that looks like 700 hours of work. Yeah, it really does, Sean. It looks like 1,000 hours of work, yeah.
+
+00:49:28.000 --> 00:49:33.000
+And probably, I… There was 39 hours one night straight, and then in one night, it was… 26 hours.
+
+00:49:33.000 --> 00:49:36.000
+That is… yeah, it's.
+
+00:49:36.000 --> 00:49:48.000
+Um, yeah, I have a problem, but uh, it's… but it's fun, and… you know, I really thought about this community a lot. It helped me go through, like, seeing your guys' posts, even though I haven't been able to contribute much, I…
+
+00:49:48.000 --> 00:49:58.000
+Sometimes for breaks, I would… part of it was because I was working so much, but I would check in, and I would see some of your topics and what you guys are talking about, and… Yeah, it's… it's awesome.
+
+00:49:58.000 --> 00:49:59.000
+Yeah. Well, you say you're not contributing much, but it's because you're busy contributing in, like, the biggest way possible with this. Yeah.
+
+00:49:59.000 --> 00:50:10.000
+So, if you ship… Oh, right. Well, and that's the way I felt, like, hey, how can I get back to the community? I can answer questions, or I could build something that we can start working on together.
+
+00:50:10.000 --> 00:50:18.000
+Because a lot of problems I saw people talking about, I was like, ooh, Archon's gonna solve this, Archon's gonna solve this, I gotta work harder, I gotta work harder. Yeah, I work 7 days a week.
+
+00:50:18.000 --> 00:50:21.000
+18 hours a day, no joke, on average. Um, but yeah, I'm addicted to work.
+
+00:50:21.000 --> 00:50:46.000
+Great. Yeah, and I hope that, like, once we get more people involved, you don't have… you don't feel like you gotta work 18-hour days. It's crazy. I do appreciate it, though, and, like, what you've… you've built is incredible. Like, I need to, like, emphasize for you guys, like, I have been a part of this, but not doing nearly as much work as he has the past couple of months. Um, and so, yeah, like.
+
+00:50:46.000 --> 00:50:47.000
+Yeah, but you did all the hard work with the crawl for… the back end behind the scenes is all cold, too, right? Like.
+
+00:50:47.000 --> 00:50:52.000
+Prophets to you, Shawn.
+
+00:50:52.000 --> 00:51:09.000
+Yeah, I put in a lot of work because UIs are freaking hard to do, especially with sockets, and being able to have that persistence stay, and… Yeah, there are a lot of nights of getting that working, but um… but the… but the UI wouldn't mean anything if it didn't properly crawl.
+
+00:51:09.000 --> 00:51:22.000
+Get good code… like, if it's not utility or useful, the UI doesn't mean anything, so… there's a lot, and there's a lot of stuff you're working on. I'm excited to talk with Rasmus and start getting, you know, even the PRP framework built into here more natively, and…
+
+00:51:22.000 --> 00:51:23.000
+Mm-hmm.
+
+00:51:23.000 --> 00:51:33.000
+Um, so many things we can do, guys. Knowledge graphs are coming, and that's gonna be a game changer for all of this, because imagine your project docs and the coding repos with knowledge graphs across the two.
+
+00:51:33.000 --> 00:51:46.000
+Uh, yeah, there's… this is gonna be fun. This is… this is just getting started, the fun. I put in a lot of work, but… hopefully people can see it and want to contribute some work too, and maybe you have a project or thing you're working on, and you can do like I did, where you're.
+
+00:51:46.000 --> 00:51:56.000
+I could build this with Archon, and then… get some more feedback and help it, and then I'll take it and use it for my other project or thing like that, so…
+
+00:51:56.000 --> 00:52:02.000
+Yeah, I love it. And we got a few minutes left, so the last thing that I want to leave everyone with.
+
+00:52:02.000 --> 00:52:11.000
+Is, um, a timeline, a relatively rough draft of a timeline, and then also how you guys can get involved, because there's a couple people, Jose and.
+
+00:52:11.000 --> 00:52:23.000
+Tom and others that were asking about that, so… I want to focus on that. Um, and then we can wrap things up here. So… Yeah, the plan is, like, right now we have the alpha release for just the Dynamis community.
+
+00:52:23.000 --> 00:52:28.000
+That's gonna go on for a couple of weeks. Hopefully, some of you guys will be able to try it out.
+
+00:52:28.000 --> 00:52:33.000
+And, uh, give some feedback. Sean and I are going to keep working our butts off on this.
+
+00:52:33.000 --> 00:52:41.000
+And, like, this is, like, number one priority for me, honestly, is, like, building this out for you guys, and then, like, turning it into a community project.
+
+00:52:41.000 --> 00:52:50.000
+And so, yeah, I think the plan is… I mean, I have to pull up my calendar here. I want to try to give you guys some… some… like, I want to be, like, super specific.
+
+00:52:50.000 --> 00:53:00.000
+I think you guys would appreciate that. So… The plan is… to do a… yeah, okay, I remember my dates now. So, Saturday, August 9th.
+
+00:53:00.000 --> 00:53:11.000
+I want to do a livestream on my YouTube channel for kind of, like, the beta launch of Archon. This is when it would, like, go public. And I still want it to be, like, a very much a dynamis-driven project.
+
+00:53:11.000 --> 00:53:30.000
+And I hope that, like, we'll kind of have, like, a little bit of, um… It's just, like, an ethos built around Dynamis, where it's like, Archon is, like, our baby that we're working on together. But I do want it to be, like, a public thing as well, because we've got to share what we're doing with the world, and like, if we hide this from the world, we're doing a disservice to everyone, because it's just such an awesome thing.
+
+00:53:30.000 --> 00:53:44.000
+And that's the whole point of open source, right? So, yeah, August 9th will be, like, livestream, like, announcing it, and then, um, Sean and I are gonna be doing a video for my channel on August 13th, which is gonna be, like, the release video for Archon.
+
+00:53:44.000 --> 00:53:45.000
+And that'll be the beta release.
+
+00:53:45.000 --> 00:53:51.000
+Yeah, no, and I just want to mention that, too, because of coal and everything, I've always wanted to start a YouTube channel. I actually.
+
+00:53:51.000 --> 00:53:58.000
+Owned a film company, and I put things on live TV, so I'm very well with that space, so… I'm gonna start putting myself out there a little bit, talking about user interface, user interaction, things like that, showing off Archon more, so…
+
+00:53:58.000 --> 00:54:10.000
+Yeah.
+
+00:54:10.000 --> 00:54:11.000
+Let's go. Yeah.
+
+00:54:11.000 --> 00:54:16.000
+Um, I'll let you guys know if it's interesting to you, if you want to follow me, I'm into weird shit. If you're into quantum physics and geometry and… DaVinci and some math and stuff like that. So, um, it's gonna be an exploration of fun stuff.
+
+00:54:16.000 --> 00:54:17.000
+Yeah.
+
+00:54:17.000 --> 00:54:24.000
+I am on LinkedIn. I don't use it much, but if you look me up, Sean Buck, you'll probably see Polar Gold, or Level Method, or Iscirium, those are my companies.
+
+00:54:24.000 --> 00:54:29.000
+Um, but feel free to connect with me. I go on there a little bit. But in the community, DM me.
+
+00:54:29.000 --> 00:54:37.000
+Um, you know, uh, I love hearing from you. I've actually met with a few… I think Josh is on here. I met with a few guys. We've done Zoom calls.
+
+00:54:37.000 --> 00:54:41.000
+If something I says resonates with you or is fascinated by you, or you want to talk.
+
+00:54:41.000 --> 00:54:51.000
+Reach out to me on DM, you know, like, I… I love contributing to community, but if it's just a meeting sharing my thoughts, or… seeing how we could work together or something.
+
+00:54:51.000 --> 00:55:00.000
+Yeah, definitely. Thanks, Sean. And also, we should get you in on, like, another workshop for the community, like, just to… to talk about UI and UX, I think that'd be awesome, too.
+
+00:55:00.000 --> 00:55:12.000
+Um, yeah. That'd be good. And then, yeah, last thing that I'll say, so, like, that's kind of the timeline, like, official release, uh, beta release of Archon to the public, like, August 9th for the stream, 13th for the video.
+
+00:55:12.000 --> 00:55:18.000
+And then at that point, speaking about, like, how you guys can really contribute, at that point, we'll have it in the Archon.
+
+00:55:18.000 --> 00:55:29.000
+The public archon, GitHub repository. And then that's when you guys can, like, really come in and start to open up pull requests, and, like, I'll have a discussion board for it in the Dynamis community, and then also, like, a public.
+
+00:55:29.000 --> 00:55:47.000
+Github Discussions page as well. Um, and then also, like, Sean and I will be working on the contribution docs. So, like, we'll have a page for you to go to, like, boom, boom, boom, here's exactly how you… can contribute, and, like, general practices, and, uh, like, just what we ask of you for that. And we're gonna make it really straightforward as well.
+
+00:55:47.000 --> 00:56:07.000
+Um, so, like, definitely stay tuned for a lot more coming soon, like, how you can get involved at, like, a really deep level that you want. But then also just, like, how you can try it out, and maybe even just contribute at a… at, like, a higher level, too, like, we'll get you covered no matter what you're interested in. But yeah, definitely want to get as many of you guys involved as possible, and make it easy to do so.
+
+00:56:07.000 --> 00:56:24.000
+So, uh, yeah, somebody asked what the… how my whiteboard is glowing. It's actually a reflection of the light that's behind my head, so… But, uh, yeah, I'm in a neon, if you couldn't tell, somebody said Archon is actually my background. Um, yeah, it's fun, it's cool. Uh, like I said, I love Tron.
+
+00:56:24.000 --> 00:56:27.000
+Somebody said there's a new movie coming out, so can't wait.
+
+00:56:27.000 --> 00:56:47.000
+Yeah, hopefully it's good. Um, yeah, Jay said, I thought one-hour workshops were 90 minutes. Well, yeah, I mean, I might be doing that for some workshops going forward, but this one, we're actually ending on time here, but yeah, like you said, 90 minutes of value in this one. Okay, glad to hear it. Yeah, I mean, this is value-packed, and.
+
+00:56:47.000 --> 00:56:54.000
+Yeah, I think, um, I think together, Sean, you and I did a pretty good job at, um, giving everyone an overview of this, so I hope that you guys are excited.
+
+00:56:54.000 --> 00:57:05.000
+And definitely, like… I'll probably create… I have to think about how I want to do this exactly, but I'll probably create a place in Dynamis even before we go, like.
+
+00:57:05.000 --> 00:57:06.000
+Yeah, like an Archon community. In Dynamos? Yeah.
+
+00:57:06.000 --> 00:57:16.000
+Public beta with this, for you guys to give feedback. Something, like, yeah, with… yeah, something like that, because I want to, like, get feedback from you guys, and… I mean, yeah, there's probably going to be, like, a lot of things that need to be worked through just as we…
+
+00:57:16.000 --> 00:57:29.000
+Get this out, but I'm also going to be integrating Claude Code, like, very directly within the GitHub repository once we do go public, so they can, like, review PRs and, like, create the first attempt at a fix for issues, and answer common questions and stuff.
+
+00:57:29.000 --> 00:57:33.000
+Um, so I'll be working on that, just to try to make sure that, like, we can scale things really well.
+
+00:57:33.000 --> 00:57:50.000
+Just because there's probably going to be a lot of stuff that comes in, especially if we… get a lot of people excited about it, which I know we will. So, trying to make sure that we can keep investing time into building out our con versus, like, always dealing with the little issues and stuff. So, we're doing a lot of planning around that as well, and just, like, how we manage it as an open source project, too.
+
+00:57:50.000 --> 00:57:54.000
+So, I got good plans for that as well. So, yeah, alright, any last words that you have, Sean, before we wrap things up?
+
+00:57:54.000 --> 00:58:06.000
+Yeah, thanks everybody. No, I would just say, again, I'm thankful for you and how you brought this community together, and all the people I've been able to meet.
+
+00:58:06.000 --> 00:58:11.000
+Um, as a business owner who is just trying to figure this out myself, and this is no hit on.
+
+00:58:11.000 --> 00:58:16.000
+Some other AI communities which are trying to sell and upsell and just, like, do things.
+
+00:58:16.000 --> 00:58:23.000
+I just appreciate that people here are real, and I know you guys have some agentic businesses and stuff, and people reached out to me and stuff like that, too. That's.
+
+00:58:23.000 --> 00:58:34.000
+That's totally cool, but the spirit is very much… everybody's trying to help each other out, not in there trying to take advantage of people, or trying to sell their services using someone else's community. It really feels like a good community.
+
+00:58:34.000 --> 00:58:38.000
+Um, and I love learning from you guys, and thanks so much, because.
+
+00:58:38.000 --> 00:58:51.000
+We're all trying to figure this out… stuff out together, and it's fun, and it's… it's… I thought I was alone in my studio working by myself, and now I realize a bunch of us are alone in our offices working by ourselves, but we can do it together.
+
+00:58:51.000 --> 00:58:52.000
+Yeah. Right, exactly.
+
+00:58:52.000 --> 00:59:00.000
+So, I love all you guys, and everything you guys do, and I'm looking forward to great things, and seeing you guys in the community more.
+
+00:59:00.000 --> 00:59:06.000
+Um, hopefully I'll work a little bit less on Archon so I can participate in the community more.
+
+00:59:06.000 --> 00:59:10.000
+Sounds good. Yeah, I mean, you're participating by what you're doing here, but yeah, thank you, Sean. I appreciate it a lot. And thank you, everyone, for your enthusiasm in being here, like.
+
+00:59:10.000 --> 00:59:14.000
+Yep.
+
+00:59:14.000 --> 00:59:18.000
+I mean, we haven't had this many people in a workshop for a while, so this is pretty awesome.
+
+00:59:18.000 --> 00:59:26.000
+And yeah, for any questions that we didn't get to, like, Renata, I see that you mentioned a couple of your questions, like, feel free to just post them in the community.
+
+00:59:26.000 --> 00:59:37.000
+Um, and I'll definitely get to all of them. Like, there's just a lot coming in the chat right now, and it's tough as we're trying to demo things too, but we definitely want to answer all the questions, so we'll get to it. Like, you can feel free to DM me or Sean or make a post in the community.
+
+00:59:37.000 --> 00:59:43.000
+Um, and yeah, I mean, I'm active in the community every single day, because I live and breathe what I'm doing with you guys here.
+
+00:59:43.000 --> 01:00:00.000
+Um, so, yeah, thank you everyone for being here. Um, yeah, really excited for the future that we got with Archon, and… like Sean said, it's like the perfectionism kicks in. It's, like, really hard to, like, finally give this to you guys. But that's why we're, like, labeling it very clearly as, like, an alpha release, because it actually, like, takes pressure off of us as well.
+
+01:00:00.000 --> 01:00:07.000
+Because there's just so much that we're shipping with this, like, there's just a lot of functionality here.
+
+01:00:07.000 --> 01:00:08.000
+Yeah, thanks for all the kind words, everybody. See you guys later, and make it a great day.
+
+01:00:08.000 --> 01:00:12.000
+Um, so, yeah. Alright.
+
+01:00:12.000 --> 01:00:19.000
+Yeah, have a good weekend, everyone. Take it easy, y'all.
+
