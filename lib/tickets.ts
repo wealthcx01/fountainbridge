@@ -19,6 +19,19 @@ import { inferenceKey } from './attention';
 export type TicketStatusGroup = 'todo' | 'in-progress' | 'pr-open' | 'done';
 export const STATUS_GROUPS: readonly TicketStatusGroup[] = ['todo', 'in-progress', 'pr-open', 'done'];
 
+/**
+ * Why a lane couldn't be read (FB-021). A bare GitHub 404 means BOTH "repo doesn't exist" and
+ * "the token can't see this private repo" — so we split by what we actually know:
+ *  - `no-credentials`: the studio has no GitHub auth at all → every private repo 404s. A *setup*
+ *    state ("not connected yet"), not a broken one.
+ *  - `unreadable`: auth IS configured but the repo still 404s → it's missing OR the GitHub App
+ *    isn't installed on it (with contents:read). An *access* problem, not "not provisioned".
+ *  - `rate-limit`: GitHub is throttling — transient.
+ *  - `error`: any other GitHub error.
+ * An empty backlog (repo reachable, no tickets) is NOT an error — it's `error: null, total: 0`.
+ */
+export type LaneErrorKind = 'no-credentials' | 'unreadable' | 'rate-limit' | 'error';
+
 export interface TicketWithMeta {
   ticket: Ticket;
   warnings: ParseWarning[];
@@ -34,6 +47,8 @@ export interface LaneTickets {
   skipped: number;
   /** Non-null when the repo couldn't be read (unreachable / rate-limited) — surfaced, not hidden. */
   error: string | null;
+  /** Machine-readable reason behind `error` (FB-021), so the board can surface each state distinctly. */
+  errorKind: LaneErrorKind | null;
 }
 
 export interface VentureTickets {
@@ -47,6 +62,8 @@ export interface RepoTicketFiles {
   files: Array<{ path: string; content: string }>;
   /** Set when the repo itself is unreachable (vs. simply having no tickets). */
   error: string | null;
+  /** Machine-readable reason behind `error` (FB-021). */
+  errorKind?: LaneErrorKind | null;
   /** Default branch the files were read from (for GitHub links). Defaults to 'main'. */
   ref?: string;
 }
@@ -76,7 +93,7 @@ export function groupRepoTickets(repo: string, fetched: RepoTicketFiles): LaneTi
   for (const g of STATUS_GROUPS) {
     groups[g].sort((a, b) => a.ticket.id.localeCompare(b.ticket.id, undefined, { numeric: true }));
   }
-  return { repo, ref: fetched.ref ?? 'main', groups, total, skipped, error: fetched.error };
+  return { repo, ref: fetched.ref ?? 'main', groups, total, skipped, error: fetched.error, errorKind: fetched.errorKind ?? null };
 }
 
 /**
@@ -108,10 +125,44 @@ export function applyStatusInference(
 
 // --- fetchers -------------------------------------------------------------------------------
 
+/**
+ * Classify a read failure into a founder-facing lane state (FB-021). Both a 404 and a *permission*
+ * 403 ("Resource not accessible by integration" — the credential lacks `contents: read`) mean the
+ * same thing to a founder: the studio can't see the repo. Only a genuine rate limit (429, or 403
+ * with `x-ratelimit-remaining: 0` — `GitHubError.rateLimited`) is transient. Anything unexpected
+ * (including a non-GitHubError, e.g. a malformed App key throwing in the token mint) degrades THIS
+ * lane to a visible error — it must never reject and blank the whole board.
+ */
+function classifyFetchError(e: unknown, fullName: string, hasCreds: boolean, ref: string): RepoTicketFiles {
+  if (e instanceof GitHubError && e.rateLimited) {
+    return { files: [], error: 'GitHub rate limit hit — try refresh shortly.', errorKind: 'rate-limit', ref };
+  }
+  if (e instanceof GitHubError && (e.status === 404 || e.status === 403)) {
+    // No usable auth → every private repo 404s: surface "not connected" so a founder doesn't read
+    // the misleading "not provisioned yet?". With auth, it's missing OR an access/scope gap.
+    return hasCreds
+      ? {
+          files: [],
+          error: `Can't read ${fullName}. Either it doesn't exist, or the studio's GitHub credentials don't have read access to it (install or scope the Foundry GitHub App, or the read token).`,
+          errorKind: 'unreadable',
+          ref,
+        }
+      : {
+          files: [],
+          error: `The studio isn't connected to GitHub yet, so it can't read ${fullName}.`,
+          errorKind: 'no-credentials',
+          ref,
+        };
+  }
+  const status = e instanceof GitHubError ? ` ${e.status}` : '';
+  return { files: [], error: `Couldn't read ${fullName} (unexpected GitHub error${status}).`, errorKind: 'error', ref };
+}
+
 /** Live GitHub source: distinguishes "repo unreachable" from "no docs/tickets" (empty queue). */
 export function githubTicketFetcher(client: GitHubClient, org: string): RepoTicketFetcher {
   return async (repo) => {
     const fullName = repo.includes('/') ? repo : `${org}/${repo}`;
+    const hasCreds = client.hasCredentials();
     let ref = 'main';
     try {
       // Confirm the repo exists first (so a missing repo reads as an error, not an empty queue)
@@ -119,12 +170,7 @@ export function githubTicketFetcher(client: GitHubClient, org: string): RepoTick
       const repoData = await client.request<{ default_branch?: string }>(`/repos/${fullName}`);
       if (repoData.default_branch) ref = repoData.default_branch;
     } catch (e) {
-      if (e instanceof GitHubError) {
-        if (e.status === 404) return { files: [], error: `Repository ${fullName} not found (not provisioned yet?).`, ref };
-        if (e.status === 403 || e.status === 429) return { files: [], error: 'GitHub rate limit hit — try refresh shortly.', ref };
-        return { files: [], error: `GitHub error ${e.status} reading ${fullName}.`, ref };
-      }
-      throw e;
+      return classifyFetchError(e, fullName, hasCreds, ref);
     }
     try {
       const entries = await client.listDir(fullName, 'docs/tickets', ref);
@@ -137,13 +183,11 @@ export function githubTicketFetcher(client: GitHubClient, org: string): RepoTick
       );
       return { files, error: null, ref };
     } catch (e) {
-      // A rate-limit / 5xx while listing or reading a file degrades THIS lane to an error state —
-      // it never blanks the whole board (Promise.all in loadVentureTickets would otherwise reject).
-      if (e instanceof GitHubError) {
-        if (e.status === 403 || e.status === 429) return { files: [], error: 'GitHub rate limit hit — try refresh shortly.', ref };
-        return { files: [], error: `GitHub error ${e.status} reading ${fullName}/docs/tickets.`, ref };
-      }
-      throw e;
+      // A rate-limit / permission / 5xx / unexpected error while listing or reading a file degrades
+      // THIS lane to an error state — it never blanks the whole board (Promise.all would otherwise
+      // reject). `listDir`/`getFileContent` already swallow a 404 to "empty", so a 403 here is a
+      // contents-scope gap, correctly surfaced as unreadable rather than a false "empty backlog".
+      return classifyFetchError(e, fullName, hasCreds, ref);
     }
   };
 }

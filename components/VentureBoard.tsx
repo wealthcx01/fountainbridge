@@ -20,6 +20,33 @@ interface Selected {
   item: TicketWithMeta;
 }
 
+// FB-021: present each read-failure state so a founder can tell "not set up yet" from "broken".
+// Setup states read amber (a next step, not a crash); an unexpected/unknown fault reads red.
+type LaneErrorKind = LaneTickets['errorKind'];
+
+function laneErrorTone(kind: LaneErrorKind): 'warn' | 'error' {
+  // Only the two known setup states are amber. `error` and any unclassified/null failure read red —
+  // fail loud on severity rather than dressing an unknown fault as a benign notice.
+  return kind === 'no-credentials' || kind === 'unreadable' ? 'warn' : 'error';
+}
+
+function laneErrorNextStep(kind: LaneErrorKind): string | null {
+  switch (kind) {
+    case 'no-credentials':
+      return 'an admin connects the studio to GitHub (install the Foundry GitHub App, or set a read token) so it can see this venture’s work.';
+    case 'unreadable':
+      return 'give the studio’s GitHub credential read access to this repository (install or scope the Foundry GitHub App, or the read token) — or check the repository name is right.';
+    case 'rate-limit': // resolves on refresh; the message already says so.
+    case 'error':
+    case null:
+      return null;
+    default: {
+      const _exhaustive: never = kind; // a new LaneErrorKind must be handled above.
+      return _exhaustive;
+    }
+  }
+}
+
 export function VentureBoard({
   venture,
   lanes,
@@ -94,12 +121,26 @@ export function VentureBoard({
           </h3>
 
           {lane.error ? (
-            <p className="card" data-testid="lane-error" style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)' }}>
-              {lane.error}
-            </p>
+            <div
+              className="card"
+              data-testid="lane-error"
+              data-error-kind={lane.errorKind ?? 'error'}
+              style={{
+                borderColor: laneErrorTone(lane.errorKind) === 'warn' ? 'var(--color-warn)' : 'var(--color-error)',
+                color: laneErrorTone(lane.errorKind) === 'warn' ? 'var(--color-warn)' : 'var(--color-error)',
+              }}
+            >
+              <div>{lane.error}</div>
+              {laneErrorNextStep(lane.errorKind) ? (
+                <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: '13px' }}>
+                  <strong>Next step:</strong> {laneErrorNextStep(lane.errorKind)}
+                </div>
+              ) : null}
+            </div>
           ) : lane.total === 0 ? (
             <p className="card muted" data-testid="lane-empty">
-              No tickets in <span className="mono">docs/tickets/</span> yet.
+              No tickets on the default branch (<span className="mono">{lane.ref}</span>) yet. If this
+              venture&rsquo;s backlog lives on another branch, it needs to be on the default branch to show here.
             </p>
           ) : (
             <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(14rem, 1fr))' }}>
