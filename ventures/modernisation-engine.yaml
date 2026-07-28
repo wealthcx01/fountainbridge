@@ -1,0 +1,44 @@
+# Modernisation Engine — Bruntsfield's internal Archon-based modernisation pipeline, onboarded as its
+# own venture (FB-031) so its work is visible in the studio alongside the founder ventures. Real repo:
+# wealthcx01/modernisation-engine (Archon CLI base). John is the product authority.
+# Validates against bcap-contracts 0.1.0 `Venture` (schema/Venture.schema.json) — mirrors arca.yaml.
+
+id: modernisation-engine
+name: Modernisation Engine
+status: active            # a real repo/tool; the venture is being stood up in the studio
+
+founder:
+  name: John Gallagher
+  github_login: wealthcx01
+  workspace_email: john@bruntsfield.capital   # shared Bruntsfield Workspace until spin-out (D3) — never @gmail.com
+
+approval_matrix:
+  - change_class: product-visible
+    approver: founder
+  - change_class: platform-infra
+    approver: bruntsfield
+  - change_class: high-blast-radius
+    approver: dual        # migrations, auth, payments, secrets, external sends
+
+repos:
+  - modernisation-engine
+
+lanes:
+  - id: engine
+    venture_id: modernisation-engine
+    repo: modernisation-engine
+    tmux: modernisation-engine:main
+    standing_order: >-
+      Maintain and extend the Archon-based modernisation engine. One ticket = one branch = one PR;
+      merge on green CI + review (external actions gate on ActiveGraph).
+    status: idle
+
+departments:
+  - id: engineering
+    venture_id: modernisation-engine
+    name: Engineering
+    repo: modernisation-engine
+    queue_path: docs/tickets   # backlog seeded on the default branch by a follow-up PR
+    gate: pr
+
+connectors: []
