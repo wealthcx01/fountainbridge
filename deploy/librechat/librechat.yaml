@@ -1,20 +1,5 @@
-# LibreChat config for a venture box (FB-025) — Claude only. Full reference:
-# https://www.librechat.ai/docs/configuration/librechat_yaml
+# LibreChat config for a venture box (FB-025). Minimal — the model surface is restricted to Claude
+# (Anthropic) via `ENDPOINTS=anthropic` in `.env`, not here, to avoid coupling to LibreChat's
+# fast-moving endpoint schema. Full reference: https://www.librechat.ai/docs/configuration/librechat_yaml
 version: 1.2.1
 cache: true
-
-# Lock the model surface to Anthropic (Claude) — the portfolio reasoning standard. No other
-# providers are offered to the founder.
-endpoints:
-  anthropic:
-    # Sensible current Claude models; the box can trim/extend this list.
-    models:
-      default:
-        - claude-opus-4-8
-        - claude-sonnet-5
-        - claude-haiku-4-5-20251001
-    titleModel: claude-haiku-4-5-20251001
-    titleConvo: true
-
-# Registration is handled by .env (social-login-only, domain-restricted). No custom interface
-# overrides here yet; grassmarket theming is a follow-up on the box.
