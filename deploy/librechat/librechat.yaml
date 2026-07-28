@@ -1,20 +1,46 @@
-# LibreChat config for a venture box (FB-025). Brands the surface as the Bruntsfield Foundry and
-# enforces a single "Foundry Composer" agent — a ticket-shaping assistant on Claude. The founder
-# never picks a model; every conversation is the composer. Ref: https://www.librechat.ai/docs/configuration/librechat_yaml
+# LibreChat config for a venture box (FB-025). Bruntsfield Foundry surface: a ticket-shaping composer
+# on Claude, a write tool (ticket-filer MCP) so an approved ticket becomes a PR, and file uploads so
+# the founder can drop in venture-relevant files. Ref: https://www.librechat.ai/docs/configuration/librechat_yaml
 version: 1.2.1
 cache: true
 
 interface:
-  customWelcome: "Welcome to the Bruntsfield Foundry. Tell me what you want for your venture in plain English — I'll shape it into a proper piece of work and read it back for your OK. Nothing gets built until you say yes."
-  # This is a single-purpose composer, not a general chat playground — hide the model/preset chrome.
-  endpointsMenu: false
-  modelSelect: false
-  parameters: false
+  customWelcome: "Welcome to the Bruntsfield Foundry. Tell me what you want for your venture in plain English — I'll shape it into a proper piece of work and read it back for your OK. Nothing gets built until you say yes. You can also drop in files (a deck, notes, a spreadsheet) for context."
+  modelSelect: true      # needed so the founder can reach the tool-using composer agent
+  agents: true           # the ticket-filing tool runs through an agent
   presets: false
-  agents: false
+  parameters: false
 
+# The write tool: the Foundry composer files an approved ticket to the venture backlog as a PR.
+mcpServers:
+  ticket-filer:
+    type: streamable-http
+    url: http://ticket-mcp:3100/mcp
+    # ticket-mcp is a sibling container on the private docker network; allow it past the SSRF guard.
+    allowedDomains: ["ticket-mcp"]
+    allowedAddresses: ["ticket-mcp", "127.0.0.1/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+endpoints:
+  agents:
+    disableBuilder: false
+    capabilities: ["tools", "actions", "file_search", "context"]
+
+# File uploads: let the founder attach venture files to a conversation (a deck, notes, data).
+# (Persistent "chat over your whole file store" = RAG, a further add — see docs/librechat-composer.md.)
+fileConfig:
+  endpoints:
+    default:
+      fileLimit: 10
+      fileSizeLimit: 20      # MB per file
+      totalSizeLimit: 100
+    agents:
+      fileLimit: 10
+      fileSizeLimit: 20
+      totalSizeLimit: 100
+
+# The composer as a pinned default (a quick tool-less draft). The tool-using version is the
+# "Foundry Composer" agent (same prompt + the ticket-filer tool) — see the box README.
 modelSpecs:
-  enforce: true      # the founder can only use the composer spec below
   prioritize: true
   list:
     - name: "foundry-composer"
@@ -33,13 +59,14 @@ modelSpecs:
           How to work:
           1. If the ask is clear enough to scope, don't interrogate. If it is genuinely too vague,
              ask ONE or TWO short plain questions (who is it for? what does "done" look like?).
-          2. Draft exactly ONE ticket in the house format below. Use a short kebab-case slug and the
-             id ARCA-NEW (a human assigns the real number when it's filed).
+          2. Draft exactly ONE ticket in the house format below. Use a short lowercase-kebab slug like
+             `arca-price-history`.
           3. Read it back in plain English FIRST — 2 to 3 sentences a busy founder can approve in
              under a minute — then show the ticket itself in a fenced code block.
-          4. Wait for an explicit "yes" / "go". On approval, present the final ticket markdown in a
-             clean code block and say it's ready to be filed to the ARCA backlog. If they want
-             changes, revise and read it back again. Never treat "maybe" or silence as yes.
+          4. Wait for an explicit "yes" / "go". When you have the ticket-filing tool available and the
+             founder approves, call `file_venture_ticket` with the slug, title, and the full ticket
+             markdown; then tell them the PR link. Without the tool, present the final ticket ready to
+             file. If they want changes, revise and read it back again. Never treat "maybe" as yes.
           5. Plain English only — no engineering jargon. Say "needs your OK", "workstream",
              "nothing goes live until you approve it". One ticket = one small, finishable piece.
 

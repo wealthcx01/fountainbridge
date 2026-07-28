@@ -13,6 +13,7 @@ services:
     depends_on:
       - mongodb
       - meilisearch
+      - ticket-mcp
     env_file:
       - .env
     environment:
@@ -43,6 +44,15 @@ services:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
     volumes:
       - librechat-meili:/meili_data
+
+  # FB-025 write tool: the Foundry composer files an approved ticket to the venture backlog as a PR.
+  ticket-mcp:
+    build: ./ticket-mcp
+    container_name: librechat-ticket-mcp
+    restart: unless-stopped
+    environment:
+      - VENTURE_REPO=${VENTURE_REPO:-wealthcx01/arca}
+      - GITHUB_TOKEN=${TICKET_GITHUB_TOKEN:-}   # write-scoped token for the venture repo; blank = tool present but not yet authorized
 
 volumes:
   librechat-mongo:
