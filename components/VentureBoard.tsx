@@ -58,7 +58,7 @@ export function VentureBoard({
   fetchedAt,
   org,
 }: {
-  venture: { id: string; name: string; status: string; founderName: string | null };
+  venture: { id: string; name: string; status: string; founderName: string | null; chatUrl: string | null };
   lanes: LaneTickets[];
   staleRepos?: string[];
   totalWarnings: number;
@@ -105,6 +105,26 @@ export function VentureBoard({
           refresh
         </Link>
       </p>
+
+      {/* Conversational composer entry (FB-025). A real link once the venture's box is provisioned
+          (chat.<box host>); otherwise an honest "coming with your box" note — never a dead link. */}
+      {venture.chatUrl ? (
+        <a
+          className="btn btn-primary"
+          href={venture.chatUrl}
+          target="_blank"
+          rel="noreferrer"
+          data-testid="venture-chat-link"
+          style={{ marginTop: '0.25rem' }}
+        >
+          💬 Chat — describe what you want
+        </a>
+      ) : (
+        <p className="card muted" data-testid="venture-chat-pending" style={{ fontSize: '14px', marginTop: '0.25rem' }}>
+          💬 Your conversational composer — describe what you want in plain English and it becomes a
+          workstream — will appear here once this venture’s box is set up.
+        </p>
+      )}
       <hr className="hr" />
 
       {lanes.map((lane) => (

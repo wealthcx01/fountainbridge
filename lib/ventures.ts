@@ -17,9 +17,20 @@ export interface VentureSummary extends VentureRef {
   founderName: string | null;
   founderEmail: string | null;
   repos: string[];
+  /** The venture box's hostname (`vps.host`), or null until provisioned. Drives the chat URL (FB-025). */
+  vpsHost: string | null;
 }
 
 const DEFAULT_DIR = join(process.cwd(), 'ventures');
+
+/**
+ * The venture's conversational-composer (LibreChat) URL, by convention `chat.<box host>` — the box's
+ * Caddy proxies it to LibreChat (FB-025). Null until the venture has a provisioned box, so the studio
+ * shows a "coming with your box" state rather than a dead link.
+ */
+export function ventureChatUrl(vpsHost: string | null): string | null {
+  return vpsHost ? `https://chat.${vpsHost}` : null;
+}
 
 interface RawManifest {
   id?: unknown;
@@ -27,6 +38,7 @@ interface RawManifest {
   status?: unknown;
   founder?: { name?: unknown; workspace_email?: unknown };
   repos?: unknown;
+  vps?: { host?: unknown };
 }
 
 function toSummary(raw: RawManifest): VentureSummary | null {
@@ -39,6 +51,7 @@ function toSummary(raw: RawManifest): VentureSummary | null {
     founderEmail:
       typeof raw.founder?.workspace_email === 'string' ? raw.founder.workspace_email : null,
     repos: Array.isArray(raw.repos) ? raw.repos.filter((r): r is string => typeof r === 'string') : [],
+    vpsHost: typeof raw.vps?.host === 'string' ? raw.vps.host : null,
   };
 }
 

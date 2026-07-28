@@ -1,0 +1,50 @@
+# LibreChat deployment for a venture box (FB-025). Runs on the venture's OWN Hetzner VM (D1) — one
+# instance per venture, never shared. Minimal stack: LibreChat API + MongoDB + Meilisearch. Reasoning
+# is Claude via the Anthropic endpoint (see librechat.yaml + .env). Fronted by the box's Caddy for
+# TLS (not in this file). Verify + adjust versions on the box; this is the starting recipe.
+services:
+  api:
+    image: ghcr.io/danny-avila/librechat:latest
+    container_name: librechat-api
+    restart: unless-stopped
+    # Bound to localhost only — the box's Caddy terminates TLS and proxies to it (never public direct).
+    ports:
+      - "127.0.0.1:3080:3080"
+    depends_on:
+      - mongodb
+      - meilisearch
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3080
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - MEILI_HOST=http://meilisearch:7700
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml:ro
+      - librechat-images:/app/client/public/images
+      - librechat-logs:/app/api/logs
+
+  mongodb:
+    image: mongo:7
+    container_name: librechat-mongodb
+    restart: unless-stopped
+    volumes:
+      - librechat-mongo:/data/db
+    command: mongod --quiet --logpath /dev/null
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: librechat-meilisearch
+    restart: unless-stopped
+    environment:
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - librechat-meili:/meili_data
+
+volumes:
+  librechat-mongo:
+  librechat-meili:
+  librechat-images:
+  librechat-logs:

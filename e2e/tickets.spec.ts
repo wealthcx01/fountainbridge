@@ -11,6 +11,8 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   await page.waitForURL(/\/venture\/arca$/);
 
   await expect(page.getByTestId('lane-arca')).toBeVisible();
+  // FB-025: the conversational composer entry point (arca has no box yet → pending state).
+  await expect(page.getByTestId('venture-chat-pending')).toBeVisible();
   // Graceful degradation, surfaced not hidden: the imperfect ticket (ARCA-4, odd status) drives the
   // warnings badge; the stray README is counted as a skipped non-ticket file, not shown as a card.
   await expect(page.getByTestId('warnings-badge')).toBeVisible();
