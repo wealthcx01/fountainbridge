@@ -22,6 +22,7 @@ services:
       - MEILI_HOST=http://meilisearch:7700
     volumes:
       - ./librechat.yaml:/app/librechat.yaml:ro
+      - ./assets/logo.svg:/app/client/dist/assets/logo.svg:ro   # Bruntsfield Foundry mark (FB-025)
       - librechat-images:/app/client/public/images
       - librechat-logs:/app/api/logs
 
