@@ -5,7 +5,6 @@ order: 0
 summary: The headline — what Foundry is, in one breath.
 ---
 
-> **DRAFT copy — placeholder to show the layout. Replace in the UI/UX review.**
 
 # Build the company. We'll run the machine.
 
