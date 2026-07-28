@@ -1,12 +1,19 @@
-# ARCA — fixture venture (Decision D5: rides along as the lower-stakes fixture).
-# A real repo (wealthcx01/arca) with John as founder — used to test venture scoping, parser
-# tolerance, and breaking changes before they reach THE RESET's view. ARCA has no docs/tickets/
-# queue yet, which is deliberate: it exercises the studio's empty-queue tolerance (FB-004/FB-006).
+# ARCA — the dogfood venture (Decision D5). A real repo (wealthcx01/arca) with John as founder; the
+# graded-trading-card analytics terminal. Its ticket backlog lives on the default branch (FB-030), it
+# is onboarded in the studio, and it runs on its own Hetzner box (FB-019/FB-011) with the LibreChat
+# conversational composer (FB-025) at chat.arca.bruntsfield.capital.
 # Validates against bcap-contracts 0.1.0 `Venture` (schema/Venture.schema.json).
 
 id: arca
 name: ARCA
-status: active            # a real running app (Bun/Hono/React) — the fixture is live, not a mock
+status: active            # a real running app (Bun/Hono/React), live on its own box
+
+# Decision D1: one box per venture. Provisioned via scripts/provision-venture.sh (FB-011).
+# `host` also drives the studio's Chat link (FB-025): chat.<host> → the venture's LibreChat.
+vps:
+  host: arca.bruntsfield.capital
+  provider: hetzner
+  provisioned_at: "2026-07-28T16:00:00Z"
 
 founder:
   name: John Gallagher
