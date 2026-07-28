@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
-import { loadVentures } from '@/lib/ventures';
+import { loadVentures, ventureChatUrl } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
@@ -47,7 +47,7 @@ export default async function VenturePage({
 
   return (
     <VentureBoard
-      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName }}
+      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, chatUrl: ventureChatUrl(venture.vpsHost) }}
       lanes={lanes}
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}

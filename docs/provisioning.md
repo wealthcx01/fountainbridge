@@ -114,3 +114,12 @@ A decision for John, not a default — record the outcome here per venture:
       this runbook is what executes it.)*
 - [ ] **Founder Workspace identity** `ross@thereset.com` created + recorded in the manifest.
 - [ ] **Subscription/cost decision** recorded above.
+
+## Conversational composer (LibreChat) — FB-025
+
+After the base box is provisioned, stand up the venture's LibreChat composer from the recipe in
+`deploy/librechat/` (copy it to `/opt/foundry/librechat` on the box, then follow its `README.md`):
+LibreChat + MongoDB + Meilisearch via Docker Compose, reasoning on Claude, sign-in locked to the
+venture's Google Workspace domain, fronted by the box's Caddy at `chat.<box host>` (which the studio's
+per-venture **Chat** link points to once `vps.host` is set in the manifest). One instance per venture
+(D1); never shared. See `docs/librechat-composer.md` for the design + the ticket-shaping agent brief.
