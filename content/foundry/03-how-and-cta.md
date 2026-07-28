@@ -5,7 +5,6 @@ order: 3
 summary: A one-line teaser into the mechanics, and the way in.
 ---
 
-> **DRAFT copy — placeholder. Replace in the UI/UX review.**
 
 ## How it runs, briefly
 

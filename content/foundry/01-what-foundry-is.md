@@ -5,7 +5,6 @@ order: 1
 summary: The co-creation model in plain terms.
 ---
 
-> **DRAFT copy — placeholder. Replace in the UI/UX review.**
 
 ## Co-created, not outsourced
 

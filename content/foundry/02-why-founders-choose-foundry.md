@@ -5,7 +5,6 @@ order: 2
 summary: The value, as a founder feels it.
 ---
 
-> **DRAFT copy — placeholder. Replace in the UI/UX review.**
 
 ## What you get
 
