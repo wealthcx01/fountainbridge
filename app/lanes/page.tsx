@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
+import { WORKSTREAMS } from '@/lib/glossary';
 
 // Lanes index (FB-006): the accessible ventures and their repos, each a link into the board.
 export default async function LanesPage() {
@@ -19,11 +20,11 @@ export default async function LanesPage() {
 
   return (
     <section>
-      <p className="eyebrow"><span className="eyebrow-id">Lanes</span> — Foundry Studio</p>
-      <h1>Lanes</h1>
+      <p className="eyebrow"><span className="eyebrow-id">{WORKSTREAMS}</span> — Foundry Studio</p>
+      <h1>{WORKSTREAMS}</h1>
       <p className="muted" style={{ maxWidth: '46rem' }}>
-        Ticket queues render live from each venture’s <span className="mono">docs/tickets/</span> via
-        the GitHub API. Open a venture to see its lanes.
+        Each venture’s work, live from its <span className="mono">docs/tickets/</span>. Open a venture
+        to see its workstreams.
       </p>
       <hr className="hr" />
       <div className="grid" data-testid="lanes-ventures">

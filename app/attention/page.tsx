@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadAccessibleAttention, type PrApproval } from '@/lib/attention';
+import { APPROVAL_REASSURANCE } from '@/lib/glossary';
 
 // The attention queue (FB-007): open PRs across every accessible venture, awaiting the human gate.
 // Scoping runs server-side in loadAccessibleAttention.
@@ -25,8 +26,8 @@ export default async function AttentionPage({
         <span className="tag" data-testid="attention-count">{approvals.length}</span>
       </div>
       <p className="muted" style={{ fontSize: '14px' }}>
-        Every open PR across your ventures — the workshop never merges, so each one needs a human.
-        Oldest first. <Link href="/attention?refresh=1" className="mono" data-testid="attention-refresh">refresh</Link>
+        Everything across your ventures waiting on your OK. {APPROVAL_REASSURANCE} Oldest first.{' '}
+        <Link href="/attention?refresh=1" className="mono" data-testid="attention-refresh">refresh</Link>
       </p>
       <hr className="hr" />
 

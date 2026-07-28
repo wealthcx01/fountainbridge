@@ -233,10 +233,12 @@ a { color: inherit; text-decoration: none; }
     flex-basis: 100%;
     margin-left: 0 !important;
     gap: 0.4rem;
-    justify-content: space-between;
+    justify-content: center;
+    flex-wrap: wrap; /* wrap to a second row rather than overflow when labels are long (FB-024) */
   }
   .topnav .pill {
-    flex: 1 1 0;
+    flex: 1 1 auto;
+    min-width: 0; /* allow a long single-word label (e.g. "Workstreams") to shrink, never overflow */
     justify-content: center;
     min-height: 44px; /* thumb-reachable tap target */
   }
