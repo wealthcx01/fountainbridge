@@ -10,6 +10,8 @@ test('attention queue lists open PRs oldest-first, with preview as the primary l
   await page.goto('/attention');
 
   await expect(page.getByTestId('attention-count')).toHaveText('2'); // 2 open, 1 merged excluded
+  // FB-024: plain-language copy, no git jargon ("open PR"/"the workshop never merges").
+  await expect(page.getByText('Nothing goes live until you approve it.')).toBeVisible();
   const queue = page.getByTestId('attention-queue');
   await expect(queue).toBeVisible();
 

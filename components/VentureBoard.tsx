@@ -5,13 +5,16 @@ import Link from 'next/link';
 // Type-only imports: lib/tickets pulls in node:fs / the GitHub client, which must never reach the
 // client bundle. `import type` is erased at build, so only the shapes cross the boundary.
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
+import { STATUS_LABEL } from '@/lib/glossary';
 import { TicketDrawer } from './TicketDrawer';
 
+// Column keys stay technical (col-<key> test ids, contract statuses); the visible label is the
+// founder-facing term from the glossary (FB-024) — e.g. "pr-open" → "Needs your OK".
 const GROUPS: { key: TicketStatusGroup; label: string }[] = [
-  { key: 'todo', label: 'To do' },
-  { key: 'in-progress', label: 'In progress' },
-  { key: 'pr-open', label: 'PR open' },
-  { key: 'done', label: 'Done' },
+  { key: 'todo', label: STATUS_LABEL.todo },
+  { key: 'in-progress', label: STATUS_LABEL['in-progress'] },
+  { key: 'pr-open', label: STATUS_LABEL['pr-open'] },
+  { key: 'done', label: STATUS_LABEL.done },
 ];
 
 interface Selected {

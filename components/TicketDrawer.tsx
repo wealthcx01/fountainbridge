@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { TicketWithMeta } from '@/lib/tickets';
+import { STATUS_LABEL } from '@/lib/glossary';
 
 // Ticket detail drawer (FB-006): rendered markdown body, a link to the file on GitHub, and
 // dependency links that jump to another ticket when it's in view.
@@ -68,7 +69,7 @@ export function TicketDrawer({
         </div>
 
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', margin: '0.75rem 0' }}>
-          <span className="tag tag-accent">{ticket.status}</span>
+          <span className="tag tag-accent">{STATUS_LABEL[ticket.status] ?? ticket.status}</span>
           {ticket.phase ? <span className="tag">phase {ticket.phase}</span> : null}
           {ticket.branch ? <span className="tag mono">{ticket.branch}</span> : null}
         </div>
