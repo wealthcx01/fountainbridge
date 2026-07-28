@@ -225,11 +225,27 @@ function staleDays(): number {
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_STALE_DAYS;
 }
 
+/**
+ * Clock for staleness (FB-032). Honors a **test-only** `E2E_NOW` override so the fixture-driven e2e
+ * is deterministic: the health fixtures carry fixed dates, and against the real `Date.now()` they
+ * cross the 7-day staleness threshold as real time passes — which silently flipped the health test
+ * from pass to fail once the calendar moved a week past the fixtures. `E2E_NOW` pins "now" to a fixed
+ * instant so "active vs stale" is stable. Never set `E2E_NOW` in production (like the other e2e seams).
+ */
+export function defaultNow(): number {
+  const override = process.env.E2E_NOW;
+  if (override) {
+    const t = Date.parse(override);
+    if (Number.isFinite(t)) return t;
+  }
+  return Date.now();
+}
+
 export async function loadVentureHealth(
   venture: VentureSummary,
   opts: { fetcher?: RepoHealthFetcher; refresh?: boolean; now?: () => number } = {},
 ): Promise<VentureHealth> {
-  const now = opts.now ?? Date.now;
+  const now = opts.now ?? defaultNow;
   const cached = cache.get(venture.id);
   if (!opts.refresh && cached && now() - cached.fetchedAt < CACHE_TTL_MS) return cached;
 

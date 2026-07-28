@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   buildRepoHealth,
   loadVentureHealth,
   clearHealthCache,
+  defaultNow,
   DEFAULT_STALE_DAYS,
   type RepoHealthRaw,
   type RepoHealthFetcher,
@@ -99,5 +100,21 @@ describe('loadVentureHealth', () => {
     expect(fetcher).toHaveBeenCalledTimes(1); // cached
     await loadVentureHealth(venture, { fetcher, now, refresh: true });
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('defaultNow — E2E_NOW clock seam (FB-032)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('pins the clock when E2E_NOW is a valid instant', () => {
+    vi.stubEnv('E2E_NOW', '2026-07-22T00:00:00Z');
+    expect(defaultNow()).toBe(Date.parse('2026-07-22T00:00:00Z'));
+  });
+
+  it('falls back to real time when E2E_NOW is unset or unparseable', () => {
+    vi.stubEnv('E2E_NOW', '');
+    expect(defaultNow()).toBeGreaterThan(Date.parse('2026-01-01T00:00:00Z'));
+    vi.stubEnv('E2E_NOW', 'not-a-date');
+    expect(defaultNow()).toBeGreaterThan(Date.parse('2026-01-01T00:00:00Z'));
   });
 });
