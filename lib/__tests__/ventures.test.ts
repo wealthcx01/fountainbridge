@@ -32,11 +32,11 @@ describe('loadVentures (against the real ventures/ manifests)', () => {
   });
 
   it('exposes the box host and derives the chat URL (FB-025)', () => {
-    // arca has no vps block yet → no chat URL (shows the "coming with your box" state).
+    // arca has a provisioned box → a real chat URL (chat.<host>).
     const arca = loadVentures(DIR).find((v) => v.id === 'arca');
-    expect(arca?.vpsHost).toBeNull();
-    expect(ventureChatUrl(arca?.vpsHost ?? null)).toBeNull();
-    // once a box exists, the chat URL is chat.<host>:
-    expect(ventureChatUrl('arca.vps.bruntsfield.capital')).toBe('https://chat.arca.vps.bruntsfield.capital');
+    expect(arca?.vpsHost).toBe('arca.bruntsfield.capital');
+    expect(ventureChatUrl(arca?.vpsHost ?? null)).toBe('https://chat.arca.bruntsfield.capital');
+    // a venture with no box → no chat URL (the "coming with your box" state).
+    expect(ventureChatUrl(null)).toBeNull();
   });
 });
