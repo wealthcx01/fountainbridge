@@ -34,7 +34,7 @@ scripts/provision-venture.sh ventures/the-reset.yaml --dry-run
 HCLOUD_TOKEN=… scripts/provision-venture.sh ventures/the-reset.yaml
 ```
 
-Sizing: **CX-class** (`SERVER_TYPE=cx22`, 2 vCPU / 4 GB) per current workshop sizing — raise via
+Sizing: **CX-class** (`SERVER_TYPE=cx23`, 2 vCPU / 4 GB) per current workshop sizing — raise via
 `SERVER_TYPE` and note the change here if a venture needs more. Image: `ubuntu-24.04`.
 
 The script is **idempotent**: if a server named `venture-<id>` exists it skips creation and

@@ -13,7 +13,7 @@
 #
 # Env (with defaults):
 #   HCLOUD_TOKEN        Hetzner Cloud API token (required unless --dry-run)
-#   SERVER_TYPE=cx22    CX-class per current workshop sizing (2 vCPU / 4GB); document changes
+#   SERVER_TYPE=cx23    CX-class per current workshop sizing (2 vCPU / 4GB); document changes
 #   LOCATION=nbg1       Hetzner location
 #   IMAGE=ubuntu-24.04  base image
 #   JOHN_GITHUB_LOGIN=wealthcx01   Bruntsfield admin GitHub login (SSH keys pulled from GitHub)
@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-SERVER_TYPE="${SERVER_TYPE:-cx22}"
+SERVER_TYPE="${SERVER_TYPE:-cx23}"
 LOCATION="${LOCATION:-nbg1}"
 IMAGE="${IMAGE:-ubuntu-24.04}"
 JOHN_GITHUB_LOGIN="${JOHN_GITHUB_LOGIN:-wealthcx01}"
@@ -95,7 +95,7 @@ fetch_keys() {
 }
 # Accept classic and FIDO/security keys (sk-ssh-*, sk-ecdsa-*), else an account with only a
 # hardware key would resolve zero keys and lock provisioning out.
-AUTHORIZED_KEYS="$( { fetch_keys "$JOHN_GITHUB_LOGIN"; fetch_keys "$FOUNDER_LOGIN"; } | grep -E '^(sk-)?(ssh|ecdsa)-' || true )"
+AUTHORIZED_KEYS="$( { fetch_keys "$JOHN_GITHUB_LOGIN"; fetch_keys "$FOUNDER_LOGIN"; } | grep -E '^(sk-)?(ssh|ecdsa)-' | sort -u || true )"
 [ -n "$AUTHORIZED_KEYS" ] || die "no SSH public keys resolved for ${JOHN_GITHUB_LOGIN} / ${FOUNDER_LOGIN} — cannot provision key-only SSH"
 KEY_COUNT="$(printf '%s\n' "$AUTHORIZED_KEYS" | grep -c . || true)"
 log "resolved ${KEY_COUNT} SSH key(s) for founder + John"
@@ -106,9 +106,12 @@ render_cloud_init() {
   local keys_block
   keys_block="$(printf '%s\n' "$AUTHORIZED_KEYS" | sed 's/^/      - /')"
   # Export for envsubst-free substitution via awk to avoid quoting pitfalls.
+  # Match the AUTHORIZED_KEYS placeholder ONLY as a whole line — the header comment also mentions
+  # `__AUTHORIZED_KEYS__`, and a substring match would inject the multi-line key block into that
+  # comment, producing invalid cloud-config that cloud-init silently rejects (no keys, no hardening).
   awk -v host="$HOSTNAME" -v vid="$VENTURE_ID" -v keys="$keys_block" '
-    { gsub(/__HOSTNAME__/, host); gsub(/__VENTURE_ID__/, vid);
-      if ($0 ~ /__AUTHORIZED_KEYS__/) { print keys } else { print } }' "$CLOUD_INIT_TMPL"
+    { if ($0 == "__AUTHORIZED_KEYS__") { print keys; next }
+      gsub(/__HOSTNAME__/, host); gsub(/__VENTURE_ID__/, vid); print }' "$CLOUD_INIT_TMPL"
 }
 CLOUD_INIT="$(render_cloud_init)"
 
@@ -119,8 +122,35 @@ if [ "$DRY_RUN" -eq 1 ]; then
   exit 0
 fi
 
-# --- create (or reconcile) the Hetzner box ----------------------------------------------------
+# --- register the SSH keys with Hetzner (so the box is created WITH them) ----------------------
+# Creating the box with `--ssh-key` (Hetzner-injected) is what makes key-only SSH actually work:
+# without a registered key, Hetzner sets a forced-change root password that blocks non-interactive
+# SSH even when cloud-init carries the key. Idempotent — dedup by fingerprint against existing keys.
 export HCLOUD_TOKEN
+register_ssh_keys() {
+  local key name fp existing idx=0
+  while IFS= read -r key; do
+    [ -n "$key" ] || continue
+    idx=$((idx + 1))
+    fp="$(printf '%s' "$key" | ssh-keygen -lf - -E md5 2>/dev/null | awk '{sub(/^MD5:/,"",$2); print $2}')"
+    existing="$(hcloud ssh-key list -o noheader -o columns=name,fingerprint 2>/dev/null | awk -v fp="$fp" '$2==fp{print $1; exit}')"
+    if [ -n "$existing" ]; then
+      SSH_KEY_FLAGS+=(--ssh-key "$existing")
+    else
+      name="foundry-key-${idx}-${fp//:/}"; name="${name:0:60}"
+      if hcloud ssh-key create --name "$name" --public-key "$key" >/dev/null 2>&1; then
+        SSH_KEY_FLAGS+=(--ssh-key "$name")
+      else
+        warn "could not register SSH key #${idx} with Hetzner"
+      fi
+    fi
+  done <<< "$AUTHORIZED_KEYS"
+}
+SSH_KEY_FLAGS=()
+register_ssh_keys
+[ "${#SSH_KEY_FLAGS[@]}" -gt 0 ] || die "no SSH keys registered with Hetzner — cannot provision key-only SSH"
+
+# --- create (or reconcile) the Hetzner box ----------------------------------------------------
 if hcloud server describe "$HOSTNAME" >/dev/null 2>&1; then
   log "server ${HOSTNAME} already exists — skipping create (idempotent). NOTE: cloud-init hardening"
   log "runs first-boot only; a re-run reconciles repos, not the OS baseline. To re-apply hardening, rebuild."
@@ -128,10 +158,14 @@ else
   log "creating server ${HOSTNAME} (${SERVER_TYPE} @ ${LOCATION}, ${IMAGE})..."
   printf '%s' "$CLOUD_INIT" | hcloud server create \
     --name "$HOSTNAME" --type "$SERVER_TYPE" --image "$IMAGE" --location "$LOCATION" \
-    --user-data-from-file - >/dev/null
+    "${SSH_KEY_FLAGS[@]}" --user-data-from-file - >/dev/null
 fi
 SERVER_IP="$(hcloud server ip "$HOSTNAME")"
 log "server IP: ${SERVER_IP}"
+
+# Drop any stale host key for this IP — Hetzner reuses IPs, so a re-provision would otherwise fail
+# host-key verification (and StrictHostKeyChecking=accept-new does NOT override an existing entry).
+ssh-keygen -R "${SERVER_IP}" >/dev/null 2>&1 || true
 
 # --- wait for SSH ----------------------------------------------------------------------------
 log "waiting for SSH on ${SERVER_IP}..."
