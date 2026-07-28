@@ -1,0 +1,14 @@
+{
+  "name": "foundry-ticket-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP tool server for the Foundry composer (FB-025): files an approved ticket to the venture backlog as a PR.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
+  }
+}
