@@ -25,6 +25,6 @@ The **Foundry Studio**: the vertical of Holy Corner through which Bruntsfield Ca
 
 ## Conventions
 
-Tickets live in `docs/tickets/`; one ticket = one branch = one PR; the lane never merges — PRs await the human gate per the venture approval matrix (D7). gstack provides roles (/plan-ceo-review, /review, /qa, /ship, /retro); gbrain provides memory. Stack: Next.js + Vercel + Supabase, Google OAuth, grassmarket-aligned branding. See `CLAUDE.md`.
+Tickets live in `docs/tickets/`; one ticket = one branch = one PR; PRs merge once CI is green and `/review` has passed (the D7 approval matrix governs *who* approves as founders onboard; external actions still gate on ActiveGraph). gstack provides roles (/plan-ceo-review, /review, /qa, /ship, /retro); gbrain provides memory. Stack: Next.js + Vercel + Supabase, Google OAuth, grassmarket-aligned branding. See `CLAUDE.md`.
 
 **Dependency order:** FB-001 ∥ FB-002 (bcap-contracts) → FB-003 → FB-004 ∥ FB-005 ∥ FB-011 → FB-006 → FB-007 ∥ FB-008 → FB-009 → FB-010 (retro → Phase 2 set). FB-012 ratified — Phase 4b tickets (FB-02x) to be drafted from `docs/research-gtm.md` §7.
