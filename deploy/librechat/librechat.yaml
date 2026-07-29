@@ -38,8 +38,9 @@ endpoints:
 
 # Web search (FB-035): lets the composer + the Foundry Research agent gather market/competitor/
 # pricing context. Provider = Tavily (one key does search + scraping; LLM-optimised). The key lives
-# ONLY in the box .env (never in this file — env refs only). Blank key = the capability is present
-# but a search simply returns nothing until authorised. Ref: librechat.ai/docs → web_search.
+# ONLY in the box .env (never in this file — env refs only). Set TAVILY_API_KEY BEFORE relying on
+# this: until it's set, web search is unavailable (LibreChat may prompt the user for a key, which is
+# confusing on a non-technical surface). Ref: librechat.ai/docs → web_search.
 webSearch:
   tavilyApiKey: "${TAVILY_API_KEY}"
   searchProvider: "tavily"
