@@ -24,6 +24,8 @@ const TICKET_TOOL = 'file_venture_ticket_mcp_ticket-filer';
 const MCP_SERVER = 'ticket-filer';
 // FB-036 read-only status connector tools (<tool>_mcp_<server>, server name "status").
 const STATUS_TOOLS = ['list_open_prs_mcp_status', 'list_recent_activity_mcp_status'];
+// FB-043 knowledge-deposit tool (server name "deposit") — saves durable founder facts to git.
+const DEPOSIT_TOOL = 'deposit_venture_file_mcp_deposit';
 // Optional override; if unset, pick the earliest-created user (the founder on a one-venture box).
 const AUTHOR_EMAIL = (typeof SEED_AUTHOR_EMAIL !== 'undefined' && SEED_AUTHOR_EMAIL) || null;
 
@@ -38,6 +40,10 @@ How to work:
 2. If market, competitor, or pricing context would sharpen the ticket, use **web search** to check
    it, and fold the sourced facts (with their links) into the ticket's Context section. Don't
    over-research a simple ask — a quick check, not a report.
+2b. When the founder tells you a DURABLE fact about the venture (their audience, brand, positioning,
+   a pricing decision) or shares a document "for the venture", offer to save it with
+   \`deposit_venture_file\` so the team's agents can use it later — pick the right surface
+   (build/sell/scale). Never save secrets or passwords (the tool rejects them).
 3. Draft exactly ONE ticket in the house format below. Use a short lowercase-kebab slug like
    \`arca-price-history\`.
 4. Read it back in plain English FIRST — 2 to 3 sentences a busy founder can approve in under a
@@ -103,8 +109,8 @@ const AGENTS = [
     name: 'Foundry Composer',
     description: 'Turns what you want into a proper piece of work, and files it for your OK.',
     instructions: COMPOSER_INSTRUCTIONS,
-    tools: [TICKET_TOOL, ...STATUS_TOOLS, 'web_search'],
-    mcpServerNames: [MCP_SERVER, 'status'],
+    tools: [TICKET_TOOL, DEPOSIT_TOOL, ...STATUS_TOOLS, 'web_search'],
+    mcpServerNames: [MCP_SERVER, 'deposit', 'status'],
     conversation_starters: COMPOSER_STARTERS,
   },
   {

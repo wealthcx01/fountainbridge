@@ -103,4 +103,8 @@ Cofounder's methods.
    lets the founder ask "what's in review?" and get the venture's real open PRs; the composer opens
    with useful starters; and **memory** (a cheap background agent) retains durable founder
    preferences + venture facts across chats (never secrets). Verified on the box.
-7. **Next (FB-037):** the founder→lane execution mechanism that *works* the ticket (Phase 2, design-first).
+7. **Founder→lane execution (FB-037 design → FB-039/040 built):** the lane runtime + autonomous
+   scan/budget/gate on the venture box work filed tickets into PRs (a human merges).
+8. **Second-brain bridge (FB-043):** the composer's `deposit_venture_file` tool saves durable founder
+   facts to git `context/`/`library/` (secret-scanned, a human OKs the PR); the lanes read `context/`
+   during RESEARCH — so what the founder tells the composer reaches the work. One brain, verified live.
