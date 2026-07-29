@@ -44,6 +44,21 @@ VENTURE_REPO=wealthcx01/arca
 docker compose restart api        # a librechat.yaml/.env change needs an api restart to reload
 ```
 
+### The Foundry Composer agent (seed)
+The founder's default surface is the **Foundry Composer** agent — the composer system prompt + the
+`file_venture_ticket` tool. LibreChat agents live in Mongo (no YAML), so a fixed, reproducible agent
+is seeded with `seed-agent.js`. `librechat.yaml`'s `modelSpecs` then pins it as the default. Order
+matters — the founder must have signed in once (that creates their user record, the agent's author):
+
+```bash
+# on the box, after the founder has signed in at least once:
+docker exec -i librechat-mongodb mongosh --quiet LibreChat < seed-agent.js   # idempotent; re-runnable
+docker compose restart api
+```
+
+The seed is the single source of truth for the composer prompt (the modelSpec is a thin pointer by
+`agent_id`). It grants the agent PUBLIC VIEW (visible to every venture founder) + owner to the author.
+
 Fail-closed: with the token blank the tool still registers but returns a plain "installed but not
 yet authorized" message — it never sends a bad request to GitHub. Verify:
 
