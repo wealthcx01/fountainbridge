@@ -13,10 +13,17 @@ grant is recorded, so every outside action is defensible.
 ## Context
 Per the design (`docs/founder-to-lane-execution.md` §8, F3/F4): external actions never run on the lane
 box (it holds no send/deploy creds). They run in a **separate gated executor** that acts only on a
-**human-authored** approval. ActiveGraph's `approval.proposed → approval.granted` is the event log
-(here, git-backed for v1). Studied `codejunkie99/meridian-company-os` (MIT) for its approval data
-model — adopted its per-approval `checks[]` (named pass/fail policy checks with detail) for our
-compliance record; took none of its enforcement (theirs is a UI simulation — ours is a real gate).
+**human-approved** approval. ActiveGraph's `approval.proposed → approval.granted` is the event log
+(here, git-backed for v1). Studied `codejunkie99/meridian-company-os` (MIT) — adopted its per-approval
+`checks[]` (named pass/fail policy checks with detail) for the compliance record; took none of its
+enforcement (theirs is a UI simulation).
+
+**The trust anchor — decided after adversarial review.** The lane can write any file to the repo and
+set any git author/committer, and (confirmed) GitHub does **not** sign contents-API commits, so
+git-commit authorship is **not** a sound gate. The unforgeable signal is a **server-issued HMAC
+attestation**: the STUDIO (server-authoritative, where a human approves via Google-OAuth + the D7
+matrix) signs the grant with a secret held only by the studio + executor — **never on the lane box**
+(§8). A lane can write a `grant.json` but cannot forge the signature.
 
 ## Scope
 - **Approval event model** (git-backed, event-sourced on a dedicated `foundry-approvals` ref):
@@ -24,12 +31,13 @@ compliance record; took none of its enforcement (theirs is a UI simulation — o
   the E2 compliance record as **`checks[]`** — recipient class, lawful basis, suppression check,
   frozen draft) → `approvals/<id>/grant.json` (a **human** approver, D7 matrix) →
   `approvals/<id>/execution.json` (the executor).
-- **The gated executor** (`deploy/executor/executor.mjs`): reads granted-unexecuted approvals,
-  **verifies the git committer identity of the grant is a human approver — NOT the lane** — then runs
-  the action with the executor's own creds (a runaway lane's forged grant is rejected + recorded).
-  `performAction()` is a stub until real sends (Phase 4b) wire Postmark/Workspace here.
-- Docs: the model + the honest identity-separation limit (full strength needs the lane's own machine
-  account vs the human approver — the FB-039 lane-identity decision).
+- **The gated executor** (`deploy/executor/executor.mjs`): reads granted-unexecuted approvals and
+  **fails closed** (no executor token / no shared secret / no approver allowlist → refuses). It honours
+  a grant only if it carries a valid **HMAC attestation** (`HMAC(secret, "<id>|<proposal_sha>|<approver>")`,
+  approver on the allowlist), which also **pins the proposal** (a post-grant swap is rejected). Records
+  "executing" before acting (crash-safe) and is idempotent. `performAction()` is a stub until Phase 4b
+  wires Postmark/Workspace with the executor's own creds (never the lane's).
+- Docs: the attestation model; the studio Approve endpoint that issues attestations = FB-046.
 
 ## Out of scope
 - The studio Approve button that writes `grant.json` as the human (FB-046). Real sends (Phase 4b —
@@ -37,12 +45,15 @@ compliance record; took none of its enforcement (theirs is a UI simulation — o
   for a sensitive ticket (a small addition to run-once's stop-at-plan path — fast follow).
 
 ## Acceptance criteria
-- [x] A human-granted approval → the executor verifies + executes (recorded `execution.json`).
-- [x] A **lane-forged grant → REJECTED** (never executed), recorded with the reason + grant author.
-- [x] The executor holds its own token; the lane box holds no send/deploy creds (§8).
-- [x] The compliance record is modeled as `checks[]` (meridian-inspired).
+- [x] Fail-closed: missing executor token / shared secret / approver allowlist → the executor refuses.
+- [x] A **studio-signed grant** (valid attestation, allowlisted approver, pinned proposal) → executed
+      (crash-safe two-phase record; idempotent on re-run).
+- [x] A **lane-forged grant** (no valid attestation) → REJECTED, recorded with the reason.
+- [x] The executor holds its own token + the secret; the lane box holds neither, and no send/deploy
+      creds (§8). Compliance modeled as `checks[]` (meridian-inspired).
 
 ## Verification
-`/review` + CI. Proven live on ARCA's `foundry-approvals` ref: a lane-authored grant was rejected
-("grant was authored by the agent lane, not a human approver"); a human-authored grant executed (send
-stub). Demo data cleaned up.
+`/review` + independent adversarial security review (found 3× P0 + P1s in the first git-authorship
+design — rebuilt to the attestation model; all addressed). Proven live on ARCA's `foundry-approvals`
+ref: fail-closed refused; a lane-forged grant was rejected ("attestation invalid — a lane cannot forge
+it"); a studio-signed grant executed (send stub); a second run was idempotent. Demo data cleaned up.
