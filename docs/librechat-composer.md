@@ -96,5 +96,8 @@ Cofounder's methods.
    memory. Embeddings run **on the box** (a local HuggingFace model — file contents never leave the
    VM, D1), so a founder deposits decks/research/data once and the composer can `file_search` + cite
    them in any later chat. Verified end to end on ARCA's box (embed → pgvector → semantic retrieval).
-5. **Next (FB-035…037):** web-search + research agents, read-only connectors + starters + memory,
-   then the founder→lane execution mechanism that *works* the ticket.
+5. **Web search + research (FB-035):** the composer + a dedicated **Foundry Research** agent can look
+   up market/competitor/pricing context (Tavily search + scrape) and fold sourced facts into a
+   ticket's Context. Read-only — no external sends, so it stays inside the engineering gate.
+6. **Next (FB-036…037):** read-only connectors + starters + memory, then the founder→lane execution
+   mechanism that *works* the ticket.

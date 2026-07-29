@@ -63,8 +63,23 @@ docker exec -i librechat-mongodb mongosh --quiet LibreChat < seed-agent.js   # i
 docker compose restart api
 ```
 
-The seed is the single source of truth for the composer prompt (the modelSpec is a thin pointer by
-`agent_id`). It grants the agent PUBLIC VIEW (visible to every venture founder) + owner to the author.
+The seed is the single source of truth for the agent prompts (the modelSpecs are thin pointers by
+`agent_id`). It seeds BOTH Foundry agents — **Foundry Composer** (ticket-filer + web_search, the
+default) and **Foundry Research** (web_search only) — and grants each PUBLIC VIEW (visible to every
+venture founder) + owner to the author.
+
+### Web search (FB-035)
+The composer + research agents gather market/competitor/pricing context via **Tavily** (one key does
+search + scraping). `librechat.yaml` has the `webSearch` block + `web_search` in the agents
+capabilities; set the key on the box:
+
+```bash
+# in /opt/foundry/librechat/.env
+TAVILY_API_KEY=<tavily.com key>
+docker compose up -d --force-recreate api   # .env change → recreate (not restart)
+```
+
+Blank key = the capability is present but a search returns nothing until authorised.
 
 ### The knowledge base (RAG, FB-034)
 `rag_api` + `vectordb` vectorise the founder's files with a **local, on-box** embeddings model, so
