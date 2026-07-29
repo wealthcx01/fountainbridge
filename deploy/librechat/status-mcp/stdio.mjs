@@ -28,6 +28,9 @@ const API = 'https://api.github.com';
 
 const log = (...a) => console.error('[status-connector]', ...a);
 
+// READ-ONLY BY CONTRACT: this helper takes only a path and issues a bare GET (no method param, no
+// body). Do NOT add a method/init argument here — the connector's read-only guarantee rests on this.
+// Any write capability belongs in a separate, explicitly-authorised tool (e.g. the ticket-filer).
 async function gh(path) {
   const res = await fetch(`${API}${path}`, {
     headers: {
