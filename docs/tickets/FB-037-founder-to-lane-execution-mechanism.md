@@ -1,8 +1,16 @@
 # FB-037 — Founder→lane execution mechanism (design + spike)
 
-**Status:** Planned (design) · **Phase:** 2 · **Depends on:** FB-033 (a ticket can be filed from the
-composer) · **Repo:** fountainbridge (+ per-venture Hetzner VM)
+**Status:** In progress (design) · **Phase:** 2 · **Depends on:** FB-033 (a ticket can be filed from
+the composer) · **Repo:** fountainbridge (+ per-venture Hetzner VM)
 **Branch:** `fb-037-founder-to-lane-execution` · One ticket = one branch = one PR.
+
+> **The design lives in `docs/founder-to-lane-execution.md`** (written 2026-07-29). A ground-truth
+> audit found the whole engine behind the composer is design-only (no lane runtime on the box,
+> ActiveGraph design-only, no `context/`/`library/`, LibreChat knowledge siloed from gbrain), so this
+> ticket's scope grew: it is the **keystone** — build the engine, unify the second brain (D8 git +
+> gbrain), and make the loop **department-generic** so it sells + scales (GTM), not just builds. This
+> ticket ships the **design + a thin spike**; the engine is built by derived tickets **FB-039…045**
+> (see the design doc §10). CEO + eng plan review gates the wider build.
 
 ## Why this matters (for the founder)
 This is the piece that makes the whole thing real: once you describe something and it becomes a
