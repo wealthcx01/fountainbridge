@@ -51,7 +51,7 @@ write_runreport() {
     gh_api -X POST "$API/repos/$REPO/git/refs" -d "{\"ref\":\"refs/heads/$STATE_REF\",\"sha\":\"$base_sha\"}" >/dev/null
     log "created state ref $STATE_REF"
   fi
-  local path="runreports/${SLUG}-$(date -u +%Y%m%dT%H%M%SZ).json"
+  local path; path="runreports/${SLUG}-$(date -u +%Y%m%dT%H%M%SZ).json"
   local existing_sha; existing_sha=$(gh_api "$API/repos/$REPO/contents/$path?ref=$STATE_REF" | jval '.sha')
   local b64; b64=$(printf '%s' "$report" | base64 -w0)
   local body="{\"message\":\"runreport: $SLUG ($status)\",\"content\":\"$b64\",\"branch\":\"$STATE_REF\""
