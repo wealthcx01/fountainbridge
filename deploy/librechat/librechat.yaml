@@ -31,7 +31,21 @@ mcpServers:
 endpoints:
   agents:
     disableBuilder: false
-    capabilities: ["tools", "actions", "file_search", "context"]
+    # web_search added (FB-035) so the composer + research agents can look things up. file_search
+    # (FB-034) powers the knowledge base. NOTE: execute_code is deliberately EXCLUDED — the founder
+    # surface must never run code (John, explicit); execution stays with the agent lanes.
+    capabilities: ["tools", "actions", "file_search", "web_search", "context"]
+
+# Web search (FB-035): lets the composer + the Foundry Research agent gather market/competitor/
+# pricing context. Provider = Tavily (one key does search + scraping; LLM-optimised). The key lives
+# ONLY in the box .env (never in this file — env refs only). Blank key = the capability is present
+# but a search simply returns nothing until authorised. Ref: librechat.ai/docs → web_search.
+webSearch:
+  tavilyApiKey: "${TAVILY_API_KEY}"
+  searchProvider: "tavily"
+  scraperProvider: "tavily"
+  rerankerType: "none"
+  safeSearch: 1
 
 # File uploads: let the founder attach venture files to a conversation (a deck, notes, data).
 # (Persistent "chat over your whole file store" = RAG, a further add — see docs/librechat-composer.md.)
@@ -61,3 +75,11 @@ modelSpecs:
       preset:
         endpoint: "agents"
         agent_id: "agent_foundry_composer"
+    # FB-035: a pure research surface (web search, no ticket-filing) for market/competitor/pricing
+    # scans. Also seeded by seed-agent.js.
+    - name: "foundry-research"
+      label: "Foundry Research"
+      description: "Looks up market, competitor, and pricing context — with sources."
+      preset:
+        endpoint: "agents"
+        agent_id: "agent_foundry_research"
