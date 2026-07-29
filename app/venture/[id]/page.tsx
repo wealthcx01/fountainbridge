@@ -49,6 +49,7 @@ export default async function VenturePage({
     <VentureBoard
       venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, chatUrl: ventureChatUrl(venture.vpsHost) }}
       lanes={lanes}
+      departments={venture.departments}
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
       fetchedAt={data.fetchedAt}

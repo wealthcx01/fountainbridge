@@ -10,6 +10,23 @@ import { join } from 'node:path';
 import yaml from 'js-yaml';
 import type { VentureRef } from './authz';
 
+/**
+ * A venture department — one of the three surfaces a founder manages and owns (FB-048): Build
+ * (product), Sell (go-to-market), Scale (growth/ops). Each has its own repo/queue + gate, so the
+ * studio can present product-building, selling, and scaling as distinct queues (parity with — and
+ * a cleaner split than — Cofounder's departments). `gate` ∈ `pr` | `activegraph` | `tbd-fb012`.
+ * `provisioned` is false when the department's repo isn't in the venture's `repos` yet (declared,
+ * coming) — so Sell/Scale can be surfaced as "coming with your repo" without a dead board.
+ */
+export interface DepartmentSummary {
+  id: string;
+  name: string;
+  repo: string | null;
+  queuePath: string;
+  gate: string;
+  provisioned: boolean;
+}
+
 export interface VentureSummary extends VentureRef {
   id: string;
   name: string;
@@ -19,6 +36,8 @@ export interface VentureSummary extends VentureRef {
   repos: string[];
   /** The venture box's hostname (`vps.host`), or null until provisioned. Drives the chat URL (FB-025). */
   vpsHost: string | null;
+  /** Build / Sell / Scale surfaces (FB-048). Empty for a manifest that declares none. */
+  departments: DepartmentSummary[];
 }
 
 const DEFAULT_DIR = join(process.cwd(), 'ventures');
@@ -32,6 +51,14 @@ export function ventureChatUrl(vpsHost: string | null): string | null {
   return vpsHost ? `https://chat.${vpsHost}` : null;
 }
 
+interface RawDepartment {
+  id?: unknown;
+  name?: unknown;
+  repo?: unknown;
+  queue_path?: unknown;
+  gate?: unknown;
+}
+
 interface RawManifest {
   id?: unknown;
   name?: unknown;
@@ -39,10 +66,33 @@ interface RawManifest {
   founder?: { name?: unknown; workspace_email?: unknown };
   repos?: unknown;
   vps?: { host?: unknown };
+  departments?: unknown;
+}
+
+function toDepartments(raw: unknown, repos: string[]): DepartmentSummary[] {
+  if (!Array.isArray(raw)) return [];
+  const out: DepartmentSummary[] = [];
+  for (const d of raw as RawDepartment[]) {
+    if (!d || typeof d !== 'object' || typeof d.id !== 'string' || !d.id) continue;
+    const repo = typeof d.repo === 'string' ? d.repo : null;
+    out.push({
+      id: d.id,
+      name: typeof d.name === 'string' ? d.name : d.id,
+      repo,
+      queuePath: typeof d.queue_path === 'string' ? d.queue_path : 'docs/tickets',
+      gate: typeof d.gate === 'string' ? d.gate : 'pr',
+      // Declared but not yet real until its repo is one the venture actually owns.
+      provisioned: repo !== null && repos.includes(repo),
+    });
+  }
+  return out;
 }
 
 function toSummary(raw: RawManifest): VentureSummary | null {
   if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !raw.id) return null;
+  const repos = Array.isArray(raw.repos)
+    ? raw.repos.filter((r): r is string => typeof r === 'string')
+    : [];
   return {
     id: raw.id,
     name: typeof raw.name === 'string' ? raw.name : raw.id,
@@ -50,8 +100,9 @@ function toSummary(raw: RawManifest): VentureSummary | null {
     founderName: typeof raw.founder?.name === 'string' ? raw.founder.name : null,
     founderEmail:
       typeof raw.founder?.workspace_email === 'string' ? raw.founder.workspace_email : null,
-    repos: Array.isArray(raw.repos) ? raw.repos.filter((r): r is string => typeof r === 'string') : [],
+    repos,
     vpsHost: typeof raw.vps?.host === 'string' ? raw.vps.host : null,
+    departments: toDepartments(raw.departments, repos),
   };
 }
 

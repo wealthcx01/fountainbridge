@@ -31,6 +31,17 @@ describe('loadVentures (against the real ventures/ manifests)', () => {
     expect(loadVentures('/no/such/dir')).toEqual([]);
   });
 
+  it('parses the Build/Sell/Scale surfaces, marking declared-but-unprovisioned ones (FB-048)', () => {
+    const arca = loadVentures(DIR).find((v) => v.id === 'arca');
+    expect(arca?.departments.map((d) => d.id)).toEqual(['build', 'sell', 'scale']);
+    const build = arca?.departments.find((d) => d.id === 'build');
+    expect(build?.gate).toBe('pr');
+    expect(build?.provisioned).toBe(true); // repo 'arca' is in the venture's repos
+    const sell = arca?.departments.find((d) => d.id === 'sell');
+    expect(sell?.gate).toBe('activegraph');
+    expect(sell?.provisioned).toBe(false); // 'arca-marketing' not provisioned yet
+  });
+
   it('exposes the box host and derives the chat URL (FB-025)', () => {
     // arca has a provisioned box → a real chat URL (chat.<host>).
     const arca = loadVentures(DIR).find((v) => v.id === 'arca');
