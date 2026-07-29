@@ -92,5 +92,9 @@ Cofounder's methods.
    `docs/tickets/<slug>.md` to the venture repo; a human still merges (#2). The tool-using **Foundry
    Composer agent** (the composer prompt + this tool) is seeded into LibreChat and set as the
    founder's default so the loop is one surface. Needs `TICKET_GITHUB_TOKEN` on the box to file.
-4. **Next (FB-034…037):** persistent knowledge base (RAG), web-search + research agents, read-only
-   connectors + starters + memory, then the founder→lane execution mechanism that *works* the ticket.
+4. **Knowledge base (FB-034):** `rag_api` + a local pgvector store give the venture a persistent
+   memory. Embeddings run **on the box** (a local HuggingFace model — file contents never leave the
+   VM, D1), so a founder deposits decks/research/data once and the composer can `file_search` + cite
+   them in any later chat. Verified end to end on ARCA's box (embed → pgvector → semantic retrieval).
+5. **Next (FB-035…037):** web-search + research agents, read-only connectors + starters + memory,
+   then the founder→lane execution mechanism that *works* the ticket.
