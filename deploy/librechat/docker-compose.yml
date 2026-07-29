@@ -33,6 +33,9 @@ services:
       - ./ticket-mcp/stdio.mjs:/app/foundry/ticket-filer.mjs:ro
       # FB-036 status connector: read-only stdio MCP so the founder can ask "what's in review?".
       - ./status-mcp/stdio.mjs:/app/foundry/status-connector.mjs:ro
+      # FB-043 knowledge-deposit: stdio MCP so a founder can save durable facts/files into the
+      # venture's git context/library (secret-scanned) — the second-brain bridge to the lanes.
+      - ./deposit-mcp/stdio.mjs:/app/foundry/deposit.mjs:ro
       - librechat-images:/app/client/public/images
       - librechat-logs:/app/api/logs
 

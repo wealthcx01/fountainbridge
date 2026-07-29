@@ -62,10 +62,20 @@ if [ -f "$REPO_TICKET" ]; then
 fi
 
 # --- 3. run the LANE (Claude Code) to implement exactly this ticket ---------------------------------
+# RESEARCH (FB-043): point the lane at the venture's shared brain (D8 context/, deposited by the
+# founder via the composer) so what the founder told the composer reaches the work — one brain.
+CONTEXT_HINT=""
+if [ -d "$REPO_DIR/context" ]; then
+  CONTEXT_HINT="
+
+Before you start, read anything relevant under \`context/\` — it holds the founder's durable knowledge
+about this venture (audience, brand, positioning, pricing decisions), deposited via the composer. Let
+it inform the work."
+fi
 PROMPT="You are a Foundry engineering lane on the arca repository, working ONE ticket. Implement exactly
 the ticket below, making the smallest correct change. Edit files in the working tree only — do NOT
 commit, push, or open a PR (the supervisor does that). Do NOT run any deploy or send commands. When
-done, print a one-line plain-English summary of what you changed.
+done, print a one-line plain-English summary of what you changed.${CONTEXT_HINT}
 
 TICKET:
 $(cat "$TICKET_FILE")"

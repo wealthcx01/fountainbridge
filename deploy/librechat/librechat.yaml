@@ -41,6 +41,19 @@ mcpServers:
     stderr: inherit
     serverInstructions: true
     timeout: 30000
+  # FB-043 knowledge deposit: save durable founder facts/files into the venture's git context/library
+  # (secret-scanned) so the agent lanes can read them. Same stdio shape; a human merges the deposit PR.
+  deposit:
+    type: stdio
+    command: node
+    args: ["/app/foundry/deposit.mjs"]
+    env:
+      DEPOSIT_GITHUB_TOKEN: "${DEPOSIT_GITHUB_TOKEN}"
+      TICKET_GITHUB_TOKEN: "${TICKET_GITHUB_TOKEN}"
+      VENTURE_REPO: "${VENTURE_REPO}"
+    stderr: inherit
+    serverInstructions: true
+    timeout: 60000
 
 endpoints:
   agents:
