@@ -5,11 +5,24 @@ The engine behind the composer, on the venture's **own** Hetzner box (D1). Desig
 scheduler (scan + budget + gate routing) is FB-040.
 
 ## What's here
-- `supervisor.sh` — one lane pass: **claim** a ticket via branch-create CAS → run a **Claude Code
-  lane** to implement it → open a **PR** (a human merges) → write a **RunReport** to the `foundry-state`
-  ref. Holds no send/deploy power (§8).
-- `foundry-lane.service` / `.timer` — systemd templates for the pull trigger. **Not auto-enabled** —
-  FB-040 wires the autonomous scan + budget cap + gate.
+- `foundry-lib.sh` — shared helpers (`gh_api`, `jval`, `write_runreport`, `ensure_state_ref`).
+- `supervisor.sh` — one lane pass: **claim** a ticket via branch-create CAS → flip its Status
+  Todo→In progress → run a **Claude Code lane** to implement it → open a **PR** (a human merges) →
+  write a **RunReport** to the `foundry-state` ref. Holds no send/deploy power (§8).
+- `run-once.sh` (FB-040) — the **autonomous wake**: scan for a `Todo`/`Ready` ticket → "useful work?"
+  (idle heartbeat if none) → stale-reclaim → circuit-breaker → budget gate → blast-radius routing
+  (full-auto for low-risk; **stop-at-PLAN** for auth/payments/sends/migrations). Called by the timer.
+- `foundry-lane.service` / `.timer` — the systemd pull trigger (~5-min oneshot).
+
+## Enable the autonomous lane (FB-040)
+```bash
+cp foundry-lane.service foundry-lane.timer /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now foundry-lane.timer
+systemctl list-timers foundry-lane.timer     # active; fires every ~5 min
+```
+Only `Todo`/`Ready` tickets are auto-worked — a real backlog of Planned/Shipped tickets is untouched.
+Tunables in `lane.env`: `DAILY_WAKE_BUDGET` (wake cap; the Max path has no per-venture spend cap),
+`MAX_ATTEMPTS` (per-ticket circuit breaker).
 
 ## Bring-up (on the box)
 ```bash

@@ -32,36 +32,12 @@ BRANCH="foundry/${SLUG}"
 NOW() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 STARTED="$(NOW)"
 
-gh_api() { curl -sS -H "Authorization: Bearer ${TICKET_GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
-                 -H "X-GitHub-Api-Version: 2022-11-28" "$@"; }
-jval() { node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(String(eval('JSON.parse(d)'+process.argv[1])??''))}catch{process.stdout.write('')}})" "$1"; }
-
-log() { echo "[lane $(NOW)] $*" >&2; }
-
-# --- write a RunReport to the foundry-state ref (create the ref if missing) -------------------------
-write_runreport() {
-  local status="$1" summary="$2" pr_url="${3:-}"
-  local report; report=$(node -e '
-    const [status,summary,pr,slug,started,repo]=process.argv.slice(1);
-    process.stdout.write(JSON.stringify({ticket:slug,lane:"arca",status,summary,pr_url:pr||undefined,started,finished:new Date().toISOString().replace(/\.\d+Z$/,"Z"),repo},null,2));
-  ' "$status" "$summary" "$pr_url" "$SLUG" "$STARTED" "$REPO")
-  # ensure the state ref exists (point it at base on first use)
-  local base_sha; base_sha=$(gh_api "$API/repos/$REPO/git/ref/heads/$BASE_BRANCH" | jval '.object.sha')
-  if ! gh_api "$API/repos/$REPO/git/ref/heads/$STATE_REF" | grep -q '"ref"'; then
-    gh_api -X POST "$API/repos/$REPO/git/refs" -d "{\"ref\":\"refs/heads/$STATE_REF\",\"sha\":\"$base_sha\"}" >/dev/null
-    log "created state ref $STATE_REF"
-  fi
-  local path; path="runreports/${SLUG}-$(date -u +%Y%m%dT%H%M%SZ).json"
-  local existing_sha; existing_sha=$(gh_api "$API/repos/$REPO/contents/$path?ref=$STATE_REF" | jval '.sha')
-  local b64; b64=$(printf '%s' "$report" | base64 -w0)
-  local body="{\"message\":\"runreport: $SLUG ($status)\",\"content\":\"$b64\",\"branch\":\"$STATE_REF\""
-  [ -n "$existing_sha" ] && body="$body,\"sha\":\"$existing_sha\""
-  body="$body}"
-  gh_api -X PUT "$API/repos/$REPO/contents/$path" -d "$body" >/dev/null
-  log "runreport → $STATE_REF:$path ($status)"
-}
-
-fail() { write_runreport "failed" "$1"; log "FAILED: $1"; exit 1; }
+# Shared helpers: gh_api, jval, flog, ensure_state_ref, write_runreport (FB-040).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=deploy/lane/foundry-lib.sh
+. "$SCRIPT_DIR/foundry-lib.sh"
+log() { flog "$@"; }
+fail() { write_runreport "$SLUG" "failed" "$1" "" "$STARTED"; flog "FAILED: $1"; exit 1; }
 
 # --- 1. CLAIM: branch-create compare-and-swap (the atomic lock) ------------------------------------
 BASE_SHA=$(gh_api "$API/repos/$REPO/git/ref/heads/$BASE_BRANCH" | jval '.object.sha')
@@ -71,12 +47,19 @@ CLAIM_CODE=$(gh_api -o /dev/null -w '%{http_code}' -X POST "$API/repos/$REPO/git
 if [ "$CLAIM_CODE" = "422" ]; then log "ticket already claimed ($BRANCH exists) — yielding"; exit 0; fi
 [ "$CLAIM_CODE" = "201" ] || fail "claim failed (HTTP $CLAIM_CODE)"
 log "claimed $BRANCH"
-write_runreport "working" "Lane claimed the ticket and started work."
+write_runreport "$SLUG" "working" "Lane claimed the ticket and started work." "" "$STARTED"
 
 # --- 2. work the ticket locally on the claimed branch ----------------------------------------------
 cd "$REPO_DIR"
 git fetch --quiet origin "$BRANCH"
 git checkout --quiet -B "$BRANCH" "origin/$BRANCH"
+
+# Flip the ticket's Status Todo → In progress on the branch, so once the PR merges the ticket is no
+# longer "workable" and the autonomous scan (run-once.sh) won't re-pick it.
+REPO_TICKET="$REPO_DIR/docs/tickets/${SLUG}.md"
+if [ -f "$REPO_TICKET" ]; then
+  sed -i -E 's/(\*\*Status:\*\*[[:space:]]*)[Tt]odo/\1In progress/' "$REPO_TICKET" || true
+fi
 
 # --- 3. run the LANE (Claude Code) to implement exactly this ticket ---------------------------------
 PROMPT="You are a Foundry engineering lane on the arca repository, working ONE ticket. Implement exactly
@@ -110,5 +93,5 @@ PR_URL=$(printf '%s' "$PR_JSON" | jval '.html_url')
 log "opened PR $PR_URL"
 
 # --- 6. RunReport: done ----------------------------------------------------------------------------
-write_runreport "opened_pr" "$SUMMARY" "$PR_URL"
+write_runreport "$SLUG" "opened_pr" "$SUMMARY" "$PR_URL" "$STARTED"
 log "done."
