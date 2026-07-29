@@ -27,6 +27,12 @@ export interface DepartmentSummary {
   provisioned: boolean;
 }
 
+/** A D7 approval-matrix row: who approves a class of change (FB-046 routing). */
+export interface ApprovalMatrixRow {
+  changeClass: string; // product-visible | platform-infra | high-blast-radius
+  approver: 'founder' | 'bruntsfield' | 'dual';
+}
+
 export interface VentureSummary extends VentureRef {
   id: string;
   name: string;
@@ -34,6 +40,8 @@ export interface VentureSummary extends VentureRef {
   founderName: string | null;
   founderEmail: string | null;
   repos: string[];
+  /** D7 governance rows (FB-046). Empty if the manifest declares none. */
+  approvalMatrix: ApprovalMatrixRow[];
   /** The venture box's hostname (`vps.host`), or null until provisioned. Drives the chat URL (FB-025). */
   vpsHost: string | null;
   /** Build / Sell / Scale surfaces (FB-048). Empty for a manifest that declares none. */
@@ -67,6 +75,20 @@ interface RawManifest {
   repos?: unknown;
   vps?: { host?: unknown };
   departments?: unknown;
+  approval_matrix?: unknown;
+}
+
+const VALID_APPROVERS = new Set(['founder', 'bruntsfield', 'dual']);
+function toApprovalMatrix(raw: unknown): ApprovalMatrixRow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ApprovalMatrixRow[] = [];
+  for (const r of raw as Array<{ change_class?: unknown; approver?: unknown }>) {
+    if (!r || typeof r !== 'object') continue;
+    const changeClass = typeof r.change_class === 'string' ? r.change_class : null;
+    const approver = typeof r.approver === 'string' && VALID_APPROVERS.has(r.approver) ? r.approver : null;
+    if (changeClass && approver) out.push({ changeClass, approver: approver as ApprovalMatrixRow['approver'] });
+  }
+  return out;
 }
 
 function toDepartments(raw: unknown, repos: string[]): DepartmentSummary[] {
@@ -103,6 +125,7 @@ function toSummary(raw: RawManifest): VentureSummary | null {
     repos,
     vpsHost: typeof raw.vps?.host === 'string' ? raw.vps.host : null,
     departments: toDepartments(raw.departments, repos),
+    approvalMatrix: toApprovalMatrix(raw.approval_matrix),
   };
 }
 

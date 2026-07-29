@@ -19,6 +19,7 @@ const venture: VentureSummary = {
   repos: ['arca'],
   vpsHost: null,
   departments: [],
+  approvalMatrix: [],
 };
 
 const NOW = Date.parse('2026-07-21T00:00:00Z');
