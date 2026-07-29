@@ -82,8 +82,15 @@ Cofounder's methods.
 
 ## Build order
 
-1. **Box-independent (this PR):** this design + the deploy recipe (`deploy/librechat/`) + the studio
-   "Chat" entry point (opens the venture's instance once its box carries a `vps.host`).
-2. **On the box (after provisioning):** stand LibreChat up from the recipe, lock auth to the venture
-   Workspace, bridge the ticket-shaping agent, and walk the describe → shaped-ticket → playback →
-   approve loop end to end, with the isolation check.
+1. **Box-independent (FB-025):** this design + the deploy recipe (`deploy/librechat/`) + the studio
+   "Chat" entry point (opens the venture's instance once its box carries a `vps.host`). ✅ shipped.
+2. **On the box (FB-025 part 2):** LibreChat stood up, auth locked to the venture Workspace, live at
+   `https://chat.arca.bruntsfield.capital`. ✅ shipped.
+3. **The write path (FB-033):** the ticket-filer is a **stdio** MCP tool (`deploy/librechat/ticket-mcp/stdio.mjs`)
+   spawned inside the api container — no URL, so it bypasses LibreChat's SSRF guard (which blocked the
+   earlier streamable-http server). On the founder's approval it opens a PR adding
+   `docs/tickets/<slug>.md` to the venture repo; a human still merges (#2). The tool-using **Foundry
+   Composer agent** (the composer prompt + this tool) is seeded into LibreChat and set as the
+   founder's default so the loop is one surface. Needs `TICKET_GITHUB_TOKEN` on the box to file.
+4. **Next (FB-034…037):** persistent knowledge base (RAG), web-search + research agents, read-only
+   connectors + starters + memory, then the founder→lane execution mechanism that *works* the ticket.

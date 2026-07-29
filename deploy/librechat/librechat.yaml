@@ -12,13 +12,21 @@ interface:
   parameters: false
 
 # The write tool: the Foundry composer files an approved ticket to the venture backlog as a PR.
+# FB-033: stdio transport. LibreChat spawns this file with the api container's own node. A stdio
+# server is a local child process (no URL), so it bypasses the SSRF/domain allowlist that blocked
+# the earlier streamable-http server ("Domain http://ticket-mcp:3100 is not allowed"). The token +
+# repo are interpolated from the box .env. Ref: librechat.ai/docs → mcp_servers.
 mcpServers:
   ticket-filer:
-    type: streamable-http
-    url: http://ticket-mcp:3100/mcp
-    # ticket-mcp is a sibling container on the private docker network; allow it past the SSRF guard.
-    allowedDomains: ["ticket-mcp"]
-    allowedAddresses: ["ticket-mcp", "127.0.0.1/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+    type: stdio
+    command: node
+    args: ["/app/foundry/ticket-filer.mjs"]
+    env:
+      TICKET_GITHUB_TOKEN: "${TICKET_GITHUB_TOKEN}"
+      VENTURE_REPO: "${VENTURE_REPO}"
+    stderr: inherit          # surface the server's logs in `docker logs librechat-api`
+    serverInstructions: true
+    timeout: 60000           # a PR round-trip to the GitHub API can take a few seconds
 
 endpoints:
   agents:
