@@ -190,8 +190,17 @@ plain-language approval card at GATE (studio attention queue, per `jstack-brunts
 
 ## 7. Department-generic — the same loop sells and scales (not just builds)
 
-**This is the sell/scale half John flagged.** The loop above must be **department-agnostic** so it
-carries GTM work, not only engineering — that is Cofounder parity, and where we can be *better*:
+**This is the sell/scale half John flagged.** The venture is split into **three founder-owned surfaces
+(FB-048), each its own queue + gate**, so product-building, selling, and scaling are managed and owned
+separately (a cleaner split than Cofounder's departments):
+
+- **Build** (product) — the engineering repo, PR-gated.
+- **Sell** (go-to-market) — content (PR-gated) + interest-based sends (ActiveGraph-gated).
+- **Scale** (growth / ops / finance) — analytics + ops/finance connectors (reads free, mutations gated).
+
+The founder→lane loop above is **department-agnostic** — it works a `sell` content ticket or a `scale`
+ops ticket exactly as it worked the engineering spike, routed by the ticket's `department`. That is
+Cofounder parity, and where we can be *better*:
 
 - **Departments = repos + gbrain partitions** (plan §4, D8 department-tagging). A venture has an
   engineering repo and a **`marketing` repo**; `context/`/`library/` are department-tagged.

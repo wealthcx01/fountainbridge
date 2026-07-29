@@ -81,7 +81,8 @@ describe('loadVentureHealth', () => {
     founderName: null,
     founderEmail: null,
     repos: ['arca'],
-  vpsHost: null,
+    vpsHost: null,
+    departments: [],
   };
 
   it('merges activity newest-first and caches within TTL', async () => {

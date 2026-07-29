@@ -37,7 +37,7 @@ real venture should declare `approval_matrix`, `repos`, `lanes`, and `department
 | `approval_matrix` | D7 governance: rows mapping a `change_class` (`product-visible` \| `platform-infra` \| `high-blast-radius`) to an `approver` (`founder` \| `bruntsfield` \| `dual`). |
 | `repos` | Repo slugs owned by the venture. |
 | `lanes` | Workshop lanes (`id`, `venture_id`, `repo`, `tmux`, `standing_order`, optional `status`). |
-| `departments` | Departments (`id`, `venture_id`, `name`, `repo`, `queue_path`, optional `connectors`, `gate`). `gate` ∈ `pr` \| `activegraph` \| `tbd-fb012`. |
+| `departments` | The three founder-owned surfaces (FB-048): **build** (product, `gate: pr`), **sell** (go-to-market, `gate: activegraph`), **scale** (growth/ops, `gate: tbd-fb012`). Each: `id`, `venture_id`, `name`, `repo`, `queue_path`, optional `connectors`, `gate` ∈ `pr` \| `activegraph` \| `tbd-fb012`. A department whose `repo` isn't in `repos` renders as "coming". |
 | `connectors` | Connector names available to the venture. |
 
 ### One founder field (product authority)

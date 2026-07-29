@@ -5,8 +5,17 @@ import Link from 'next/link';
 // Type-only imports: lib/tickets pulls in node:fs / the GitHub client, which must never reach the
 // client bundle. `import type` is erased at build, so only the shapes cross the boundary.
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
+import type { DepartmentSummary } from '@/lib/ventures';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { TicketDrawer } from './TicketDrawer';
+
+// FB-048: the founder's three owned surfaces. Plain-language gate labels (FB-024) — the founder sees
+// "how work here is approved", never the contract enum.
+const GATE_LABEL: Record<string, string> = {
+  pr: 'approved by review',
+  activegraph: 'approved before it goes out',
+  'tbd-fb012': 'approval coming',
+};
 
 // Column keys stay technical (col-<key> test ids, contract statuses); the visible label is the
 // founder-facing term from the glossary (FB-024) — e.g. "pr-open" → "Needs your OK".
@@ -53,6 +62,7 @@ function laneErrorNextStep(kind: LaneErrorKind): string | null {
 export function VentureBoard({
   venture,
   lanes,
+  departments = [],
   staleRepos = [],
   totalWarnings,
   fetchedAt,
@@ -60,6 +70,7 @@ export function VentureBoard({
 }: {
   venture: { id: string; name: string; status: string; founderName: string | null; chatUrl: string | null };
   lanes: LaneTickets[];
+  departments?: DepartmentSummary[];
   staleRepos?: string[];
   totalWarnings: number;
   fetchedAt: number;
@@ -125,6 +136,31 @@ export function VentureBoard({
           workstream — will appear here once this venture’s box is set up.
         </p>
       )}
+
+      {/* The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
+          its own approval gate — so product-building, selling, and scaling are managed separately. */}
+      {departments.length > 0 ? (
+        <div data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            {departments.map((d) => (
+              <div key={d.id} className="card" data-testid={`dept-${d.id}`} style={{ opacity: d.provisioned ? 1 : 0.7 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <strong style={{ fontSize: '15px' }}>{d.name}</strong>
+                  <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
+                    {d.provisioned ? 'active' : 'coming'}
+                  </span>
+                </div>
+                <p className="muted" style={{ fontSize: '13px', margin: '0.35rem 0 0' }}>
+                  {d.provisioned
+                    ? <>Work here is <span className="mono">{GATE_LABEL[d.gate] ?? d.gate}</span>.</>
+                    : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <hr className="hr" />
 
       {lanes.map((lane) => (

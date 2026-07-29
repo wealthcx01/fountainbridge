@@ -41,12 +41,31 @@ lanes:
       scoping and parser tolerance. One ticket = one branch = one PR; never merge.
     status: idle
 
+# The three founder-owned surfaces (FB-048): Build (product), Sell (go-to-market), Scale (growth/ops).
+# The founder→lane loop (docs/founder-to-lane-execution.md) works tickets in ANY of these the same way;
+# splitting them lets the founder manage + own product-building, selling, and scaling as distinct
+# queues — a cleaner split than Cofounder's departments. Sell/Scale repos aren't provisioned yet, so
+# the studio shows them as "coming with your repo" (their repo isn't in `repos` above).
 departments:
-  - id: engineering
+  - id: build
     venture_id: arca
-    name: Engineering
-    repo: arca
-    queue_path: docs/tickets   # not yet populated — tests empty-queue tolerance
-    gate: pr
+    name: Build — Product
+    repo: arca                  # the real product repo
+    queue_path: docs/tickets
+    gate: pr                    # engineering changes gate on PR review
+  - id: sell
+    venture_id: arca
+    name: Sell — Go-to-market
+    repo: arca-marketing        # content + interest-based sends (to be provisioned)
+    queue_path: docs/tickets
+    gate: activegraph           # external sends gate on a recorded ActiveGraph approval (research-gtm)
+    connectors: []
+  - id: scale
+    venture_id: arca
+    name: Scale — Growth & Ops
+    repo: arca-ops              # analytics, ops, finance (to be provisioned)
+    queue_path: docs/tickets
+    gate: tbd-fb012             # ops/finance mutations gate; reads free (Phase 4 / FB-012 follow-on)
+    connectors: []
 
 connectors: []

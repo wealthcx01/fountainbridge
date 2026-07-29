@@ -50,21 +50,28 @@ lanes:
       venture's real domain. Interest-based capture only; no cold outreach (research-gtm §7).
     status: idle
 
+# The three founder-owned surfaces (FB-048): Build / Sell / Scale — each its own queue + gate.
 departments:
-  - id: engineering
+  - id: build
     venture_id: the-reset
-    name: Engineering
-    repo: thereset-platform
+    name: Build — Product
+    repo: thereset-platform    # platform v0.1 (its deck's roadmap)
     queue_path: docs/tickets
     gate: pr
-  - id: gtm
+  - id: sell
     venture_id: the-reset
-    name: GTM
-    repo: thereset-marketing
+    name: Sell — Go-to-market
+    repo: thereset-marketing   # GTM stage 1: landing page + case studies (Phase 4a)
     queue_path: docs/tickets
     connectors:
       - postmark
     gate: activegraph   # external sends gate on recorded ActiveGraph approval events (D3)
+  - id: scale
+    venture_id: the-reset
+    name: Scale — Growth & Ops
+    repo: thereset-ops         # analytics, ops, finance (to be provisioned)
+    queue_path: docs/tickets
+    gate: tbd-fb012
 
 connectors:
   - postmark
