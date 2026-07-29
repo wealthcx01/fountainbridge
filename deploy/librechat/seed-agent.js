@@ -22,6 +22,8 @@
 
 const TICKET_TOOL = 'file_venture_ticket_mcp_ticket-filer';
 const MCP_SERVER = 'ticket-filer';
+// FB-036 read-only status connector tools (<tool>_mcp_<server>, server name "status").
+const STATUS_TOOLS = ['list_open_prs_mcp_status', 'list_recent_activity_mcp_status'];
 // Optional override; if unset, pick the earliest-created user (the founder on a one-venture box).
 const AUTHOR_EMAIL = (typeof SEED_AUTHOR_EMAIL !== 'undefined' && SEED_AUTHOR_EMAIL) || null;
 
@@ -83,9 +85,9 @@ How to work:
 
 const COMPOSER_STARTERS = [
   'I want to add something to ARCA — help me shape it into a piece of work.',
+  "What's in review right now?",
   'Founders keep asking for a price-history chart on the card page. Can we scope that?',
   "Something's confusing on the terminal — help me describe the fix.",
-  'What makes a good ticket? Walk me through it with an example.',
 ];
 
 const RESEARCH_STARTERS = [
@@ -101,8 +103,8 @@ const AGENTS = [
     name: 'Foundry Composer',
     description: 'Turns what you want into a proper piece of work, and files it for your OK.',
     instructions: COMPOSER_INSTRUCTIONS,
-    tools: [TICKET_TOOL, 'web_search'],
-    mcpServerNames: [MCP_SERVER],
+    tools: [TICKET_TOOL, ...STATUS_TOOLS, 'web_search'],
+    mcpServerNames: [MCP_SERVER, 'status'],
     conversation_starters: COMPOSER_STARTERS,
   },
   {

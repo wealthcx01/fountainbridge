@@ -31,6 +31,8 @@ services:
       # FB-033 write tool: the ticket-filer is a stdio MCP server spawned by this container's own
       # node (see librechat.yaml mcpServers.ticket-filer). No sibling container, no URL, no SSRF.
       - ./ticket-mcp/stdio.mjs:/app/foundry/ticket-filer.mjs:ro
+      # FB-036 status connector: read-only stdio MCP so the founder can ask "what's in review?".
+      - ./status-mcp/stdio.mjs:/app/foundry/status-connector.mjs:ro
       - librechat-images:/app/client/public/images
       - librechat-logs:/app/api/logs
 

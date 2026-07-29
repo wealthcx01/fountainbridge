@@ -99,5 +99,8 @@ Cofounder's methods.
 5. **Web search + research (FB-035):** the composer + a dedicated **Foundry Research** agent can look
    up market/competitor/pricing context (Tavily search + scrape) and fold sourced facts into a
    ticket's Context. Read-only — no external sends, so it stays inside the engineering gate.
-6. **Next (FB-036…037):** read-only connectors + starters + memory, then the founder→lane execution
-   mechanism that *works* the ticket.
+6. **Connectors + starters + memory (FB-036):** a read-only **status connector** (second stdio MCP)
+   lets the founder ask "what's in review?" and get the venture's real open PRs; the composer opens
+   with useful starters; and **memory** (a cheap background agent) retains durable founder
+   preferences + venture facts across chats (never secrets). Verified on the box.
+7. **Next (FB-037):** the founder→lane execution mechanism that *works* the ticket (Phase 2, design-first).
