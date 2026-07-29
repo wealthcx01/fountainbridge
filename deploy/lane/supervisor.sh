@@ -10,8 +10,8 @@
 # open a PR. It can never send, deploy, or grant an approval. External actions are a separate gated
 # executor's job (FB-044), not the lane's.
 #
-# AUTH: ANTHROPIC_API_KEY is used here for the spike. Production preference is shared Claude Max via a
-# `claude setup-token` (John, 2026-07-29) — swap CLAUDE_CODE_OAUTH_TOKEN in and drop the API key.
+# AUTH LADDER (John, 2026-07-29): the lane prefers shared Claude Max via CLAUDE_CODE_OAUTH_TOKEN
+# (a `claude setup-token`); if that's unset it falls back to ANTHROPIC_API_KEY. At least one is required.
 #
 # Usage (spike): supervisor.sh <slug> <ticket-file>
 #   <slug>        lowercase-kebab id for the branch (foundry/<slug>)
@@ -22,7 +22,9 @@ set -euo pipefail
 : "${REPO_DIR:=/opt/foundry/lane/arca}"
 : "${BASE_BRANCH:=master}"
 : "${TICKET_GITHUB_TOKEN:?need a repo-write token (lane identity)}"
-: "${ANTHROPIC_API_KEY:?need Claude auth (spike) — production: CLAUDE_CODE_OAUTH_TOKEN for Max}"
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "need Claude auth: set CLAUDE_CODE_OAUTH_TOKEN (Max, preferred) or ANTHROPIC_API_KEY" >&2; exit 1
+fi
 STATE_REF="foundry-state"
 API="https://api.github.com"
 
@@ -80,8 +82,14 @@ done, print a one-line plain-English summary of what you changed.${CONTEXT_HINT}
 TICKET:
 $(cat "$TICKET_FILE")"
 log "running lane (Claude Code)…"
-SUMMARY=$(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" claude -p "$PROMPT" \
-  --permission-mode acceptEdits --output-format text 2>>/tmp/lane-claude.err | tail -1 || true)
+# Prefer Max (CLAUDE_CODE_OAUTH_TOKEN); unset the API key for that run so Claude uses Max, not the API.
+if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+  SUMMARY=$(env -u ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
+    claude -p "$PROMPT" --permission-mode acceptEdits --output-format text 2>>/tmp/lane-claude.err | tail -1 || true)
+else
+  SUMMARY=$(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+    claude -p "$PROMPT" --permission-mode acceptEdits --output-format text 2>>/tmp/lane-claude.err | tail -1 || true)
+fi
 [ -n "$SUMMARY" ] || SUMMARY="Lane completed the ticket."
 
 # --- 4. commit + push the branch -------------------------------------------------------------------
