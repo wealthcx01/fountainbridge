@@ -79,7 +79,9 @@ TAVILY_API_KEY=<tavily.com key>
 docker compose up -d --force-recreate api   # .env change → recreate (not restart)
 ```
 
-Blank key = the capability is present but a search returns nothing until authorised.
+Set the key **before** exposing the capability: until `TAVILY_API_KEY` is set, web search is
+unavailable and LibreChat may prompt the founder for a key (confusing on a non-technical surface).
+The deploy step above sets it, so a properly-provisioned box never shows that prompt.
 
 ### The knowledge base (RAG, FB-034)
 `rag_api` + `vectordb` vectorise the founder's files with a **local, on-box** embeddings model, so
