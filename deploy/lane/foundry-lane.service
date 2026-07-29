@@ -1,0 +1,21 @@
+# Foundry lane runtime (FB-039). systemd service that runs ONE supervisor pass and exits.
+# Type=oneshot so an overlapping timer wake never starts a second run while one is active
+# (the timer-overlap race from docs/founder-to-lane-execution.md §4 — prevented for free).
+#
+# NOT auto-enabled by the spike: the autonomous ticket-scan + claim + budget cap + gate routing
+# is FB-040. This unit runs the on-demand supervisor; FB-040 swaps in the scanning wrapper.
+[Unit]
+Description=Foundry venture lane — one supervisor pass
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Secrets come from the box env file (never the repo). Production: swap ANTHROPIC_API_KEY for
+# CLAUDE_CODE_OAUTH_TOKEN (shared Claude Max, John's preference 1). No send/deploy creds here (§8).
+EnvironmentFile=/opt/foundry/lane/lane.env
+WorkingDirectory=/opt/foundry/lane
+# FB-040 replaces this with the scanning wrapper (find a Todo ticket → supervisor.sh <slug> <file>).
+ExecStart=/opt/foundry/lane/run-once.sh
+# A crash never leaves a silently-dead engine: the timer re-fires; stale claims are reclaimed (§4).
+Nice=10
