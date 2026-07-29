@@ -15,7 +15,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 : "${REPO_DIR:=/opt/foundry/lane/arca}"
 : "${TICKET_GITHUB_TOKEN:?need a repo-write token (lane identity)}"
-: "${ANTHROPIC_API_KEY:?need Claude auth}"
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "need Claude auth: set CLAUDE_CODE_OAUTH_TOKEN (Max, preferred) or ANTHROPIC_API_KEY" >&2; exit 1
+fi
 : "${DAILY_WAKE_BUDGET:=20}"    # Max-path local cap — shared Max has no per-venture programmatic cap
 : "${MAX_ATTEMPTS:=3}"          # per-ticket circuit breaker
 STATE_DIR="${STATE_DIR:-/opt/foundry/lane/state}"; mkdir -p "$STATE_DIR"
