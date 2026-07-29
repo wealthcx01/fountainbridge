@@ -41,8 +41,12 @@ and `docker-compose.yml` mounts `./ticket-mcp/stdio.mjs` there read-only. It nee
 # on the box, in /opt/foundry/librechat/.env
 TICKET_GITHUB_TOKEN=<fine-grained PAT: Contents:write + Pull requests:write on VENTURE_REPO>
 VENTURE_REPO=wealthcx01/arca
-docker compose restart api        # a librechat.yaml/.env change needs an api restart to reload
+docker compose up -d --force-recreate api   # .env (env_file) is read on RECREATE, not restart
 ```
+
+> Gotcha: a change to the mounted `librechat.yaml` reloads with `docker compose restart api`
+> (it's a volume mount). A change to `.env` does NOT — `env_file` is only read when the container
+> is (re)created, so use `up -d --force-recreate api` after editing `.env`.
 
 ### The Foundry Composer agent (seed)
 The founder's default surface is the **Foundry Composer** agent — the composer system prompt + the
