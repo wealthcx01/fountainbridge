@@ -8,6 +8,7 @@ interface:
   customWelcome: "Welcome to the Bruntsfield Foundry. Tell me what you want for your venture in plain English — I'll shape it into a proper piece of work and read it back for your OK. Nothing gets built until you say yes. You can also drop in files (a deck, notes, a spreadsheet) for context."
   modelSelect: true      # needed so the founder can reach the tool-using composer agent
   agents: true           # the ticket-filing tool runs through an agent
+  memories: true         # FB-036: show the memory toggle + let the founder view/manage memories
   presets: false
   parameters: false
 
@@ -27,6 +28,19 @@ mcpServers:
     stderr: inherit          # surface the server's logs in `docker logs librechat-api`
     serverInstructions: true
     timeout: 60000           # a PR round-trip to the GitHub API can take a few seconds
+  # FB-036 status connector: READ-ONLY. Lets the founder ask "what's in review?" / "what shipped?".
+  # Same stdio shape as the ticket-filer. Reuses the venture token for reads (never writes).
+  status:
+    type: stdio
+    command: node
+    args: ["/app/foundry/status-connector.mjs"]
+    env:
+      STATUS_GITHUB_TOKEN: "${STATUS_GITHUB_TOKEN}"
+      TICKET_GITHUB_TOKEN: "${TICKET_GITHUB_TOKEN}"
+      VENTURE_REPO: "${VENTURE_REPO}"
+    stderr: inherit
+    serverInstructions: true
+    timeout: 30000
 
 endpoints:
   agents:
@@ -47,6 +61,28 @@ webSearch:
   scraperProvider: "tavily"
   rerankerType: "none"
   safeSearch: 1
+
+# Memory (FB-036): the composer remembers DURABLE founder preferences + venture facts across chats
+# (it does not index or search past conversations — it's a small key/value store). A cheap background
+# agent extracts them; personalize:true gives the founder a per-chat memory toggle + view/manage UI
+# (interface.memories). validKeys restricts what can be stored. Ref: librechat.ai/docs → memory.
+memory:
+  disabled: false
+  personalize: true
+  tokenLimit: 2000
+  messageWindowSize: 5
+  validKeys:
+    - "founder_preferences"
+    - "venture_facts"
+  agent:
+    enabled: true                         # required: automatic memory extraction is opt-in
+    provider: "anthropic"
+    model: "claude-haiku-4-5-20251001"    # cheap model — memory extraction is a background task
+    instructions: |
+      Extract only DURABLE facts worth remembering across chats: the founder's stated preferences
+      (tone, how they like work scoped, what they care about) and stable venture facts (who it's for,
+      positioning, pricing decisions). Do NOT store one-off chat details, secrets, tokens, PATs, or
+      anything sensitive. Keep each memory short and factual.
 
 # File uploads: let the founder attach venture files to a conversation (a deck, notes, data).
 # (Persistent "chat over your whole file store" = RAG, a further add — see docs/librechat-composer.md.)

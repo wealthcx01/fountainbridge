@@ -108,6 +108,16 @@ docker logs librechat-rag-api 2>&1 | grep -i "embedding\|model\|started" | tail
 A founder deposits files via the composer's knowledge/attachments; they are vectorised once and the
 composer can `file_search` + cite them in any later chat.
 
+### Status connector + memory (FB-036)
+- **Status connector** (`status-mcp/stdio.mjs`) — a second READ-ONLY stdio MCP mounted into the api
+  (`mcpServers.status`). Tools `list_open_prs` / `list_recent_activity` let the founder ask "what's in
+  review?" and get the venture's real GitHub state. Reuses the venture token for reads (never writes).
+- **Memory** — `librechat.yaml`'s `memory` block + `interface.memories: true`. A cheap background
+  agent (`claude-haiku-4-5`) extracts durable founder preferences + venture facts across chats
+  (needs `memory.agent.enabled: true`; `validKeys` restricts what's stored; never stores secrets).
+Both load from the mounted config — a `docker compose up -d` (new mount) then the agent seed picks
+up the status tools. No new key: the status connector falls back to `TICKET_GITHUB_TOKEN`.
+
 Fail-closed: with the token blank the tool still registers but returns a plain "installed but not
 yet authorized" message — it never sends a bad request to GitHub. Verify:
 

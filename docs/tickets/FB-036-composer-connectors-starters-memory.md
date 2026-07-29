@@ -1,8 +1,19 @@
 # FB-036 — Composer connectors, conversation starters, and memory
 
-**Status:** Planned · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
+**Status:** In progress · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
 **Repo:** fountainbridge (+ ARCA Hetzner VM)
 **Branch:** `fb-036-composer-connectors-starters-memory` · One ticket = one branch = one PR.
+
+## Decisions (recorded here)
+- **Status connector = a second zero-dep stdio MCP** (`status-mcp/stdio.mjs`), same durable shape as
+  the ticket-filer. Two READ-ONLY tools: `list_open_prs` ("what's in review?") + `list_recent_activity`
+  ("what shipped?"). Reuses the venture token for reads (`STATUS_GITHUB_TOKEN` → falls back to
+  `TICKET_GITHUB_TOKEN`); never writes (only GET requests by construction).
+- **Memory** uses a cheap background agent (`claude-haiku-4-5` — extraction is infrequent). Gotcha:
+  LibreChat made auto-extraction opt-in — needs `memory.agent.enabled: true` (a fail-loud warning
+  caught this). `validKeys` restricts storage to `founder_preferences` + `venture_facts`; the
+  extraction prompt forbids storing secrets/tokens. `interface.memories: true` shows the toggle.
+- **Starters** live on the agent (seeded), including the new "What's in review right now?".
 
 ## Why this matters (for the founder)
 Makes the composer feel like it *knows your venture*: it can tell you what's already in review, it
