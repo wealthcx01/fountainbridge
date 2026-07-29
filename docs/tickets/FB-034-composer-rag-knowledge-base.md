@@ -1,6 +1,6 @@
 # FB-034 — Persistent venture knowledge base for the composer (RAG)
 
-**Status:** Planned · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
+**Status:** In progress · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
 **Repo:** fountainbridge (+ ARCA Hetzner VM)
 **Branch:** `fb-034-composer-rag-knowledge-base` · One ticket = one branch = one PR.
 
@@ -12,10 +12,18 @@ knows, without you re-explaining it every time.
 
 ## Context
 FB-025 enabled per-chat file uploads (`fileConfig`). A persistent, searchable store is a further
-step: LibreChat's **`rag_api`** service + a **pgvector** store. **Decision (recorded): pgvector on a
-Postgres sidecar** on the venture box (self-hosted, venture-isolated per D1 — never a shared store),
-embeddings via the portfolio-standard provider, wired per the LibreChat RAG docs. The knowledge base
-is **venture-scoped**: ARCA's box holds only ARCA's files (non-negotiable 6).
+step: LibreChat's **`rag_api`** service + a **pgvector** store. The knowledge base is
+**venture-scoped**: ARCA's box holds only ARCA's files (non-negotiable 6).
+
+**Decisions (recorded here):**
+- **Embeddings run ON THE BOX** (John, 2026-07-29): the **full** `librechat-rag-api-dev` image (not
+  `-lite`) runs a local HuggingFace `sentence-transformers/all-MiniLM-L6-v2` model on CPU. Venture
+  file contents never leave the VM — the strongest reading of D1 isolation — with no new API key and
+  no per-use cost. (The alternative, OpenAI/Voyage embeddings, would ship file chunks off-box.)
+- **Vectors in a local pgvector Postgres** sidecar (`pgvector/pgvector:0.8.0-pg15-trixie`), a
+  `POSTGRES_PASSWORD` generated on the box (never in the repo, non-negotiable 8).
+- **Resource guard:** ARCA's cx23 has 3.7 GB RAM / 2 vCPU / no swap. The embeddings model + torch
+  can spike, so the bring-up **adds 2 GB swap** first.
 
 ## Scope
 - Add `rag_api` + a `pgvector` Postgres service to `deploy/librechat/docker-compose.yml`, wired to

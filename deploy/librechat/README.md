@@ -13,6 +13,9 @@ venture, never shared). This is the deploy recipe; the design + agent brief are 
   files an approved ticket to the venture backlog as a PR. Mounted into the api container and spawned
   by its own `node` — no sibling container, no URL, so it bypasses LibreChat's SSRF/domain allowlist
   (which blocked the earlier streamable-http server). Depends only on `node` + built-in `fetch`.
+- `rag_api` + `vectordb` (FB-034): the **knowledge base**. `rag_api` (full image) vectorises the
+  founder's files with a **local, on-box** HuggingFace model (embeddings never leave the VM — D1);
+  vectors live in a local pgvector Postgres. The composer searches + cites them via `file_search`.
 
 ## Bring-up (on the box, after provisioning)
 Prereqs: Docker + Docker Compose (installed by the venture provisioning), a DNS record
@@ -62,6 +65,31 @@ docker compose restart api
 
 The seed is the single source of truth for the composer prompt (the modelSpec is a thin pointer by
 `agent_id`). It grants the agent PUBLIC VIEW (visible to every venture founder) + owner to the author.
+
+### The knowledge base (RAG, FB-034)
+`rag_api` + `vectordb` vectorise the founder's files with a **local, on-box** embeddings model, so
+file contents never leave the VM (D1). Bring-up:
+
+```bash
+# on the box, in /opt/foundry/librechat/.env — set a DB password (never in the repo):
+POSTGRES_PASSWORD=$(openssl rand -hex 24)
+# small box: add swap first (the embeddings model + torch can spike RAM):
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+docker compose up -d          # pulls the full rag-api image + pgvector, starts both
+```
+
+First start downloads the embeddings model (~90 MB) into the `rag-hf-cache` volume, so later starts
+are fast. The api reaches rag_api at `http://rag_api:8000` (`RAG_API_URL`). Verify:
+
+```bash
+docker compose ps                                        # rag_api + vectordb up
+docker exec librechat-rag-api curl -sf localhost:8000/health && echo " rag_api healthy"
+docker logs librechat-rag-api 2>&1 | grep -i "embedding\|model\|started" | tail
+```
+
+A founder deposits files via the composer's knowledge/attachments; they are vectorised once and the
+composer can `file_search` + cite them in any later chat.
 
 Fail-closed: with the token blank the tool still registers but returns a plain "installed but not
 yet authorized" message — it never sends a bad request to GitHub. Verify:

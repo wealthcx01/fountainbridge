@@ -13,6 +13,7 @@ services:
     depends_on:
       - mongodb
       - meilisearch
+      - rag_api
     env_file:
       - .env
     environment:
@@ -20,6 +21,10 @@ services:
       - PORT=3080
       - MONGO_URI=mongodb://mongodb:27017/LibreChat
       - MEILI_HOST=http://meilisearch:7700
+      # FB-034: the persistent knowledge base (RAG). The api sends uploads to rag_api for
+      # vectorisation and queries it for file_search. rag_api is a sibling on the private network.
+      - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
+      - RAG_PORT=${RAG_PORT:-8000}
     volumes:
       - ./librechat.yaml:/app/librechat.yaml:ro
       - ./assets/logo.svg:/app/client/dist/assets/logo.svg:ro   # Bruntsfield Foundry mark (FB-025)
@@ -51,8 +56,44 @@ services:
   # stdio MCP server (./ticket-mcp/stdio.mjs) mounted into the api container and spawned by its node
   # — see librechat.yaml mcpServers.ticket-filer. TICKET_GITHUB_TOKEN + VENTURE_REPO come from .env.
 
+  # FB-034: persistent knowledge base (RAG). The founder deposits venture files once; the composer
+  # searches + cites them. Embeddings run ON THE BOX (D1 isolation — venture file contents never
+  # leave the VM): the FULL rag-api image (not -lite) runs a local HuggingFace sentence-transformers
+  # model. Vectors live in a local pgvector Postgres. No external embeddings API, no per-use cost.
+  rag_api:
+    image: registry.librechat.ai/danny-avila/librechat-rag-api-dev:latest   # full = bundles sentence_transformers
+    container_name: librechat-rag-api
+    restart: unless-stopped
+    depends_on:
+      - vectordb
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=vectordb
+      - DB_PORT=5432
+      - RAG_HOST=0.0.0.0
+      - RAG_PORT=${RAG_PORT:-8000}
+      - EMBEDDINGS_PROVIDER=huggingface                                  # in-process, CPU, local
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+    volumes:
+      # Cache the downloaded model so it isn't re-fetched on every restart.
+      - rag-hf-cache:/root/.cache/huggingface
+
+  vectordb:
+    image: pgvector/pgvector:0.8.0-pg15-trixie
+    container_name: librechat-vectordb
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-foundry_rag}
+      - POSTGRES_USER=${POSTGRES_USER:-foundry}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}   # generated on the box; never in the repo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
 volumes:
   librechat-mongo:
   librechat-meili:
   librechat-images:
   librechat-logs:
+  pgdata:
+  rag-hf-cache:
