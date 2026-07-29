@@ -111,10 +111,14 @@ composer can `file_search` + cite them in any later chat.
 ### Status connector + memory (FB-036)
 - **Status connector** (`status-mcp/stdio.mjs`) — a second READ-ONLY stdio MCP mounted into the api
   (`mcpServers.status`). Tools `list_open_prs` / `list_recent_activity` let the founder ask "what's in
-  review?" and get the venture's real GitHub state. Reuses the venture token for reads (never writes).
+  review?" and get the venture's real GitHub state. Read-only by construction (GET-only). It reuses
+  `TICKET_GITHUB_TOKEN` for reads by default; for least-privilege, provision a genuinely read-scoped
+  `STATUS_GITHUB_TOKEN` on the box so token scope backstops the code.
 - **Memory** — `librechat.yaml`'s `memory` block + `interface.memories: true`. A cheap background
-  agent (`claude-haiku-4-5`) extracts durable founder preferences + venture facts across chats
-  (needs `memory.agent.enabled: true`; `validKeys` restricts what's stored; never stores secrets).
+  agent (`claude-haiku-4-5`) extracts durable founder preferences + venture facts across chats (needs
+  `memory.agent.enabled: true`). `validKeys` restricts which memory *categories* are stored; keeping
+  *secrets out of values* rests on the extraction prompt — and `interface.memories` lets the founder
+  view/delete anything stored.
 Both load from the mounted config — a `docker compose up -d` (new mount) then the agent seed picks
 up the status tools. No new key: the status connector falls back to `TICKET_GITHUB_TOKEN`.
 

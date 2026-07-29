@@ -75,7 +75,7 @@ memory:
     - "founder_preferences"
     - "venture_facts"
   agent:
-    enabled: true                         # required: automatic memory extraction is opt-in
+    enabled: true                         # required for AUTOMATIC extraction (LibreChat made it opt-in)
     provider: "anthropic"
     model: "claude-haiku-4-5-20251001"    # cheap model — memory extraction is a background task
     instructions: |
