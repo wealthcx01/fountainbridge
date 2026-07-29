@@ -1,0 +1,13 @@
+# Foundry lane timer (FB-039). Wakes the supervisor on an interval — the pull-based trigger from
+# docs/founder-to-lane-execution.md §4 (no inbound port needed; matches D1). NOT enabled by the
+# spike; FB-040 enables it once the scan + "useful work?" pre-check + budget cap + gate are in.
+[Unit]
+Description=Wake the Foundry venture lane periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min      # ~5-minute cadence (§9.1); Type=oneshot service prevents overlap
+Persistent=true
+
+[Install]
+WantedBy=timers.target
