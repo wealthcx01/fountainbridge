@@ -14,22 +14,31 @@ approvals/<id>/grant.json      ← a HUMAN approver grants it (the studio Approv
 approvals/<id>/execution.json  ← the executor writes this AFTER acting (or rejecting)
 ```
 
-## The structural guarantee
-`executor.mjs` verifies the **git committer identity of `grant.json`** before acting:
-- authored by the **lane identity** → **REJECTED** (a runaway/hallucinating lane cannot approve its
-  own action — F3).
-- authored by a **human approver** → the action runs, using the executor's creds (never the lane's).
+## The guarantee (rebuilt after adversarial review)
+The lane can write ANY file to the repo and set any git author/committer — so authority can't rest on
+file contents or git-commit identity. (Confirmed: GitHub does **not** sign contents-API commits — they
+are `verified:false` — and `committer.login` is email-derived and forgeable. Git authorship is not a
+sound anchor.) The unforgeable signal is a **server-issued HMAC attestation**, and the executor **fails
+closed**:
+- **Fail closed:** missing `EXECUTOR_GITHUB_TOKEN`, `FOUNDRY_APPROVAL_SECRET`, or `APPROVER_IDENTITIES`
+  → the executor refuses to run. An empty allowlist means "no one is authorised", not "anyone".
+- **Studio-signed grant:** `grant.json` must carry `{approver, proposal_sha, attestation}` where
+  `attestation = HMAC-SHA256(FOUNDRY_APPROVAL_SECRET, "<id>|<proposal_sha>|<approver>")`. The STUDIO
+  issues it on a human Approve (Google-OAuth session + D7 role); the executor re-computes + timing-safe
+  compares. **A lane cannot forge it — the secret lives only in the studio + executor, never on the
+  lane box** (§8). The approver must be on the allowlist.
+- **Proposal pinned:** the attestation covers `proposal_sha`, so a proposal swapped after approval
+  (TOCTOU) fails the check.
+- **Robust:** a transient read error skips-and-retries (never a wrong terminal rejection); "executing"
+  is recorded before the action so a crash can't cause a silent re-run.
 
-Run it: `node executor.mjs` (env: `REPO`, `EXECUTOR_GITHUB_TOKEN` — its OWN token, `LANE_IDENTITIES`,
+Run it: `node executor.mjs` (env: `REPO`, `EXECUTOR_GITHUB_TOKEN`, `FOUNDRY_APPROVAL_SECRET`,
 `APPROVER_IDENTITIES`).
 
-## Honest limit (identity separation)
-The trust anchor is the grant's committer identity. Full strength requires the **lane to have its own
-machine GitHub identity distinct from the human approver** — the design's open provisioning question
-(a machine account vs the shared account). Today the lane commits with author `lane@bruntsfield.capital`
-(supervisor.sh), so a lane-written grant is caught by the deny-list; once the lane has a distinct
-GitHub account, the check becomes committer-login based and unforgeable. The mechanism is built now;
-this hardening is a provisioning follow-up (FB-039 lane-identity decision).
+## What lands next
+The studio endpoint that verifies the logged-in human + D7 role and **issues the attestation** on
+Approve is **FB-046** (it holds the secret; the lane never does). `performAction()` is a stub until real
+sends (Phase 4b), where the executor's own Postmark/Workspace creds run it — never the lane's.
 
 ## Where it runs, and what's real yet
 Runs on a control host / the studio side — NOT the venture lane box. `performAction()` is a **stub**
