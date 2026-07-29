@@ -36,6 +36,8 @@ const API = 'https://api.github.com';
 
 const log = (...a) => console.error('[ticket-filer]', ...a);
 
+// gh() throws an Error carrying a numeric `.status` so callers classify by HTTP status, never by
+// substring-matching the message. Returns parsed JSON ({} on 204).
 async function gh(path, init = {}) {
   const res = await fetch(`${API}${path}`, {
     ...init,
@@ -48,14 +50,45 @@ async function gh(path, init = {}) {
     },
   });
   if (!res.ok) {
-    throw new Error(`GitHub ${res.status} on ${path}: ${(await res.text()).slice(0, 300)}`);
+    let ghMessage = '';
+    try {
+      ghMessage = (JSON.parse(await res.text()) || {}).message || '';
+    } catch { /* non-JSON body */ }
+    const err = new Error(`GitHub ${res.status} on ${path}${ghMessage ? `: ${ghMessage}` : ''}`);
+    err.status = res.status;
+    throw err;
   }
+  if (res.status === 204) return {};
   return res.json();
+}
+
+// Like gh() but returns null on 404 instead of throwing — for "does this branch/file exist?" probes.
+async function ghMaybe(path, init = {}) {
+  try {
+    return await gh(path, init);
+  } catch (e) {
+    if (e.status === 404) return null;
+    throw e;
+  }
+}
+
+// Map a failure to ONE plain-English sentence for the founder (non-negotiable 10 — never surface a
+// raw GitHub body). Errors we raise ourselves (auth/validation) have no .status → pass them through.
+function friendlyError(e) {
+  const s = e && e.status;
+  if (!s) return String((e && e.message) || e);
+  if (s === 401) return "I couldn't file it — the filing tool's access to GitHub was rejected (the token may have expired). An admin needs to refresh it. Nothing was filed.";
+  if (s === 403) return 'I could not file it — GitHub is temporarily refusing the request (rate limit or permissions). Please try again in a few minutes. Nothing was filed.';
+  if (s === 404) return "I couldn't reach the venture's backlog on GitHub — an admin should check the tool's repo setting. Nothing was filed.";
+  if (s === 422) return "GitHub wouldn't accept this as-is (a ticket with that name may already exist). Try a slightly different name. Nothing new was filed.";
+  return `I couldn't file it right now (GitHub ${s}). Please try again; if it keeps happening, tell an admin. Nothing was filed.`;
 }
 
 // slug guard so a model can't inject a path or a huge blob.
 const slugRe = /^[a-z0-9][a-z0-9-]{1,60}$/;
 
+// Idempotent: re-filing the same slug UPDATES the ticket on its branch and returns the existing PR,
+// rather than 422-ing (the composer is told to revise + re-file, so this path is common).
 async function fileTicket({ slug, title, body }) {
   if (!TOKEN) {
     throw new Error(
@@ -68,28 +101,37 @@ async function fileTicket({ slug, title, body }) {
 
   const repo = await gh(`/repos/${REPO}`);
   const base = repo.default_branch;
-  const ref = await gh(`/repos/${REPO}/git/ref/heads/${base}`);
+  const owner = REPO.split('/')[0];
   const branch = `foundry/${slug}`;
-  // create the branch (ignore "already exists")
-  try {
+
+  // Ensure the branch exists (create only if missing — no more swallowing unrelated 422s).
+  const existingBranch = await ghMaybe(`/repos/${REPO}/git/ref/heads/${branch}`);
+  if (!existingBranch) {
+    const baseRef = await gh(`/repos/${REPO}/git/ref/heads/${base}`);
     await gh(`/repos/${REPO}/git/refs`, {
       method: 'POST',
-      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: ref.object.sha }),
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha }),
     });
-  } catch (e) {
-    if (!String(e).includes('422')) throw e;
   }
+
   // slug is guarded to [a-z0-9-] and the rest is URL-safe, so use the path literally — do NOT
   // encodeURIComponent it (that would percent-encode the slashes and file at the wrong path).
   const path = `docs/tickets/${slug}.md`;
-  await gh(`/repos/${REPO}/contents/${path}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      message: `ticket: ${title}`,
-      content: Buffer.from(body, 'utf8').toString('base64'),
-      branch,
-    }),
-  });
+  const put = {
+    message: `ticket: ${title}`,
+    content: Buffer.from(body, 'utf8').toString('base64'),
+    branch,
+  };
+  // If the file already exists on this branch, GitHub requires its sha to update in place.
+  const existingFile = await ghMaybe(`/repos/${REPO}/contents/${path}?ref=${branch}`);
+  if (existingFile && existingFile.sha) put.sha = existingFile.sha;
+  await gh(`/repos/${REPO}/contents/${path}`, { method: 'PUT', body: JSON.stringify(put) });
+
+  // Reuse an open PR for this branch if one exists, else open one.
+  const openPrs = await gh(`/repos/${REPO}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);
+  if (Array.isArray(openPrs) && openPrs.length) {
+    return { url: openPrs[0].html_url, number: openPrs[0].number, branch, updated: true };
+  }
   const pr = await gh(`/repos/${REPO}/pulls`, {
     method: 'POST',
     body: JSON.stringify({
@@ -172,12 +214,13 @@ async function handle(msg) {
       }
       try {
         const r = await fileTicket(args);
+        const verb = r.updated ? 'Updated the ticket on' : 'Filed to';
         reply(id, {
-          content: [{ type: 'text', text: `Filed to ${REPO}: PR #${r.number} — ${r.url}` }],
+          content: [{ type: 'text', text: `${verb} ${REPO}: PR #${r.number} — ${r.url}` }],
         });
       } catch (e) {
         log('file_venture_ticket failed:', String(e));
-        reply(id, { content: [{ type: 'text', text: String(e.message || e) }], isError: true });
+        reply(id, { content: [{ type: 'text', text: friendlyError(e) }], isError: true });
       }
       return;
     }

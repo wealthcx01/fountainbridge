@@ -104,8 +104,11 @@ db.agents.updateOne(
       conversation_starters: CONVERSATION_STARTERS,
       author: author._id,
       category: 'general',
+      // Mongoose `timestamps` are skipped on a raw mongosh write — set them so the agent-edit UI
+      // (which sorts/versions on these) matches an app-created agent.
+      updatedAt: new Date(),
     },
-    $setOnInsert: { versions: [], edges: [] },
+    $setOnInsert: { versions: [], edges: [], createdAt: new Date() },
   },
   { upsert: true },
 );
