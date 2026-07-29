@@ -201,6 +201,36 @@ export class GitHubClient {
     }
   }
 
+  /** Fetch a file's decoded text AND its blob sha (or null if 404). The sha pins the exact content
+   *  an approval grant attested (FB-046) and is the `sha` an update PUT must supply. */
+  async getFileWithSha(repo: string, path: string, ref = 'main'): Promise<{ text: string; sha: string } | null> {
+    try {
+      const data = await this.request<{ content?: string; encoding?: string; sha?: string }>(
+        `/repos/${repo}/contents/${encodeURI(path)}?ref=${encodeURIComponent(ref)}`,
+      );
+      if (!data.content || !data.sha) return null;
+      return { text: Buffer.from(data.content, (data.encoding as BufferEncoding) ?? 'base64').toString('utf8'), sha: data.sha };
+    } catch (e) {
+      if (e instanceof GitHubError && e.status === 404) return null;
+      throw e;
+    }
+  }
+
+  /** Create/update a file (contents PUT). Needs a write-scoped credential. Returns the new blob sha. */
+  async putFile(repo: string, path: string, params: { content: string; message: string; branch: string; sha?: string }): Promise<string> {
+    const body: Record<string, unknown> = {
+      message: params.message,
+      branch: params.branch,
+      content: Buffer.from(params.content, 'utf8').toString('base64'),
+    };
+    if (params.sha) body.sha = params.sha;
+    const resp = await this.request<{ content?: { sha?: string } }>(
+      `/repos/${repo}/contents/${encodeURI(path)}`,
+      { method: 'PUT', body: JSON.stringify(body) },
+    );
+    return resp.content?.sha ?? '';
+  }
+
   /** List a directory's entries (name + type), or [] if it doesn't exist. */
   async listDir(repo: string, path: string, ref = 'main'): Promise<Array<{ name: string; type: string }>> {
     try {

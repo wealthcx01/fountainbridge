@@ -5,6 +5,8 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth } from '@/lib/health';
+import { loadApprovals, githubApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
 
@@ -45,11 +47,21 @@ export default async function VenturePage({
   const staleRepos = health.repos.filter((r) => r.stale).map((r) => r.repo);
   const org = process.env.GITHUB_ORG ?? 'wealthcx01';
 
+  // FB-046: external-action approvals (the ActiveGraph gate). Most ventures have no foundry-approvals
+  // ref yet — a read failure must never blank the board, so degrade to none.
+  let approvals: ActiveGraphApproval[] = [];
+  try {
+    approvals = await loadApprovals(venture, githubApprovalSource(new GitHubClient()));
+  } catch {
+    approvals = [];
+  }
+
   return (
     <VentureBoard
       venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, chatUrl: ventureChatUrl(venture.vpsHost) }}
       lanes={lanes}
       departments={venture.departments}
+      approvals={approvals}
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
       fetchedAt={data.fetchedAt}

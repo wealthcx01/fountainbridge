@@ -23,6 +23,7 @@ const venture: VentureSummary = {
   repos: ['arca'],
   vpsHost: null,
   departments: [],
+  approvalMatrix: [],
 };
 
 describe('groupRepoTickets', () => {

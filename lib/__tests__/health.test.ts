@@ -83,6 +83,7 @@ describe('loadVentureHealth', () => {
     repos: ['arca'],
     vpsHost: null,
     departments: [],
+  approvalMatrix: [],
   };
 
   it('merges activity newest-first and caches within TTL', async () => {

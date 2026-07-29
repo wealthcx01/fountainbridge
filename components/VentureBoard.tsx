@@ -6,8 +6,10 @@ import Link from 'next/link';
 // client bundle. `import type` is erased at build, so only the shapes cross the boundary.
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import type { DepartmentSummary } from '@/lib/ventures';
+import type { ActiveGraphApproval } from '@/lib/approvals';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { TicketDrawer } from './TicketDrawer';
+import { ApprovalCard } from './ApprovalCard';
 
 // FB-048: the founder's three owned surfaces. Plain-language gate labels (FB-024) — the founder sees
 // "how work here is approved", never the contract enum.
@@ -63,6 +65,7 @@ export function VentureBoard({
   venture,
   lanes,
   departments = [],
+  approvals = [],
   staleRepos = [],
   totalWarnings,
   fetchedAt,
@@ -71,11 +74,13 @@ export function VentureBoard({
   venture: { id: string; name: string; status: string; founderName: string | null; chatUrl: string | null };
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
+  approvals?: ActiveGraphApproval[];
   staleRepos?: string[];
   totalWarnings: number;
   fetchedAt: number;
   org: string;
 }) {
+  const pendingApprovals = approvals.filter((a) => a.status === 'proposed');
   const [selected, setSelected] = useState<Selected | null>(null);
   const stale = new Set(staleRepos);
 
@@ -136,6 +141,17 @@ export function VentureBoard({
           workstream — will appear here once this venture’s box is set up.
         </p>
       )}
+
+      {/* FB-046: external actions awaiting the founder's OK (the ActiveGraph gate). The founder
+          approves here — never on github.com; Approve signs the grant the executor verifies. */}
+      {pendingApprovals.length > 0 ? (
+        <div data-testid="approvals-queue" style={{ marginTop: '1.25rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Needs your OK — before anything goes out</p>
+          {pendingApprovals.map((a) => (
+            <ApprovalCard key={a.id} ventureId={venture.id} approval={a} />
+          ))}
+        </div>
+      ) : null}
 
       {/* The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately. */}
