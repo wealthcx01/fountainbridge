@@ -13,7 +13,6 @@ services:
     depends_on:
       - mongodb
       - meilisearch
-      - ticket-mcp
     env_file:
       - .env
     environment:
@@ -24,6 +23,9 @@ services:
     volumes:
       - ./librechat.yaml:/app/librechat.yaml:ro
       - ./assets/logo.svg:/app/client/dist/assets/logo.svg:ro   # Bruntsfield Foundry mark (FB-025)
+      # FB-033 write tool: the ticket-filer is a stdio MCP server spawned by this container's own
+      # node (see librechat.yaml mcpServers.ticket-filer). No sibling container, no URL, no SSRF.
+      - ./ticket-mcp/stdio.mjs:/app/foundry/ticket-filer.mjs:ro
       - librechat-images:/app/client/public/images
       - librechat-logs:/app/api/logs
 
@@ -45,14 +47,9 @@ services:
     volumes:
       - librechat-meili:/meili_data
 
-  # FB-025 write tool: the Foundry composer files an approved ticket to the venture backlog as a PR.
-  ticket-mcp:
-    build: ./ticket-mcp
-    container_name: librechat-ticket-mcp
-    restart: unless-stopped
-    environment:
-      - VENTURE_REPO=${VENTURE_REPO:-wealthcx01/arca}
-      - GITHUB_TOKEN=${TICKET_GITHUB_TOKEN:-}   # write-scoped token for the venture repo; blank = tool present but not yet authorized
+  # FB-033: the ticket-filer write tool is no longer a sibling container. It is a zero-dependency
+  # stdio MCP server (./ticket-mcp/stdio.mjs) mounted into the api container and spawned by its node
+  # — see librechat.yaml mcpServers.ticket-filer. TICKET_GITHUB_TOKEN + VENTURE_REPO come from .env.
 
 volumes:
   librechat-mongo:
