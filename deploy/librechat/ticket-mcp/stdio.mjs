@@ -79,8 +79,10 @@ async function fileTicket({ slug, title, body }) {
   } catch (e) {
     if (!String(e).includes('422')) throw e;
   }
+  // slug is guarded to [a-z0-9-] and the rest is URL-safe, so use the path literally — do NOT
+  // encodeURIComponent it (that would percent-encode the slashes and file at the wrong path).
   const path = `docs/tickets/${slug}.md`;
-  await gh(`/repos/${REPO}/contents/${encodeURIComponent(path)}`, {
+  await gh(`/repos/${REPO}/contents/${path}`, {
     method: 'PUT',
     body: JSON.stringify({
       message: `ticket: ${title}`,
