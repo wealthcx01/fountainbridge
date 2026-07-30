@@ -110,6 +110,44 @@ async function performAction(proposal) {
   }
 }
 
+// --- FB-051: the append-only event log -----------------------------------------------------------
+// The executor's outcome is the half of the audit record only it can write. Without these events the
+// log has a hole exactly where the external action happened — "granted" with nothing after it.
+//
+// Best-effort by design: a failure to append must never stop, or double-run, a real send. The
+// execution.json write remains the authority for control flow (it is what makes the run idempotent);
+// events are the record. If an append fails the studio's bridge still derives the event from the
+// file, so the log degrades in fidelity, never in truth.
+async function readEventSeq(id) {
+  const dir = await gh(`/repos/${REPO}/contents/approvals/${id}/events?ref=${encodeURIComponent(REF)}`).catch(() => null);
+  if (!Array.isArray(dir)) return 0;
+  return dir.reduce((max, e) => {
+    const n = Number.parseInt(String(e.name ?? ''), 10);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
+}
+
+async function appendEvent(id, type, actorId, data) {
+  try {
+    const seq = (await readEventSeq(id)) + 1;
+    const event = {
+      seq,
+      type,
+      at: new Date().toISOString(),
+      actor: { kind: 'executor', id: actorId },
+      causedBy: seq > 1 ? seq - 1 : null,
+      data,
+    };
+    await writeJson(
+      `approvals/${id}/events/${String(seq).padStart(4, '0')}-${type.replace('approval.', '')}.json`,
+      event,
+      `executor: event ${id}#${seq} ${type}`,
+    );
+  } catch (err) {
+    log(`approval ${id}: could not append ${type} to the event log — ${err?.message ?? err}`);
+  }
+}
+
 async function handleApproval(id) {
   if (!ID_RE.test(id)) { log(`skip malformed approval id ${JSON.stringify(id)}`); return 0; }
   const grant = await readFile(`approvals/${id}/grant.json`);
@@ -124,14 +162,17 @@ async function handleApproval(id) {
   if (!v.ok) {
     log(`approval ${id}: REJECTED — ${v.reason}`);
     await writeJson(`approvals/${id}/execution.json`, { id, status: 'rejected', reason: v.reason, executed_at: new Date().toISOString() }, `executor: reject ${id}`);
+    await appendEvent(id, 'approval.rejected', 'foundry-executor', { reason: v.reason });
     return 1;
   }
 
   // Intent-before-action (P1-5): record "executing" first so a crash can't cause a silent re-run.
   await writeJson(`approvals/${id}/execution.json`, { id, status: 'executing', approver: v.approver, started_at: new Date().toISOString() }, `executor: begin ${id}`);
+  await appendEvent(id, 'approval.executing', 'foundry-executor', { approver: v.approver });
   log(`approval ${id}: attestation valid (approver ${v.approver}) — executing ${proposal.json.action_type}`);
   const result = await performAction(proposal.json);
   await writeJson(`approvals/${id}/execution.json`, { id, status: 'executed', action_type: proposal.json.action_type, approver: v.approver, result, executed_at: new Date().toISOString() }, `executor: execute ${id}`);
+  await appendEvent(id, 'approval.executed', 'foundry-executor', { action_type: proposal.json.action_type, approver: v.approver, reason: result?.note, result });
   return 1;
 }
 

@@ -19,6 +19,19 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
         <strong style={{ fontSize: '15px' }}>{approval.summary}</strong>
         <span className="tag" data-testid={`approval-${approval.id}-dept`}>{approval.department ?? 'general'}</span>
       </div>
+      {/* FB-051: a record whose event log does not hold up must SAY SO, in front of the approve
+          button. The whole promise of the gate is "we can prove exactly what happened" — rendering a
+          confident status over a broken chain would quietly turn that into a lie. */}
+      {approval.faults.length > 0 ? (
+        <p
+          className="card"
+          data-testid={`approval-${approval.id}-faults`}
+          style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)', padding: '0.5rem 0.75rem', margin: '0.5rem 0 0', fontSize: '13px' }}
+        >
+          ⚠ This record cannot be verified — {approval.faults.map((f) => f.message).join('; ')}. Its
+          audit trail is incomplete, so treat what it says with caution.
+        </p>
+      ) : null}
       {approval.checks.length > 0 ? (
         <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: '13px', margin: '0.35rem 0 0' }}>
           {failing === 0 ? '✓ policy checks clear' : `⚠ ${failing} policy check${failing === 1 ? '' : 's'} need a look`} ·{' '}
@@ -30,6 +43,11 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           <span className="tag tag-accent" data-testid={`approval-${approval.id}-state`}>
             {result?.ok ? 'approved' : approval.status}
           </span>
+        ) : approval.faults.length > 0 ? (
+          // Deliberately no Approve button. Approving against a log we cannot verify would produce
+          // exactly the record this ticket exists to make impossible — a grant whose provenance is
+          // already in doubt. A human must sort the log out first.
+          <span className="tag" data-testid={`approval-${approval.id}-blocked`}>needs a human to check the record</span>
         ) : (
           <button
             type="button"

@@ -14,6 +14,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
+import { ordered, project, type ApprovalEvent, type Actor, type ComplianceRecord, type Fault, type ProjectedApproval } from './activegraph';
+import { eventsFromLegacy, isBridged, type LegacyFiles } from './activegraph-bridge';
 
 export const APPROVALS_REF = 'foundry-approvals';
 
@@ -33,7 +35,12 @@ export interface ApprovalProposal {
   checks?: PolicyCheck[];
 }
 
-export type ApprovalStatus = 'proposed' | 'granted' | 'executing' | 'executed' | 'rejected';
+/**
+ * `failed` was missing before FB-051, and its absence was a misrepresentation: v0 inferred status
+ * from file presence, so an execution that FAILED fell through to "granted" — the founder saw a
+ * send as approved-and-fine when it had actually errored. The projection has a real failed state.
+ */
+export type ApprovalStatus = 'proposed' | 'granted' | 'executing' | 'executed' | 'rejected' | 'failed';
 
 /** An Approval(kind='activegraph') — an external action awaiting (or past) the human gate. */
 export interface ActiveGraphApproval {
@@ -48,8 +55,20 @@ export interface ActiveGraphApproval {
   actionType: string | null;
   summary: string;
   checks: PolicyCheck[];
-  /** result/reason from execution.json when past the gate. */
+  /** result/reason once past the gate. */
   outcome: string | null;
+  // --- FB-051: what the event log proves, rather than what a file's presence implies -------------
+  /** The human who granted it. Null unless a human actually did — a machine grant never projects. */
+  grantedBy: Actor | null;
+  grantedAt: string | null;
+  /** The §5 compliance record, frozen on the proposal. */
+  compliance: ComplianceRecord | null;
+  /** Every actor that touched this approval, in causal order. */
+  lineage: ProjectedApproval['lineage'];
+  /** Non-empty ⇒ this record is NOT defensible and the studio must say so. */
+  faults: Fault[];
+  /** True when the log was derived from FB-044's files rather than natively appended. */
+  bridged: boolean;
 }
 
 /** Reads the raw JSON files of one approval; returns null for a missing file. Injectable for tests. */
@@ -57,6 +76,12 @@ export interface ApprovalSource {
   /** approval ids under `approvals/` on the ref. */
   listIds(repo: string): Promise<string[]>;
   read(repo: string, id: string, file: 'proposal' | 'grant' | 'execution'): Promise<{ json: unknown; sha: string } | null>;
+  /**
+   * The append-only event log for one approval (FB-051), newest-agnostic — ordering comes from each
+   * event's `seq`, not from the listing. Optional: a source without it (or an approval with no
+   * events yet) falls back to bridging FB-044's files.
+   */
+  readEvents?(repo: string, id: string): Promise<ApprovalEvent[]>;
 }
 
 /** A GitHub-backed source over the `foundry-approvals` ref. */
@@ -72,6 +97,28 @@ export function githubApprovalSource(client: GitHubClient): ApprovalSource {
       let json: unknown = null;
       try { json = JSON.parse(r.text); } catch { json = null; }
       return { json, sha: r.sha };
+    },
+    async readEvents(repo, id) {
+      // Events are immutable files under `approvals/<id>/events/`, one per event, named by seq. A
+      // missing directory is the normal case for an approval written before FB-051.
+      let entries: { name: string; type: string }[] = [];
+      try {
+        entries = await client.listDir(repo, `approvals/${id}/events`, APPROVALS_REF);
+      } catch {
+        return [];
+      }
+      const files = entries.filter((e) => e.type === 'file' && e.name.endsWith('.json'));
+      const read = await Promise.all(
+        files.map(async (f) => {
+          const r = await client.getFileWithSha(repo, `approvals/${id}/events/${f.name}`, APPROVALS_REF);
+          if (!r) return null;
+          try { return JSON.parse(r.text) as ApprovalEvent; } catch { return null; }
+        }),
+      );
+      // One unparseable event file must not discard the rest of the log — the remaining events still
+      // project, and `project()` reports the resulting gap as a lineage fault rather than letting a
+      // single bad file silently erase an approval's history.
+      return read.filter((e): e is ApprovalEvent => Boolean(e && typeof e.seq === 'number'));
     },
   };
 }
@@ -92,16 +139,34 @@ export function fixtureApprovalSource(dir: string): ApprovalSource {
         return { json: JSON.parse(text), sha: `sha-${id}-${file}` };
       } catch { return null; }
     },
+    async readEvents(repo, id) {
+      try {
+        const text = readFileSync(join(dir, key(repo), id, 'events.json'), 'utf8');
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? (parsed as ApprovalEvent[]) : [];
+      } catch { return []; }
+    },
   };
 }
 
-function statusOf(grant: unknown, execution: unknown): ApprovalStatus {
-  const ex = execution as { status?: string } | null;
-  if (ex?.status === 'executed') return 'executed';
-  if (ex?.status === 'executing') return 'executing';
-  if (ex?.status === 'rejected') return 'rejected';
-  if (grant) return 'granted';
-  return 'proposed';
+/**
+ * FB-051: an approval's log, from events where they exist and bridged from FB-044's files where they
+ * do not. Every approval therefore reaches the projection as an event chain, so the studio has one
+ * model rather than two code paths that can disagree.
+ */
+async function logFor(source: ApprovalSource, repo: string, id: string, files: LegacyFiles): Promise<ApprovalEvent[]> {
+  const events = source.readEvents ? await source.readEvents(repo, id) : [];
+  // A native log is authoritative only when it is a COMPLETE chain. A log that opens mid-story is
+  // the signature of a partial migration — the studio's grant event landed but the proposal was
+  // never migrated, or an append failed — and in that case FB-044's files are the more complete
+  // record of what actually happened. Preferring a truncated event log over them would lose history
+  // rather than gain provenance.
+  if (events.length && ordered(events)[0]?.type === 'approval.proposed') return events;
+  const bridged = eventsFromLegacy(files);
+  if (bridged.length) return bridged;
+  // Neither is complete: return whatever we have so `project()` reports the faults rather than the
+  // approval silently vanishing from the founder's queue.
+  return events;
 }
 
 /** Build the approval list for one venture from a source. */
@@ -119,26 +184,39 @@ export async function loadApprovals(
       source.read(repo, id, 'grant'),
       source.read(repo, id, 'execution'),
     ]);
-    if (!proposalR || !proposalR.json) continue; // an approval is defined by its proposal
-    const p = proposalR.json as ApprovalProposal;
+    const events = await logFor(source, repo, id, {
+      proposal: proposalR?.json ?? null,
+      grant: grantR?.json ?? null,
+      execution: execR?.json ?? null,
+    });
+    if (!events.length) continue; // an approval is defined by having been proposed
+    const projected = project(events);
+    const p = (proposalR?.json ?? {}) as ApprovalProposal;
+
     out.push({
       id,
       kind: 'activegraph',
       ventureId: venture.id,
       repo,
-      status: statusOf(grantR?.json ?? null, execR?.json ?? null),
-      proposalSha: proposalR.sha || null,
-      ticket: p.ticket ?? null,
-      department: p.department ?? null,
+      // The status is now PROJECTED from the log, not inferred from which files exist. A forged
+      // grant does not reach `granted` — project() refuses the transition (FB-051).
+      status: projected.status,
+      proposalSha: proposalR?.sha || null,
+      ticket: projected.ticket ?? p.ticket ?? null,
+      department: projected.department ?? p.department ?? null,
       actionType: p.action_type ?? null,
-      summary: p.summary ?? '(no summary)',
+      summary: projected.summary !== '(no summary)' ? projected.summary : p.summary ?? '(no summary)',
       checks: Array.isArray(p.checks) ? p.checks : [],
-      outcome: (execR?.json as { reason?: string; result?: { note?: string } } | null)?.reason
-        ?? (execR?.json as { result?: { note?: string } } | null)?.result?.note
-        ?? null,
+      outcome: projected.outcome,
+      grantedBy: projected.grantedBy,
+      grantedAt: projected.grantedAt,
+      compliance: projected.compliance,
+      lineage: projected.lineage,
+      faults: projected.faults,
+      bridged: isBridged(events),
     });
   }
   // Proposed (awaiting the gate) first, then in-flight, then terminal.
-  const rank: Record<ApprovalStatus, number> = { proposed: 0, granted: 1, executing: 2, executed: 3, rejected: 4 };
+  const rank: Record<ApprovalStatus, number> = { proposed: 0, granted: 1, executing: 2, failed: 3, executed: 4, rejected: 5 };
   return out.sort((a, b) => rank[a.status] - rank[b.status] || a.id.localeCompare(b.id));
 }

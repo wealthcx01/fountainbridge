@@ -43,3 +43,73 @@ describe('loadApprovals', () => {
     expect(await loadApprovals({ ...venture, repos: [] }, stub({}))).toEqual([]);
   });
 });
+
+// --- FB-051: the studio operates on the event log ------------------------------------------------
+describe('loadApprovals projects from the event log', () => {
+  const venture = { id: 'arca', repos: ['wealthcx01/arca'] } as never;
+
+  const source = (events: unknown[], files: Record<string, unknown> = {}): ApprovalSource => ({
+    async listIds() { return ['a1']; },
+    async read(_r, _i, file) {
+      const json = files[file];
+      return json === undefined ? null : { json, sha: `sha-${file}` };
+    },
+    async readEvents() { return events as never; },
+  });
+
+  const proposedEvent = {
+    seq: 1, type: 'approval.proposed', at: 't1', actor: { kind: 'lane', id: 'lane' }, causedBy: null,
+    summary: 'Send it', department: 'sell',
+  };
+
+  it('uses the native log when it is a complete chain, and reports who granted', async () => {
+    const [a] = await loadApprovals(venture, source([
+      proposedEvent,
+      { seq: 2, type: 'approval.granted', at: 't2', actor: { kind: 'founder', id: 'ross@b.capital' }, causedBy: 1 },
+    ], { proposal: { summary: 'stale file copy' } }));
+    expect(a.status).toBe('granted');
+    expect(a.grantedBy).toEqual({ kind: 'founder', id: 'ross@b.capital' });
+    expect(a.bridged).toBe(false);
+    expect(a.faults).toEqual([]);
+  });
+
+  it('REFUSES a machine-forged grant — it never reaches `granted`', async () => {
+    const [a] = await loadApprovals(venture, source([
+      proposedEvent,
+      { seq: 2, type: 'approval.granted', at: 't2', actor: { kind: 'lane', id: 'lane' }, causedBy: 1 },
+    ]));
+    expect(a.status).toBe('proposed');
+    expect(a.grantedBy).toBeNull();
+    expect(a.faults.map((f) => f.code)).toContain('non-human-grant');
+  });
+
+  it('bridges FB-044 files when there is no event log', async () => {
+    const [a] = await loadApprovals(venture, source([], {
+      proposal: { summary: 'Send it', department: 'sell' },
+      grant: { approver: 'ross@b.capital' },
+    }));
+    expect(a.status).toBe('granted');
+    expect(a.bridged).toBe(true);
+  });
+
+  it('prefers the files when the event log opens mid-story (a partial migration)', async () => {
+    const [a] = await loadApprovals(venture, source(
+      [{ seq: 1, type: 'approval.executing', at: 't', actor: { kind: 'executor', id: 'x' }, causedBy: null }],
+      { proposal: { summary: 'Send it' }, grant: { approver: 'ross@b.capital' } },
+    ));
+    // The truncated log would have projected a fault and lost the proposal + grant entirely.
+    expect(a.status).toBe('granted');
+    expect(a.bridged).toBe(true);
+    expect(a.faults).toEqual([]);
+  });
+
+  it('surfaces a failed execution as `failed`, not as "granted" (the v0 misrepresentation)', async () => {
+    const [a] = await loadApprovals(venture, source([], {
+      proposal: { summary: 'Send it' },
+      grant: { approver: 'ross@b.capital' },
+      execution: { status: 'failed', reason: 'smtp refused' },
+    }));
+    expect(a.status).toBe('failed');
+    expect(a.outcome).toBe('smtp refused');
+  });
+});

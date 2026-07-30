@@ -19,10 +19,40 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { GitHubClient } from '@/lib/github';
 import { APPROVALS_REF, type ApprovalProposal } from '@/lib/approvals';
 import { attestationFor, approverRoleForDepartment, canApprove } from '@/lib/approval-attestation';
+import { nextEvent, type ActorKind, type ApprovalEvent } from '@/lib/activegraph';
+import type { VentureSummary } from '@/lib/ventures';
 
 export interface ApproveResult {
   ok: boolean;
   message: string;
+}
+
+/**
+ * Whether this approver acts as the founder or as Bruntsfield. Both are human and both may grant;
+ * the distinction is what a D7 audit asks for — which side signed off.
+ */
+function approverActorKind(email: string, venture: VentureSummary, admins: string[]): ActorKind {
+  const isFounder = venture.founderEmail?.toLowerCase() === email.toLowerCase();
+  if (isFounder) return 'founder';
+  return admins.some((a) => a.toLowerCase() === email.toLowerCase()) ? 'bruntsfield' : 'founder';
+}
+
+/** The existing event log, so the appended event continues the chain rather than restarting it. */
+async function sourceEvents(reader: GitHubClient, repo: string, approvalId: string): Promise<ApprovalEvent[]> {
+  const entries = await reader.listDir(repo, `approvals/${approvalId}/events`, APPROVALS_REF).catch(() => []);
+  const out: ApprovalEvent[] = [];
+  for (const entry of entries) {
+    if (entry.type !== 'file' || !entry.name.endsWith('.json')) continue;
+    const file = await reader.getFileContent(repo, `approvals/${approvalId}/events/${entry.name}`, APPROVALS_REF);
+    if (!file) continue;
+    try {
+      const parsed = JSON.parse(file) as ApprovalEvent;
+      if (typeof parsed.seq === 'number') out.push(parsed);
+    } catch {
+      // A malformed event file must not stop a founder approving. project() reports the gap.
+    }
+  }
+  return out;
 }
 
 export async function approveExternalAction(ventureId: string, approvalId: string): Promise<ApproveResult> {
@@ -80,5 +110,33 @@ export async function approveExternalAction(ventureId: string, approvalId: strin
   } catch {
     return { ok: false, message: 'Could not record the approval on GitHub — please try again.' };
   }
+
+  // FB-051: append the `approval.granted` event — the audit record proper. Written AFTER grant.json
+  // and deliberately not fatal if it fails.
+  //
+  // The ordering is the safety-critical part. grant.json is what the deployed executor verifies, so
+  // it must land first: an event written before a failed grant write would claim an approval that
+  // can never execute. The reverse — a grant with a missing event — is a gap the bridge fills from
+  // the file, with the HMAC attestation still binding the approver. So a failure here costs record
+  // fidelity, never correctness, and the founder is not told their approval failed when it did not.
+  try {
+    const events = await sourceEvents(reader, repo, approvalId);
+    const event = nextEvent(events, {
+      type: 'approval.granted',
+      at: grant.granted_at,
+      // The one actor kind that may grant. This is the same claim the attestation binds, now stated
+      // in the log itself so a replay can see WHO, not just THAT.
+      actor: { kind: approverActorKind(email, venture, admins), id: email },
+      data: { proposal_sha: proposalR.sha, attestation },
+    });
+    await writer.putFile(repo, `approvals/${approvalId}/events/${String(event.seq).padStart(4, '0')}-granted.json`, {
+      content: JSON.stringify(event, null, 2),
+      message: `event ${approvalId}#${event.seq} approval.granted (${email})`,
+      branch: APPROVALS_REF,
+    });
+  } catch {
+    // Intentionally swallowed — see above. The grant stands.
+  }
+
   return { ok: true, message: 'Approved. The action will run shortly, and you\'ll see it recorded here.' };
 }

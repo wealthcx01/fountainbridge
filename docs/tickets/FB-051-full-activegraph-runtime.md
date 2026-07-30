@@ -1,6 +1,6 @@
 # FB-051 — Full ActiveGraph runtime for external actions (fully apply ActiveGraph)
 
-**Status:** Planned · **Phase:** 4b · **Depends on:** FB-044 (git-backed gate + executor), FB-046
+**Status:** In review · **Phase:** 4b · **Depends on:** FB-044 (git-backed gate + executor), FB-046
 (in-studio approve) · **Repo:** fountainbridge (+ ActiveGraph) · **Branch:** `fb-051-full-activegraph-runtime`
 One ticket = one branch = one PR.
 
@@ -31,9 +31,55 @@ event, deterministic replay. This applies ActiveGraph **fully**.
   `performAction()`). The engineering PR gate (stays git/CI).
 
 ## Acceptance criteria
-- [ ] External-action approvals are ActiveGraph events (proposed→granted→executed), replayable + actor-attributed.
-- [ ] A send approval carries the full §5 compliance record; the human grant is the only path to `granted`.
-- [ ] The studio + executor operate on the event stream; the git-backed v0 is retired or bridged.
+- [x] External-action approvals are ActiveGraph events (proposed→granted→executed), replayable and
+      actor-attributed. Status is now a **deterministic projection** of an append-only log
+      (`lib/activegraph.ts`), never inferred from which files exist. `replayTo(events, seq)` gives the
+      state as it stood at any point — a pure fold, so replay *is* the historical truth rather than a
+      reconstruction of it.
+- [x] A send approval carries the full §5 compliance record (recipient, PECR subscriber class, lawful
+      basis + LIA/consent ref, suppression check, frozen `draftSha`, channel, sending identity +
+      scope; approver + timestamp from the grant event), frozen on `approval.proposed`. **The human
+      grant is the only path to `granted`** — an `approval.granted` by a `lane`/`executor`/`system`
+      actor does not transition the approval at all; it projects to `proposed` plus a
+      `non-human-grant` fault. Defence in depth alongside FB-044's HMAC: the attestation stops a lane
+      *producing* a valid grant, the projection stops a forged one *counting*.
+- [~] The studio and executor operate on the event stream: `loadApprovals` projects from it, the
+      studio's Approve appends `approval.granted`, and the executor appends
+      `executing`/`executed`/`rejected`. The git-backed v0 is **bridged, not retired** —
+      `lib/activegraph-bridge.ts` derives the event chain from FB-044's files, marks the result
+      `bridged: true` (reconstructed order is not recorded order), and both paths are still written.
+      Retiring v0 needs every venture migrated *and* the deployed executor updated, which is a
+      migration, not a code change. Called out in the design doc's "Still to do".
+
+**Design:** `docs/activegraph-runtime.md`.
+
+## Note on "the ActiveGraph repo"
+Upstream (github.com/yoheinakajima/activegraph) is a **Python** event-sourced graph runtime. Adopting
+it directly would mean a Python service plus a datastore per venture, against D1/D2 (git is the
+store) and the studio's TypeScript stack. What this ticket applies is the *model* the ticket's own
+Context asks for — append-only log as source of truth, state as projection, actor attribution, causal
+lineage, deterministic replay — on our substrate: immutable event files on the `foundry-approvals`
+ref. Nothing new to provision per venture.
 
 ## Verification
-`/review` + CI; a proposed→granted→executed sequence replays from the ActiveGraph log with correct actor lineage.
+**Done in this PR (local):** 34 unit tests. The proposed→granted→executed sequence replaying with
+correct actor lineage at every point (the ticket's stated verification); determinism and
+order-independence; the §5 record surviving the fold; the human-grant gate (lane-forged, executor
+self-granted, and the legitimate Bruntsfield approver under D7); and every way a log can fail to hold
+up — no proposal, execution that never passed a grant, events after a terminal state, duplicate
+`seq`, broken lineage, a second proposal — each reported as a fault rather than thrown or repaired.
+Plus the bridge: partial v0 states, camelCase/snake_case compliance keys, a grant with no proposal,
+and the rule that a v0 proposal is attributed to a **lane**, never a human. Plus `loadApprovals`
+projecting from the log end to end, including the partial-migration fallback.
+
+Two prior misrepresentations fixed on the way past: a **failed execution used to project as
+`granted`** (v0's file-presence inference had no `failed` case, so an errored send showed to the
+founder as approved and fine), and an unverifiable record now **withholds the Approve button** rather
+than rendering a confident status over a broken chain.
+
+159 tests, lint, typecheck, build, the Playwright UI gate, ticket parse, manifest validation and
+shellcheck all green.
+
+**Still to do (needs John / a migration):** retire the v0 files once ventures are migrated and the
+deployed executor is updated; wire `suppression.added` into the send path (nothing sends until Phase
+4b); a UI for walking an approval's history — `replayTo` is tested but has no operator surface.
