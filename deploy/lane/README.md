@@ -1,18 +1,30 @@
-# Foundry venture lane runtime (FB-039)
+# Foundry venture lane runtime (FB-039 → FB-041)
 
 The engine behind the composer, on the venture's **own** Hetzner box (D1). Design:
-`docs/founder-to-lane-execution.md`. This is the runtime + the spike supervisor; the autonomous
-scheduler (scan + budget + gate routing) is FB-040.
+`docs/founder-to-lane-execution.md` + `docs/lane-rpiv-loop.md` (the RPIV loop, FB-041).
+
+Since FB-041 the lane no longer just edits a file — it runs the disciplined **RPIV loop** and reviews +
+tests its own work before the founder ever sees a PR:
+**RESEARCH** (context/) → **PLAN** (/plan → PRP-lite) → **IMPLEMENT** → **COMMIT** (local) →
+**VALIDATE** (tests + /review [HARD] + browser /qa [SOFT]) → **GATE**: pass ⇒ push + PR; any fail ⇒ a
+plain-language `blocked` RunReport, no PR. The supervisor (bash) owns the gate and binds it to
+*objective* signals — test/typecheck/lint exit codes + gstack's own review artifact — not a self-graded
+boolean.
 
 ## What's here
-- `foundry-lib.sh` — shared helpers (`gh_api`, `jval`, `write_runreport`, `ensure_state_ref`).
-- `supervisor.sh` — one lane pass: **claim** a ticket via branch-create CAS → flip its Status
-  Todo→In progress → run a **Claude Code lane** to implement it → open a **PR** (a human merges) →
-  write a **RunReport** to the `foundry-state` ref. Holds no send/deploy power (§8).
-- `run-once.sh` (FB-040) — the **autonomous wake**: scan for a `Todo`/`Ready` ticket → "useful work?"
-  (idle heartbeat if none) → stale-reclaim → circuit-breaker → budget gate → blast-radius routing
-  (full-auto for low-risk; **stop-at-PLAN** for auth/payments/sends/migrations). Called by the timer.
-- `foundry-lane.service` / `.timer` — the systemd pull trigger (~5-min oneshot).
+- `install-gstack.sh` (FB-041) — **run once per box**: installs gstack (pinned commit) + the
+  Playwright/Chromium stack so the lane can run `/plan`, `/review`, `/qa`.
+- `foundry-lib.sh` — shared helpers (`gh_api`, `jval`, `write_runreport`) + the RPIV primitives
+  (`claude_lane`, `venture_gate`, `review_status`, `ticket_department`, `mem_available_mb`).
+- `supervisor.sh` — one lane pass: **claim** (branch-create CAS) → **route** (department) →
+  RESEARCH→PLAN→IMPLEMENT→COMMIT→VALIDATE→**GATE** → PR (a human merges) → **RunReport**. No send/deploy
+  power (§8).
+- `run-once.sh` — the **autonomous wake**: scan for a `Todo`/`Ready` ticket → "useful work?" (idle
+  heartbeat if none) → stale-reclaim → circuit-breaker (terminal `blocked` report at MAX_ATTEMPTS) →
+  budget gate → blast-radius routing (full-auto RPIV for low-risk; **stop-at-PLAN**, plan attached, for
+  auth/payments/sends/migrations). Called by the timer.
+- `foundry-lane.service` / `.timer` — the systemd pull trigger (~5-min oneshot). The service sets a
+  **memory cgroup cap** (`MemoryMax`) so `/qa`'s Chromium can never OOM-kill the founder's live composer.
 
 ## Enable the autonomous lane (FB-040)
 ```bash
@@ -30,6 +42,9 @@ Tunables in `lane.env`: `DAILY_WAKE_BUDGET` (wake cap; the Max path has no per-v
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
 npm install -g @anthropic-ai/claude-code
 git clone https://x-access-token:<LANE_TOKEN>@github.com/<owner>/<repo>.git /opt/foundry/lane/<repo>
+
+# install gstack so the lane runs the real RPIV loop (once, ~1.7 GB incl. the browser stack):
+/opt/foundry/lane/install-gstack.sh
 
 # lane env (NO send/deploy creds here — §8):
 cat > /opt/foundry/lane/lane.env <<'ENV'
