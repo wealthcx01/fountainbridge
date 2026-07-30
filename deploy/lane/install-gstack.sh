@@ -38,21 +38,23 @@ fi
 git -C "$GSTACK_DIR" checkout --quiet "$GSTACK_PIN"
 say "gstack pinned at $(git -C "$GSTACK_DIR" rev-parse --short HEAD) (VERSION $(cat "$GSTACK_DIR/VERSION" 2>/dev/null || echo '?'))"
 
-# 3. ./setup — wires the individual skills into ~/.claude/skills/ and installs deps (frozen lockfile).
-say "running gstack ./setup…"
-( cd "$GSTACK_DIR" && bun install --frozen-lockfile && ./setup )
+# 3. headless-safe config BEFORE ./setup, so the skill-prefix prompt resolves from saved config (never
+#    an interactive read) and headless lanes never self-upgrade / nag mid-run.
+mkdir -p "$HOME/.gstack"
+if [ ! -f "$HOME/.gstack/config.yaml" ]; then
+  printf 'proactive: false\nauto_upgrade: false\nskill_prefix: false\n' > "$HOME/.gstack/config.yaml"
+  say "seeded ~/.gstack/config.yaml (proactive off, auto_upgrade off, short skill names)"
+fi
 
-# 4. the browser /qa needs Chromium + its system libs.
+# 4. ./setup — wires the individual skills into ~/.claude/skills/ and installs deps (frozen lockfile).
+#    --no-prefix = short names (/qa, /review — what supervisor.sh calls); --quiet + non-TTY = no prompts.
+say "running gstack ./setup…"
+( cd "$GSTACK_DIR" && bun install --frozen-lockfile && ./setup --no-prefix --quiet )
+
+# 5. the browser /qa needs Chromium + its system libs.
 say "installing Playwright Chromium…"
 ( cd "$GSTACK_DIR" && bunx playwright install --with-deps chromium ) || \
   say "WARN: playwright install had issues — /qa will DEFER (soft gate) until this succeeds"
-
-# 5. headless-safe config: never prompt or self-upgrade mid-run.
-mkdir -p "$HOME/.gstack"
-if [ ! -f "$HOME/.gstack/config.yaml" ]; then
-  printf 'proactive: false\nauto_upgrade: false\n' > "$HOME/.gstack/config.yaml"
-  say "seeded ~/.gstack/config.yaml (proactive off, auto_upgrade off)"
-fi
 
 # 6. verify the wiring the lane depends on.
 say "verifying…"
