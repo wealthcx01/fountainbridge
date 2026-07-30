@@ -58,19 +58,25 @@ write_runreport() {
 # RPIV loop primitives (FB-041). See docs/lane-rpiv-loop.md.
 # ---------------------------------------------------------------------------------------------------
 
-# claude_lane <timeout_secs> <permission_mode> <prompt>
-# Runs one headless Claude Code session with the auth ladder (Max preferred, API fallback). Prints the
-# session's stdout; returns claude's exit code (124 on timeout). The caller inspects the output for a
-# headless BLOCKED marker (see phase_blocked). No send/deploy creds exist on the box (§8), so
-# bypassPermissions here is bounded to the repo working tree — which the gate controls.
+# The tools a headless lane phase may use. We CANNOT use bypassPermissions — Claude Code refuses
+# `--dangerously-skip-permissions` when running as root (the lane's systemd identity), so we grant an
+# explicit allowlist under acceptEdits instead. This is safe: the box holds no send/deploy/payment creds
+# (§8), so the boundary is the isolated box + the supervisor's gate, not the in-session permission mode.
+: "${LANE_ALLOWED_TOOLS:=Bash Read Grep Glob Edit Write Task WebFetch WebSearch TodoWrite NotebookEdit}"
+
+# claude_lane <timeout_secs> <prompt>
+# Runs one headless Claude Code session with the auth ladder (Max preferred, API fallback) under
+# acceptEdits + the lane allowlist. Prints the session's stdout; returns claude's exit code (124 on
+# timeout). The caller inspects the output for a headless BLOCKED marker (see phase_blocked).
 claude_lane() {
-  local to="$1" perm="$2" prompt="$3"
+  local to="$1" prompt="$2"
+  # shellcheck disable=SC2086  # LANE_ALLOWED_TOOLS is an intentional space-separated arg list
   if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
     env -u ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
-      timeout "$to" claude -p "$prompt" --permission-mode "$perm" --output-format text
+      timeout "$to" claude -p "$prompt" --permission-mode acceptEdits --allowedTools $LANE_ALLOWED_TOOLS --output-format text
   else
     ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
-      timeout "$to" claude -p "$prompt" --permission-mode "$perm" --output-format text
+      timeout "$to" claude -p "$prompt" --permission-mode acceptEdits --allowedTools $LANE_ALLOWED_TOOLS --output-format text
   fi
 }
 
