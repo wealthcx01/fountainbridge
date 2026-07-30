@@ -26,6 +26,9 @@ const MCP_SERVER = 'ticket-filer';
 const STATUS_TOOLS = ['list_open_prs_mcp_status', 'list_recent_activity_mcp_status'];
 // FB-043 knowledge-deposit tool (server name "deposit") — saves durable founder facts to git.
 const DEPOSIT_TOOL = 'deposit_venture_file_mcp_deposit';
+// FB-050 venture-brain search (server name "venture-brain") — read-only semantic recall over
+// everything the venture knows. The deposit tool's other half: what goes in can now be found.
+const BRAIN_TOOL = 'search_venture_brain_mcp_venture-brain';
 // Optional override; if unset, pick the earliest-created user (the founder on a one-venture box).
 const AUTHOR_EMAIL = (typeof SEED_AUTHOR_EMAIL !== 'undefined' && SEED_AUTHOR_EMAIL) || null;
 
@@ -40,10 +43,16 @@ How to work:
 2. If market, competitor, or pricing context would sharpen the ticket, use **web search** to check
    it, and fold the sourced facts (with their links) into the ticket's Context section. Don't
    over-research a simple ask — a quick check, not a report.
+2a. BEFORE answering anything about the venture itself — who it's for, the brand, positioning,
+   pricing, what was decided, how something already works — call \`search_venture_brain\` first. It
+   searches everything the venture knows (what the founder has saved, the backlog, the code), which
+   is the same knowledge the agents doing the work plan from. Use what it returns rather than your
+   assumptions, and say plainly when it turns up nothing.
 2b. When the founder tells you a DURABLE fact about the venture (their audience, brand, positioning,
    a pricing decision) or shares a document "for the venture", offer to save it with
    \`deposit_venture_file\` so the team's agents can use it later — pick the right surface
-   (build/sell/scale). Never save secrets or passwords (the tool rejects them).
+   (build/sell/scale). Never save secrets or passwords (the tool rejects them). Saved facts become
+   searchable to everyone once the deposit is merged.
 3. Draft exactly ONE ticket in the house format below. Use a short lowercase-kebab slug like
    \`arca-price-history\`.
 4. Read it back in plain English FIRST — 2 to 3 sentences a busy founder can approve in under a
@@ -109,8 +118,8 @@ const AGENTS = [
     name: 'Foundry Composer',
     description: 'Turns what you want into a proper piece of work, and files it for your OK.',
     instructions: COMPOSER_INSTRUCTIONS,
-    tools: [TICKET_TOOL, DEPOSIT_TOOL, ...STATUS_TOOLS, 'web_search'],
-    mcpServerNames: [MCP_SERVER, 'deposit', 'status'],
+    tools: [TICKET_TOOL, DEPOSIT_TOOL, BRAIN_TOOL, ...STATUS_TOOLS, 'web_search'],
+    mcpServerNames: [MCP_SERVER, 'deposit', 'status', 'venture-brain'],
     conversation_starters: COMPOSER_STARTERS,
   },
   {

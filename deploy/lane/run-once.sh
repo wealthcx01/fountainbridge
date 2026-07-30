@@ -48,6 +48,28 @@ git checkout --quiet "$BASE_BRANCH" 2>/dev/null || git checkout --quiet -B "$BAS
 git reset --quiet --hard "origin/$BASE_BRANCH"
 git clean -fd --quiet   # drop untracked leftovers from a prior aborted run (code review P1-1)
 
+# --- keep the venture brain current with whatever just merged (FB-050) -----------------------------
+# Here is the one moment the worktree is guaranteed to be clean and on the base branch, so it is the
+# right place to index. Best-effort and time-boxed: a stale or missing index degrades RESEARCH to
+# reading files, it must never stop the lane from working. The 15-min timer covers idle stretches.
+# Handed to SYSTEMD, not run inline. An inline `timeout N` would SIGTERM the process group — flock,
+# gbrain and all — mid-write on a single-writer index, on every wake whose refresh ran long. systemd
+# owns the lifecycle instead: Type=oneshot means an already-running refresh is not started twice, and
+# --no-block means the lane never waits on it.
+# Gated on -f rather than -x: if the copy on the box ever lands without its executable bit, an -x
+# guard would skip the refresh FOREVER without a word, and the lane would research from a frozen
+# index believing it was current.
+if command -v gbrain >/dev/null 2>&1; then
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files foundry-brain-sync.service >/dev/null 2>&1; then
+    systemctl start --no-block foundry-brain-sync.service 2>/dev/null \
+      || flog "could not trigger the brain refresh — the 15-minute timer still covers it"
+  elif [ -f "$SCRIPT_DIR/gbrain-refresh.sh" ]; then
+    # No systemd (a dev box): run it inline, but generously, so a kill can't land mid-write.
+    timeout "${BRAIN_REFRESH_TIMEOUT:-1800}" bash "$SCRIPT_DIR/gbrain-refresh.sh" >/dev/null 2>&1 \
+      || flog "brain refresh skipped or failed — RESEARCH may be working from a slightly stale index"
+  fi
+fi
+
 # --- scan for the first workable ticket ------------------------------------------------------------
 PICK="" PICK_SLUG=""
 shopt -s nullglob

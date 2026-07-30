@@ -38,7 +38,8 @@ after review + qa pass" is enforced by control flow, not by trusting the agent.
 ```
 CLAIM (branch-create CAS, unchanged)
   └─ ROUTE          department → repo/queue (manifest departments[]); unprovisioned repo → blocked
-  └─ RESEARCH       read context/ (D8 founder brain, FB-043); gbrain semantic search lands in FB-050
+  └─ RESEARCH       gbrain query over the venture brain, partitioned to this department (FB-050);
+                    falls back to reading context/ raw, and says so, if the brain is unavailable
   └─ PLAN           claude -p: plan the change → $RUNDIR/plan.md (PRP-lite; full PRP is FB-052)
   └─ IMPLEMENT      claude -p: implement per the plan, smallest correct change
   └─ COMMIT         commit the diff to the claim branch (local only — not pushed yet). Validation now
@@ -125,7 +126,8 @@ Footprint: ~1.7 GB on 14 GB free disk (fine).
 
 ## Out of scope (depended-on, not built here)
 
-- gbrain semantic RESEARCH — **FB-050**. RESEARCH reads `context/` files raw until then.
+- gbrain semantic RESEARCH — **delivered by FB-050** (`docs/venture-brain.md`). The raw `context/`
+  read described here is now the documented fallback for when the brain is unavailable.
 - Full PRP (context + validation gates in the plan) — **FB-052**. PLAN is PRP-lite here.
 - Executing external actions — stays behind the **FB-044/046** gate; the lane still holds no send/deploy creds.
 

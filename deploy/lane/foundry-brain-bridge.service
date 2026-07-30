@@ -1,0 +1,26 @@
+# Foundry venture-brain bridge (FB-050). The composer's read-only door to the brain: gbrain owns a
+# single-writer PGLite database on this host, so exactly one process gets to touch it on behalf of
+# the containerised composer. See deploy/lane/brain-bridge.mjs.
+[Unit]
+Description=Foundry venture brain — read-only query bridge for the composer
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Bridge token + brain source + the lock the refresh also takes. Written by install-gbrain.sh; local
+# to this box, never in the repo (§8).
+EnvironmentFile=/opt/foundry/lane/brain.env
+ExecStart=/usr/bin/env node /opt/foundry/lane/brain-bridge.mjs
+Restart=always
+RestartSec=5
+Nice=5
+# A founder asking the composer a question must never be able to starve the box. The bridge answers
+# one query at a time (brain-bridge.mjs), and the cgroup caps what that query's gbrain can take.
+MemoryHigh=512M
+MemoryMax=768M
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

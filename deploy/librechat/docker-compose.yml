@@ -14,6 +14,11 @@ services:
       - mongodb
       - meilisearch
       - rag_api
+    # FB-050: gbrain lives on the host (single-writer local index — D1). host.docker.internal
+    # resolves to the host's docker bridge address, which is exactly what brain-bridge.mjs listens
+    # on. Nothing is published to the internet: the bridge never binds 0.0.0.0 and requires a token.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
@@ -36,6 +41,9 @@ services:
       # FB-043 knowledge-deposit: stdio MCP so a founder can save durable facts/files into the
       # venture's git context/library (secret-scanned) — the second-brain bridge to the lanes.
       - ./deposit-mcp/stdio.mjs:/app/foundry/deposit.mjs:ro
+      # FB-050 venture brain: read-only stdio MCP that forwards to the HOST's brain bridge, so the
+      # composer answers from the same index the lanes plan from. See extra_hosts above.
+      - ./brain-mcp/stdio.mjs:/app/foundry/brain-search.mjs:ro
       - librechat-images:/app/client/public/images
       - librechat-logs:/app/api/logs
 

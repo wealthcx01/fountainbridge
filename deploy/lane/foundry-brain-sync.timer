@@ -1,0 +1,20 @@
+# Refresh the venture brain on a cadence (FB-050).
+[Unit]
+Description=Refresh the Foundry venture brain periodically
+
+[Timer]
+# Calendar cadence, for the same reason as foundry-lane.timer: monotonic OnBootSec/OnUnitActiveSec
+# timers stall after a stop/restart once elapsed, which would leave the brain silently frozen at
+# whatever it knew before the restart. A calendar timer always computes a next elapse.
+# Every 15 min — the lane resets the worktree to the base branch every ~5 min, so a merge is
+# indexed well inside the founder's next question. Refresh defers while a lane run is in flight.
+# Offset off the lane's wake boundary. foundry-lane.timer fires at *:0/5, so a plain *:0/15 collides
+# with it at :00/:15/:30/:45 — four guaranteed lock fights an hour, forever. :07/15 never lands on a
+# multiple of 5, and the randomised delay keeps the post-reboot catch-up runs (Persistent=true on
+# both units) from starting in the same second.
+OnCalendar=*:07/15
+RandomizedDelaySec=90
+Persistent=true
+
+[Install]
+WantedBy=timers.target
