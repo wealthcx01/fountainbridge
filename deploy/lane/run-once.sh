@@ -95,7 +95,7 @@ if grep -qiE '\bauth(entication|orization)?\b|password|payment|billing|stripe|\b
   echo "$PICK_SLUG $(date -u +%FT%TZ)" >> "$BUDGET_FILE"   # a plan session counts against the budget
   PLAN_OUT="$STATE_DIR/sensitive-plan-$PICK_SLUG.md"
   set +e
-  claude_lane "$PLAN_TIMEOUT" acceptEdits "This is a HIGH-IMPACT ticket (auth/payments/sends/migrations/secrets). Do NOT implement anything and
+  claude_lane "$PLAN_TIMEOUT" "This is a HIGH-IMPACT ticket (auth/payments/sends/migrations/secrets). Do NOT implement anything and
 do NOT edit files. Write a short plain-English plan of what you WOULD do and the risks, so the founder
 can decide. Output only the plan.
 

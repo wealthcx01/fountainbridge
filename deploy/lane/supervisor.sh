@@ -99,7 +99,7 @@ brand, positioning, pricing), deposited via the composer. Let it inform the work
 PLAN_FILE="$RUNDIR/plan.md"
 log "PLAN…"
 set +e
-claude_lane "$PLAN_TIMEOUT" acceptEdits "You are a Foundry engineering lane on the '$REPO' repo working ONE ticket.
+claude_lane "$PLAN_TIMEOUT" "You are a Foundry engineering lane on the '$REPO' repo working ONE ticket.
 FIRST research, THEN plan — do not write any code yet.${CONTEXT_HINT}
 Write a short, concrete implementation plan (a PRP-lite: the smallest correct change, the files you'll
 touch, and how you'll verify it) to the absolute path $PLAN_FILE. Keep it tight.
@@ -115,7 +115,7 @@ log "plan written ($(wc -l <"$PLAN_FILE") lines)"
 # --- 6. IMPLEMENT: smallest correct change per the plan (no commit here — the supervisor commits) ----
 log "IMPLEMENT…"
 set +e
-claude_lane "$IMPL_TIMEOUT" acceptEdits "You are a Foundry engineering lane on the '$REPO' repo. Implement EXACTLY this ticket by following
+claude_lane "$IMPL_TIMEOUT" "You are a Foundry engineering lane on the '$REPO' repo. Implement EXACTLY this ticket by following
 your plan at $PLAN_FILE. Make the smallest correct change. Edit files in the working tree only — do
 NOT commit, push, or open a PR (the supervisor does that), and do NOT run deploy or send commands.
 When done, print ONE plain-English line summarising what you changed.
@@ -148,7 +148,7 @@ log "tests OK (no regression vs baseline)"
 # on whether /review wanted to edit the code (it edited ⇒ not clean ⇒ block).
 log "VALIDATE: /review…"
 set +e
-claude_lane "$REVIEW_TIMEOUT" bypassPermissions "Run /review on the changes in this branch versus $BASE_BRANCH. Do a thorough staff-engineer
+claude_lane "$REVIEW_TIMEOUT" "Run /review on the changes in this branch versus $BASE_BRANCH. Do a thorough staff-engineer
 audit. Report findings; the supervisor gates on your review log, so be honest about must-fix issues." \
   >"$RUNDIR/review.log" 2>&1
 rc=$?; set -e
@@ -178,7 +178,7 @@ else
   log "VALIDATE: /qa (browser)…"
   QA_JSON="$RUNDIR/qa.json"
   set +e
-  claude_lane "$QA_TIMEOUT" bypassPermissions "Run /qa-only against this app to check the change works (report-only — do NOT edit any files).
+  claude_lane "$QA_TIMEOUT" "Run /qa-only against this app to check the change works (report-only — do NOT edit any files).
 If the change has no web-facing surface, or you cannot boot the app headless, that is NOT a failure —
 just say so. When done, write JSON to the absolute path $QA_JSON:
 {\"verdict\":\"pass\"|\"fail\"|\"deferred\",\"bugs\":[\"short\"],\"note\":\"e.g. no web surface affected / couldn't boot\"}
