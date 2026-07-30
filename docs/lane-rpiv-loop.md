@@ -40,15 +40,31 @@ CLAIM (branch-create CAS, unchanged)
   └─ ROUTE          department → repo/queue (manifest departments[]); unprovisioned repo → blocked
   └─ RESEARCH       gbrain query over the venture brain, partitioned to this department (FB-050);
                     falls back to reading context/ raw, and says so, if the brain is unavailable
-  └─ PLAN           claude -p: plan the change → $RUNDIR/plan.md (PRP-lite; full PRP is FB-052)
-  └─ IMPLEMENT      claude -p: implement per the plan, smallest correct change
-  └─ COMMIT         commit the diff to the claim branch (local only — not pushed yet). Validation now
-                    runs against this exact SHA, so the eventual PR is byte-for-byte what review saw.
-  └─ VALIDATE (the hard floor must pass — any fail ⇒ `blocked` RunReport, no push, no PR):
+  └─ PLAN           claude -p: write a PRP → $RUNDIR/prp.md (FB-052). Not just a plan: intent,
+                    context, tasks, and explicit VALIDATION GATES saying how "done" gets proved.
+                    The supervisor enforces the shape — no gates ⇒ not a PRP ⇒ does not proceed.
+                    Persisted to $STATE_REF:prps/<slug>.md, so a later run RESUMES instead of
+                    re-planning ("clear the chat, resume from the board").
+  ┌─ (loop, up to MAX_VALIDATION_ROUNDS — default 2, i.e. one repair) ─────────────────────────┐
+  │ IMPLEMENT       claude -p: implement per the PRP, smallest correct change. On a repair round,
+  │                 the prompt carries exactly what failed and forbids weakening a test or a gate.
+  │ COMMIT          commit to the claim branch (local only — not pushed). Validation runs against
+  │                 this exact SHA, so the eventual PR is byte-for-byte what review saw. Repair
+  │                 rounds --amend, so the PR stays one commit; a repair that changed nothing blocks
+  │                 rather than re-running identical checks.
+  │ VALIDATE        the three checks below. Any failure that a further round could plausibly fix
+  │                 loops BACK to IMPLEMENT rather than forward to the founder. A phase that stopped
+  │                 to ask a human, or timed out, parks immediately — another round can't help.
+  └────────────────────────────────────────────────────────────────────────────────────────────┘
+  └─ VALIDATE (the hard floor must pass — exhausting the rounds ⇒ `blocked` RunReport, no push, no PR):
        tests        [HARD] run the venture toolchain (bun/npm typecheck+lint+test) and gate on the
                     REGRESSION vs a baseline probe taken before the lane touched anything — so the lane
                     is blocked only by breakage IT caused, never by the venture's pre-existing debt
                     (arca's typecheck/lint are already red on master). Exit codes; unfakeable.
+       PRP gates    [HARD] claude -p: check the finished code against the PRP's OWN gates, one
+                    verdict per gate as JSON. A gate nobody reports on counts as NOT passed — silence
+                    is not evidence (prp-lib.mjs `applyVerdicts`). The ✅/❌ list goes in the PR body,
+                    so the human gate sees the lane's stated criteria and whether each one held.
        /review      [HARD] claude -p /review → read gstack's own review artifact
                     (~/.gstack/projects/$SLUG/$BRANCH-reviews.jsonl): block if latest status is not a
                     ship OR critical>0 OR /review edited files (it wanted to change the code → not clean)
@@ -87,6 +103,50 @@ agent genuinely needs a human call, it stops and says so rather than guessing.
 
 Every `claude -p` phase is wrapped in `timeout`. `/qa` starts the app and drives Chromium, so it gets
 the longest budget. A timeout ⇒ `blocked` (never a silent hang, never a partial PR).
+
+## The PRP and its validation loop (FB-052)
+
+**What a PRP is.** A Product Requirement Prompt (Cole Medin / Rasmus — `docs/jstack-bruntsfield-method.md`
+§3) is a plan that also writes down, before any code exists, how the work will be *proved*. Five
+sections, all required: Intent, Context, Approach, Tasks, **Validation gates**. The gates are
+checklist items covering four dimensions — happy path, edge cases, errors, coverage.
+
+**Why the supervisor enforces the shape.** A plan with no gates would sail through the rest of the
+loop and the founder would be told the lane validated against criteria that never existed. So
+`prp_ok` gates it: no gates ⇒ not a PRP ⇒ the lane re-plans once with the specific problem quoted
+back, then blocks. "The lane decided its own acceptance criteria up front" is structural.
+
+**Why silence counts as failure.** `applyVerdicts` marks any gate the checking step didn't report on
+as *not passed*. The alternative — treating an unmentioned gate as fine — is how a validation loop
+becomes decorative: the cheapest way to pass is to say nothing.
+
+**Why failure loops back rather than forward.** RPIV's V is a loop, not a checkpoint. A test the lane
+broke, a gate that doesn't hold, a `/review` that won't clear it — those are defects the lane can
+plausibly fix from the failure text, so it gets a bounded number of goes before a human is asked to
+look. Bounded because each round is ~3 more model sessions against a shared Claude Max and the wake
+budget counts a ticket once: `MAX_VALIDATION_ROUNDS` defaults to 2 (one repair).
+
+Two things deliberately do NOT loop: a phase that stopped to ask a human (`phase_blocked`) and a
+timeout. Another identical round cannot resolve either, and retrying would just burn budget.
+
+**Resume from the board.** The PRP is written to the engine-state ref (`prps/<slug>.md`) *before*
+IMPLEMENT runs. A lane that picks the ticket up again — after a reclaim, a restart, a fresh session
+with no history — reads it back and continues instead of re-planning. That is Archon's "clear the
+chat, resume from the board" made concrete: the durable context is the ticket plus the PRP, never a
+session's chat history. Round-tripped in `__tests__/prp-resume.test.mjs`, GitHub's wrapped base64
+and UTF-8 included.
+
+**What the founder sees.** The PR body carries the gates and whether each held:
+
+```
+## How the lane said it would check this
+- ✅ happy path: the card page shows a 12-month chart for a card with sales
+- ✅ edge cases: a card with no sales renders an empty state, not a crash
+- ❌ errors: …
+```
+
+That is the point of the whole ticket: the human gate reads the lane's *own* stated criteria and the
+evidence, not a generic "tests passed".
 
 ## Department routing (FB-041 slice; FB-045 provisions Sell/Scale)
 
@@ -128,7 +188,8 @@ Footprint: ~1.7 GB on 14 GB free disk (fine).
 
 - gbrain semantic RESEARCH — **delivered by FB-050** (`docs/venture-brain.md`). The raw `context/`
   read described here is now the documented fallback for when the brain is unavailable.
-- Full PRP (context + validation gates in the plan) — **FB-052**. PLAN is PRP-lite here.
+- Full PRP (context + validation gates in the plan) — **delivered by FB-052**; see the PRP section
+  above. PLAN was PRP-lite in FB-041.
 - Executing external actions — stays behind the **FB-044/046** gate; the lane still holds no send/deploy creds.
 
 ## Acceptance (from the ticket)

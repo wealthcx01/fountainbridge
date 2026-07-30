@@ -1,0 +1,139 @@
+// PRP (Product Requirement Prompt) helpers — PURE functions, no I/O. FB-052.
+//
+// A PRP is what the PLAN step produces before any code is written: the ticket's intent, the context
+// that bears on it, the tasks, and — the part that makes it a PRP rather than a plan — the explicit
+// VALIDATION GATES that say how "done" will be checked. Cole Medin / Rasmus's framing, as recorded
+// in docs/jstack-bruntsfield-method.md §3: "context (examples + docs) + explicit validation gates",
+// with tasks derived from it carrying acceptance criteria across "happy path, edge cases, errors,
+// coverage".
+//
+// This module is the part worth testing on its own: whether a produced document IS a PRP, what its
+// gates are, and how gate results are rendered for the founder. The supervisor enforces the result —
+// a plan without gates is not a PRP and does not proceed, so "the lane wrote down how it would check
+// its work" is structural, not something we hope the model did.
+//
+// Imported by prp-check.mjs (the supervisor's CLI) and unit-tested by __tests__/prp-lib.test.mjs.
+
+/** The sections a PRP must carry. Order-independent; all required. */
+export const REQUIRED_SECTIONS = ['intent', 'context', 'approach', 'tasks', 'validation gates'];
+
+/** The four dimensions a PRP's gates should cover (method doc §3). Advisory, reported not enforced. */
+export const GATE_DIMENSIONS = ['happy path', 'edge cases', 'errors', 'coverage'];
+
+const HEADING_RE = /^##\s+(.+?)\s*$/;
+
+/**
+ * Split a markdown document into `{ [lowercased heading]: body }`. Anything before the first `##`
+ * is ignored (that's the title).
+ * @param {string} text
+ * @returns {Record<string,string>}
+ */
+export function sections(text) {
+  const out = {};
+  let current = null;
+  const buf = [];
+  const flush = () => { if (current) out[current] = buf.join('\n').trim(); buf.length = 0; };
+  for (const line of String(text || '').split('\n')) {
+    const m = HEADING_RE.exec(line);
+    if (m) { flush(); current = m[1].toLowerCase().replace(/\s+/g, ' ').trim(); continue; }
+    if (current) buf.push(line);
+  }
+  flush();
+  return out;
+}
+
+/**
+ * Pull the validation gates out of a PRP: the checklist items under "Validation gates".
+ * Each becomes `{ id, text, dimension }`, where dimension is the leading `label:` when it names one
+ * of GATE_DIMENSIONS (the model is asked to lead with them), else null.
+ * @param {string} text raw PRP markdown
+ */
+export function gates(text) {
+  const body = sections(text)['validation gates'] || '';
+  const out = [];
+  for (const line of body.split('\n')) {
+    const m = /^\s*[-*]\s*\[[ xX]?\]\s*(.+?)\s*$/.exec(line);
+    if (!m) continue;
+    const raw = m[1].trim();
+    if (!raw) continue;
+    const labelled = /^([^:]{1,40}):\s*(.+)$/.exec(raw);
+    let dimension = null;
+    if (labelled) {
+      const candidate = labelled[1].toLowerCase().trim();
+      if (GATE_DIMENSIONS.includes(candidate)) dimension = candidate;
+    }
+    out.push({ id: `g${out.length + 1}`, text: raw, dimension });
+  }
+  return out;
+}
+
+/**
+ * Is this document a usable PRP? Returns `{ ok, problems[] }` with plain-language problems.
+ *
+ * Deliberately strict about the ONE thing that distinguishes a PRP from a plan: it must state how
+ * the work will be checked. A "plan" with no gates would sail through the rest of the loop and the
+ * founder would be told the lane validated against criteria that never existed.
+ * @param {string} text
+ */
+export function validate(text) {
+  const problems = [];
+  const found = sections(text);
+  for (const name of REQUIRED_SECTIONS) {
+    if (!(name in found)) problems.push(`missing a "## ${name}" section`);
+    else if (!found[name]) problems.push(`the "## ${name}" section is empty`);
+  }
+  const g = gates(text);
+  if (!problems.some((p) => p.includes('validation gates')) && g.length === 0) {
+    problems.push('no validation gates — a PRP must say how "done" gets checked, as `- [ ] …` items');
+  }
+  return { ok: problems.length === 0, problems, gateCount: g.length };
+}
+
+/** Which of the four dimensions the gates do NOT mention. Advisory — reported, never blocking. */
+export function missingDimensions(text) {
+  const covered = new Set(gates(text).map((x) => x.dimension).filter(Boolean));
+  return GATE_DIMENSIONS.filter((d) => !covered.has(d));
+}
+
+/**
+ * Merge a verdict list back onto the gates. Verdicts come from the checking step as
+ * `[{id, pass, why}]`; anything unmatched is treated as NOT passed — a gate nobody reported on has
+ * not been shown to hold, and silently counting it as passed is how a validation loop becomes
+ * decorative.
+ * @param {string} text PRP markdown
+ * @param {Array<{id?: string, pass?: boolean, why?: string}>} verdicts
+ */
+export function applyVerdicts(text, verdicts) {
+  const byId = new Map();
+  for (const v of Array.isArray(verdicts) ? verdicts : []) {
+    if (v && typeof v.id === 'string') byId.set(v.id.trim().toLowerCase(), v);
+  }
+  return gates(text).map((g) => {
+    const v = byId.get(g.id);
+    return {
+      ...g,
+      pass: v ? v.pass === true : false,
+      why: (v && typeof v.why === 'string' ? v.why.trim() : '') || (v ? '' : 'not reported on'),
+    };
+  });
+}
+
+/**
+ * Render checked gates for a founder-facing PR body / RunReport. Plain language, no jargon: this is
+ * the evidence a human reads before approving.
+ * @param {Array<{text: string, pass: boolean, why: string}>} checked
+ */
+export function formatGateReport(checked) {
+  const list = Array.isArray(checked) ? checked : [];
+  if (!list.length) return '_No validation gates were declared._';
+  return list
+    .map((g) => `- ${g.pass ? '✅' : '❌'} ${g.text}${g.why ? ` — ${g.why}` : ''}`)
+    .join('\n');
+}
+
+/** The gates that did not pass, as one short line for a blocked RunReport. */
+export function failureSummary(checked) {
+  const failed = (Array.isArray(checked) ? checked : []).filter((g) => !g.pass);
+  if (!failed.length) return '';
+  return failed.map((g) => `${g.text}${g.why ? ` (${g.why})` : ''}`).slice(0, 3).join('; ');
+}

@@ -23,6 +23,10 @@ flog() { echo "[lane $(date -u +%FT%TZ)] $*" >&2; }
 # supervisor.sh, and a system unit with no `User=` is not guaranteed a $HOME — a bare "$HOME" would
 # abort the source and take the whole autonomous lane dark, which is precisely the failure PR #49
 # fixed for the timer. A brain convenience line must never be able to cause it.
+# Where the lane's own helper scripts live. Defined once, up here, because everything below resolves
+# against it and this file is sourced under `set -u`.
+LANE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 LANE_BUN_BIN="${BUN_INSTALL:-${HOME:-/root}/.bun}/bin"
 case ":${PATH:-}:" in
   *":$LANE_BUN_BIN:"*) ;;
@@ -174,9 +178,63 @@ review_status() {
 mem_available_mb() { awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0; }
 
 # ---------------------------------------------------------------------------------------------------
+# PRP — Product Requirement Prompt (FB-052). See docs/lane-rpiv-loop.md §PRP.
+#
+# The PLAN step writes one before any code exists: intent, context, tasks, and explicit VALIDATION
+# GATES. These helpers are the supervisor's interface to it. The parsing itself lives in prp-lib.mjs
+# (pure, unit-tested); bash only ever asks questions through prp-check.mjs.
+# ---------------------------------------------------------------------------------------------------
+: "${PRP_CHECK_BIN:=$LANE_LIB_DIR/prp-check.mjs}"
+
+# prp_ok <file> — true if the document is a usable PRP (required sections + at least one gate).
+prp_ok() { [ -s "$1" ] && node "$PRP_CHECK_BIN" validate "$1" >/dev/null 2>&1; }
+
+# prp_problems <file> — plain-language reasons it is not a usable PRP (empty when it is).
+prp_problems() {
+  node "$PRP_CHECK_BIN" validate "$1" 2>&1 >/dev/null | sed -E 's/^\[prp\] not a usable PRP: //' | head -1
+}
+
+# prp_gate_count <file> — how many validation gates it declares (0 on any error).
+prp_gate_count() { node "$PRP_CHECK_BIN" validate "$1" 2>/dev/null || echo 0; }
+
+# prp_gate_list <file> — the gates as "id<TAB>text" lines, for the checking prompt.
+prp_gate_list() { node "$PRP_CHECK_BIN" gates "$1" 2>/dev/null || true; }
+
+# prp_gate_report <file> <verdicts.json> — founder-facing ✅/❌ list on stdout; non-zero if ANY gate
+# failed or went unreported. Unreported counts as failed: silence is not evidence.
+prp_gate_report() { node "$PRP_CHECK_BIN" report "$1" "$2" 2>/dev/null; }
+
+# prp_gate_summary <file> <verdicts.json> — the failures as one short line for a RunReport.
+prp_gate_summary() { node "$PRP_CHECK_BIN" summary "$1" "$2" 2>/dev/null || true; }
+
+# write_prp <slug> <file> — persist the PRP to the engine-state ref so it outlives this process.
+# This is what makes Archon's "clear the chat, resume from the board" true here: the durable context
+# is the ticket plus this file, never a session's history.
+write_prp() {
+  local slug="$1" file="$2" path="prps/$1.md"
+  [ -s "$file" ] || return 1
+  ensure_state_ref || return 1
+  local existing_sha; existing_sha=$(gh_api "$API/repos/$REPO/contents/$path?ref=$STATE_REF" | jval '.sha')
+  local b64; b64=$(base64 -w0 <"$file")
+  local body="{\"message\":\"prp: $slug\",\"content\":\"$b64\",\"branch\":\"$STATE_REF\""
+  [ -n "$existing_sha" ] && body="$body,\"sha\":\"$existing_sha\""
+  gh_api -X PUT "$API/repos/$REPO/contents/$path" -d "$body}" >/dev/null || return 1
+  flog "PRP → $STATE_REF:$path"
+}
+
+# read_prp <slug> <dest> — fetch a previously-written PRP. Non-zero when there isn't one, which is
+# the normal first-run case.
+read_prp() {
+  local slug="$1" dest="$2" content
+  content=$(gh_api "$API/repos/$REPO/contents/prps/$slug.md?ref=$STATE_REF" | jval '.content')
+  [ -n "$content" ] || return 1
+  printf '%s' "$content" | tr -d '\n' | base64 -d >"$dest" 2>/dev/null || return 1
+  [ -s "$dest" ]
+}
+
+# ---------------------------------------------------------------------------------------------------
 # The venture brain (FB-050). See docs/venture-brain.md.
 # ---------------------------------------------------------------------------------------------------
-LANE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${BRAIN_QUERY_BIN:=$LANE_LIB_DIR/brain-query.mjs}"
 : "${BRAIN_RESEARCH_TIMEOUT:=180}"
 

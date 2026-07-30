@@ -146,85 +146,263 @@ Before planning, read anything relevant under \`context/\` — the founder's dur
 brand, positioning, pricing), deposited via the composer. Let it inform the work."; fi
 fi
 
-# --- 5. PLAN: produce a PRP-lite the implement step follows (full PRP is FB-052) --------------------
-PLAN_FILE="$RUNDIR/plan.md"
-log "PLAN…"
-set +e
-claude_lane "$PLAN_TIMEOUT" "You are a Foundry engineering lane on the '$REPO' repo working ONE ticket.
-FIRST research, THEN plan — do not write any code yet.${CONTEXT_HINT}
-Write a short, concrete implementation plan (a PRP-lite: the smallest correct change, the files you'll
-touch, and how you'll verify it) to the absolute path $PLAN_FILE. Keep it tight.
+# --- 5. PLAN: produce a PRP — context + explicit validation gates (FB-052) --------------------------
+# A PRP (Product Requirement Prompt, Cole Medin / Rasmus — docs/jstack-bruntsfield-method.md §3) is a
+# plan that also writes down HOW "done" gets checked, before any code exists. The supervisor enforces
+# the shape: a document with no validation gates is not a PRP and does not proceed, so "the lane
+# decided its own acceptance criteria up front" is structural rather than hoped for.
+#
+# RESUME (Archon's "clear the chat, resume from the board"): the PRP is durable engine state on the
+# foundry-state ref, so a lane that picks this ticket up again — after a reclaim, a restart, a fresh
+# session with no history — plans once and then continues from the board.
+PLAN_FILE="$RUNDIR/prp.md"
+PRP_MODE="written"
+if read_prp "$SLUG" "$PLAN_FILE" && prp_ok "$PLAN_FILE"; then
+  PRP_MODE="resumed"
+  log "PLAN: resumed the existing PRP for $SLUG from $STATE_REF (no re-planning)"
+else
+  rm -f "$PLAN_FILE"
+  for attempt in 1 2; do
+    log "PLAN: writing the PRP (attempt $attempt)…"
+    set +e
+    claude_lane "$PLAN_TIMEOUT" "You are a Foundry engineering lane on the '$REPO' repo working ONE ticket.
+FIRST research, THEN plan — do not write any code yet.${CONTEXT_HINT}${PRP_RETRY_HINT:-}
+
+Write a PRP (Product Requirement Prompt) to the absolute path $PLAN_FILE, using EXACTLY these
+sections and nothing else:
+
+# PRP — $SLUG
+
+## Intent
+What the founder gets, in one or two plain sentences.
+
+## Context
+What already exists that bears on this — the venture knowledge above, the files and patterns in this
+repo you will follow. Be specific: name files.
+
+## Approach
+The smallest correct change, and the files you will touch.
+
+## Tasks
+- [ ] one observable piece of work per line
+
+## Validation gates
+How you will PROVE this works, as checkable items. Lead each with one of these labels and cover all
+four: 'happy path:', 'edge cases:', 'errors:', 'coverage:'. Each gate must be something someone
+could verify by looking at the code or running it — not 'it works', but what specifically must be
+true. Write them as:
+- [ ] happy path: <what must be true>
+- [ ] edge cases: <what must be true>
+- [ ] errors: <what must be true>
+- [ ] coverage: <what must be true>
+
+Keep the whole thing tight. Do not write any code.
 
 TICKET:
-$(cat "$TICKET_FILE")" >"$RUNDIR/plan.log" 2>&1
-rc=$?; set -e
-phase_blocked "$RUNDIR/plan.log" && blocked "The lane needed a human decision while planning (it stopped rather than guess). See the ticket."
-[ $rc -eq 124 ] && blocked "Planning timed out after ${PLAN_TIMEOUT}s — parked for a retry."
-[ -s "$PLAN_FILE" ] || blocked "The lane couldn't produce a plan for this ticket."
-log "plan written ($(wc -l <"$PLAN_FILE") lines)"
+$(cat "$TICKET_FILE")" >"$RUNDIR/plan-$attempt.log" 2>&1
+    rc=$?; set -e
+    phase_blocked "$RUNDIR/plan-$attempt.log" && blocked "The lane needed a human decision while planning (it stopped rather than guess). See the ticket."
+    [ $rc -eq 124 ] && blocked "Planning timed out after ${PLAN_TIMEOUT}s — parked for a retry."
+    if prp_ok "$PLAN_FILE"; then break; fi
+    # Say exactly what was wrong and let it try once more — a malformed PRP is usually a formatting
+    # miss, not an inability to plan.
+    PRP_WHY="$(prp_problems "$PLAN_FILE")"
+    log "PLAN: not a usable PRP — $PRP_WHY"
+    [ "$attempt" -eq 2 ] && blocked "The lane couldn't write a proper plan for this ticket (${PRP_WHY}). It needs a human."
+    PRP_RETRY_HINT="
 
-# --- 6. IMPLEMENT: smallest correct change per the plan (no commit here — the supervisor commits) ----
-log "IMPLEMENT…"
-set +e
-claude_lane "$IMPL_TIMEOUT" "You are a Foundry engineering lane on the '$REPO' repo. Implement EXACTLY this ticket by following
-your plan at $PLAN_FILE. Make the smallest correct change. Edit files in the working tree only — do
-NOT commit, push, or open a PR (the supervisor does that), and do NOT run deploy or send commands.
-When done, print ONE plain-English line summarising what you changed.
+Your previous attempt was not a usable PRP: ${PRP_WHY}. Follow the section headings EXACTLY."
+  done
+fi
+GATE_COUNT="$(prp_gate_count "$PLAN_FILE")"
+log "PRP $PRP_MODE — $(wc -l <"$PLAN_FILE") lines, $GATE_COUNT validation gate(s)"
+# Persist BEFORE implementing: if the run dies mid-IMPLEMENT, the next one resumes from this PRP
+# instead of re-planning from nothing.
+write_prp "$SLUG" "$PLAN_FILE" || log "WARN: could not persist the PRP — a later run will re-plan"
+
+# --- 6-8. THE VALIDATION LOOP (FB-052) --------------------------------------------------------------
+# IMPLEMENT → COMMIT → VALIDATE, and a failed gate goes BACK to implement rather than forward to the
+# founder. That is the loop half of RPIV: the lane gets a bounded number of goes at making its own
+# criteria hold before a human is asked to look at anything.
+#
+# What loops (a defect the lane could plausibly fix from the failure): a test regression it caused,
+# one of its own PRP gates not holding, a /review that won't clear it.
+# What does NOT loop (another round can't help): a phase that stopped to ask a human, or a timeout.
+# Those park immediately, exactly as before.
+#
+# Bounded on purpose: each round is ~3 more model sessions against a shared Claude Max, and the wake
+# budget counts a ticket once. Default 2 rounds = one repair.
+: "${MAX_VALIDATION_ROUNDS:=2}"
+ROUND=1
+REPAIR_HINT=""
+REPAIR_DETAIL=""
+LOOP_HISTORY=""
+GATE_REPORT=""
+while : ; do
+  # --- 6. IMPLEMENT (round 1) or REPAIR (later rounds, told exactly what failed) --------------------
+  if [ "$ROUND" -eq 1 ]; then
+    log "IMPLEMENT…"
+    IMPL_PROMPT="You are a Foundry engineering lane on the '$REPO' repo. Implement EXACTLY this ticket by following
+your PRP at $PLAN_FILE — including making its Validation gates actually hold. Make the smallest
+correct change. Edit files in the working tree only — do NOT commit, push, or open a PR (the
+supervisor does that), and do NOT run deploy or send commands.
+When done, print ONE plain-English line summarising what you changed."
+  else
+    log "REPAIR (round $ROUND/$MAX_VALIDATION_ROUNDS)…"
+    IMPL_PROMPT="You are a Foundry engineering lane on the '$REPO' repo. Your previous attempt at this ticket did
+NOT pass its own validation. Fix it.
+
+WHAT FAILED:
+$REPAIR_HINT
+${REPAIR_DETAIL:+
+$REPAIR_DETAIL
+}
+Your PRP is at $PLAN_FILE — the Validation gates in it are the standard you must meet. Change the
+code so the failures above are genuinely resolved; do not weaken a test or a gate to make it pass.
+Edit files in the working tree only — do NOT commit, push, or open a PR, and do NOT run deploy or
+send commands. When done, print ONE plain-English line summarising what you changed."
+  fi
+  set +e
+  claude_lane "$IMPL_TIMEOUT" "$IMPL_PROMPT
 
 TICKET:
-$(cat "$TICKET_FILE")" >"$RUNDIR/impl.log" 2>&1
-rc=$?; set -e
-phase_blocked "$RUNDIR/impl.log" && blocked "The lane needed a human decision while implementing (it stopped rather than guess)."
-[ $rc -eq 124 ] && blocked "Implementation timed out after ${IMPL_TIMEOUT}s — parked for a retry."
-SUMMARY=$(tail -1 "$RUNDIR/impl.log" 2>/dev/null); [ -n "$SUMMARY" ] || SUMMARY="Lane worked the ticket."
+$(cat "$TICKET_FILE")" >"$RUNDIR/impl-$ROUND.log" 2>&1
+  rc=$?; set -e
+  phase_blocked "$RUNDIR/impl-$ROUND.log" && blocked "The lane needed a human decision while implementing (it stopped rather than guess)."
+  [ $rc -eq 124 ] && blocked "Implementation timed out after ${IMPL_TIMEOUT}s — parked for a retry."
+  SUMMARY=$(tail -1 "$RUNDIR/impl-$ROUND.log" 2>/dev/null); [ -n "$SUMMARY" ] || SUMMARY="Lane worked the ticket."
 
-# --- 7. COMMIT the diff to the claim branch (local) so VALIDATE runs against the exact PR content ----
-git add -A
-git diff --cached --quiet && fail "the lane produced no changes"
-git -c user.email="lane@bruntsfield.capital" -c user.name="Foundry Lane" \
-    commit -q -m "ARCA: $SLUG (worked by the Foundry lane)"
-log "committed $(git rev-parse --short HEAD) (local — not pushed until the gate passes)"
+  # --- 7. COMMIT to the claim branch (local) so VALIDATE runs against the exact PR content ----------
+  git add -A
+  if [ "$ROUND" -eq 1 ]; then
+    git diff --cached --quiet && fail "the lane produced no changes"
+    git -c user.email="lane@bruntsfield.capital" -c user.name="Foundry Lane" \
+        commit -q -m "ARCA: $SLUG (worked by the Foundry lane)"
+  else
+    # Amend so the PR stays one clean commit and validation always runs against exactly what would
+    # ship. A repair that changed nothing cannot fix anything — stop rather than re-run the identical
+    # checks and report the same failure twice.
+    git diff --cached --quiet && blocked "The lane couldn't fix what its own validation caught: ${REPAIR_HINT}. It needs a human."
+    git -c user.email="lane@bruntsfield.capital" -c user.name="Foundry Lane" \
+        commit -q --amend --no-edit
+  fi
+  log "committed $(git rev-parse --short HEAD) (local — not pushed until the gate passes)"
 
-# --- 8. VALIDATE — the hard floor, bound to objective signals --------------------------------------
-# 8a. tests / typecheck / lint — gate on REGRESSION vs the baseline (unfakeable exit codes), so the lane
-#     is blocked only by breakage IT introduced, never by the venture's pre-existing debt.
-log "VALIDATE: tests (vs baseline)…"
-toolchain_probe "$REPO_DIR" "$RUNDIR/branch.log" > "$RUNDIR/branch.res" || true
-log "branch: $(tr '\n' ' ' <"$RUNDIR/branch.res")"
-set +e; TESTS_MSG=$(venture_regression "$RUNDIR/base.res" "$RUNDIR/branch.res"); rc=$?; set -e
-[ $rc -ne 0 ] && blocked "Its own tests caught a problem — ${TESTS_MSG}. No PR opened; needs a fix."
-log "tests OK (no regression vs baseline)"
+  ROUND_FAIL=""
+  ROUND_DETAIL=""
 
-# 8b. /review (staff-engineer audit incl. adversarial subagent). A code review is a model JUDGMENT,
-# layered on the unfakeable regression floor above. We make the verdict explicit + machine-readable
-# (headless /review doesn't reliably run its own gstack-review-log step) and also gate on whether
-# /review wanted to EDIT the code (it edited ⇒ not clean ⇒ block). Missing verdict = fail-closed.
-log "VALIDATE: /review…"
-REVIEW_JSON="$RUNDIR/review.json"
-set +e
-claude_lane "$REVIEW_TIMEOUT" "Run /review on the changes in this branch versus $BASE_BRANCH — a thorough staff-engineer audit
+  # --- 8a. tests / typecheck / lint — gate on REGRESSION vs the baseline (unfakeable exit codes), so
+  #         the lane is blocked only by breakage IT introduced, never by the venture's existing debt.
+  log "VALIDATE: tests (vs baseline)…"
+  toolchain_probe "$REPO_DIR" "$RUNDIR/branch-$ROUND.log" > "$RUNDIR/branch-$ROUND.res" || true
+  log "branch: $(tr '\n' ' ' <"$RUNDIR/branch-$ROUND.res")"
+  set +e; TESTS_MSG=$(venture_regression "$RUNDIR/base.res" "$RUNDIR/branch-$ROUND.res"); rc=$?; set -e
+  if [ $rc -ne 0 ]; then
+    ROUND_FAIL="tests: ${TESTS_MSG}"
+    # Hand the repair round the actual output, not just the verdict. "Your change broke typecheck" is
+    # not something a lane can act on; the compiler's own error is.
+    ROUND_DETAIL="$(tail -c 2000 "$RUNDIR/branch-$ROUND.log" 2>/dev/null || true)"
+    log "VALIDATE: $ROUND_FAIL"
+  fi
+
+  # --- 8b. THE PRP'S OWN GATES (FB-052) ------------------------------------------------------------
+  # The lane wrote down how it would prove this works. Check it against that, specifically — not just
+  # against a generic sense of quality. A gate nobody reports on counts as NOT passed (prp-lib.mjs),
+  # so silence can't be mistaken for success.
+  if [ -z "$ROUND_FAIL" ] && [ "${GATE_COUNT:-0}" -gt 0 ]; then
+    log "VALIDATE: the PRP's own validation gates…"
+    GATES_JSON="$RUNDIR/gates-$ROUND.json"
+    set +e
+    claude_lane "$REVIEW_TIMEOUT" "Check this branch's changes against the validation gates in the PRP at $PLAN_FILE. Read the code;
+run the venture's own tests or commands where that is how a gate is proven. Do NOT edit any files —
+report only, and do NOT weaken or rewrite the gates.
+
+For EACH gate, decide honestly whether it HOLDS in the code as it now stands. Being unsure is not
+passing. Write JSON to the absolute path $GATES_JSON, one entry per gate, using the gate ids below:
+[{\"id\":\"g1\",\"pass\":true|false,\"why\":\"one short clause of evidence\"}]
+
+GATES:
+$(prp_gate_list "$PLAN_FILE")" >"$RUNDIR/gates-$ROUND.log" 2>&1
+    rc=$?; set -e
+    git checkout -q -- . 2>/dev/null || true    # report-only; never let a stray edit ship
+    if [ $rc -eq 124 ]; then
+      ROUND_FAIL="the lane ran out of time checking its own validation gates"
+    else
+      set +e
+      GATE_REPORT="$(prp_gate_report "$PLAN_FILE" "$GATES_JSON")"; grc=$?
+      set -e
+      if [ $grc -ne 0 ]; then
+        ROUND_FAIL="validation gates not met — $(prp_gate_summary "$PLAN_FILE" "$GATES_JSON")"
+        # The per-gate ✅/❌ list with each verdict's reasoning: the most actionable feedback there is,
+        # because it is measured against criteria the lane itself wrote.
+        ROUND_DETAIL="Gate by gate:
+$GATE_REPORT"
+        log "VALIDATE: $ROUND_FAIL"
+      else
+        log "VALIDATE: all $GATE_COUNT PRP gate(s) hold"
+      fi
+    fi
+  fi
+
+  # --- 8c. /review (staff-engineer audit incl. adversarial subagent). A code review is a model
+  # JUDGMENT, layered on the unfakeable regression floor above. We make the verdict explicit +
+  # machine-readable (headless /review doesn't reliably run its own gstack-review-log step) and also
+  # gate on whether /review wanted to EDIT the code (it edited ⇒ not clean). Missing verdict =
+  # fail-closed.
+  if [ -z "$ROUND_FAIL" ]; then
+    log "VALIDATE: /review…"
+    REVIEW_JSON="$RUNDIR/review-$ROUND.json"
+    set +e
+    claude_lane "$REVIEW_TIMEOUT" "Run /review on the changes in this branch versus $BASE_BRANCH — a thorough staff-engineer audit
 (correctness, security, the CLAUDE.md trust boundaries). Do NOT edit files; report only.
 When done, write your verdict as JSON to the absolute path $REVIEW_JSON:
 {\"verdict\":\"pass\"|\"fail\",\"critical\":<int>,\"blockers\":[\"short\"]}
 verdict=fail if there is ANY must-fix / critical issue; pass only if it is genuinely ready to ship.
 Also run ~/.claude/skills/gstack/bin/gstack-review-log with your result so it's on record." \
-  >"$RUNDIR/review.log" 2>&1
-rc=$?; set -e
-phase_blocked "$RUNDIR/review.log" && blocked "/review needed a human decision (it stopped rather than guess). Needs your eyes."
-[ $rc -eq 124 ] && blocked "/review timed out after ${REVIEW_TIMEOUT}s — parked for a retry."
-if ! git diff --quiet HEAD; then
-  git checkout -q -- . || true
-  blocked "/review found issues it wanted to change in the code — not clean enough to ship. Parked for a rework."
-fi
-[ -s "$REVIEW_JSON" ] || blocked "/review didn't return a clear verdict — treating as not-ready (fail-closed). Parked."
-RVERD="$(jval '.verdict' <"$REVIEW_JSON")"
-RCRIT="$(node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write(String(JSON.parse(d).critical||0))}catch{process.stdout.write("0")}})' <"$REVIEW_JSON")"
-if [ "$RVERD" != "pass" ] || [ "${RCRIT:-0}" -gt 0 ] 2>/dev/null; then
-  RBLK="$(node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write((JSON.parse(d).blockers||[]).slice(0,3).join("; "))}catch{}})' <"$REVIEW_JSON")"
-  blocked "/review didn't clear this to ship${RBLK:+: $RBLK}. No PR opened; needs a rework."
-fi
-RSTATUS="review pass (0 critical)"
-log "/review clear"
+      >"$RUNDIR/review-$ROUND.log" 2>&1
+    rc=$?; set -e
+    phase_blocked "$RUNDIR/review-$ROUND.log" && blocked "/review needed a human decision (it stopped rather than guess). Needs your eyes."
+    [ $rc -eq 124 ] && blocked "/review timed out after ${REVIEW_TIMEOUT}s — parked for a retry."
+    if ! git diff --quiet HEAD; then
+      # Capture WHAT it wanted to change before discarding it — that diff is the most concrete
+      # feedback available to the repair round, and throwing it away leaves the next attempt guessing.
+      ROUND_DETAIL="The review edited these files rather than just reporting; here is the change it
+wanted (re-derive it properly, don't paste it blindly):
+$(git diff HEAD | head -c 3000)"
+      git checkout -q -- . || true
+      ROUND_FAIL="/review found things it wanted to change in the code"
+    elif [ ! -s "$REVIEW_JSON" ]; then
+      blocked "/review didn't return a clear verdict — treating as not-ready (fail-closed). Parked."
+    else
+      RVERD="$(jval '.verdict' <"$REVIEW_JSON")"
+      RCRIT="$(node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write(String(JSON.parse(d).critical||0))}catch{process.stdout.write("0")}})' <"$REVIEW_JSON")"
+      if [ "$RVERD" != "pass" ] || [ "${RCRIT:-0}" -gt 0 ] 2>/dev/null; then
+        RBLK="$(node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write((JSON.parse(d).blockers||[]).slice(0,3).join("; "))}catch{}})' <"$REVIEW_JSON")"
+        ROUND_FAIL="/review didn't clear this to ship${RBLK:+: $RBLK}"
+        ROUND_DETAIL="The reviewer's own notes:
+$(tail -c 2000 "$RUNDIR/review-$ROUND.log" 2>/dev/null || true)"
+      fi
+    fi
+    [ -n "$ROUND_FAIL" ] && log "VALIDATE: $ROUND_FAIL"
+  fi
+
+  # --- the loop decision ---------------------------------------------------------------------------
+  if [ -z "$ROUND_FAIL" ]; then
+    RSTATUS="review pass (0 critical)"
+    if [ "$ROUND" -gt 1 ]; then log "validation passed on round $ROUND after repairing"
+    else log "validation passed first time"; fi
+    break
+  fi
+  LOOP_HISTORY="${LOOP_HISTORY}${LOOP_HISTORY:+ | }round $ROUND: $ROUND_FAIL"
+  if [ "$ROUND" -ge "$MAX_VALIDATION_ROUNDS" ]; then
+    blocked "The lane couldn't get this past its own validation in $MAX_VALIDATION_ROUNDS rounds — ${ROUND_FAIL}. No PR opened; it needs a human."
+  fi
+  REPAIR_HINT="$ROUND_FAIL"
+  REPAIR_DETAIL="$ROUND_DETAIL"
+  ROUND=$((ROUND + 1))
+done
+VALIDATION_NOTE="passed on round $ROUND of $MAX_VALIDATION_ROUNDS"
+[ -n "$LOOP_HISTORY" ] && VALIDATION_NOTE="$VALIDATION_NOTE (first attempt failed — $LOOP_HISTORY)"
 
 # 8c. /qa (browser) — SOFT: runs always, blocks on real bugs, DEFERS when it can't test (no web
 # surface / app won't boot / low memory). Pre-flight RAM check protects the founder's live composer.
@@ -264,12 +442,20 @@ fi
 # --- 9. GATE PASSED → push the branch + open the PR (a human still merges) --------------------------
 git push --quiet "https://x-access-token:${TICKET_GITHUB_TOKEN}@github.com/${REPO}.git" "$BRANCH"
 log "pushed $BRANCH"
-PR_BODY="Worked by the Foundry lane through the full RPIV loop (research → plan → implement → review → qa).
+PR_BODY="Worked by the Foundry lane through the full RPIV loop (research → plan → implement → validate).
 
 $SUMMARY
 
+## How the lane said it would check this
+Before writing any code it wrote a PRP — a plan that states up front how \"done\" gets proved. These
+are its own validation gates, and the result of checking the finished code against each one:
+
+${GATE_REPORT:-_No validation gates were declared._}
+
 **Research:** $RESEARCH_MODE
-**Gate:** tests ✅ · /review ✅ ($RSTATUS) · /qa: $QA_NOTE
+**Plan:** PRP $PRP_MODE (full text on the \`$STATE_REF\` ref at \`prps/$SLUG.md\`)
+**Validation:** $VALIDATION_NOTE
+**Gate:** tests ✅ · PRP gates ✅ · /review ✅ ($RSTATUS) · /qa: $QA_NOTE
 A human still reviews + merges (nothing merges or ships automatically)."
 PR_JSON=$(gh_api -X POST "$API/repos/$REPO/pulls" \
   -d "$(node -e 'const[t,h,b,body]=process.argv.slice(1);process.stdout.write(JSON.stringify({title:t,head:h,base:b,body}))' \
@@ -279,5 +465,5 @@ PR_URL=$(printf '%s' "$PR_JSON" | jval '.html_url')
 log "opened PR $PR_URL"
 
 # --- 10. RunReport: done (with the gate evidence) --------------------------------------------------
-write_runreport "$SLUG" "opened_pr" "$SUMMARY — researched from the venture's $RESEARCH_MODE, then passed the lane's own gate (tests, /review $RSTATUS, /qa: $QA_NOTE)." "$PR_URL" "$STARTED"
+write_runreport "$SLUG" "opened_pr" "$SUMMARY — researched from the venture's $RESEARCH_MODE, planned as a PRP with $GATE_COUNT validation gate(s) ($PRP_MODE), then $VALIDATION_NOTE against them plus tests, /review $RSTATUS and /qa: $QA_NOTE." "$PR_URL" "$STARTED"
 log "done."

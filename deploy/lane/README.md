@@ -5,11 +5,12 @@ The engine behind the composer, on the venture's **own** Hetzner box (D1). Desig
 
 Since FB-041 the lane no longer just edits a file — it runs the disciplined **RPIV loop** and reviews +
 tests its own work before the founder ever sees a PR:
-**RESEARCH** (the venture brain, FB-050) → **PLAN** (/plan → PRP-lite) → **IMPLEMENT** → **COMMIT** (local) →
-**VALIDATE** (tests + /review [HARD] + browser /qa [SOFT]) → **GATE**: pass ⇒ push + PR; any fail ⇒ a
-plain-language `blocked` RunReport, no PR. The supervisor (bash) owns the gate and binds it to
-*objective* signals — test/typecheck/lint exit codes + gstack's own review artifact — not a self-graded
-boolean.
+**RESEARCH** (the venture brain, FB-050) → **PLAN** (a PRP with explicit validation gates, FB-052) →
+[ **IMPLEMENT** → **COMMIT** (local) → **VALIDATE** (tests + the PRP's own gates + /review [HARD],
+browser /qa [SOFT]) ] — a failed gate loops back to IMPLEMENT, bounded — → **GATE**: pass ⇒ push + PR;
+rounds exhausted ⇒ a plain-language `blocked` RunReport, no PR. The supervisor (bash) owns the gate and
+binds it to *objective* signals — test/typecheck/lint exit codes, gstack's own review artifact, and the
+lane's own written-down criteria — not a self-graded boolean.
 
 ## What's here
 - `install-gstack.sh` (FB-041) — **run once per box**: installs gstack (pinned commit) + the
@@ -19,9 +20,11 @@ boolean.
 - `brain-lib.mjs` / `brain-query.mjs` / `brain-bridge.mjs` / `gbrain-refresh.sh` (FB-050) — the
   venture brain: department partitioning + digest (pure, unit-tested), the query CLI the lane's
   RESEARCH step uses, the composer's read-only bridge, and the incremental re-index.
+- `prp-lib.mjs` / `prp-check.mjs` (FB-052) — the PRP: parsing, shape validation, gate extraction and
+  the founder-facing gate report (pure + unit-tested; bash asks through the CLI).
 - `foundry-lib.sh` — shared helpers (`gh_api`, `jval`, `write_runreport`) + the RPIV primitives
   (`claude_lane`, `venture_gate`, `review_status`, `ticket_department`, `mem_available_mb`,
-  `brain_research`).
+  `brain_research`, `prp_ok`/`prp_gate_report`/`write_prp`/`read_prp`).
 - `supervisor.sh` — one lane pass: **claim** (branch-create CAS) → **route** (department) →
   RESEARCH→PLAN→IMPLEMENT→COMMIT→VALIDATE→**GATE** → PR (a human merges) → **RunReport**. No send/deploy
   power (§8).
@@ -48,6 +51,14 @@ Tunables in `lane.env`: `DAILY_WAKE_BUDGET` (wake cap; the Max path has no per-v
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
 npm install -g @anthropic-ai/claude-code
 git clone https://x-access-token:<LANE_TOKEN>@github.com/<owner>/<repo>.git /opt/foundry/lane/<repo>
+
+# the lane's own scripts. They resolve helpers RELATIVE TO THEMSELVES, so they all live together in
+# /opt/foundry/lane — copy the whole set, not a subset, or the lane silently loses a capability
+# (a missing prp-check.mjs blocks every ticket; a missing brain-query.mjs degrades RESEARCH to files):
+install -m 0755 -t /opt/foundry/lane \
+  <checkout>/deploy/lane/{supervisor.sh,run-once.sh,foundry-lib.sh,install-gstack.sh,install-gbrain.sh,gbrain-refresh.sh}
+install -m 0644 -t /opt/foundry/lane \
+  <checkout>/deploy/lane/{prp-lib.mjs,prp-check.mjs,brain-lib.mjs,brain-query.mjs,brain-bridge.mjs}
 
 # install gstack so the lane runs the real RPIV loop (once, ~1.7 GB incl. the browser stack):
 /opt/foundry/lane/install-gstack.sh
