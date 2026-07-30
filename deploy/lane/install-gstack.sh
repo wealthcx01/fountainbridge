@@ -31,6 +31,9 @@ if [ -d "$GSTACK_DIR/.git" ]; then
   say "gstack present — fetching + repinning to ${GSTACK_PIN:0:8}"
   git -C "$GSTACK_DIR" fetch --quiet origin
 else
+  # A dir without .git means a prior clone was interrupted — clear it so the clone can't fail on a
+  # non-empty target (code review P2-4).
+  [ -e "$GSTACK_DIR" ] && { say "removing partial gstack dir"; rm -rf "$GSTACK_DIR"; }
   say "cloning gstack…"
   mkdir -p "$(dirname "$GSTACK_DIR")"
   git clone --quiet "$GSTACK_REPO" "$GSTACK_DIR"
@@ -52,8 +55,11 @@ fi
 #    with the skills unwired. (This ordering was the install bug found on the first box run.)
 say "installing deps + Playwright Chromium (with system libs)…"
 ( cd "$GSTACK_DIR" && bun install --frozen-lockfile )
-( cd "$GSTACK_DIR" && bunx playwright install --with-deps chromium ) || \
-  say "WARN: playwright install had issues — setup's browser check may fail"
+# Fail loudly: if Chromium can't install, ./setup's ensure_playwright_browser exit-1s BEFORE wiring the
+# skills, so the whole install is useless — don't pretend it merely "defers" (code review P2-4).
+( cd "$GSTACK_DIR" && bunx playwright install --with-deps chromium ) || {
+  say "ERROR: Playwright Chromium install failed — ./setup won't wire the skills without a launchable"
+  say "       Chromium. Fix the box's browser deps and re-run."; exit 1; }
 
 # 5. ./setup — wires the individual skills into ~/.claude/skills/.
 #    --no-prefix = short names (/qa, /review — what supervisor.sh calls); --quiet + non-TTY = no prompts.

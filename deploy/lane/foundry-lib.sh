@@ -98,9 +98,10 @@ ticket_department() {
 # between the base branch and the lane's branch (venture_regression), because a venture can carry
 # pre-existing debt (arca's typecheck/lint are red on master) — the lane must not be blocked by breakage
 # it didn't cause, only by breakage it introduces.
+: "${PROBE_TIMEOUT:=300}"   # per-step cap so a hanging venture command can't hang the lane
 toolchain_probe() {
   local dir="$1" log="$2"; : >"$log"
-  local run install testcmd
+  local run install testcmd to="timeout $PROBE_TIMEOUT"
   if [ -f "$dir/bun.lock" ] || [ -f "$dir/bun.lockb" ]; then run="bun run"; install="bun install --frozen-lockfile"; testcmd="bun test"
   elif [ -f "$dir/package-lock.json" ]; then run="npm run"; install="npm ci"; testcmd="npm test"
   else echo "toolchain none"; return 0; fi
@@ -108,10 +109,10 @@ toolchain_probe() {
     cd "$dir" || exit 3
     export PATH="$HOME/.bun/bin:$PATH"
     has() { node -e 'const s=require("./package.json").scripts||{};process.exit(s[process.argv[1]]?0:1)' "$1" 2>/dev/null; }
-    if [ ! -d node_modules ]; then eval "$install" >>"$log" 2>&1; fi
-    if has typecheck; then eval "$run typecheck" >>"$log" 2>&1; echo "typecheck $?"; fi
-    if has lint;      then eval "$run lint"      >>"$log" 2>&1; echo "lint $?"; fi
-    eval "$testcmd" >>"$log" 2>&1; local trc=$?
+    if [ ! -d node_modules ]; then eval "$to $install" >>"$log" 2>&1; fi
+    if has typecheck; then eval "$to $run typecheck" >>"$log" 2>&1; echo "typecheck $?"; fi
+    if has lint;      then eval "$to $run lint"      >>"$log" 2>&1; echo "lint $?"; fi
+    eval "$to $testcmd" >>"$log" 2>&1; local trc=$?
     local fails; fails=$(grep -oE '[0-9]+ fail' "$log" | tail -1 | grep -oE '^[0-9]+' || true)
     if [ -z "$fails" ]; then if [ "$trc" -eq 0 ]; then fails=0; else fails=999; fi; fi
     echo "test $fails"
@@ -125,13 +126,15 @@ venture_regression() {
   local base="$1" branch="$2" step brc bx
   for step in typecheck lint; do
     brc=$(awk -v s="$step" '$1==s{print $2}' "$base"); bx=$(awk -v s="$step" '$1==s{print $2}' "$branch")
-    if [ "${brc:-0}" = "0" ] && [ -n "$bx" ] && [ "$bx" != "0" ]; then
+    # Only compare when we HAVE a baseline value — a missing baseline can't prove a regression, and
+    # defaulting it to "was passing" would flag arca's pre-existing red as the lane's fault.
+    if [ -n "$brc" ] && [ "$brc" = "0" ] && [ -n "$bx" ] && [ "$bx" != "0" ]; then
       echo "your change broke '$step' (was passing before)"; return 1
     fi
   done
   local bt xt; bt=$(awk '$1=="test"{print $2}' "$base"); xt=$(awk '$1=="test"{print $2}' "$branch")
-  if [ -n "$xt" ] && [ "${xt:-0}" -gt "${bt:-0}" ] 2>/dev/null; then
-    echo "your change added failing tests (${bt:-0} → ${xt})"; return 1
+  if [ -n "$bt" ] && [ -n "$xt" ] && [ "$xt" -gt "$bt" ] 2>/dev/null; then
+    echo "your change added failing tests (${bt} → ${xt})"; return 1
   fi
   return 0
 }
