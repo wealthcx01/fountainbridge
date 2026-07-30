@@ -43,7 +43,9 @@ systemctl list-timers foundry-lane.timer     # active; fires every ~5 min
 ```
 Only `Todo`/`Ready` tickets are auto-worked — a real backlog of Planned/Shipped tickets is untouched.
 Tunables in `lane.env`: `DAILY_WAKE_BUDGET` (wake cap; the Max path has no per-venture spend cap),
-`MAX_ATTEMPTS` (per-ticket circuit breaker).
+`MAX_ATTEMPTS` (per-ticket circuit breaker), `MAX_VALIDATION_ROUNDS` (FB-052; default 2 = one repair
+attempt — each extra round is another implement + gate-check + review + qa, so it is the main lever
+on what a single ticket costs).
 
 ## Bring-up (on the box)
 ```bash

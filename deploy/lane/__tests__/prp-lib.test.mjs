@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   GATE_DIMENSIONS,
   REQUIRED_SECTIONS,
@@ -45,6 +46,23 @@ describe('sections — a PRP splits into its parts', () => {
     expect(sections('just prose')).toEqual({});
     expect(sections('')).toEqual({});
     expect(sections(null)).toEqual({});
+  });
+
+  it('tolerates how a model decorates the heading', () => {
+    // Every one of these blocked the ticket before. The PRP is model-generated against a fixed
+    // vocabulary of five names, so losing good work to a stray colon is the wrong trade.
+    for (const heading of [
+      '## Validation gates', '## Validation Gates', '## Validation gates:',
+      '### Validation gates', '## 5. Validation gates', '## 5) Validation gates',
+      '#### **Validation gates**',
+    ]) {
+      const s = sections(`${heading}\n- [ ] happy path: works\n`);
+      expect(Object.keys(s), `heading not recognised: ${heading}`).toEqual(['validation gates']);
+    }
+  });
+
+  it('still does not confuse a different section for a required one', () => {
+    expect(Object.keys(sections('## Validation notes\nx\n'))).toEqual(['validation notes']);
   });
 });
 
@@ -103,14 +121,53 @@ describe('validate — a plan without gates is not a PRP', () => {
   it('names every missing section', () => {
     const v = validate('# PRP\n\n## Intent\nsomething\n');
     expect(v.ok).toBe(false);
+    const joined = v.problems.join(' ');
     for (const s of REQUIRED_SECTIONS.filter((x) => x !== 'intent')) {
-      expect(v.problems.join(' ')).toContain(s);
+      expect(joined.toLowerCase()).toContain(s);
     }
+    // Quoted the way the PLAN prompt writes them, since this text is the model's retry hint.
+    expect(joined).toContain('"Validation gates"');
+    expect(joined).not.toContain('## ');   // no heading level — any level is accepted
   });
 
   it('rejects junk', () => {
     expect(validate('').ok).toBe(false);
     expect(validate(null).ok).toBe(false);
+  });
+});
+
+describe('the PLAN prompt and this parser must agree', () => {
+  // The contract lives in two files: prp-lib.mjs decides what a PRP must contain, supervisor.sh
+  // tells the model what to write. Rename a section in one and every ticket blocks at PLAN with
+  // "The lane couldn't write a proper plan" — a fleet-wide outage from a one-word edit. This turns
+  // that into a red test.
+  const supervisor = readFileSync(new URL('../supervisor.sh', import.meta.url).pathname, 'utf8');
+
+  it('asks the model for every section this parser requires', () => {
+    for (const name of REQUIRED_SECTIONS) {
+      const heading = name.replace(/^./, (c) => c.toUpperCase());
+      expect(supervisor, `the PLAN prompt is missing "## ${heading}"`).toContain(`## ${heading}`);
+    }
+  });
+
+  it('asks the model for every gate dimension this parser recognises', () => {
+    for (const dim of GATE_DIMENSIONS) {
+      expect(supervisor, `the PLAN prompt never mentions the "${dim}:" label`).toContain(`${dim}:`);
+    }
+  });
+
+  it('a PRP written exactly as the prompt describes is accepted', () => {
+    const asPrompted = [
+      '# PRP — x', '',
+      ...REQUIRED_SECTIONS.slice(0, 4).map((n) => `## ${n.replace(/^./, (c) => c.toUpperCase())}\nsomething\n`),
+      '## Validation gates',
+      ...GATE_DIMENSIONS.map((d) => `- [ ] ${d}: something must be true`),
+      '',
+    ].join('\n');
+    const v = validate(asPrompted);
+    expect(v.ok, v.problems.join('; ')).toBe(true);
+    expect(v.gateCount).toBe(GATE_DIMENSIONS.length);
+    expect(missingDimensions(asPrompted)).toEqual([]);
   });
 });
 
@@ -145,6 +202,15 @@ describe('applyVerdicts — silence is not success', () => {
     expect(applyVerdicts(GOOD, null).every((g) => !g.pass)).toBe(true);
     expect(applyVerdicts(GOOD, [null, 'x', { pass: true }]).every((g) => !g.pass)).toBe(true);
   });
+
+  it('matches ids regardless of case or stray whitespace — a model writes these', () => {
+    // The ids are the one input on this path authored by a model rather than by code. If the
+    // normalisation went, every gate would read "not reported on", and the lane would burn a whole
+    // repair round on already-correct code before blocking the founder.
+    const checked = applyVerdicts(GOOD, [{ id: ' G1 ', pass: true, why: 'ok' }, { id: 'G2', pass: true }]);
+    expect(checked[0]).toMatchObject({ pass: true, why: 'ok' });
+    expect(checked[1].pass).toBe(true);
+  });
 });
 
 describe('formatGateReport / failureSummary — what the founder reads', () => {
@@ -165,13 +231,22 @@ describe('formatGateReport / failureSummary — what the founder reads', () => {
     expect(formatGateReport(null)).toContain('No validation gates');
   });
 
-  it('summarises only the failures, capped', () => {
-    const checked = applyVerdicts(GOOD, [{ id: 'g1', pass: true, why: 'ok' }]);
-    const summary = failureSummary(checked);
+  it('summarises only the failures', () => {
+    const summary = failureSummary(applyVerdicts(GOOD, [{ id: 'g1', pass: true, why: 'ok' }]));
     expect(summary).toContain('edge cases');
     expect(summary).not.toContain('happy path');
-    expect(summary.split(';')).toHaveLength(3);
     expect(failureSummary(applyVerdicts(GOOD, GOOD_ALL_PASS))).toBe('');
+  });
+
+  it('caps the summary at three, however many failed', () => {
+    // GOOD has exactly four gates, so a 1-pass fixture leaves exactly three failures and the cap is
+    // a no-op on it — asserting the cap there would pass with `.slice(0, 3)` deleted. Six gates
+    // makes the cap the only thing keeping a RunReport line readable.
+    const six = `## Validation gates\n${['a', 'b', 'c', 'd', 'e', 'f'].map((t) => `- [ ] gate ${t}`).join('\n')}\n`;
+    const summary = failureSummary(applyVerdicts(six, []));
+    expect(summary.split('; ')).toHaveLength(3);
+    expect(summary).toContain('gate a');
+    expect(summary).not.toContain('gate d');
   });
 });
 

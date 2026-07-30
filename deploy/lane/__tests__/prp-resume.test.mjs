@@ -24,11 +24,13 @@ STORE="${dir}/store"
 mkdir -p "$STORE"
 ensure_state_ref() { return 0; }
 gh_api() {
-  local method="GET" path="" data=""
+  local method="GET" path="" data="" want_code=""
   while [ $# -gt 0 ]; do
     case "$1" in
       -X) method="$2"; shift 2 ;;
       -d) data="$2"; shift 2 ;;
+      -w) want_code="$2"; shift 2 ;;
+      -o) shift 2 ;;
       http*) path="$1"; shift ;;
       *) shift ;;
     esac
@@ -36,7 +38,8 @@ gh_api() {
   local slug; slug=$(printf '%s' "$path" | sed -E 's|.*/contents/||; s|\\?.*||; s|/|_|g')
   if [ "$method" = "PUT" ]; then
     printf '%s' "$data" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{process.stdout.write(JSON.parse(d).content)})' > "$STORE/$slug"
-    echo '{"content":{"sha":"abc"}}'
+    # Mirror curl: with -w '%{http_code}' the caller wants the STATUS, not the body.
+    if [ -n "$want_code" ]; then echo "201"; else echo '{"content":{"sha":"abc"}}'; fi
   else
     if [ -f "$STORE/$slug" ]; then
       # GitHub wraps base64 at 60 chars with newlines — reproduce that, it is what read_prp must survive.
@@ -97,6 +100,84 @@ describe('PRP persistence — the board is the durable context', () => {
     const out = run(`if read_prp never-planned "${dest}"; then echo FOUND; else echo NONE; fi`);
     expect(out).toContain('NONE');
     expect(out).not.toContain('FOUND');
+  });
+
+  it('does not resume a PRP written from a DIFFERENT version of the ticket', () => {
+    // run-once.sh clears the give-up markers when a founder EDITS a stuck ticket, so the lane
+    // retries it. Without this binding the retry would read back the plan and gates written from
+    // the OLD text, log "no re-planning", and the PR would claim it validated against them — the
+    // founder's edit silently ignored.
+    const src = join(dir, 'prp.md');
+    const ticket = join(dir, 'ticket.md');
+    const dest = join(dir, 'resumed.md');
+    writeFileSync(src, [
+      '# PRP — arca-t', '', '## Intent', 'x', '', '## Context', 'x', '', '## Approach', 'x', '',
+      '## Tasks', '- [ ] x', '', '## Validation gates', '- [ ] happy path: works', '',
+    ].join('\n'));
+    writeFileSync(ticket, '# ARCA-T\n\n## Scope\n- the original ask\n');
+
+    const first = run(`write_prp arca-t "${src}" "${ticket}" >/dev/null
+      if read_prp arca-t "${dest}" "${ticket}"; then echo RESUMED; else echo REPLAN; fi`);
+    expect(first).toContain('RESUMED');
+
+    // The founder edits the ticket…
+    writeFileSync(ticket, '# ARCA-T\n\n## Scope\n- actually, something quite different\n');
+    const second = run(`if read_prp arca-t "${dest}" "${ticket}"; then echo RESUMED; else echo REPLAN; fi`);
+    expect(second).toContain('REPLAN');
+    expect(second).not.toContain('RESUMED');
+  });
+
+  it('re-planning after an edit leaves no stale PRP behind for the next read', () => {
+    const src = join(dir, 'p2.md');
+    const ticket = join(dir, 't2.md');
+    const dest = join(dir, 'd2.md');
+    writeFileSync(src, [
+      '# PRP — arca-u', '', '## Intent', 'x', '', '## Context', 'x', '', '## Approach', 'x', '',
+      '## Tasks', '- [ ] x', '', '## Validation gates', '- [ ] happy path: works', '',
+    ].join('\n'));
+    writeFileSync(ticket, 'v1');
+    run(`write_prp arca-u "${src}" "${ticket}" >/dev/null`);
+    writeFileSync(ticket, 'v2');
+    const out = run(`read_prp arca-u "${dest}" "${ticket}" || true
+      if [ -s "${dest}" ]; then echo LEFT-BEHIND; else echo CLEANED; fi`);
+    expect(out).toContain('CLEANED');
+  });
+
+  it('reports why a PRP is malformed WITHOUT killing its caller', () => {
+    // The harness runs `set -euo pipefail`, exactly as supervisor.sh does. prp_problems is only
+    // ever called when validation already failed, so its pipeline's first command exits non-zero by
+    // design — and an unguarded pipeline there would abort the assignment and take the lane down:
+    // no `blocked` RunReport, no log line, claim branch stranded. Reporting a bad plan must never be
+    // more fatal than the bad plan.
+    const bad = join(dir, 'bad.md');
+    writeFileSync(bad, '# PRP\n\n## Intent\nx\n');
+    const out = run(`WHY="$(prp_problems "${bad}")"; echo "why=$WHY"; echo SURVIVED`);
+    expect(out).toContain('SURVIVED');
+    expect(out).toContain('validation gates');
+    expect(out).not.toContain('[prp]');   // the prefix strip ran
+  });
+
+  it('survives prp_problems on a file that does not exist at all', () => {
+    const out = run(`WHY="$(prp_problems "${dir}/nope.md")"; echo SURVIVED`);
+    expect(out).toContain('SURVIVED');
+  });
+
+  it('counts zero gates — and stays numeric — for anything that is not a PRP', () => {
+    // GATE_COUNT feeds `[ "${GATE_COUNT:-0}" -gt 0 ]`, which decides whether the gate-checking step
+    // runs at all. Empty or multi-line output there would make `[` error out and silently skip it
+    // while the PR body still claimed "PRP gates ✅".
+    const bad = join(dir, 'bad2.md');
+    writeFileSync(bad, '# PRP\n\n## Intent\nx\n');
+    const out = run(`
+      echo "a=[$(prp_gate_count "${bad}")]"
+      echo "b=[$(prp_gate_count "${dir}/nope.md")]"
+      if prp_ok "${bad}"; then echo OK1; else echo NOT-A-PRP1; fi
+      if prp_ok "${dir}/nope.md"; then echo OK2; else echo NOT-A-PRP2; fi
+    `);
+    expect(out).toContain('a=[0]');
+    expect(out).toContain('b=[0]');
+    expect(out).toContain('NOT-A-PRP1');
+    expect(out).toContain('NOT-A-PRP2');
   });
 
   it('refuses to persist an empty PRP', () => {

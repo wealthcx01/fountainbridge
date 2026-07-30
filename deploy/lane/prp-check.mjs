@@ -3,9 +3,12 @@
 //
 //   prp-check.mjs validate <prp.md>              → exit 0 if it IS a PRP; else problems on stderr
 //   prp-check.mjs gates    <prp.md>              → the gates, one "id<TAB>text" per line
-//   prp-check.mjs report   <prp.md> <verdicts>   → founder-facing gate report on stdout;
-//                                                   exit 0 all passed, 4 if any gate failed
-//   prp-check.mjs summary  <prp.md> <verdicts>   → one-line failure summary for a RunReport
+//   prp-check.mjs report   <prp.md> <verdicts> [expected-gate-count]
+//                                                → founder-facing gate report on stdout;
+//                                                   exit 0 only if EVERY gate passed and the gate
+//                                                   list still matches what was accepted; else 4
+//   prp-check.mjs summary  <prp.md> <verdicts> [expected-gate-count]
+//                                                → one-line failure summary for a RunReport
 //
 // <verdicts> is the JSON file the checking step writes: [{"id":"g1","pass":true,"why":"…"}]
 // A gate nobody reported on counts as NOT passed (see applyVerdicts).
@@ -62,6 +65,24 @@ function main() {
 
   if (cmd === 'report' || cmd === 'summary') {
     const checked = applyVerdicts(text, readVerdicts(verdictPath));
+    // NO GATES CAN NEVER MEAN PASS. An empty list has no failures, so a naive "any failed?" check
+    // returns success — turning the hard PRP gate into an unconditional pass exactly when the PRP
+    // has been truncated or had its gates rewritten as prose. The file lives in the run directory
+    // and is handed to model sessions that hold Write, so that is a reachable state, and the PR body
+    // would still show the founder "PRP gates ✅".
+    if (!checked.length) {
+      console.log(formatGateReport(checked));
+      console.error('[prp] no gates could be read from the PRP — refusing to report a pass');
+      process.exit(4);
+    }
+    // The caller knows how many gates were there when the PRP was accepted. If the file has changed
+    // underneath us since, its verdicts are not the ones we validated against.
+    const expected = Number(process.argv[5]);
+    if (Number.isFinite(expected) && expected > 0 && checked.length !== expected) {
+      console.log(formatGateReport(checked));
+      console.error(`[prp] the PRP changed since it was accepted (${expected} gates then, ${checked.length} now)`);
+      process.exit(4);
+    }
     const failed = checked.filter((g) => !g.pass);
     console.log(cmd === 'report' ? formatGateReport(checked) : failureSummary(checked));
     if (failed.length) process.exit(4);

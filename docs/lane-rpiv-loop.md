@@ -22,10 +22,13 @@ on the same 2 GB box as the founder's live composer" safe rather than an outage:
 - **The lane runs in a memory-capped cgroup** (`MemoryMax=` on `foundry-lane.service`, set *below*
   LibreChat's headroom) + a pre-flight RAM check. If `/qa`'s Chromium blows the budget, the kernel
   OOM-kills *the lane's* process tree — never `librechat-api`/`mongodb`. The founder's chat stays up.
-- **`/qa` blocks on real bugs, but *defers* (non-blocking) when it genuinely can't test** — a change
-  with no web surface, an app that won't boot headless, or low free memory. It always runs; it never
-  false-fails a backend/docs ticket into a permanent block (which would ship nothing — the lane's whole
-  point). `tests + /review` remain the hard floor on every ticket regardless.
+- **`/qa` fails on real bugs, but *defers* (non-blocking) when it genuinely can't test** — a change
+  with no web surface, an app that won't boot headless, or low free memory. It never false-fails a
+  backend/docs ticket into a permanent block (which would ship nothing — the lane's whole point).
+  `tests + /review` remain the hard floor on every ticket regardless. *(Since FB-052 a bug `/qa`
+  reproduces sends the ticket back round the validation loop rather than parking it outright, and
+  `/qa` runs only on a round that has already passed the other checks — so it still runs on every
+  ticket that reaches it, at most once per round.)*
 
 ## The loop (RPIV = Research → Plan → Implement → Validate)
 
@@ -52,7 +55,7 @@ CLAIM (branch-create CAS, unchanged)
   │                 this exact SHA, so the eventual PR is byte-for-byte what review saw. Repair
   │                 rounds --amend, so the PR stays one commit; a repair that changed nothing blocks
   │                 rather than re-running identical checks.
-  │ VALIDATE        the three checks below. Any failure that a further round could plausibly fix
+  │ VALIDATE        the four checks below. Any failure that a further round could plausibly fix
   │                 loops BACK to IMPLEMENT rather than forward to the founder. A phase that stopped
   │                 to ask a human, or timed out, parks immediately — another round can't help.
   └────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -65,11 +68,15 @@ CLAIM (branch-create CAS, unchanged)
                     verdict per gate as JSON. A gate nobody reports on counts as NOT passed — silence
                     is not evidence (prp-lib.mjs `applyVerdicts`). The ✅/❌ list goes in the PR body,
                     so the human gate sees the lane's stated criteria and whether each one held.
-       /review      [HARD] claude -p /review → read gstack's own review artifact
-                    (~/.gstack/projects/$SLUG/$BRANCH-reviews.jsonl): block if latest status is not a
-                    ship OR critical>0 OR /review edited files (it wanted to change the code → not clean)
-       /qa          [SOFT] claude -p /qa-only (report-only, never edits) → $RUNDIR/qa.json
-                    block on reported bugs; DEFER (non-blocking) on can't-boot / no-web-surface / low-RAM
+       /review      [HARD] claude -p /review → the explicit verdict it writes to
+                    $RUNDIR/review-<round>.json: fail if verdict≠pass OR critical>0 OR it edited files
+                    (it wanted to change the code → not clean). A missing verdict fails closed.
+                    (Headless /review does not reliably run gstack's own review-log step, which is why
+                    the binding is an explicit verdict file rather than that artifact.)
+       /qa          claude -p /qa-only (report-only, never edits) → $RUNDIR/qa-<round>.json. Runs only
+                    on an otherwise-clean round, so it costs at most one run per round. A bug it
+                    reproduces LOOPS like any other failed gate; it still DEFERS (non-blocking) when
+                    it cannot test at all — can't-boot / no-web-surface / low-RAM.
   └─ GATE           floor passes → push the branch + open PR (a human still merges — non-negotiable 2)
                     any fail → `blocked` RunReport with the reason; branch never pushed, so the
                     autonomous scan reclaims + retries, bounded by the circuit-breaker (FB-040), and a
