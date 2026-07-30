@@ -81,6 +81,12 @@ if [ -f "$REPO_TICKET" ]; then
   sed -i -E 's/(\*\*Status:\*\*[[:space:]]*)[Tt]odo/\1In progress/' "$REPO_TICKET" || true
 fi
 
+# --- 4a. BASELINE probe: the venture's own toolchain BEFORE the lane touches anything, so the gate can
+#         measure the lane's REGRESSION (not pre-existing debt — arca's typecheck/lint are red on master).
+log "baseline toolchain probe…"
+toolchain_probe "$REPO_DIR" "$RUNDIR/base.log" > "$RUNDIR/base.res" || true
+log "baseline: $(tr '\n' ' ' <"$RUNDIR/base.res")"
+
 # --- 4. RESEARCH: point the lane at the venture's shared brain (D8 context/, FB-043) ----------------
 # gbrain semantic search over context/library/tickets/code arrives in FB-050; today the lane reads the
 # deposited context/ files raw.
@@ -129,11 +135,14 @@ git -c user.email="lane@bruntsfield.capital" -c user.name="Foundry Lane" \
 log "committed $(git rev-parse --short HEAD) (local — not pushed until the gate passes)"
 
 # --- 8. VALIDATE — the hard floor, bound to objective signals --------------------------------------
-# 8a. tests / typecheck / lint (EXIT CODES — unfakeable)
-log "VALIDATE: tests…"
-set +e; TESTS_MSG=$(venture_gate "$REPO_DIR" "$RUNDIR"); rc=$?; set -e
-[ $rc -ne 0 ] && blocked "Its own tests didn't pass — ${TESTS_MSG:-see the run log}. No PR opened; needs a fix."
-log "tests OK"
+# 8a. tests / typecheck / lint — gate on REGRESSION vs the baseline (unfakeable exit codes), so the lane
+#     is blocked only by breakage IT introduced, never by the venture's pre-existing debt.
+log "VALIDATE: tests (vs baseline)…"
+toolchain_probe "$REPO_DIR" "$RUNDIR/branch.log" > "$RUNDIR/branch.res" || true
+log "branch: $(tr '\n' ' ' <"$RUNDIR/branch.res")"
+set +e; TESTS_MSG=$(venture_regression "$RUNDIR/base.res" "$RUNDIR/branch.res"); rc=$?; set -e
+[ $rc -ne 0 ] && blocked "Its own tests caught a problem — ${TESTS_MSG}. No PR opened; needs a fix."
+log "tests OK (no regression vs baseline)"
 
 # 8b. /review (staff-engineer audit incl. adversarial subagent). Gate on gstack's review artifact AND
 # on whether /review wanted to edit the code (it edited ⇒ not clean ⇒ block).

@@ -44,8 +44,10 @@ CLAIM (branch-create CAS, unchanged)
   └─ COMMIT         commit the diff to the claim branch (local only — not pushed yet). Validation now
                     runs against this exact SHA, so the eventual PR is byte-for-byte what review saw.
   └─ VALIDATE (the hard floor must pass — any fail ⇒ `blocked` RunReport, no push, no PR):
-       tests        [HARD] detect + run the venture toolchain; gate on EXIT CODES (unfakeable)
-                    arca: bun install → bun run typecheck → bun run lint → bun test
+       tests        [HARD] run the venture toolchain (bun/npm typecheck+lint+test) and gate on the
+                    REGRESSION vs a baseline probe taken before the lane touched anything — so the lane
+                    is blocked only by breakage IT caused, never by the venture's pre-existing debt
+                    (arca's typecheck/lint are already red on master). Exit codes; unfakeable.
        /review      [HARD] claude -p /review → read gstack's own review artifact
                     (~/.gstack/projects/$SLUG/$BRANCH-reviews.jsonl): block if latest status is not a
                     ship OR critical>0 OR /review edited files (it wanted to change the code → not clean)
