@@ -46,15 +46,19 @@ if [ ! -f "$HOME/.gstack/config.yaml" ]; then
   say "seeded ~/.gstack/config.yaml (proactive off, auto_upgrade off, short skill names)"
 fi
 
-# 4. ./setup — wires the individual skills into ~/.claude/skills/ and installs deps (frozen lockfile).
+# 4. deps + the browser BEFORE ./setup. setup verifies Chromium can *launch* (ensure_playwright_browser,
+#    setup line ~507) and exits 1 BEFORE it wires the skills if the launch fails — and launching needs
+#    the `--with-deps` system libraries. So Chromium + its libs must be in place first, or setup aborts
+#    with the skills unwired. (This ordering was the install bug found on the first box run.)
+say "installing deps + Playwright Chromium (with system libs)…"
+( cd "$GSTACK_DIR" && bun install --frozen-lockfile )
+( cd "$GSTACK_DIR" && bunx playwright install --with-deps chromium ) || \
+  say "WARN: playwright install had issues — setup's browser check may fail"
+
+# 5. ./setup — wires the individual skills into ~/.claude/skills/.
 #    --no-prefix = short names (/qa, /review — what supervisor.sh calls); --quiet + non-TTY = no prompts.
 say "running gstack ./setup…"
-( cd "$GSTACK_DIR" && bun install --frozen-lockfile && ./setup --no-prefix --quiet )
-
-# 5. the browser /qa needs Chromium + its system libs.
-say "installing Playwright Chromium…"
-( cd "$GSTACK_DIR" && bunx playwright install --with-deps chromium ) || \
-  say "WARN: playwright install had issues — /qa will DEFER (soft gate) until this succeeds"
+( cd "$GSTACK_DIR" && ./setup --no-prefix --quiet )
 
 # 6. verify the wiring the lane depends on.
 say "verifying…"
