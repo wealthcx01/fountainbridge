@@ -1,0 +1,18 @@
+# Foundry venture-brain refresh (FB-050). One incremental gbrain sync of the venture repo, then
+# exits — so the brain tracks what merged. Type=oneshot means an overlapping timer tick can never
+# start a second sync (PGLite is single-writer; the script also takes a lock).
+[Unit]
+Description=Foundry venture brain — incremental index refresh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/foundry/lane/brain.env
+WorkingDirectory=/opt/foundry/lane
+ExecStart=/opt/foundry/lane/gbrain-refresh.sh
+# Below the lane's own cap: a background re-index must never be what OOMs the founder's live
+# composer (same reasoning as foundry-lane.service).
+Nice=15
+MemoryHigh=768M
+MemoryMax=1024M

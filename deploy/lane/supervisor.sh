@@ -91,13 +91,31 @@ log "baseline toolchain probe…"
 toolchain_probe "$REPO_DIR" "$RUNDIR/base.log" > "$RUNDIR/base.res" || true
 log "baseline: $(tr '\n' ' ' <"$RUNDIR/base.res")"
 
-# --- 4. RESEARCH: point the lane at the venture's shared brain (D8 context/, FB-043) ----------------
-# gbrain semantic search over context/library/tickets/code arrives in FB-050; today the lane reads the
-# deposited context/ files raw.
-CONTEXT_HINT=""
-[ -d "$REPO_DIR/context" ] && CONTEXT_HINT="
+# --- 4. RESEARCH: ask the venture's brain what it already knows (FB-050) ----------------------------
+# The brain is a gbrain index over this venture's context/, library/, docs/tickets/ and code (D8),
+# partitioned to this box's department. Retrieval is SEMANTIC — a founder's deposited fact is found
+# because it is about this work, not because the lane guessed a filename.
+# Degradation is explicit, never silent (#10): no brain ⇒ the lane reads context/ files raw, as it
+# did before FB-050, and says so in the log, the PR body and the RunReport.
+log "RESEARCH: asking the venture brain…"
+RESEARCH_MODE="brain (semantic)"
+BRAIN_DIGEST="$(brain_research "$TICKET_FILE" "$DEPT" || true)"
+if [ -n "$BRAIN_DIGEST" ]; then
+  log "RESEARCH: brain returned $(grep -c '^- ' <<<"$BRAIN_DIGEST") relevant page(s)"
+  CONTEXT_HINT="
+
+WHAT THIS VENTURE ALREADY KNOWS — retrieved from its brain (the founder's deposited context and
+library, prior tickets, and the code). This is background, not the ticket: let it inform the work,
+and prefer it over your assumptions about the venture.
+$BRAIN_DIGEST"
+else
+  RESEARCH_MODE="files (brain unavailable)"
+  log "RESEARCH: no answer from the brain — falling back to reading context/ files"
+  CONTEXT_HINT=""
+  if [ -d "$REPO_DIR/context" ]; then CONTEXT_HINT="
 Before planning, read anything relevant under \`context/\` — the founder's durable knowledge (audience,
-brand, positioning, pricing), deposited via the composer. Let it inform the work."
+brand, positioning, pricing), deposited via the composer. Let it inform the work."; fi
+fi
 
 # --- 5. PLAN: produce a PRP-lite the implement step follows (full PRP is FB-052) --------------------
 PLAN_FILE="$RUNDIR/plan.md"
@@ -217,10 +235,11 @@ fi
 # --- 9. GATE PASSED → push the branch + open the PR (a human still merges) --------------------------
 git push --quiet "https://x-access-token:${TICKET_GITHUB_TOKEN}@github.com/${REPO}.git" "$BRANCH"
 log "pushed $BRANCH"
-PR_BODY="Worked by the Foundry lane through the full RPIV loop (plan → implement → review → qa).
+PR_BODY="Worked by the Foundry lane through the full RPIV loop (research → plan → implement → review → qa).
 
 $SUMMARY
 
+**Research:** $RESEARCH_MODE
 **Gate:** tests ✅ · /review ✅ ($RSTATUS) · /qa: $QA_NOTE
 A human still reviews + merges (nothing merges or ships automatically)."
 PR_JSON=$(gh_api -X POST "$API/repos/$REPO/pulls" \
@@ -231,5 +250,5 @@ PR_URL=$(printf '%s' "$PR_JSON" | jval '.html_url')
 log "opened PR $PR_URL"
 
 # --- 10. RunReport: done (with the gate evidence) --------------------------------------------------
-write_runreport "$SLUG" "opened_pr" "$SUMMARY — passed the lane's own gate (tests, /review $RSTATUS, /qa: $QA_NOTE)." "$PR_URL" "$STARTED"
+write_runreport "$SLUG" "opened_pr" "$SUMMARY — researched from the venture's $RESEARCH_MODE, then passed the lane's own gate (tests, /review $RSTATUS, /qa: $QA_NOTE)." "$PR_URL" "$STARTED"
 log "done."

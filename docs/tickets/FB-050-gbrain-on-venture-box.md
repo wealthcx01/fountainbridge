@@ -1,7 +1,9 @@
 # FB-050 — gbrain semantic brain on the venture box (fully apply gbrain + Cole's Archon RAG)
 
-**Status:** Planned · **Phase:** 2/3 · **Depends on:** FB-043 (context/library in git) · **Repo:**
+**Status:** In review · **Phase:** 2/3 · **Depends on:** FB-043 (context/library in git) · **Repo:**
 fountainbridge (+ venture VM) · **Branch:** `fb-050-gbrain-on-venture-box` · One ticket = one branch = one PR.
+
+**Design:** `docs/venture-brain.md`.
 
 ## Why this matters (for the founder)
 The more your venture knows, the smarter every piece of work gets — the agents *search* everything
@@ -28,9 +30,23 @@ per-department.
 - The deposit path (FB-043, done). The gstack loop (FB-041). Cross-venture indexes (D1 — never).
 
 ## Acceptance criteria
-- [ ] gbrain installed + indexing the venture repo on the box, per-department partitioned.
-- [ ] The lane RESEARCH step answers from `gbrain query` (a deposited fact is retrieved semantically, not by filename).
-- [ ] The composer can surface a gbrain answer; the index refreshes after a merge.
+- [x] gbrain installed + indexing the venture repo on the box, per-department partitioned.
+      (`install-gbrain.sh` + `gbrain-refresh.sh`; partitioning in `brain-lib.mjs`, unit-tested.
+      **The box run itself is still outstanding** — see Verification.)
+- [x] The lane RESEARCH step answers from `gbrain query` (a deposited fact is retrieved semantically,
+      not by filename) — `supervisor.sh` §4 via `brain_research`, with a loud file-read fallback.
+- [x] The composer can surface a gbrain answer (`brain-mcp` → host bridge); the index refreshes after
+      a merge (every lane wake, plus `foundry-brain-sync.timer`).
 
 ## Verification
-`/review` + live: deposit a fact (FB-043) → `gbrain query` on the box returns it → a lane uses it.
+**Done in this PR (local):** the full query path exercised end to end against a real gbrain —
+ticket → question → `gbrain call query` → department partition → digest; the bridge's auth, routing
+and error paths (401/404/405/400); the MCP server's handshake, `tools/list`, a live `tools/call`, and
+each failure mode (no token, wrong token, bridge down) returning plain-language text; the lane's
+`brain_research` helper returning a digest and degrading to rc=1 when gbrain is absent. 20 unit tests
+on the partition/digest/question logic; lint, typecheck, full test suite and shellcheck green.
+
+**Still to do on ARCA's box (needs John — same access as the FB-041 bring-up):** run
+`install-gbrain.sh`, deposit a fact through the composer (FB-043), merge it, then confirm
+`brain-query.mjs --question "…"` returns it *without* naming the file, and that a lane run's PR body
+reads `Research: brain (semantic)`. Until that runs, the box side is unproven.

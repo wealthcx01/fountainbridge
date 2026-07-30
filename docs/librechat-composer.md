@@ -108,3 +108,9 @@ Cofounder's methods.
 8. **Second-brain bridge (FB-043):** the composer's `deposit_venture_file` tool saves durable founder
    facts to git `context/`/`library/` (secret-scanned, a human OKs the PR); the lanes read `context/`
    during RESEARCH — so what the founder tells the composer reaches the work. One brain, verified live.
+9. **Venture brain search (FB-050):** the other half of #8 — what goes in can now be *found*. A
+   read-only `search_venture_brain` tool searches everything the venture knows (deposited context and
+   library, the backlog, the code) by meaning, and the composer is instructed to consult it before
+   answering anything about the venture. gbrain itself runs on the host (single-writer local index —
+   D1), so this stdio MCP forwards to a token-guarded host bridge. Same index the lanes plan from, so
+   the composer and the work can't disagree. See `docs/venture-brain.md`.

@@ -15,6 +15,14 @@
 
 flog() { echo "[lane $(date -u +%FT%TZ)] $*" >&2; }
 
+# bun-installed tools (gbrain, FB-050) live in ~/.bun/bin, which is NOT on the PATH systemd hands a
+# unit. Without this the lane would never find the brain and would quietly research from files
+# forever — the exact silent degradation #10 forbids.
+case ":$PATH:" in
+  *":$HOME/.bun/bin:"*) ;;
+  *) PATH="$HOME/.bun/bin:$PATH"; export PATH ;;
+esac
+
 gh_api() { curl -sS -H "Authorization: Bearer ${TICKET_GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
                  -H "X-GitHub-Api-Version: 2022-11-28" "$@"; }
 
@@ -158,3 +166,24 @@ review_status() {
 
 # mem_available_mb — free-to-allocate memory in MB (for the /qa pre-flight RAM check).
 mem_available_mb() { awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0; }
+
+# ---------------------------------------------------------------------------------------------------
+# The venture brain (FB-050). See docs/venture-brain.md.
+# ---------------------------------------------------------------------------------------------------
+LANE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+: "${BRAIN_QUERY_BIN:=$LANE_LIB_DIR/brain-query.mjs}"
+: "${BRAIN_RESEARCH_TIMEOUT:=180}"
+
+# brain_research <ticket-file> [department] — echo what the venture already knows about this ticket,
+# retrieved SEMANTICALLY from the brain (deposited context/library, prior tickets, code) and
+# partitioned to the lane's own department. Empty output + non-zero if the brain can't answer: the
+# caller degrades to reading files, it never dies (a lane must not stop working because an index is
+# down). Bounded by its own timeout so a wedged brain can't hold up the loop.
+brain_research() {
+  local ticket="$1" dept="${2:-}"
+  local args=(--ticket "$ticket")
+  [ -f "$BRAIN_QUERY_BIN" ] || return 1
+  command -v gbrain >/dev/null 2>&1 || return 1
+  [ -n "$dept" ] && args+=(--department "$dept")
+  timeout "$BRAIN_RESEARCH_TIMEOUT" node "$BRAIN_QUERY_BIN" "${args[@]}" 2>/dev/null
+}

@@ -5,7 +5,7 @@ The engine behind the composer, on the venture's **own** Hetzner box (D1). Desig
 
 Since FB-041 the lane no longer just edits a file — it runs the disciplined **RPIV loop** and reviews +
 tests its own work before the founder ever sees a PR:
-**RESEARCH** (context/) → **PLAN** (/plan → PRP-lite) → **IMPLEMENT** → **COMMIT** (local) →
+**RESEARCH** (the venture brain, FB-050) → **PLAN** (/plan → PRP-lite) → **IMPLEMENT** → **COMMIT** (local) →
 **VALIDATE** (tests + /review [HARD] + browser /qa [SOFT]) → **GATE**: pass ⇒ push + PR; any fail ⇒ a
 plain-language `blocked` RunReport, no PR. The supervisor (bash) owns the gate and binds it to
 *objective* signals — test/typecheck/lint exit codes + gstack's own review artifact — not a self-graded
@@ -14,8 +14,14 @@ boolean.
 ## What's here
 - `install-gstack.sh` (FB-041) — **run once per box**: installs gstack (pinned commit) + the
   Playwright/Chromium stack so the lane can run `/plan`, `/review`, `/qa`.
+- `install-gbrain.sh` (FB-050) — **run once per box**: installs gbrain + local embeddings, indexes
+  the venture repo, and enables the brain bridge + refresh timer. See `docs/venture-brain.md`.
+- `brain-lib.mjs` / `brain-query.mjs` / `brain-bridge.mjs` / `gbrain-refresh.sh` (FB-050) — the
+  venture brain: department partitioning + digest (pure, unit-tested), the query CLI the lane's
+  RESEARCH step uses, the composer's read-only bridge, and the incremental re-index.
 - `foundry-lib.sh` — shared helpers (`gh_api`, `jval`, `write_runreport`) + the RPIV primitives
-  (`claude_lane`, `venture_gate`, `review_status`, `ticket_department`, `mem_available_mb`).
+  (`claude_lane`, `venture_gate`, `review_status`, `ticket_department`, `mem_available_mb`,
+  `brain_research`).
 - `supervisor.sh` — one lane pass: **claim** (branch-create CAS) → **route** (department) →
   RESEARCH→PLAN→IMPLEMENT→COMMIT→VALIDATE→**GATE** → PR (a human merges) → **RunReport**. No send/deploy
   power (§8).
@@ -45,6 +51,9 @@ git clone https://x-access-token:<LANE_TOKEN>@github.com/<owner>/<repo>.git /opt
 
 # install gstack so the lane runs the real RPIV loop (once, ~1.7 GB incl. the browser stack):
 /opt/foundry/lane/install-gstack.sh
+
+# install the venture brain so RESEARCH is semantic and the composer can search it (once, FB-050):
+/opt/foundry/lane/install-gbrain.sh
 
 # lane env (NO send/deploy creds here — §8):
 cat > /opt/foundry/lane/lane.env <<'ENV'

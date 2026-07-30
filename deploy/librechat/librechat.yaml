@@ -54,6 +54,21 @@ mcpServers:
     stderr: inherit
     serverInstructions: true
     timeout: 60000
+  # FB-050 venture brain: READ-ONLY semantic search over everything the venture knows (the founder's
+  # deposited context/library, the ticket backlog, the code). gbrain itself runs on the HOST — its
+  # index is a single-writer local database that must not be shared into a container — so this stdio
+  # server forwards to the host's read-only bridge (deploy/lane/brain-bridge.mjs). The same brain the
+  # agent lanes plan from, so the composer and the work never disagree about what the venture knows.
+  venture-brain:
+    type: stdio
+    command: node
+    args: ["/app/foundry/brain-search.mjs"]
+    env:
+      FOUNDRY_BRAIN_URL: "${FOUNDRY_BRAIN_URL}"
+      FOUNDRY_BRAIN_TOKEN: "${FOUNDRY_BRAIN_TOKEN}"
+    stderr: inherit
+    serverInstructions: true
+    timeout: 120000          # a cold local embedding of the question can take a few seconds
 
 endpoints:
   agents:

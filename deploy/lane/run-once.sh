@@ -48,6 +48,15 @@ git checkout --quiet "$BASE_BRANCH" 2>/dev/null || git checkout --quiet -B "$BAS
 git reset --quiet --hard "origin/$BASE_BRANCH"
 git clean -fd --quiet   # drop untracked leftovers from a prior aborted run (code review P1-1)
 
+# --- keep the venture brain current with whatever just merged (FB-050) -----------------------------
+# Here is the one moment the worktree is guaranteed to be clean and on the base branch, so it is the
+# right place to index. Best-effort and time-boxed: a stale or missing index degrades RESEARCH to
+# reading files, it must never stop the lane from working. The 15-min timer covers idle stretches.
+if [ -x "$SCRIPT_DIR/gbrain-refresh.sh" ] && command -v gbrain >/dev/null 2>&1; then
+  timeout "${BRAIN_REFRESH_TIMEOUT:-300}" "$SCRIPT_DIR/gbrain-refresh.sh" >/dev/null 2>&1 \
+    || flog "brain refresh skipped or failed — RESEARCH may be working from a slightly stale index"
+fi
+
 # --- scan for the first workable ticket ------------------------------------------------------------
 PICK="" PICK_SLUG=""
 shopt -s nullglob
