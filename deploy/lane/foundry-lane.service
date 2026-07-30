@@ -19,3 +19,9 @@ WorkingDirectory=/opt/foundry/lane
 ExecStart=/opt/foundry/lane/run-once.sh
 # A crash never leaves a silently-dead engine: the timer re-fires; stale claims are reclaimed (§4).
 Nice=10
+# Memory cgroup cap (FB-041): the lane's whole process tree — claude -p → node → Chromium (browser
+# /qa) — lives in this unit's cgroup. On a shared 2 GB box also running the founder's live LibreChat
+# composer, this scopes any OOM to the LANE: the kernel kills the lane's Chromium, never LibreChat.
+# Set below LibreChat's headroom; tune if /qa OOMs too eagerly. See docs/lane-rpiv-loop.md.
+MemoryHigh=1280M
+MemoryMax=1536M

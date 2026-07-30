@@ -1,8 +1,14 @@
 # FB-041 — gstack RPIV loop in the lane (fully apply gstack + Cole Medin's RPIV)
 
-**Status:** Planned · **Phase:** 2 · **Depends on:** FB-039/040 (lane runtime + autonomous wake),
+**Status:** In progress · **Phase:** 2 · **Depends on:** FB-039/040 (lane runtime + autonomous wake),
 FB-050 (gbrain) · **Repo:** fountainbridge (+ venture VM) · **Branch:** `fb-041-gstack-rpiv-lane-loop`
 One ticket = one branch = one PR.
+
+**Design:** `docs/lane-rpiv-loop.md` (adversarially reviewed). Gate decision (John, 2026-07-29): the
+*safe* full gate — tests + /review hard-gate every ticket; browser /qa runs always but under a memory
+cgroup cap + RAM pre-check, and DEFERS (non-blocking) when it can't test, so it never bricks a
+backend/docs ticket nor OOM-kills the founder's live composer. RESEARCH reads context/ raw (gbrain =
+FB-050), PLAN is PRP-lite (full PRP = FB-052).
 
 ## Why this matters (for the founder)
 This is what makes the agent's work *good*, not just done: it plans before it builds, and reviews +

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Foundry autonomous lane wake (FB-040). ONE pass, called by the systemd timer:
+# Foundry autonomous lane wake (FB-040, extended by FB-041). ONE pass, called by the systemd timer:
 #   budget check → scan for a workable ticket → "useful work?" (idle heartbeat if none) →
-#   stale-claim reclaim → circuit-breaker → blast-radius routing → run the lane full-auto,
-#   OR stop-at-PLAN for a sensitive ticket (awaiting the founder's go — design §8).
+#   stale-claim reclaim → circuit-breaker → blast-radius routing → run the RPIV lane full-auto,
+#   OR stop-at-PLAN for a sensitive ticket (produce a read-only plan for the founder, then wait).
 #
 # Safety: only Status `Todo`/`Ready` tickets are auto-worked (a real backlog of Planned/Shipped
 # tickets is never touched); sensitive tickets (auth/payments/sends/migrations/secrets) never
-# auto-open a PR; a per-day wake budget + per-ticket attempt cap bound the spend (§10b). The box
-# holds no send/deploy creds, so the lane can never send or deploy regardless (§8).
+# auto-open a PR; a per-day wake budget + per-ticket attempt cap bound the spend. The box holds no
+# send/deploy creds, so the lane can never send or deploy regardless (§8).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=deploy/lane/foundry-lib.sh
@@ -18,8 +18,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   echo "need Claude auth: set CLAUDE_CODE_OAUTH_TOKEN (Max, preferred) or ANTHROPIC_API_KEY" >&2; exit 1
 fi
-: "${DAILY_WAKE_BUDGET:=20}"    # Max-path local cap — shared Max has no per-venture programmatic cap
+# Each wake now runs the RPIV loop = up to ~4 agentic sessions (plan/implement/review/qa), not one, so
+# the default wake budget is lower to stay within shared Claude Max limits (adversarial review P2).
+: "${DAILY_WAKE_BUDGET:=8}"
 : "${MAX_ATTEMPTS:=3}"          # per-ticket circuit breaker
+: "${PLAN_TIMEOUT:=600}"
 STATE_DIR="${STATE_DIR:-/opt/foundry/lane/state}"; mkdir -p "$STATE_DIR"
 SUP="$SCRIPT_DIR/supervisor.sh"
 
@@ -55,7 +58,15 @@ for f in docs/tickets/*.md; do
     flog "reclaiming stale orphan claim foundry/$slug (branch exists, no open PR)"
     gh_api -X DELETE "$API/repos/$REPO/git/refs/heads/foundry/$slug" >/dev/null || true
   fi
-  [ "$(attempts_of "$slug")" -ge "$MAX_ATTEMPTS" ] && { flog "skip $slug — hit max attempts ($MAX_ATTEMPTS)"; continue; }
+  # Circuit breaker: after MAX_ATTEMPTS, surface ONE terminal blocked report (no silent abandonment —
+  # adversarial review P1), mark it given-up so we don't re-scan it, and move on.
+  if [ "$(attempts_of "$slug")" -ge "$MAX_ATTEMPTS" ]; then
+    if [ ! -f "$STATE_DIR/gaveup-$slug" ]; then
+      write_runreport "$slug" "blocked" "The lane tried this $MAX_ATTEMPTS times and couldn't get it past its own review/tests. It needs a human — parked." || true
+      : > "$STATE_DIR/gaveup-$slug"
+    fi
+    flog "skip $slug — gave up after $MAX_ATTEMPTS attempts (surfaced)"; continue
+  fi
   PICK="$f"; PICK_SLUG="$slug"; break
 done
 
@@ -73,15 +84,32 @@ if [ "$(runs_today)" -ge "$DAILY_WAKE_BUDGET" ]; then
   exit 0
 fi
 
-# --- blast-radius routing: sensitive → stop-at-PLAN (no auto-PR) ------------------------------------
+# --- blast-radius routing: sensitive → stop-at-PLAN (produce a plan, then wait for the founder) -----
 if grep -qiE '\bauth(entication|orization)?\b|password|payment|billing|stripe|\bmigration\b|secret|credential|outreach|send.{0,6}email|\bdeploy\b' "$PICK"; then
-  flog "$PICK_SLUG classified SENSITIVE → stop-at-PLAN (awaiting founder go)"
-  write_runreport "$PICK_SLUG" "awaiting_founder" "This looks high-impact (auth/payments/sends/migrations). The lane paused for your go before doing it." || true
+  # Produce the plan ONCE (not every wake) so the founder sees exactly what the lane WOULD do before
+  # approving — honest "stop-at-PLAN", not stop-before-plan (adversarial review P1).
+  if [ -f "$STATE_DIR/awaiting-$PICK_SLUG" ]; then
+    flog "$PICK_SLUG already surfaced for founder go — skipping"; exit 0
+  fi
+  flog "$PICK_SLUG classified SENSITIVE → planning for founder review (no PR)"
+  echo "$PICK_SLUG $(date -u +%FT%TZ)" >> "$BUDGET_FILE"   # a plan session counts against the budget
+  PLAN_OUT="$STATE_DIR/sensitive-plan-$PICK_SLUG.md"
+  set +e
+  claude_lane "$PLAN_TIMEOUT" acceptEdits "This is a HIGH-IMPACT ticket (auth/payments/sends/migrations/secrets). Do NOT implement anything and
+do NOT edit files. Write a short plain-English plan of what you WOULD do and the risks, so the founder
+can decide. Output only the plan.
+
+TICKET:
+$(cat "$PICK")" >"$PLAN_OUT" 2>&1
+  set -e
+  PLAN_EXCERPT=$(head -c 600 "$PLAN_OUT" 2>/dev/null | tr '\n' ' ')
+  write_runreport "$PICK_SLUG" "awaiting_founder" "This looks high-impact (auth/payments/sends/migrations). The lane planned it but paused for your go before doing anything. Plan: ${PLAN_EXCERPT:-（unavailable）}" || true
+  : > "$STATE_DIR/awaiting-$PICK_SLUG"
   exit 0
 fi
 
-# --- full-auto: count the wake + the attempt, then run the lane ------------------------------------
+# --- full-auto: count the wake + the attempt, then run the RPIV lane --------------------------------
 echo "$PICK_SLUG $(date -u +%FT%TZ)" >> "$BUDGET_FILE"
 echo $(( $(attempts_of "$PICK_SLUG") + 1 )) > "$STATE_DIR/attempts-$PICK_SLUG"
-flog "working $PICK_SLUG (full-auto, low blast-radius)"
+flog "working $PICK_SLUG (full-auto RPIV, low blast-radius)"
 "$SUP" "$PICK_SLUG" "$PICK"
