@@ -46,6 +46,7 @@ cd "$REPO_DIR"
 git fetch --quiet origin "$BASE_BRANCH"
 git checkout --quiet "$BASE_BRANCH" 2>/dev/null || git checkout --quiet -B "$BASE_BRANCH" "origin/$BASE_BRANCH"
 git reset --quiet --hard "origin/$BASE_BRANCH"
+git clean -fd --quiet   # drop untracked leftovers from a prior aborted run (code review P1-1)
 
 # --- scan for the first workable ticket ------------------------------------------------------------
 PICK="" PICK_SLUG=""
@@ -57,6 +58,12 @@ for f in docs/tickets/*.md; do
     if has_open_pr "$slug"; then continue; fi   # in-flight (open PR) → leave it
     flog "reclaiming stale orphan claim foundry/$slug (branch exists, no open PR)"
     gh_api -X DELETE "$API/repos/$REPO/git/refs/heads/foundry/$slug" >/dev/null || true
+  fi
+  # Un-stick: if a human EDITED the ticket after we gave up on it, clear the attempt history so the lane
+  # retries the (presumably fixed) ticket (code review P2-3).
+  if [ -f "$STATE_DIR/gaveup-$slug" ] && [ "$f" -nt "$STATE_DIR/gaveup-$slug" ]; then
+    flog "$slug edited since we gave up — clearing attempts to retry"
+    rm -f "$STATE_DIR/gaveup-$slug" "$STATE_DIR/attempts-$slug"
   fi
   # Circuit breaker: after MAX_ATTEMPTS, surface ONE terminal blocked report (no silent abandonment —
   # adversarial review P1), mark it given-up so we don't re-scan it, and move on.

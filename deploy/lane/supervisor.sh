@@ -76,6 +76,10 @@ log "routed to department '$DEPT'"
 cd "$REPO_DIR"
 git fetch --quiet origin "$BRANCH"
 git checkout --quiet -B "$BRANCH" "origin/$BRANCH"
+# Remove any untracked files a PRIOR aborted run left behind (a reset --hard doesn't) so `git add -A`
+# below can never sweep another ticket's stray file into this PR. -fd only; -x is omitted so gitignored
+# node_modules survives (adversarial code review P1-1).
+git clean -fd --quiet
 REPO_TICKET="$REPO_DIR/docs/tickets/${SLUG}.md"
 if [ -f "$REPO_TICKET" ]; then
   sed -i -E 's/(\*\*Status:\*\*[[:space:]]*)[Tt]odo/\1In progress/' "$REPO_TICKET" || true
@@ -198,8 +202,8 @@ verdict=fail ONLY for real bugs you reproduced; verdict=deferred if there was no
   if [ $rc -eq 124 ]; then QA_NOTE="deferred: /qa timed out after ${QA_TIMEOUT}s"
   elif phase_blocked "$RUNDIR/qa.log"; then QA_NOTE="deferred: /qa needed a human decision"
   elif [ -s "$QA_JSON" ]; then
-    QV="$(jval '.verdict' <"$QA_JSON")"
-    if [ "$QV" = "fail" ]; then
+    QV="$(jval '.verdict' <"$QA_JSON" | tr '[:upper:]' '[:lower:]')"
+    if [ "${QV#fail}" != "$QV" ]; then   # matches fail / failed / Fail — don't let a real bug slip through on casing
       QBUGS="$(node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{const j=JSON.parse(d);process.stdout.write((j.bugs||[]).slice(0,3).join("; "))}catch{}})' <"$QA_JSON")"
       blocked "/qa found bug(s) in the running app: ${QBUGS:-see the QA report}. No PR opened; needs a fix."
     fi
