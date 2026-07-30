@@ -144,12 +144,19 @@ set +e; TESTS_MSG=$(venture_regression "$RUNDIR/base.res" "$RUNDIR/branch.res");
 [ $rc -ne 0 ] && blocked "Its own tests caught a problem — ${TESTS_MSG}. No PR opened; needs a fix."
 log "tests OK (no regression vs baseline)"
 
-# 8b. /review (staff-engineer audit incl. adversarial subagent). Gate on gstack's review artifact AND
-# on whether /review wanted to edit the code (it edited ⇒ not clean ⇒ block).
+# 8b. /review (staff-engineer audit incl. adversarial subagent). A code review is a model JUDGMENT,
+# layered on the unfakeable regression floor above. We make the verdict explicit + machine-readable
+# (headless /review doesn't reliably run its own gstack-review-log step) and also gate on whether
+# /review wanted to EDIT the code (it edited ⇒ not clean ⇒ block). Missing verdict = fail-closed.
 log "VALIDATE: /review…"
+REVIEW_JSON="$RUNDIR/review.json"
 set +e
-claude_lane "$REVIEW_TIMEOUT" "Run /review on the changes in this branch versus $BASE_BRANCH. Do a thorough staff-engineer
-audit. Report findings; the supervisor gates on your review log, so be honest about must-fix issues." \
+claude_lane "$REVIEW_TIMEOUT" "Run /review on the changes in this branch versus $BASE_BRANCH — a thorough staff-engineer audit
+(correctness, security, the CLAUDE.md trust boundaries). Do NOT edit files; report only.
+When done, write your verdict as JSON to the absolute path $REVIEW_JSON:
+{\"verdict\":\"pass\"|\"fail\",\"critical\":<int>,\"blockers\":[\"short\"]}
+verdict=fail if there is ANY must-fix / critical issue; pass only if it is genuinely ready to ship.
+Also run ~/.claude/skills/gstack/bin/gstack-review-log with your result so it's on record." \
   >"$RUNDIR/review.log" 2>&1
 rc=$?; set -e
 phase_blocked "$RUNDIR/review.log" && blocked "/review needed a human decision (it stopped rather than guess). Needs your eyes."
@@ -158,14 +165,15 @@ if ! git diff --quiet HEAD; then
   git checkout -q -- . || true
   blocked "/review found issues it wanted to change in the code — not clean enough to ship. Parked for a rework."
 fi
-RSTATUS="$(review_status "$REPO_DIR")"   # "<status> <critical>" or "NONE"
-RCRIT="$(printf '%s' "$RSTATUS" | awk '{print $2+0}')"
-RVERD="$(printf '%s' "$RSTATUS" | awk '{print toupper($1)}')"
-if [ "$RCRIT" -gt 0 ] 2>/dev/null; then
-  blocked "/review flagged $RCRIT critical issue(s) — not ready. No PR opened; needs a rework."
+[ -s "$REVIEW_JSON" ] || blocked "/review didn't return a clear verdict — treating as not-ready (fail-closed). Parked."
+RVERD="$(jval '.verdict' <"$REVIEW_JSON")"
+RCRIT="$(node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write(String(JSON.parse(d).critical||0))}catch{process.stdout.write("0")}})' <"$REVIEW_JSON")"
+if [ "$RVERD" != "pass" ] || [ "${RCRIT:-0}" -gt 0 ] 2>/dev/null; then
+  RBLK="$(node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write((JSON.parse(d).blockers||[]).slice(0,3).join("; "))}catch{}})' <"$REVIEW_JSON")"
+  blocked "/review didn't clear this to ship${RBLK:+: $RBLK}. No PR opened; needs a rework."
 fi
-case "$RVERD" in ""|NONE|BLOCK|BLOCKED|NEEDS_WORK|REWORK|FAIL) blocked "/review didn't clear this change to ship (verdict: ${RVERD:-none}). Parked." ;; esac
-log "/review clear ($RSTATUS)"
+RSTATUS="review pass (0 critical)"
+log "/review clear"
 
 # 8c. /qa (browser) — SOFT: runs always, blocks on real bugs, DEFERS when it can't test (no web
 # surface / app won't boot / low memory). Pre-flight RAM check protects the founder's live composer.
