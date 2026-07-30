@@ -5,8 +5,11 @@
 Description=Wake the Foundry venture lane periodically
 
 [Timer]
-OnBootSec=2min
-OnUnitActiveSec=5min      # ~5-minute cadence (§9.1); Type=oneshot service prevents overlap
+# Calendar cadence (every 5 min, §9.1). Chosen over monotonic OnBootSec/OnUnitActiveSec because those
+# stall after a stop/restart once elapsed (NextElapse → infinity) — a calendar timer ALWAYS computes a
+# next elapse regardless of boot/restart history, so the autonomous lane can't silently go dark.
+# Type=oneshot service prevents overlap; Persistent catches a wake missed while the box was down.
+OnCalendar=*:0/5
 Persistent=true
 
 [Install]
