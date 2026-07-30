@@ -86,25 +86,48 @@ ticket_department() {
   case "$d" in build|sell|scale) echo "$d" ;; *) echo "build" ;; esac
 }
 
-# venture_gate <repo_dir> <rundir> — the HARD objective floor: install + typecheck + lint + test on the
-# venture's own toolchain, gating on EXIT CODES (unfakeable). Detects bun (bun.lock) vs npm. Echoes a
-# one-line summary of the first failing step (empty on success); returns non-zero on any failure.
-venture_gate() {
-  local dir="$1" log="$2/tests.log"; : >"$log"
-  ( cd "$dir" || exit 3
-    if [ -f bun.lock ] || [ -f bun.lockb ]; then RUN="bun run"; INSTALL="bun install --frozen-lockfile"; TEST="bun test";
-    elif [ -f package-lock.json ]; then RUN="npm run"; INSTALL="npm ci"; TEST="npm test";
-    else echo "NO_TOOLCHAIN"; exit 0; fi
+# toolchain_probe <repo_dir> <logfile> — runs the venture's own toolchain ONCE and ECHOES one result
+# line per step: "typecheck <rc>", "lint <rc>", "test <failing-count>" (0 = green). Full output → the
+# logfile. Detects bun (bun.lock) vs npm. This is the raw objective signal; the GATE is the *regression*
+# between the base branch and the lane's branch (venture_regression), because a venture can carry
+# pre-existing debt (arca's typecheck/lint are red on master) — the lane must not be blocked by breakage
+# it didn't cause, only by breakage it introduces.
+toolchain_probe() {
+  local dir="$1" log="$2"; : >"$log"
+  local run install testcmd
+  if [ -f "$dir/bun.lock" ] || [ -f "$dir/bun.lockb" ]; then run="bun run"; install="bun install --frozen-lockfile"; testcmd="bun test"
+  elif [ -f "$dir/package-lock.json" ]; then run="npm run"; install="npm ci"; testcmd="npm test"
+  else echo "toolchain none"; return 0; fi
+  (
+    cd "$dir" || exit 3
+    export PATH="$HOME/.bun/bin:$PATH"
     has() { node -e 'const s=require("./package.json").scripts||{};process.exit(s[process.argv[1]]?0:1)' "$1" 2>/dev/null; }
-    if [ ! -d node_modules ]; then echo "+ $INSTALL"; $INSTALL || { echo "FAIL: install"; exit 1; }; fi
-    if has typecheck; then echo "+ $RUN typecheck"; $RUN typecheck || { echo "FAIL: typecheck"; exit 1; }; fi
-    if has lint;      then echo "+ $RUN lint";      $RUN lint      || { echo "FAIL: lint";      exit 1; }; fi
-    echo "+ $TEST"; $TEST || { echo "FAIL: test"; exit 1; }
-    echo "OK"
-  ) >>"$log" 2>&1
-  local rc=$?
-  if [ $rc -ne 0 ]; then grep -m1 '^FAIL:' "$log" | sed 's/^FAIL: /tests failed at: /'; fi
-  return $rc
+    if [ ! -d node_modules ]; then eval "$install" >>"$log" 2>&1; fi
+    if has typecheck; then eval "$run typecheck" >>"$log" 2>&1; echo "typecheck $?"; fi
+    if has lint;      then eval "$run lint"      >>"$log" 2>&1; echo "lint $?"; fi
+    eval "$testcmd" >>"$log" 2>&1; local trc=$?
+    local fails; fails=$(grep -oE '[0-9]+ fail' "$log" | tail -1 | grep -oE '^[0-9]+' || true)
+    if [ -z "$fails" ]; then if [ "$trc" -eq 0 ]; then fails=0; else fails=999; fi; fi
+    echo "test $fails"
+  )
+}
+
+# venture_regression <base_probe> <branch_probe> — echoes a plain-language reason if the lane's branch
+# REGRESSED the toolchain vs the base (a step that passed now fails, or more failing tests); empty +
+# return 0 if the branch is no worse than base. This is the HARD gate.
+venture_regression() {
+  local base="$1" branch="$2" step brc bx
+  for step in typecheck lint; do
+    brc=$(awk -v s="$step" '$1==s{print $2}' "$base"); bx=$(awk -v s="$step" '$1==s{print $2}' "$branch")
+    if [ "${brc:-0}" = "0" ] && [ -n "$bx" ] && [ "$bx" != "0" ]; then
+      echo "your change broke '$step' (was passing before)"; return 1
+    fi
+  done
+  local bt xt; bt=$(awk '$1=="test"{print $2}' "$base"); xt=$(awk '$1=="test"{print $2}' "$branch")
+  if [ -n "$xt" ] && [ "${xt:-0}" -gt "${bt:-0}" ] 2>/dev/null; then
+    echo "your change added failing tests (${bt:-0} → ${xt})"; return 1
+  fi
+  return 0
 }
 
 # review_status <repo_dir> — reads gstack's OWN review artifact for the current repo+branch and echoes
