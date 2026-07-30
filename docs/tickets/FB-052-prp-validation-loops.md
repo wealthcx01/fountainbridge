@@ -38,13 +38,17 @@ makes that plan a real PRP and enforces its validation loop — Cole Medin's met
       planning. Round-tripped in `__tests__/prp-resume.test.mjs` (wrapped base64, UTF-8 included).
 
 ## Verification
-**Done in this PR (local):** 24 unit tests over the PRP logic — shape validation, gate extraction
+**Done in this PR (local):** 32 unit tests over the PRP logic — shape validation, gate extraction
 (including that Tasks checkboxes are not mistaken for gates), unreported-gate-means-failed, the
 founder-facing report, and the persistence round-trip against a stubbed contents API. The bash
 interface (`prp_ok`, `prp_problems`, `prp_gate_count`, `prp_gate_list`, `prp_gate_report`,
 `prp_gate_summary`) exercised end to end, including under a minimal systemd-like environment with no
-`HOME`, and every CLI exit code checked (0 pass / 1 not-a-PRP / 4 gate failed / 2 usage). 145 tests,
-lint, typecheck, build, ticket parse, manifest validation and shellcheck all green.
+`HOME`, and every CLI exit code pinned as the bash↔JS contract (0 pass / 1 not-a-PRP / 4 gate failed
+/ 2 usage). A second review round closed the ways a gate could report a pass it had not earned — an
+empty gate list, a PRP edited after acceptance, a `PUT` that 409'd unnoticed, a stored PRP resumed
+against a ticket whose text had since changed, and `prp_problems` taking the lane down with it under
+`set -euo pipefail`. 169 tests, lint, typecheck, build, the Playwright UI gate (34), ticket parse,
+manifest validation and shellcheck all green.
 
 **Still to do on ARCA's box (needs John):** watch one real ticket produce a PRP and pass, and one
 deliberately-failing gate loop rather than ship. The loop's control flow is bash that only runs with
