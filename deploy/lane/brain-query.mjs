@@ -21,32 +21,34 @@
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { formatDigest, partitionForDepartment, researchQuestion } from './brain-lib.mjs';
+import { formatDigest, parseHits, partitionForDepartment, researchQuestion } from './brain-lib.mjs';
 
 const GBRAIN_BIN = process.env.GBRAIN_BIN || 'gbrain';
 const SOURCE_ID = process.env.FOUNDRY_BRAIN_SOURCE || process.env.GBRAIN_SOURCE || '';
 const LOCK_FILE = process.env.FOUNDRY_BRAIN_LOCK || '';
 const DEFAULT_TIMEOUT_MS = Number(process.env.FOUNDRY_BRAIN_TIMEOUT_MS || 90_000);
-
-// gbrain prints the JSON payload, but a stray warning line on stdout must not break the parse.
-function parseHits(stdout) {
-  const s = String(stdout || '');
-  const start = s.indexOf('[');
-  const end = s.lastIndexOf(']');
-  if (start === -1 || end <= start) return [];
-  const parsed = JSON.parse(s.slice(start, end + 1));
-  return Array.isArray(parsed) ? parsed : [];
-}
+const EXPAND = process.env.FOUNDRY_BRAIN_EXPAND === '1';
+// How long a reader waits for the writer. A full re-index can hold the lock for minutes on a small
+// box doing local embeddings, and the window right after a merge — exactly when the new knowledge
+// landed — is the likeliest time to collide. Waiting a little beats reporting the brain as down.
+const LOCK_WAIT_S = Number(process.env.FOUNDRY_BRAIN_LOCK_WAIT || 180);
 
 function runGbrain(payload, timeoutMs) {
   // Fixed argv (see the read-only note above). flock serialises against gbrain-refresh.sh.
   const args = ['call', 'query', JSON.stringify(payload)];
   const [cmd, argv] = LOCK_FILE
-    ? ['flock', ['-w', '60', LOCK_FILE, GBRAIN_BIN, ...args]]
+    ? ['flock', ['-w', String(LOCK_WAIT_S), LOCK_FILE, GBRAIN_BIN, ...args]]
     : [GBRAIN_BIN, args];
   return new Promise((resolve, reject) => {
     execFile(cmd, argv, { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
+        // flock exits 1 having produced nothing when it gives up waiting. That is "the index is
+        // busy re-syncing", which is a different thing from "the brain is broken" — and the
+        // difference is what the founder reads in the PR body, so don't flatten them.
+        if (LOCK_FILE && !err.killed && !String(stdout || '').trim() && !String(stderr || '').trim()) {
+          reject(new Error(`the index is busy being rebuilt (waited ${LOCK_WAIT_S}s for the lock)`));
+          return;
+        }
         const why = err.killed ? `timed out after ${timeoutMs}ms` : String(stderr || err.message).trim();
         reject(new Error(`gbrain query failed: ${why.slice(0, 400)}`));
         return;
@@ -66,8 +68,20 @@ export async function askBrain(opts) {
   if (!question) throw new Error('a question is required');
   const limit = Math.min(Math.max(Number(opts?.limit) || 12, 1), 50);
   const sourceId = opts?.sourceId ?? SOURCE_ID;
+  const department = opts?.department;
 
-  const payload = { query: question, limit, expand: true };
+  // The department partition is applied HERE, after gbrain returns — so asking for exactly `limit`
+  // hits would let another surface's pages consume the whole result set and hand a build lane an
+  // empty digest while its own context sat one rank lower. Over-fetch when a partition is in play,
+  // then trim back to what the caller asked for.
+  const partitioned = Boolean(department) && department !== 'general';
+  const fetchLimit = Math.min(partitioned ? limit * 3 : limit, 50);
+
+  // expand=false: multi-query expansion needs an EXPANSION MODEL, which a venture box deliberately
+  // does not have — it is provisioned with a local embedding model and nothing else (D1, see
+  // docs/venture-brain.md §6). Hybrid retrieval (vector + keyword) is what we rely on. Opt in with
+  // FOUNDRY_BRAIN_EXPAND=1 on a box that does have an expansion provider configured.
+  const payload = { query: question, limit: fetchLimit, expand: EXPAND };
   // Scope to the venture's own source. One box per venture (D1), but a box whose gbrain also holds a
   // second source must never blend them — so the source is pinned explicitly rather than left to the
   // brain's default.
@@ -75,7 +89,7 @@ export async function askBrain(opts) {
 
   const stdout = await runGbrain(payload, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const hits = parseHits(stdout);
-  const results = partitionForDepartment(hits, opts?.department);
+  const results = partitionForDepartment(hits, department).slice(0, limit);
   return { results, digest: formatDigest(results, { maxChars: opts?.maxChars ?? 4000 }) };
 }
 

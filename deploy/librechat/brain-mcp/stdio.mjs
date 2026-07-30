@@ -68,6 +68,13 @@ async function searchBrain({ question, department }) {
       'An admin needs to align FOUNDRY_BRAIN_TOKEN on the box and in the composer.',
     );
   }
+  if (res.status === 503) {
+    // Busy is not broken — sending the founder to check a systemd unit would be a wild goose chase.
+    throw new Error(
+      "The venture's knowledge is being re-indexed right now, so I couldn't search it this second. " +
+      'Ask me again in a minute and it should be back.',
+    );
+  }
   if (!res.ok) {
     log('bridge error', res.status);
     throw new Error(UNAVAILABLE);

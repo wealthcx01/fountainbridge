@@ -13,11 +13,13 @@ Wants=network-online.target
 Type=oneshot
 # Secrets come from the box env file (never the repo). Production: swap ANTHROPIC_API_KEY for
 # CLAUDE_CODE_OAUTH_TOKEN (shared Claude Max, John's preference 1). No send/deploy creds here (§8).
-EnvironmentFile=/opt/foundry/lane/lane.env
 # FB-050: the brain's own settings (which gbrain source to query, the lock the refresh also takes,
 # the local embedding endpoint). Optional (`-`) so a box without the brain installed still runs the
 # lane — RESEARCH just degrades to reading files, loudly.
+# Listed FIRST on purpose: systemd applies EnvironmentFiles in order and the last one wins, so the
+# operator's lane.env must come after, or a brain setting could silently override it.
 EnvironmentFile=-/opt/foundry/lane/brain.env
+EnvironmentFile=/opt/foundry/lane/lane.env
 WorkingDirectory=/opt/foundry/lane
 # FB-040 replaces this with the scanning wrapper (find a Todo ticket → supervisor.sh <slug> <file>).
 ExecStart=/opt/foundry/lane/run-once.sh

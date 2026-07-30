@@ -15,11 +15,16 @@ Applies **gbrain** as the D8 index over git, in the Archon-RAG role the method d
 
 ## 1. Where it lives
 
-One brain per venture, on the venture's own box (D1). A local **PGLite** database at
-`/opt/foundry/brain` — no external database, no shared index, no path by which one venture's brain
-could answer another venture's question. The venture repo is registered as a gbrain **source**; the
-brain's own storage is deliberately *outside* the venture worktree, so nothing gbrain writes can ever
-be swept into a founder-facing PR by the lane's `git add -A`.
+One brain per venture, on the venture's own box (D1). A local **PGLite** database — no external
+database, no shared index, no path by which one venture's brain could answer another venture's
+question.
+
+The database file is `~/.gbrain/brain.pglite` (root's home, since the units run as root). That is
+what to back up and to size disk for; `gbrain init` puts it there regardless of the directory it is
+run from, so `/opt/foundry/brain` is only that working directory. The venture repo is registered as
+a gbrain **source**; nothing gbrain writes lands inside the venture worktree, and the refresh
+re-asserts a local `.git/info/exclude` entry every run so a stray artefact can never be swept into a
+founder-facing PR by the lane's `git add -A`.
 
 ## 2. What is indexed, and the department partitions (D8)
 
@@ -27,8 +32,13 @@ Two passes over the venture repo, prose first:
 
 | Pass | Covers | Why |
 | --- | --- | --- |
-| prose | `context/`, `library/`, `docs/tickets/`, root docs | what the founder and the backlog *say* |
+| prose | the repo's markdown — in practice `context/`, `library/`, `docs/tickets/` and root docs | what the founder and the backlog *say* |
 | code | the venture's source | how something is *already built* |
+
+The scope is gbrain's own source walk, not something this repo configures: it prunes vendor and
+build trees and skips dot-prefixed paths (so a `.env` left in the worktree is not indexed), and
+incremental syncs are driven by `git diff`, so untracked files never enter that way. A `--full`
+pass does walk the worktree, so don't leave untracked secrets in a non-dot path there.
 
 gbrain slugs are path-derived — `context/build/ideal-customer.md` indexes as
 `context-build-ideal-customer` — so the department a page belongs to is legible from its slug. That
@@ -38,9 +48,12 @@ is the partition:
   `context/general/`, root docs). It does **not** see `context/sell/` or `library/scale/`.
 - The **founder's composer** searches unpartitioned. They own every surface.
 
-`gbrain-refresh.sh` also tags each departmental page `dept:<name>`, so the partition is inspectable
-by hand: `gbrain list --tag dept:sell` is exactly what the Sell surface owns. The retrieval filter
-itself is `partitionForDepartment()` in `deploy/lane/brain-lib.mjs` (unit-tested).
+`gbrain-refresh.sh` also tags each departmental page `dept:<name>` (skipped when a sync changed
+nothing, so an unchanged index costs no work), which makes the partition inspectable by hand:
+`gbrain list --tag dept:sell` is exactly what the Sell surface owns. The retrieval filter itself is
+`partitionForDepartment()` in `deploy/lane/brain-lib.mjs` (unit-tested). Because that filter runs
+*after* gbrain returns, a partitioned query over-fetches and then trims — otherwise another
+surface's pages could fill the result set and hand a lane an empty digest.
 
 **Known limitation, stated plainly:** a search hit carries no file path, so the department is read
 off the slug prefix. A top-level file literally named `context/build-thing.md` would read as
@@ -138,8 +151,9 @@ provider and nothing else. Hybrid retrieval (vector + keyword) does the work.
 ## 7. Install and verify
 
 ```bash
-# once per box, after the lane bring-up (deploy/lane/README.md):
-/opt/foundry/lane/install-gbrain.sh
+# once per box, after the lane bring-up (deploy/lane/README.md). REPO_DIR/BASE_BRANCH default to
+# arca/master, so pass them for any other venture:
+REPO_DIR=/opt/foundry/lane/<repo> BASE_BRANCH=<base> /opt/foundry/lane/install-gbrain.sh
 
 # it: installs gbrain (pinned) → local embeddings → creates the brain → registers the venture repo
 #     → builds the index → generates the bridge token → enables the bridge + refresh timer → verifies
@@ -148,21 +162,69 @@ systemctl status foundry-brain-bridge      # the composer's door
 systemctl list-timers foundry-brain-sync   # the refresh cadence
 ```
 
-Then restart the composer so it picks up the token:
-`cd /opt/foundry/librechat && docker compose up -d && docker compose restart api`, and re-run
-`seed-agent.js` so the composer agent carries the new tool.
+Then recreate the composer so it picks up the token and re-seed the agent so it carries the new tool:
+
+```bash
+cd /opt/foundry/librechat && docker compose up -d --force-recreate api
+docker exec -i librechat-mongodb mongosh --quiet LibreChat < seed-agent.js
+```
+
+It must be **recreate**, not restart:
+`env_file` is read when a container is created, so a restart leaves the api container running with
+an empty token and the composer reports the brain as "not yet authorized"
+(`deploy/librechat/README.md` records the same gotcha).
 
 **Acceptance check (the one that matters).** Deposit a fact through the composer (FB-043), merge the
 deposit PR, wait for a refresh, then ask for it *without* naming the file:
 
 ```bash
+# Source brain.env first: it carries the source pin and the lock. Without it the query is not
+# scoped to this venture's source and takes no lock against a running re-index.
+set -a; . /opt/foundry/lane/brain.env; set +a
 node /opt/foundry/lane/brain-query.mjs --question "who is this product for" --department build
 ```
 
 It should come back with the deposited page. Then watch a lane run: its PR body should say
 `Research: brain (semantic)`.
 
-## 8. What this is not
+## 8. Knobs
+
+All optional; the defaults are what a box runs.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `FOUNDRY_BRAIN_PORT` | `3131` | Bridge port. `install-gbrain.sh` writes it to both sides. |
+| `FOUNDRY_BRAIN_BIND` | docker bridge | Bridge listen address. `0.0.0.0` is refused. |
+| `FOUNDRY_BRAIN_BIND_WAIT_MS` | `60000` | How long to wait for dockerd at boot before falling back. |
+| `FOUNDRY_BRAIN_LOCK_WAIT` | `180` | Seconds a query waits for a running re-index. |
+| `FOUNDRY_BRAIN_TIMEOUT_MS` | `90000` | Cap on one gbrain query. |
+| `FOUNDRY_BRAIN_MAX_PENDING` | `8` | Queued queries before the bridge sheds with 503. |
+| `FOUNDRY_BRAIN_EXPAND` | off | Multi-query expansion. Needs an expansion model the box doesn't have. |
+| `BRAIN_REFRESH_TIMEOUT` | `1800` | Only used where there is no systemd; otherwise the unit owns it. |
+| `GBRAIN_EMBEDDING_MODEL` | `ollama:nomic-embed-text` | See §6. |
+| `OLLAMA_MEMORY_MAX` | `900M` | Cap on the embedder, via a systemd drop-in. |
+| `BRAIN_MIN_RAM_MB` | `1800` | Below this the installer warns that local embeddings are a bad trade. |
+
+## 9. Known gaps, deliberately not fixed here
+
+Recorded rather than quietly carried:
+
+- **The indexer can still read the lane's worktree mid-run.** The refresh defers when the worktree is
+  off the base branch, but that check and the walk it guards are not atomic: a refresh can start
+  while the tree is clean and still be walking when the lane checks out its claim branch. The proper
+  fix is a worktree lock spanning the lane's whole run, or indexing a detached `git worktree` of
+  `origin/<base>` so the indexer never reads the lane's tree at all. Worth its own ticket.
+- **No periodic full rebuild.** `--full` runs once, at install. If gbrain's incremental sync does not
+  remove pages for deleted files, retired context lingers. Needs verifying, then a scheduled rebuild.
+- **`curl | bash` for bun and Ollama.** Unpinned remote installers run as root, next to a `GBRAIN_PIN`
+  that exists precisely to avoid that. Pre-existing pattern (`install-gstack.sh` does the same);
+  fixing it belongs in one pass across both installers.
+- **The bridge runs as root.** A dedicated unprivileged user plus filesystem sandboxing wants the
+  brain's storage re-homed out of root's `~/.gbrain`, which is more than this ticket should move.
+- **Four near-identical stdio MCP servers.** `brain-mcp` is the fourth copy of the same scaffold;
+  factoring out a shared mounted module should be done once, across all four.
+
+## 10. What this is not
 
 - **Not cross-venture.** One brain per box, scoped to the venture's own source. D1 forbids the other
   thing, and there is no code path to it.

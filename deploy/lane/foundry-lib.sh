@@ -18,9 +18,15 @@ flog() { echo "[lane $(date -u +%FT%TZ)] $*" >&2; }
 # bun-installed tools (gbrain, FB-050) live in ~/.bun/bin, which is NOT on the PATH systemd hands a
 # unit. Without this the lane would never find the brain and would quietly research from files
 # forever — the exact silent degradation #10 forbids.
-case ":$PATH:" in
-  *":$HOME/.bun/bin:"*) ;;
-  *) PATH="$HOME/.bun/bin:$PATH"; export PATH ;;
+#
+# Every expansion here is default-guarded. This file is sourced under `set -u` by run-once.sh and
+# supervisor.sh, and a system unit with no `User=` is not guaranteed a $HOME — a bare "$HOME" would
+# abort the source and take the whole autonomous lane dark, which is precisely the failure PR #49
+# fixed for the timer. A brain convenience line must never be able to cause it.
+LANE_BUN_BIN="${BUN_INSTALL:-${HOME:-/root}/.bun}/bin"
+case ":${PATH:-}:" in
+  *":$LANE_BUN_BIN:"*) ;;
+  *) PATH="$LANE_BUN_BIN:${PATH:-}"; export PATH ;;
 esac
 
 gh_api() { curl -sS -H "Authorization: Bearer ${TICKET_GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
@@ -179,11 +185,31 @@ LANE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # partitioned to the lane's own department. Empty output + non-zero if the brain can't answer: the
 # caller degrades to reading files, it never dies (a lane must not stop working because an index is
 # down). Bounded by its own timeout so a wedged brain can't hold up the loop.
+#
+# BRAIN_RESEARCH_WHY is set to the reason it failed. brain-query.mjs writes a specific diagnosis to
+# stderr ("gbrain query failed: …", "no relevant pages…") and exits 1 vs 3 to tell them apart —
+# discarding that would make an unreachable brain, a wedged lock, a bad gbrain pin and a genuinely
+# empty index all look identical in the log, the PR body and the RunReport (#10).
+BRAIN_RESEARCH_WHY=""
 brain_research() {
   local ticket="$1" dept="${2:-}"
-  local args=(--ticket "$ticket")
-  [ -f "$BRAIN_QUERY_BIN" ] || return 1
-  command -v gbrain >/dev/null 2>&1 || return 1
+  local args=(--ticket "$ticket") err rc
+  BRAIN_RESEARCH_WHY=""
+  if [ ! -f "$BRAIN_QUERY_BIN" ]; then BRAIN_RESEARCH_WHY="brain not installed on this box"; return 1; fi
+  if ! command -v gbrain >/dev/null 2>&1; then BRAIN_RESEARCH_WHY="gbrain is not on the lane's PATH"; return 1; fi
   [ -n "$dept" ] && args+=(--department "$dept")
-  timeout "$BRAIN_RESEARCH_TIMEOUT" node "$BRAIN_QUERY_BIN" "${args[@]}" 2>/dev/null
+
+  err="$(mktemp)"
+  set +e
+  timeout "$BRAIN_RESEARCH_TIMEOUT" node "$BRAIN_QUERY_BIN" "${args[@]}" 2>"$err"
+  rc=$?
+  set -e
+  if [ $rc -ne 0 ]; then
+    BRAIN_RESEARCH_WHY="$(tr -d '\r' <"$err" | grep -v '^$' | tail -1 | sed -E 's/^\[brain\] //' | cut -c1-160)"
+    [ $rc -eq 124 ] && BRAIN_RESEARCH_WHY="the brain took longer than ${BRAIN_RESEARCH_TIMEOUT}s to answer"
+    [ -n "$BRAIN_RESEARCH_WHY" ] || BRAIN_RESEARCH_WHY="the brain returned no answer (exit $rc)"
+    flog "brain research failed: $BRAIN_RESEARCH_WHY"
+  fi
+  rm -f "$err"
+  return $rc
 }

@@ -39,25 +39,63 @@ export function pageDepartment(slug) {
  * this department's own pages plus everything shared. A `build` lane must not plan its work off the
  * Sell surface's private context (D8 department partitions).
  *
- * Passing a falsy/unknown department means "no partition" — the founder's own composer sees the
- * whole venture brain, because they own every department.
+ * Three cases, and the distinction matters:
+ *   - No department asked for (null/undefined/empty) → the whole set. This is the FOUNDER's path;
+ *     they own every surface.
+ *   - A known department → that department plus shared pages.
+ *   - An UNKNOWN department (a typo, or a surface added to a manifest but not here) → shared pages
+ *     only. It must never widen to everything: a caller that asked to be constrained and got the
+ *     whole brain instead is a silent authorization failure, and the caller can't tell.
  * @param {Array<{slug?: string}>} results
  * @param {string|null|undefined} department
  */
 export function partitionForDepartment(results, department) {
   const list = Array.isArray(results) ? results : [];
   const dept = typeof department === 'string' ? department.trim().toLowerCase() : '';
-  if (!dept || !DEPARTMENTS.includes(dept) || dept === 'general') return list.slice();
+  if (!dept || dept === 'general') return list.slice();
+  const known = DEPARTMENTS.includes(dept);
   return list.filter((r) => {
     const owner = pageDepartment(r && r.slug);
-    return owner === null || owner === dept;
+    return owner === null || (known && owner === dept);
   });
 }
+
+/**
+ * Pull the JSON array out of a `gbrain call query` stdout.
+ *
+ * gbrain writes clean JSON to stdout and its diagnostics to stderr, so the common path is a plain
+ * parse. The scan exists because taking the first `[` blindly would throw on a future version that
+ * logs a `[WARN] …` line to stdout — and that exception would surface as "the brain has nothing",
+ * silently demoting the lane to reading files. Never throws: returns [] when there is no payload.
+ * @param {string} stdout
+ * @returns {Array<object>}
+ */
+export function parseHits(stdout) {
+  const s = String(stdout || '').trim();
+  const end = s.lastIndexOf(']');
+  if (end === -1) return [];
+  for (let start = s.indexOf('['); start !== -1 && start < end; start = s.indexOf('[', start + 1)) {
+    try {
+      const parsed = JSON.parse(s.slice(start, end + 1));
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* not the real payload start — try the next bracket */ }
+  }
+  return [];
+}
+
+// The supervisor wraps the digest in <venture-knowledge> markers and tells the model everything
+// inside them is reference data, never instructions. That boundary is only worth anything if the
+// content cannot close it: an indexed page containing the literal closing marker would otherwise
+// break out, and everything after it would read as supervisor-authored prompt text. Retrieval is by
+// semantic similarity, so a single crafted file merged into the repo could aim itself at a whole
+// class of tickets — and the very next phase writes code and opens a PR.
+const DELIMITER_RE = /<\/?venture-knowledge\s*>?/gi;
 
 // Collapse a chunk of markdown into one readable paragraph for the digest.
 function excerpt(text, maxChars) {
   const flat = String(text || '')
     .replace(/```[\s\S]*?```/g, ' ')       // fenced code adds noise, not meaning, to a plan prompt
+    .replace(DELIMITER_RE, ' ')
     .replace(/^#{1,6}\s*/gm, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -91,7 +129,9 @@ export function formatDigest(results, opts = {}) {
   for (const p of pages) {
     const body = excerpt(p.text, perPageChars);
     if (!body) continue;
-    const label = p.title && p.title !== p.slug ? `${p.title} (${p.slug})` : p.slug;
+    // The label is page-controlled too, so it gets the same treatment.
+    const rawLabel = p.title && p.title !== p.slug ? `${p.title} (${p.slug})` : p.slug;
+    const label = String(rawLabel).replace(DELIMITER_RE, ' ').replace(/\s+/g, ' ').trim();
     const entry = `- ${label}\n  ${body}`;
     if (used + entry.length > maxChars) break;
     lines.push(entry);
@@ -113,8 +153,11 @@ export function researchQuestion(ticketText, opts = {}) {
   const title = (/^#\s+(.+)$/m.exec(text)?.[1] || '').replace(/\s+/g, ' ').trim();
 
   // The sections that say what the work IS. "Out of scope"/"Verification" describe what it isn't or
-  // how it's checked — both pull the query away from the subject matter.
-  const wanted = /^##\s+(why this matters[^\n]*|context|scope[^\n]*)\s*$/i;
+  // how it's checked — both pull the query away from the subject matter. Every heading allows a
+  // trailing qualifier, because real tickets in this repo carry them ("## Scope (Phase 1 …)",
+  // "## Context — arca"); an exact-match alternative would silently capture nothing and quietly
+  // degrade the query to a bare title.
+  const wanted = /^##\s+(why this matters[^\n]*|context[^\n]*|scope[^\n]*)\s*$/i;
   const body = [];
   let capture = false;
   for (const raw of text.split('\n')) {

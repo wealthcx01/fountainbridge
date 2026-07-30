@@ -42,7 +42,7 @@ services:
       # venture's git context/library (secret-scanned) — the second-brain bridge to the lanes.
       - ./deposit-mcp/stdio.mjs:/app/foundry/deposit.mjs:ro
       # FB-050 venture brain: read-only stdio MCP that forwards to the HOST's brain bridge, so the
-      # composer answers from the same index the lanes plan from. See extra_hosts below.
+      # composer answers from the same index the lanes plan from. See extra_hosts above.
       - ./brain-mcp/stdio.mjs:/app/foundry/brain-search.mjs:ro
       - librechat-images:/app/client/public/images
       - librechat-logs:/app/api/logs

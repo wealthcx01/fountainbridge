@@ -19,8 +19,9 @@
 
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { askBrain } from './brain-query.mjs';
+import { DEPARTMENTS } from './brain-lib.mjs';
 
 const PORT = Number(process.env.FOUNDRY_BRAIN_PORT || 3131);
 const TOKEN = (process.env.FOUNDRY_BRAIN_TOKEN || '').trim();
@@ -35,25 +36,60 @@ if (!TOKEN) {
 
 // The address the venture's containers reach the host on. `host.docker.internal:host-gateway` in the
 // compose file resolves to the host's docker0 address, so that is what we listen on.
-function resolveBind() {
-  const explicit = (process.env.FOUNDRY_BRAIN_BIND || '').trim();
-  if (explicit) return explicit;
+function dockerBridgeAddress() {
   for (const [name, addrs] of Object.entries(networkInterfaces())) {
     if (!/^docker/.test(name)) continue;
     const v4 = (addrs || []).find((a) => a.family === 'IPv4' && !a.internal);
     if (v4) return v4.address;
   }
+  return null;
+}
+
+// On a cold boot this service can win the race against dockerd, and docker0 won't exist yet. Binding
+// 127.0.0.1 in that moment would leave the composer unable to reach the brain until someone noticed
+// and restarted the unit by hand — so wait for the interface rather than settle for the wrong
+// address. Still falls back (never crash-loops) so a box with no Docker at all runs the lane's brain
+// happily; only the composer's door is unavailable, and it says so.
+const BIND_WAIT_MS = Number(process.env.FOUNDRY_BRAIN_BIND_WAIT_MS || 60_000);
+async function resolveBind() {
+  const explicit = (process.env.FOUNDRY_BRAIN_BIND || '').trim();
+  if (explicit) {
+    // "Never binds 0.0.0.0" is an invariant this file documents, so enforce it in code rather than
+    // leave it as prose an override can quietly break. This service has no business on a public
+    // interface: the venture's whole knowledge index sits behind one bearer token.
+    if (['0.0.0.0', '::', '*'].includes(explicit)) {
+      log(`ERROR: refusing to bind ${explicit} — the brain must not listen on a public interface.`);
+      log('       Set FOUNDRY_BRAIN_BIND to the docker bridge address, or unset it to auto-detect.');
+      process.exit(1);
+    }
+    return explicit;
+  }
+  const deadline = Date.now() + BIND_WAIT_MS;
+  let warned = false;
+  for (;;) {
+    const addr = dockerBridgeAddress();
+    if (addr) return addr;
+    if (Date.now() >= deadline) break;
+    if (!warned) {
+      log(`no docker bridge interface yet — waiting up to ${Math.round(BIND_WAIT_MS / 1000)}s for dockerd…`);
+      warned = true;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
   log('WARN: no docker bridge interface found — binding 127.0.0.1. The composer will NOT reach the');
-  log('      brain until Docker is up (or FOUNDRY_BRAIN_BIND names the right address).');
+  log('      brain from its container. Start Docker and restart foundry-brain-bridge, or set');
+  log('      FOUNDRY_BRAIN_BIND to the right address.');
   return '127.0.0.1';
 }
 
+// Compare digests, not the raw strings: fixed width means timingSafeEqual can never throw on a
+// length mismatch, and the token's length stops being observable through response timing.
+const sha = (s) => createHash('sha256').update(String(s)).digest();
+const TOKEN_DIGEST = sha(TOKEN);
 function authorized(req) {
   const header = String(req.headers.authorization || '');
   const given = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
-  const a = Buffer.from(given);
-  const b = Buffer.from(TOKEN);
-  return a.length === b.length && timingSafeEqual(a, b);
+  return timingSafeEqual(sha(given), TOKEN_DIGEST);
 }
 
 function send(res, status, body) {
@@ -77,10 +113,15 @@ function readBody(req) {
 }
 
 // Serialise: each query waits for the previous one. Keeps memory bounded on a shared box and keeps
-// reads from piling up against a running refresh.
+// reads from piling up against a running refresh. Depth-capped, because an unbounded chain would let
+// a burst of questions queue work nobody is waiting for any more — the MCP client gives up long
+// before a deep queue drains, and the box has no spare capacity to burn on answers with no reader.
+const MAX_PENDING = Number(process.env.FOUNDRY_BRAIN_MAX_PENDING || 8);
+let pending = 0;
 let queue = Promise.resolve();
 function serialise(fn) {
-  const run = queue.then(fn, fn);
+  pending += 1;
+  const run = queue.then(fn, fn).finally(() => { pending -= 1; });
   queue = run.then(() => undefined, () => undefined);
   return run;
 }
@@ -94,7 +135,14 @@ const server = createServer(async (req, res) => {
   }
   if (url.pathname !== '/query') { send(res, 404, { error: 'not found' }); return; }
   if (req.method !== 'POST') { send(res, 405, { error: 'use POST' }); return; }
-  if (!authorized(req)) { send(res, 401, { error: 'unauthorized' }); return; }
+  if (!authorized(req)) {
+    // Logged, not swallowed (#10). This port is reachable by every container on the box, so repeated
+    // 401s are the signal that something on the box is probing the venture's knowledge index — that
+    // belongs in `journalctl -u foundry-brain-bridge`, not in a silent return.
+    log(`401 rejected query from ${req.socket?.remoteAddress || 'unknown'}`);
+    send(res, 401, { error: 'unauthorized' });
+    return;
+  }
 
   let body;
   try {
@@ -107,13 +155,28 @@ const server = createServer(async (req, res) => {
   const question = String(body.question || '').trim();
   if (!question) { send(res, 400, { error: 'question is required' }); return; }
 
+  // Reject an unrecognised department rather than guessing. The MCP tool's enum is client-side only,
+  // so this is where a typo gets caught — and being explicit here means "unpartitioned" stays a
+  // deliberate choice (omit the field) instead of something a bad value can fall into.
+  const department = body.department == null ? null : String(body.department).trim().toLowerCase();
+  if (department && !DEPARTMENTS.includes(department)) {
+    send(res, 400, { error: `unknown department '${department}' — expected one of ${DEPARTMENTS.join(', ')}` });
+    return;
+  }
+
+  if (pending >= MAX_PENDING) {
+    log(`503 shed a query — ${pending} already queued (the index is likely mid-refresh)`);
+    send(res, 503, { error: 'the venture brain is busy right now — try again in a moment' });
+    return;
+  }
+
   try {
     const { results, digest } = await serialise(() =>
       askBrain({
-        question,
         // The founder owns every department, so the composer queries unpartitioned unless it asks
         // for one surface explicitly.
-        department: typeof body.department === 'string' ? body.department : null,
+        question,
+        department,
         limit: Number(body.limit) || 12,
         maxChars: Number(body.max_chars) || 4000,
       }),
@@ -129,6 +192,6 @@ const server = createServer(async (req, res) => {
   }
 });
 
-const BIND = resolveBind();
-server.listen(PORT, BIND, () => log(`listening on ${BIND}:${PORT} (read-only, token required)`));
 process.on('SIGTERM', () => server.close(() => process.exit(0)));
+const BIND = await resolveBind();
+server.listen(PORT, BIND, () => log(`listening on ${BIND}:${PORT} (read-only, token required)`));

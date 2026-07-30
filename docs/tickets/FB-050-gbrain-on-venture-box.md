@@ -46,6 +46,36 @@ each failure mode (no token, wrong token, bridge down) returning plain-language 
 `brain_research` helper returning a digest and degrading to rc=1 when gbrain is absent. 20 unit tests
 on the partition/digest/question logic; lint, typecheck, full test suite and shellcheck green.
 
+**`/review` (staff-engineer audit + security, testing, maintainability and adversarial passes).**
+27 findings actioned. The ones that would have broken the box install, each confirmed by execution
+or by reading the cited line:
+
+- The new scripts shipped mode 644 while `run-once.sh` gated the refresh on `[ -x ]` — the lane's
+  brain refresh would have silently never run. Executable bit set; the guard no longer depends on it.
+- `foundry-lib.sh` expanded `$HOME` unguarded under `set -u`. A system unit without `User=` is not
+  guaranteed `$HOME`, so sourcing would abort and take the **whole autonomous lane dark** — the exact
+  failure PR #49 fixed for the timer. Every expansion is now default-guarded.
+- `.env.example` ships `FOUNDRY_BRAIN_TOKEN=` blank and the installer matched the key, not a value —
+  so the documented `cp .env.example .env` flow would have skipped writing the real token and printed
+  success, leaving the composer permanently "not yet authorized".
+- The installer ran the first index under `set -e` *before* writing `brain.env`, the token and the
+  units. Any indexing failure left a box with no state at all, and a re-run failed identically.
+- `gbrain list -n 500` — `-n` is not a gbrain flag; it silently returns the default 50 (verified:
+  `-n 3` → 50 rows, `--limit 3` → 3). Most departmental pages would have gone untagged.
+- The department partition widened to the *whole brain* on an unrecognised department, and the
+  digest's `<venture-knowledge>` delimiter was forgeable by any indexed page.
+- `expand: true` contradicted the design doc and needs an expansion model a venture box doesn't have;
+  the partition ran *after* gbrain's limit, so another surface's pages could crowd out a lane's own.
+- Docs claimed the brain lives at `/opt/foundry/brain`; it is `~/.gbrain/brain.pglite`. Docs claimed
+  `docker compose up -d` picks up the token; this repo's own README records that it must be
+  `--force-recreate`.
+
+Also: the refresh now runs via systemd rather than an inline `timeout` that would SIGTERM gbrain
+mid-write, the sync timer no longer collides with the lane wake, Ollama is memory-capped, 401s are
+logged, and the lane distinguishes "the brain had nothing" from "the brain is unavailable".
+Known gaps deliberately left, with reasons, are in `docs/venture-brain.md` §9 — the worktree/indexer
+race is the one worth its own ticket.
+
 **Still to do on ARCA's box (needs John — same access as the FB-041 bring-up):** run
 `install-gbrain.sh`, deposit a fact through the composer (FB-043), merge it, then confirm
 `brain-query.mjs --question "…"` returns it *without* naming the file, and that a lane run's PR body

@@ -52,8 +52,9 @@ git clone https://x-access-token:<LANE_TOKEN>@github.com/<owner>/<repo>.git /opt
 # install gstack so the lane runs the real RPIV loop (once, ~1.7 GB incl. the browser stack):
 /opt/foundry/lane/install-gstack.sh
 
-# install the venture brain so RESEARCH is semantic and the composer can search it (once, FB-050):
-/opt/foundry/lane/install-gbrain.sh
+# install the venture brain so RESEARCH is semantic and the composer can search it (once, FB-050).
+# REPO_DIR/BASE_BRANCH default to arca/master — pass them for any other venture:
+REPO_DIR=/opt/foundry/lane/<repo> BASE_BRANCH=<base> /opt/foundry/lane/install-gbrain.sh
 
 # lane env (NO send/deploy creds here — §8):
 cat > /opt/foundry/lane/lane.env <<'ENV'
