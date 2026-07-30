@@ -34,6 +34,7 @@ export default defineConfig({
       TICKETS_FIXTURE_DIR: 'e2e/fixtures/tickets',
       PRS_FIXTURE_DIR: 'e2e/fixtures/prs',
       HEALTH_FIXTURE_DIR: 'e2e/fixtures/health',
+      APPROVALS_FIXTURE_DIR: 'e2e/fixtures/approvals',
       // Pin "now" so staleness is deterministic against the fixed-date health fixtures (FB-032).
       // arca's last activity is 2026-07-21 → active; thereset-platform's is 2026-01-10 → stale.
       E2E_NOW: '2026-07-22T00:00:00Z',

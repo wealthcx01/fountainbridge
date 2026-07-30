@@ -5,7 +5,8 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth } from '@/lib/health';
-import { loadApprovals, githubApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { loadApprovals, loadEnvelopes, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { envelopeStatus, type EnvelopeStatus } from '@/lib/budgets';
 import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
@@ -50,10 +51,28 @@ export default async function VenturePage({
   // FB-046: external-action approvals (the ActiveGraph gate). Most ventures have no foundry-approvals
   // ref yet — a read failure must never blank the board, so degrade to none.
   let approvals: ActiveGraphApproval[] = [];
+  let budgets: EnvelopeStatus[] = [];
   try {
-    approvals = await loadApprovals(venture, githubApprovalSource(new GitHubClient()));
+    // Fixture source for the UI gate + offline dev, matching the tickets/PRs/health pattern. FB-046
+    // shipped the read model without this, so the approval card had no deterministic coverage; the
+    // envelope check (FB-054) is a claim about what a founder SEES, so it needs a real render.
+    const source = process.env.APPROVALS_FIXTURE_DIR
+      ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
+      : githubApprovalSource(new GitHubClient());
+    approvals = await loadApprovals(venture, source);
+    // FB-054: where each department stands against its envelope, from the same committed spend the
+    // approval checks are computed from — so the card and the board can never disagree.
+    const envelopes = await loadEnvelopes(venture, source);
+    const spends = approvals.map((a) => ({
+      department: a.department,
+      amountMinor: a.amountMinor,
+      currency: a.currency,
+      status: a.status,
+    }));
+    budgets = envelopes.map((e) => envelopeStatus(e, spends, e.department));
   } catch {
     approvals = [];
+    budgets = [];
   }
 
   return (
@@ -62,6 +81,7 @@ export default async function VenturePage({
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}
+      budgets={budgets}
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
       fetchedAt={data.fetchedAt}

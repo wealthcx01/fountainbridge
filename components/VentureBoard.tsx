@@ -7,6 +7,7 @@ import Link from 'next/link';
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import type { EnvelopeStatus } from '@/lib/budgets';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard } from './ApprovalCard';
@@ -32,6 +33,11 @@ interface Selected {
   repo: string;
   ref: string;
   item: TicketWithMeta;
+}
+
+/** The envelope for a department, if the founder has set one (FB-054). */
+function budgetFor(budgets: EnvelopeStatus[], departmentId: string): EnvelopeStatus | undefined {
+  return budgets.find((b) => b.department === departmentId);
 }
 
 // FB-021: present each read-failure state so a founder can tell "not set up yet" from "broken".
@@ -66,6 +72,7 @@ export function VentureBoard({
   lanes,
   departments = [],
   approvals = [],
+  budgets = [],
   staleRepos = [],
   totalWarnings,
   fetchedAt,
@@ -75,6 +82,7 @@ export function VentureBoard({
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
+  budgets?: EnvelopeStatus[];
   staleRepos?: string[];
   totalWarnings: number;
   fetchedAt: number;
@@ -172,6 +180,20 @@ export function VentureBoard({
                     ? <>Work here is <span className="mono">{GATE_LABEL[d.gate] ?? d.gate}</span>.</>
                     : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
                 </p>
+                {/* FB-054: where this department stands against the spend envelope the founder set.
+                    Only rendered when an envelope exists — a venture with no budgets configured must
+                    read as "no budgets", not as a department sitting at 0% of nothing. */}
+                {budgetFor(budgets, d.id) ? (
+                  <p
+                    className="muted mono"
+                    data-testid={`dept-${d.id}-budget`}
+                    data-budget-state={budgetFor(budgets, d.id)!.state}
+                    style={{ fontSize: '13px', margin: '0.3rem 0 0' }}
+                  >
+                    {budgetFor(budgets, d.id)!.state === 'over' ? '⚠ ' : ''}
+                    Budget {budgetFor(budgets, d.id)!.detail}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

@@ -64,3 +64,44 @@ else in the loop works without it — FB-042 just can't render typed run history
 **Nothing above blocks building more** (FB-041 etc. proceed). These three activate *going live* + the
 Sell/Scale operational half. See `docs/founder-to-lane-execution.md` for the loop and the memory files
 for the full FB-041…057 roadmap.
+
+## 4. Department budget envelopes (FB-054) — one file, no deploy
+
+Each department (Build / Sell / Scale) can carry a spend envelope. When a lane proposes an external
+action that costs money, the studio computes what approving it would do to that department's budget
+and shows it as a check on the approval card — so the founder sees the impact at the moment they
+decide, not in a bill afterwards.
+
+Turning it on is a single file on the venture repo's `foundry-approvals` ref — no deploy, no env var:
+
+```jsonc
+// budgets.json, at the root of the foundry-approvals ref
+{
+  "currency": "GBP",
+  "period": "per month",
+  "departments": {
+    "sell": 480000,     // £4,800 — keys are department ids from the manifest
+    "scale": 100000     // £1,000
+  }
+}
+```
+
+**Amounts are integer minor units (pence), never pounds.** `4800.5` is rejected and that department
+reads "no budget set" — accepting a float would silently misprice the gate by 100×, and a budget
+check that is wrong is worse than one that is absent. A department with no entry simply has no
+envelope; nothing is flagged for it.
+
+For a proposal to count against an envelope it needs a price, which the proposing lane writes into
+`proposal.json`:
+
+```jsonc
+{ "department": "sell", "amount_minor": 520000, "currency": "GBP", "summary": "…" }
+```
+
+Two behaviours worth knowing before you rely on it:
+
+- **The check informs, it does not block.** An over-envelope action still shows an Approve button —
+  the founder may well decide the over-budget send is the right call. What they must not be able to
+  do is make that call unaware. Hard-blocking belongs to the executor's own checks.
+- **Only granted/executing/executed spend counts.** A proposal that has not been approved does not
+  consume the envelope, so a queue of unapproved asks can never make each other look unaffordable.

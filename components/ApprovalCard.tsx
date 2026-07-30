@@ -22,7 +22,12 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
       {approval.checks.length > 0 ? (
         <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: '13px', margin: '0.35rem 0 0' }}>
           {failing === 0 ? '✓ policy checks clear' : `⚠ ${failing} policy check${failing === 1 ? '' : 's'} need a look`} ·{' '}
-          {approval.checks.map((c) => `${c.passed ? '✓' : '✗'} ${c.name}`).join(' · ')}
+          {/* A check's `detail` is the part a founder can act on — "over — 108% of £4,800" tells them
+              by how much, where the name alone only says something is wrong. FB-054 made this
+              load-bearing: the budget check exists to show the impact, so hiding it would defeat it. */}
+          {approval.checks
+            .map((c) => `${c.passed ? '✓' : '✗'} ${c.name}${c.detail ? ` — ${c.detail}` : ''}`)
+            .join(' · ')}
         </p>
       ) : null}
       <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
