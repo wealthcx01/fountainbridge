@@ -1,6 +1,6 @@
 # FB-062 — The composer told the founder it had filed a ticket, and it had not
 
-**Status:** In review · **Phase:** 3 · **Depends on:** FB-033 (the write tool) · **Repo:**
+**Status:** Shipped · **Phase:** 3 · **Depends on:** FB-033 (the write tool) · **Repo:**
 fountainbridge (+ venture box) · **Branch:** `fb-062-composer-told-you-it-filed`
 One ticket = one branch = one PR.
 

@@ -1,6 +1,6 @@
 # FB-051 — Full ActiveGraph runtime for external actions (fully apply ActiveGraph)
 
-**Status:** In progress · **Phase:** 4b · **Depends on:** FB-044 (git-backed gate + executor), FB-046
+**Status:** Shipped · **Phase:** 4b · **Depends on:** FB-044 (git-backed gate + executor), FB-046
 (in-studio approve) · **Repo:** fountainbridge (+ ActiveGraph) · **Branch:** `fb-051-full-activegraph-runtime`
 One ticket = one branch = one PR.
 

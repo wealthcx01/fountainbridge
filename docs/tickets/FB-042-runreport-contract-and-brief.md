@@ -1,6 +1,6 @@
 # FB-042 — RunReport + Department contracts, studio read model, and the founder brief
 
-**Status:** In review · **Phase:** 2/3 · **Depends on:** ~~bcap-contracts (FB-002 lane)~~ **unblocked 2026-07-31** for the
+**Status:** Shipped · **Phase:** 2/3 · **Depends on:** ~~bcap-contracts (FB-002 lane)~~ **unblocked 2026-07-31** for the
 `RunReport` + `Department` types; FB-040 (lanes write RunReports) · **Repo:** fountainbridge (+
 bcap-contracts) · **Branch:** `fb-042-runreport-contract-and-brief` · One ticket = one branch = one PR.
 

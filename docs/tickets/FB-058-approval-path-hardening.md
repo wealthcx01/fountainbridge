@@ -1,6 +1,6 @@
 # FB-058 — Harden the approval path before a founder uses it for real
 
-**Status:** In review · **Phase:** 3/4 · **Depends on:** FB-051 (provenance), FB-054 (budget
+**Status:** Shipped · **Phase:** 3/4 · **Depends on:** FB-051 (provenance), FB-054 (budget
 disclosure), FB-045 (department repos) · **Repo:** fountainbridge ·
 **Branch:** `fb-058-approval-path-hardening` · One ticket = one branch = one PR.
 

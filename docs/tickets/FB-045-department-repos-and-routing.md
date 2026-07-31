@@ -1,6 +1,6 @@
 # FB-045 — Provision Sell/Scale repos + make the loop department-generic (operationalise the 3 surfaces)
 
-**Status:** In review · **Phase:** 4 · **Depends on:** FB-041 (dept routing in the lane), FB-048
+**Status:** Shipped · **Phase:** 4 · **Depends on:** FB-041 (dept routing in the lane), FB-048
 (surfaces) · **Repo:** fountainbridge (+ venture repos/VM) · **Branch:** `fb-045-department-repos-and-routing`
 One ticket = one branch = one PR.
 

@@ -1,6 +1,6 @@
 # FB-061 — The composer could never reach the venture brain
 
-**Status:** In review · **Phase:** 3 · **Depends on:** FB-050 (the venture brain) · **Repo:**
+**Status:** Shipped · **Phase:** 3 · **Depends on:** FB-050 (the venture brain) · **Repo:**
 fountainbridge (+ venture box) · **Branch:** `fb-061-brain-bridge-compose-network`
 One ticket = one branch = one PR.
 

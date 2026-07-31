@@ -1,6 +1,6 @@
 # FB-063 — What the studio actually looks like to a founder
 
-**Status:** In review · **Phase:** 3 · **Depends on:** FB-042 (the brief + activity strip), FB-045
+**Status:** Shipped · **Phase:** 3 · **Depends on:** FB-042 (the brief + activity strip), FB-045
 (surfaces), FB-057 (the design contract) · **Repo:** fountainbridge ·
 **Branch:** `fb-063-studio-uiux-audit` · One ticket = one branch = one PR.
 
