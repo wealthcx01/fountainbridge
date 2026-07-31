@@ -32,113 +32,70 @@ event, deterministic replay. This applies ActiveGraph **fully**.
 
 ## Acceptance criteria
 
-**None of these are met. The PR is a draft.** A 10-specialist review (2026-07-31) returned 27
-critical findings across this branch and FB-054; the three below were each independently reproduced
-by more than one reviewer *running the code*, not reading it. The ticked boxes and the confident
-prose that were here before were written by the same person who wrote the bugs, and were wrong.
+**Narrowed, on John's call (2026-07-31), after a ten-specialist review.** The ticket asked for an
+event-sourced runtime whose projection enforces the human gate. That cannot be built on this
+substrate, because the log lives on a ref the proposing lane can write — so the projection could
+enforce nothing, and the design doc's claim that "a forged grant cannot even project to `granted`"
+was false. What ships instead verifies the one thing that IS unforgeable and is honest about the rest.
 
-- [ ] External-action approvals are ActiveGraph events, replayable and actor-attributed.
-      **NOT MET — the native event log is never read in production.** Nothing writes an
-      `approval.proposed` event: the lane writes `proposal.json`, the studio writes only
-      `approval.granted`, the executor only `executing`/`executed`/`rejected`. So every real log
-      opens with `granted`, and `logFor`'s own guard
-      (`if (ordered(events)[0]?.type !== 'approval.proposed') return bridged`) discards the entire
-      native log in favour of the file-derived reconstruction. Verified independently by the
-      maintainability and testing reviewers, both by executing `loadApprovals` against the real
-      production file shape: result `bridged: true`, lineage rebuilt from files with empty
-      timestamps. `reconcile()`, `REACHED` and `furthest()` are unreachable code.
-- [ ] The human grant is the only path to `granted`.
-      **NOT MET — the gate reads a self-declared field.** `isHuman()` checks `actor.kind`, which
-      lives inside a JSON file the lane holds repo-write on. A lane writing
-      `{type:'approval.granted', actor:{kind:'founder', id:'john@bruntsfield.capital'}}` projects to
-      `granted`/`executed` with `faults: []` and `isDefensible() === true`. Nothing in the studio
-      ever verifies the HMAC attestation. Confirmed by security, testing and red team (×3).
-      The bridge is worse: `approverActor()` hard-codes `kind: 'founder'`, so *any* `grant.json` —
-      including `{}`, which yields "granted by founder unknown" — launders into a human grant.
-      The existing test only proved the gate against an adversary that honestly labels itself `lane`.
-- [ ] The studio and executor operate on the event stream; v0 is bridged.
-      **NOT MET** — see the first criterion. The events are write-only.
+- [x] **The studio verifies what it can prove.** `lib/provenance.ts` recomputes FB-044's HMAC
+      attestation over `id|proposal_sha|approver` — the studio issues those and holds the secret,
+      which the lane never does. Three states, never guessed between: `attested` (provably issued by
+      the studio, for this exact proposal, naming this approver), `unattested` (a grant record that
+      does not verify — shown as unverified, never as a human's approval, and the executor refuses
+      it), `none`.
+- [x] **An unattested grant does not read as granted.** It stays `proposed`, and the card says the
+      studio cannot verify it and why: no attestation, a bad signature, no approver, or a proposal
+      that changed after approval. The last is the TOCTOU protection the executor already relied on,
+      surfaced to the founder rather than discovered at execution time.
+- [x] **Display and attestation describe the same artefact.** Every founder-visible field is read
+      from the sha-pinned `proposal.json` — the thing the attestation covers and the executor
+      performs. The event-sourced version rendered the summary from a lane-written event, so a
+      founder could approve one document and the executor send another.
+- [x] **A failed execution reads as `failed`**, and the executor now writes it. The status was
+      defined here and written by nothing: a throw in `performAction` left `execution.json` at
+      `executing` forever, and the early-return skipped it on every later pass — a half-completed
+      real send shown as permanently in-flight, with no alert.
+- [ ] ~~The append-only log is the audit record, replayable and actor-attributed.~~ **Withdrawn.**
+      It cannot be, on a ref the audited party can write. `lib/activegraph.ts` and
+      `lib/activegraph-bridge.ts` are deleted.
 
-## Review findings (2026-07-31) — what must be resolved before this can ship
+## What was removed, and what that fixed
 
-Ranked. Each was confirmed by executing the code.
+Deleting the projection removed the defects it carried, rather than guarding them:
 
-1. **Gate bypass — forged human grant.** `lib/activegraph.ts` / `lib/activegraph-bridge.ts`. Fix
-   direction: the studio holds `FOUNDRY_APPROVAL_SECRET`; verify the attestation over
-   `{id, proposal_sha, approver}` before any `approval.granted` may transition, and treat
-   `kind: 'founder'` in an unverified file as a claim, not an authorization.
-2. **Log downgrade.** `readEvents` accepts any numeric `seq`, so one lane-written `{seq: 0}` file
-   sorts first, fires the mid-story branch, and discards the authentic log for the unauthenticated
-   bridge path. Verified: `grantedBy` became `attacker@evil.com` with no fault.
-3. **Confused deputy — the founder approves a different document than the executor sends.** The card
-   renders `projected.summary`/`department`/`compliance` from the lane-authored event, while the
-   attestation pins `proposal.json`'s blob sha and the executor acts on `proposal.json`. Nothing
-   binds the two. FB-044's sha-pin existed to make display and execution the same artefact; this
-   branch broke that alignment.
-4. **`reconcile()` is wrong three ways** (added in this branch's own review round): its `furthest()`
-   guard early-returns in precisely the scenario it was written for, so a genuinely human-granted,
-   genuinely executed send displays as `proposed` at the top of the attention queue; it appends
-   repaired events out of causal position, manufacturing blocking faults on sound records; and its
-   `repaired` marker never reaches `ActiveGraphApproval`.
-5. **Grant pre-squat.** The event path is deterministic and `putFile` omits `sha`, so a lane that
-   writes `0002-granted.json` first causes the real human grant event to 422 — into a bare `catch {}`
-   — while the founder is told "Approved." Nothing records that the audit write failed.
-6. **Denial-of-gate.** Any blocking fault withholds Approve, and one junk event manufactures one.
-   Files are immutable, so there is no in-band repair: a lane can freeze every external action for a
-   venture. Needs a recorded, human-authorised repair event.
-7. **`approval.failed` is never written.** The status was added here and justified as the fix for
-   v0's misrepresentation, but no code path emits it. A throw in `performAction` leaves
-   `execution.json` at `executing`, and the early-return at the top of `handleApproval` means it
-   stays in-flight forever with no alert — the silent failure non-negotiable 10 forbids.
-8. **Executor seq handling corrupts the log.** `readEventSeq` catches a transient GitHub error and
-   returns 0 (re-introducing the exact conflation `gh()` was hardened against), restarting the
-   sequence and producing a permanent duplicate-seq in an append-only log. `causedBy: seq - 1` is
-   fabricated rather than observed. Three writers share the seq space with no coordination.
-9. **A seq collision silently discards the later event** — so a lane that pre-writes a seq can make
-   the founder's genuine grant vanish, projecting back to `proposed`.
-10. **Performance.** `1 + N*(4+M)` GitHub API calls per venture page render (50 approvals × 6 events
-    = 501 requests against a ~900/min secondary limit), fully serialized (~18s TTFB at N=50), and
-    the only loader on that page with no cache. Terminal approvals — immutable by construction — are
-    re-read in full on every refresh.
-11. **Privacy.** `lineage` and `compliance` are serialized into the RSC payload for `VentureBoard`
-    (a client component) with zero consumers, which pushes `compliance.recipient` — a real person's
-    email — into the browser.
-12. **The evidence fields are never rendered.** `bridged`, `grantedBy`, `grantedAt`, `lineage`,
-    `compliance` and `isDefensible()` have no consumer, so a laundered or repaired record is
-    displayed identically to a natively attested one — and in every forgery above, `faults` is empty
-    and the status reads a confident `granted`.
-13. **The fault gate is client-side only.** `approveExternalAction` never projects, so the
-    "record cannot be verified" state is a property of the button, not of the system.
+| Removed | Defect it took with it |
+| --- | --- |
+| `actor.kind` as the gate | A lane writing `{kind:'founder'}` projected to `granted`, faults empty |
+| The bridge's hard-coded `founder` | Any `grant.json` — including `{}` — laundered into "granted by founder unknown" |
+| `logFor` / `reconcile` / `REACHED` | Unreachable code that discarded authentic logs on a `{seq:0}` file, and whose repair produced blocking faults on sound records |
+| Reading the event log per render | 1 + N×(4+M) GitHub calls per venture page (~501 at N=50), serialized, uncached |
+| `lineage` / `compliance` on the client | `compliance.recipient` — a real person's email — serialized into the browser payload for zero consumers |
+| Fault-based button withholding | One junk event froze every external action for a venture, with no in-band repair |
+| The studio's event append | A silently-swallowed 422 told the founder "Approved" while the audit write did not happen; a lane could pre-squat the path |
 
-**Design:** `docs/activegraph-runtime.md`.
+**The events themselves are gone from the studio's read and write paths.** The executor still appends
+an operational trace for an operator reading the ref; nothing depends on it and nothing claims
+anything about it.
 
-## Note on "the ActiveGraph repo"
-Upstream (github.com/yoheinakajima/activegraph) is a **Python** event-sourced graph runtime. Adopting
-it directly would mean a Python service plus a datastore per venture, against D1/D2 (git is the
-store) and the studio's TypeScript stack. What this ticket applies is the *model* the ticket's own
-Context asks for — append-only log as source of truth, state as projection, actor attribution, causal
-lineage, deterministic replay — on our substrate: immutable event files on the `foundry-approvals`
-ref. Nothing new to provision per venture.
+## Still open
+- ⚠ **The spend/outcome records remain lane-authored.** The attestation covers `id|proposal_sha|
+  approver` and nothing else — not `granted_at`, not the execution record. A lane can still write
+  `execution.json {status:'rejected'}` over its own grant. Widening the signed payload is the next
+  real step, and FB-054's reported figures depend on it too.
+- ❌ **The approve click is not bound to the proposal the founder saw.** `proposalSha` is computed
+  and unused; the server action re-reads and signs whatever is current, so a pre-grant swap is
+  unguarded. The verification above catches it AFTERWARDS (the sha no longer matches) but does not
+  prevent it.
 
 ## Verification
-**Done in this PR (local):** 34 unit tests. The proposed→granted→executed sequence replaying with
-correct actor lineage at every point (the ticket's stated verification); determinism and
-order-independence; the §5 record surviving the fold; the human-grant gate (lane-forged, executor
-self-granted, and the legitimate Bruntsfield approver under D7); and every way a log can fail to hold
-up — no proposal, execution that never passed a grant, events after a terminal state, duplicate
-`seq`, broken lineage, a second proposal — each reported as a fault rather than thrown or repaired.
-Plus the bridge: partial v0 states, camelCase/snake_case compliance keys, a grant with no proposal,
-and the rule that a v0 proposal is attributed to a **lane**, never a human. Plus `loadApprovals`
-projecting from the log end to end, including the partial-migration fallback.
+20 unit tests over provenance and the approval read path: a forged grant refused and its named
+approver suppressed; a grant signed for another approval, another approver, another proposal sha or
+another secret all refused; no-secret reported rather than trusted; `none` distinguished from
+failure; a failed execution read as `failed`; and every founder-visible field read from the pinned
+proposal. 140 tests, lint, typecheck, build, UI gate (34), ticket parse, manifest validation,
+shellcheck.
 
-Two prior misrepresentations fixed on the way past: a **failed execution used to project as
-`granted`** (v0's file-presence inference had no `failed` case, so an errored send showed to the
-founder as approved and fine), and an unverifiable record now **withholds the Approve button** rather
-than rendering a confident status over a broken chain.
-
-164 tests, lint, typecheck, build, the Playwright UI gate, ticket parse, manifest validation and
-shellcheck all green.
-
-**Still to do (needs John / a migration):** retire the v0 files once ventures are migrated and the
-deployed executor is updated; wire `suppression.added` into the send path (nothing sends until Phase
-4b); a UI for walking an approval's history — `replayTo` is tested but has no operator surface.
+**Not yet run on ARCA's box.** The verification path needs `FOUNDRY_APPROVAL_SECRET` set on the
+studio — the same value the executor holds. Until it is, every grant reads `unattested`, which is the
+correct failure direction but means the founder sees a warning on real approvals.

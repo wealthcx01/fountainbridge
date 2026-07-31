@@ -119,7 +119,11 @@ async function performAction(proposal) {
 // events are the record. If an append fails the studio's bridge still derives the event from the
 // file, so the log degrades in fidelity, never in truth.
 async function readEventSeq(id) {
-  const dir = await gh(`/repos/${REPO}/contents/approvals/${id}/events?ref=${encodeURIComponent(REF)}`).catch(() => null);
+  // gh() returns null ONLY on a definitive 404 and THROWS otherwise, precisely so a transient error
+  // is never read as "absent". Catching here undid that: a rate-limit or 5xx restarted the sequence
+  // at 1 and wrote a duplicate into an append-only log. Let it throw; appendEvent is best-effort and
+  // logs, so a failed listing skips the annotation rather than corrupting it.
+  const dir = await gh(`/repos/${REPO}/contents/approvals/${id}/events?ref=${encodeURIComponent(REF)}`);
   if (!Array.isArray(dir)) return 0;
   return dir.reduce((max, e) => {
     const n = Number.parseInt(String(e.name ?? ''), 10);
@@ -170,7 +174,20 @@ async function handleApproval(id) {
   await writeJson(`approvals/${id}/execution.json`, { id, status: 'executing', approver: v.approver, started_at: new Date().toISOString() }, `executor: begin ${id}`);
   await appendEvent(id, 'approval.executing', 'foundry-executor', { approver: v.approver });
   log(`approval ${id}: attestation valid (approver ${v.approver}) — executing ${proposal.json.action_type}`);
-  const result = await performAction(proposal.json);
+  // A throw here used to leave execution.json at 'executing' forever: the early-return at the top of
+  // handleApproval then skipped it on every subsequent pass, so a half-completed real send showed in
+  // the studio as permanently in-flight with no alert. `failed` was defined as a status and written
+  // by nothing (FB-051 review).
+  let result;
+  try {
+    result = await performAction(proposal.json);
+  } catch (err) {
+    const reason = `the action threw: ${err?.message ?? err}`;
+    log(`approval ${id}: FAILED — ${reason}`);
+    await writeJson(`approvals/${id}/execution.json`, { id, status: 'failed', approver: v.approver, reason, executed_at: new Date().toISOString() }, `executor: failed ${id}`);
+    await appendEvent(id, 'approval.failed', 'foundry-executor', { reason });
+    return 1;
+  }
   await writeJson(`approvals/${id}/execution.json`, { id, status: 'executed', action_type: proposal.json.action_type, approver: v.approver, result, executed_at: new Date().toISOString() }, `executor: execute ${id}`);
   await appendEvent(id, 'approval.executed', 'foundry-executor', { action_type: proposal.json.action_type, approver: v.approver, reason: result?.note, result });
   return 1;
