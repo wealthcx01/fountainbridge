@@ -67,14 +67,16 @@ work_department() {
   BASE_BRANCH="$(dept_field "$1" 3)"; DEPT_GATE="$(dept_field "$1" 4)"
   REPO_DIR="$(dept_dir "$REPO")"
   export REPO BASE_BRANCH
-  [ -n "$DEPT_ID" ] && [ -n "$REPO" ] && [ -n "$BASE_BRANCH" ] || {
-    flog "malformed department entry '$1' — skipping (expected id:owner/repo:base:gate)"; return 1
-  }
+  if [ -z "$DEPT_ID" ] || [ -z "$REPO" ] || [ -z "$BASE_BRANCH" ]; then
+    flog "malformed department entry '$1' — skipping (expected id:owner/repo:base:gate)"
+    return 1
+  fi
   # A department whose repo was never cloned is a configuration fact, not a failure to hide: say so
   # once per wake and move on, so the founder's board is not silently missing a whole surface.
-  [ -d "$REPO_DIR/.git" ] || {
-    flog "$DEPT_ID: $REPO is not cloned at $REPO_DIR — run install-departments.sh on this box"; return 1
-  }
+  if [ ! -d "$REPO_DIR/.git" ]; then
+    flog "$DEPT_ID: $REPO is not cloned at $REPO_DIR — run install-departments.sh on this box"
+    return 1
+  fi
   return 0
 }
 
