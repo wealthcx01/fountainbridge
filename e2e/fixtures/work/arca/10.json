@@ -1,0 +1,21 @@
+{
+  "title": "Seed script must fail loudly on zero cards seeded",
+  "author": "foundry-lane",
+  "createdAt": "2026-07-15T09:00:00Z",
+  "headSha": "sha-arca-10",
+  "state": "open",
+  "merged": false,
+  "mergeable": true,
+  "checks": "success",
+  "files": [
+    {
+      "path": "docs/tickets/seed-script-silent-failure.md",
+      "added": 24, "removed": 0,
+      "patch": "@@ -0,0 +1,24 @@\n+# ARCA-44 — Seed script must fail loudly on zero cards\n+\n+A setup step that fails completely and then congratulates you is worse than one that crashes."
+    },
+    {
+      "path": "db/seed.ts",
+      "added": 31, "removed": 8
+    }
+  ]
+}

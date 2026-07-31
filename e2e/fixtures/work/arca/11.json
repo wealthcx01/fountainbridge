@@ -1,0 +1,11 @@
+{
+  "title": "Deck sharing",
+  "author": "foundry-lane",
+  "createdAt": "2026-07-19T09:00:00Z",
+  "headSha": "sha-arca-11",
+  "state": "open",
+  "merged": false,
+  "mergeable": true,
+  "checks": "pending",
+  "files": [{ "path": "client/src/pages/DeckPage.tsx", "added": 120, "removed": 4 }]
+}

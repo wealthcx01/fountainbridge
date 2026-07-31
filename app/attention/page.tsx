@@ -52,23 +52,30 @@ export default async function AttentionPage({
 }
 
 function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureName: string }) {
-  const primary = approval.previewUrl ?? approval.url; // preview is the power path (parity §3)
+  // FB-064: the title now opens the work INSIDE the studio. This page told a founder work was
+  // waiting for their OK and then offered one link to github.com — the break in the loop.
+  // `repo` is the short name; the venture's manifest resolves the owner, so no founder-facing URL
+  // carries one.
+  const shortRepo = approval.repo.includes('/') ? approval.repo.split('/')[1] : approval.repo;
+  const here = `/venture/${approval.ventureId}/work/${shortRepo}/${approval.number}`;
   return (
     <article className="card card-link" data-testid={`approval-${approval.id}`} style={{ padding: '0.85rem 1rem' }}>
       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <a href={primary} target="_blank" rel="noreferrer" style={{ fontWeight: 500 }} data-testid={`approval-primary-${approval.id}`}>
+        <Link href={here} style={{ fontWeight: 500 }} data-testid={`approval-primary-${approval.id}`}>
           {approval.title}
-        </a>
+        </Link>
         <CiDot status={approval.ciStatus} />
-        {approval.previewUrl ? <span className="tag tag-accent">preview</span> : null}
+        {approval.previewUrl ? (
+          <a href={approval.previewUrl} target="_blank" rel="noreferrer" className="tag tag-accent" data-testid={`approval-preview-${approval.id}`}>
+            see it running
+          </a>
+        ) : null}
       </div>
-      <div className="muted mono" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-        <span>{approval.repo}</span>
-        <span>· {ventureName}</span>
+      <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+        <span>{ventureName}</span>
         {approval.linkedTicketId ? <span>· {approval.linkedTicketId}</span> : null}
-        {approval.author ? <span>· @{approval.author}</span> : null}
         <span>· {formatAge(approval.ageMs)} old</span>
-        <a href={approval.url} target="_blank" rel="noreferrer" data-testid={`approval-pr-${approval.id}`}>· PR #{approval.number} ↗</a>
+        <Link href={here} data-testid={`approval-open-${approval.id}`}>· Read it and decide</Link>
       </div>
     </article>
   );

@@ -20,10 +20,18 @@ test('attention queue lists open PRs oldest-first, with preview as the primary l
   await expect(rows.nth(0)).toHaveAttribute('data-testid', 'approval-arca#10');
   await expect(rows.nth(1)).toHaveAttribute('data-testid', 'approval-arca#11');
 
-  // Preview URL is the primary click target when present.
-  await expect(page.getByTestId('approval-primary-arca#10')).toHaveAttribute('href', /preview\.example\.com/);
-  // No preview → primary falls back to the PR url.
-  await expect(page.getByTestId('approval-primary-arca#11')).toHaveAttribute('href', /pull\/11/);
+  // FB-064: the title opens the work INSIDE the studio. This page promises "waiting on your OK"
+  // and used to offer only a link to github.com — three of the seven steps in the loop happened in
+  // a developer tool the founder was never meant to open.
+  await expect(page.getByTestId('approval-primary-arca#10')).toHaveAttribute('href', '/venture/arca/work/arca/10');
+  await expect(page.getByTestId('approval-primary-arca#11')).toHaveAttribute('href', '/venture/arca/work/arca/11');
+
+  // The preview is still one click away when there is one — it just is not the only thing to click.
+  await expect(page.getByTestId('approval-preview-arca#10')).toHaveAttribute('href', /preview\.example\.com/);
+
+  // Nothing on this page sends a founder to a code host any more.
+  const offsite = await page.locator('a[href*="github.com"]').count();
+  expect(offsite).toBe(0);
 
   await page.screenshot({ path: `${SHOTS}/07-attention-queue.png`, fullPage: true });
 });

@@ -1,6 +1,6 @@
 # FB-064 — Read and accept work without leaving the studio
 
-**Status:** Planned · **Phase:** 3 · **Depends on:** FB-007 (the attention queue), FB-020 (GitHub App),
+**Status:** In review · **Phase:** 3 · **Depends on:** FB-007 (the attention queue), FB-020 (GitHub App),
 FB-046 (the approve pattern) · **Repo:** fountainbridge ·
 **Branch:** `fb-064-read-and-accept-work-in-the-studio` · One ticket = one branch = one PR.
 
@@ -63,15 +63,48 @@ Missing: **what changed**, and **accept**.
 - Anything that lets a founder edit code in the studio.
 
 ## Acceptance criteria
-- [ ] A founder can go from "the composer filed it" to "it is accepted and merged" without leaving
-      the studio, and without seeing a repository or branch name.
-- [ ] The work detail view shows what changed, the checks, and the preview when there is one.
-- [ ] Accept is refused, with a plain-language reason, when checks are failing, still running, the
-      branch conflicts, or the work changed after the page was rendered.
-- [ ] Merging uses the write-scoped credential; the read App stays read-only.
-- [ ] A send and a piece of work present as the same kind of decision.
-- [ ] Code changes are described honestly rather than rendered as a diff a founder cannot judge.
+- [x] **A founder can go from the queue to accepted without leaving the studio.** The attention
+      queue's title now opens `/venture/<id>/work/<repo>/<number>` instead of github.com, and the
+      route carries the short repo name so no founder-facing URL contains an owner.
+- [x] **The view shows what changed, the checks, and the preview.** Preview is a separate link now
+      rather than the only thing to click.
+- [x] **Accept is refused, in plain language, with what to do about it** — checks failing ("leave it,
+      the team that made it will see the failure"), checks running ("give it a few minutes"), a clash,
+      or work that changed after the page rendered.
+- [x] **Merging uses the write-scoped credential**; the read App stays read-only.
+- [x] **A send and a piece of work present the same way** — same card shape, same single button, same
+      "here is what we can and cannot tell you" line.
+- [x] **Code is described, never rendered as a diff.** See below.
+
+## The rule this ticket is really about
+
+A founder can genuinely judge prose — a ticket, a piece of copy, something they deposited. They
+cannot judge a TypeScript diff, and showing them one dressed up as a review is asking them to
+rubber-stamp what they cannot read.
+
+So changes are **classified by what they mean to a founder**, not by file extension: the description
+of the work, writing, something your venture knows, a change to the app, settings. The first three
+are rendered. The last two are *described* — what it touches, how big it is — alongside the evidence
+that actually bears on the decision: did the checks pass, is there a preview to look at.
+
+That is not a limitation to apologise for. The lane has already reviewed and tested its own work
+(FB-041's `/review` and `/qa` gates run before the PR exists). The founder is accepting an outcome,
+not auditing an implementation.
+
+## Still open
+- ❌ **`previewUrl` is still not populated.** Railway PR environments were switched on the same day,
+  so the field can now be filled from the deployment — but wiring it is its own change and this
+  ticket did not do it. The view renders the link correctly when the value is there.
+- ⚠ **The accept path has no live test against a real repository.** The unit tests cover every
+  refusal and the e2e covers the rendered surface, but nothing has merged a real pull request through
+  this button yet. That wants doing on ARCA before a founder relies on it.
 
 ## Verification
-`/review` + CI, and the walk itself: file a ticket through the composer, accept it in the studio, and
-confirm the lane picks it up — with the whole path screenshotted and no github.com in it.
+25 unit tests over the read model (classification, readable extraction, the honest description, and
+every refusal path) plus 7 Playwright over the rendered surface — including an assertion that **no
+link on either page points at github.com**, which is the regression that would undo this ticket.
+
+Driven in a real browser: attention queue → click the title → the work view renders the ticket body
+as prose, describes the code change as "a small change to the app's code (seed.ts) — 31 lines added,
+8 removed", reports the checks, and offers one button. Work with checks still running shows no button
+and says "give it a few minutes and refresh" instead.
