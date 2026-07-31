@@ -92,3 +92,28 @@ API key. A per-venture Anthropic key is the option when a programmatic per-ventu
 The supervisor ran a spike ticket end to end on ARCA's box: claim (branch CAS) → Claude Code lane →
 PR (wealthcx01/arca#5) → `working`+`opened_pr` RunReports on `foundry-state`; the CAS yielded on
 re-run. Nothing external sent.
+
+## Founding run — a venture's first day (FB-056)
+Run **once, by hand**, when a venture is seeded. Not on the timer, and not part of the per-ticket
+RPIV loop: it turns a mission paragraph into a north-star, first goals and a starter backlog, and
+files them as a PR.
+
+```bash
+cd /opt/foundry/lane && cat > mission.txt   # a paragraph: what, for whom, why now
+VENTURE_ID=arca VENTURE_NAME=ARCA ./founding-run.sh mission.txt
+# → docs/tickets/ARCA-001…N + context/north-star.md on foundry/founding-run, as a PR
+```
+
+- **It never merges.** The PR is the gate — merging it is the founder's decision about what the
+  venture is.
+- **It validates before it creates a branch.** A session that returns no usable plan writes nothing:
+  a half-seeded repo is worse than an empty one. "Usable" means a north-star, goals, and ≥3 tickets
+  that each state observable acceptance criteria — a ticket that can't say what done means would
+  block on its first wake anyway (the PRP gates it, FB-052).
+- **It refuses to run against a repo that already has tickets** unless given an explicit start-at
+  (`./founding-run.sh mission.txt 20`), so it can't bury a real backlog under generated work.
+- Ticket ids come from the venture id: `arca` → `ARCA-001`, `the-reset` → `TR-001`.
+
+The plan logic is separate from the model call (`founding-lib.mjs` + `founding-plan.mjs`) so the part
+that decides what lands in a founder's repo is unit-tested — including that every generated ticket
+parses through the studio's own parser with zero warnings.
