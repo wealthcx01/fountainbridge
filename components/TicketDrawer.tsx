@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { TicketWithMeta } from '@/lib/tickets';
 import { STATUS_LABEL } from '@/lib/glossary';
+import { toneColor } from '@/lib/status';
 
 // Ticket detail drawer (FB-006): rendered markdown body, a link to the file on GitHub, and
 // dependency links that jump to another ticket when it's in view.
@@ -62,7 +63,7 @@ export function TicketDrawer({
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
           <div style={{ flex: 1 }}>
-            <span className="mono eyebrow-id" style={{ fontSize: '12px' }}>{ticket.id}</span>
+            <span className="mono eyebrow-id" style={{ fontSize: 'var(--fs-meta)' }}>{ticket.id}</span>
             <h2 style={{ margin: '0.25rem 0 0' }} data-testid="drawer-title">{ticket.title}</h2>
           </div>
           <button className="btn" onClick={onClose} data-testid="drawer-close" aria-label="Close">✕</button>
@@ -75,7 +76,7 @@ export function TicketDrawer({
         </div>
 
         {ticket.depends_on.length > 0 ? (
-          <p style={{ fontSize: '14px' }} data-testid="drawer-deps">
+          <p style={{ fontSize: 'var(--fs-body-sm)' }} data-testid="drawer-deps">
             <span className="muted">Depends on: </span>
             {ticket.depends_on.map((dep) =>
               knownIds.has(dep) ? (
@@ -103,7 +104,7 @@ export function TicketDrawer({
               <p
                 key={i}
                 className="card"
-                style={{ borderColor: 'var(--color-warn)', color: 'var(--color-warn)', padding: '0.5rem 0.75rem', fontSize: '13px' }}
+                style={{ borderColor: toneColor('attention'), color: toneColor('attention'), padding: '0.5rem 0.75rem', fontSize: 'var(--fs-meta-lg)' }}
               >
                 ⚠ {w.message}
               </p>
@@ -113,7 +114,7 @@ export function TicketDrawer({
 
         <hr className="hr" style={{ margin: '1rem 0' }} />
 
-        <div className="ticket-body" style={{ fontSize: '15px' }}>
+        <div className="ticket-body" style={{ fontSize: 'var(--fs-subhead)' }}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{ticket.body_md}</ReactMarkdown>
         </div>
 

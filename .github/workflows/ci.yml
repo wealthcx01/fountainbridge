@@ -136,6 +136,19 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
 
+  design:
+    name: Design contract
+    runs-on: ubuntu-latest
+    # FB-057: the studio design contract (docs/studio-design-contract.md) — tokens only, one status
+    # vocabulary, no dead controls. Pure Node, no install: it reads app/ and components/.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enforce the studio design contract
+        run: make design-lint
+
   provision:
     name: Provision scripts
     runs-on: ubuntu-latest

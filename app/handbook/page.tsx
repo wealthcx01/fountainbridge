@@ -22,9 +22,9 @@ export default async function HandbookIndex() {
         {chapters.map((c) => (
           <Link key={c.slug} href={`/handbook/${c.slug}`} className="card card-link" data-testid={`hb-${c.slug}`}>
             <div className="stack">
-              <span className="eyebrow-id mono" style={{ fontSize: '12px' }}>Chapter {c.order}</span>
+              <span className="eyebrow-id mono" style={{ fontSize: 'var(--fs-meta)' }}>Chapter {c.order}</span>
               <h3 style={{ margin: '0.1rem 0 0' }}>{c.title}</h3>
-              <span className="muted" style={{ fontSize: '14px' }}>{c.summary}</span>
+              <span className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>{c.summary}</span>
             </div>
           </Link>
         ))}
