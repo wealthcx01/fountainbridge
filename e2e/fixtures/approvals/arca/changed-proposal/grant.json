@@ -1,0 +1,9 @@
+{
+  "id": "changed-proposal",
+  "decision": "granted",
+  "approver": "john.gallagher@wealthcx.com",
+  "granted_at": "2026-07-20T10:00:00Z",
+  "proposal_sha": "sha-SOMETHING-ELSE",
+  "attestation": "e5d88c8a4b7be77d9592cfdcdf28abea1ae0714a5516b995cdd08faea5a6d859",
+  "_adversarial": "Deliberately does not verify. Do NOT sign this \u2014 see scripts/sign-approval-fixtures.mjs."
+}

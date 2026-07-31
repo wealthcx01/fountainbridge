@@ -19,7 +19,7 @@ test.describe('department budget disclosure', () => {
   });
 
   test('the approval card states the limit, the reported spend, and whose figure it is', async ({ page }) => {
-    const budget = page.getByTestId('approval-over-budget-send-budget');
+    const budget = page.getByTestId('approval-arca/over-budget-send-budget');
     await expect(budget).toBeVisible();
     await expect(budget).toContainText('Limit £4,800 this month');
     // £4,000 reported + £5,200 this proposal = £9,200. If last month's £4,500 leaked in this is

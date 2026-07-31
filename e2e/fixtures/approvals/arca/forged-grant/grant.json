@@ -1,0 +1,9 @@
+{
+  "id": "forged-grant",
+  "decision": "granted",
+  "approver": "john.gallagher@wealthcx.com",
+  "granted_at": "2026-07-20T09:00:00Z",
+  "proposal_sha": "sha-forged-grant-proposal",
+  "attestation": "0000000000000000000000000000000000000000000000000000000000000000",
+  "_adversarial": "Deliberately does not verify. Do NOT sign this \u2014 see scripts/sign-approval-fixtures.mjs."
+}

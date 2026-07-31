@@ -21,16 +21,21 @@ const STATE_LABEL: Record<string, string> = {
 };
 
 export function ApprovalCard({ ventureId, approval }: { ventureId: string; approval: ActiveGraphApproval }) {
+  // Test ids are repo-qualified (FB-058). Since FB-045 an approval id is unique only WITHIN its
+  // department's repo, so two departments with an identically-named ticket produced duplicate ids —
+  // which Playwright's strict mode treats as an error and which made the UI gate's coverage of this
+  // surface quietly conditional on no venture ever having that collision. Same key as the React one.
+  const tid = `${approval.repo}/${approval.id}`;
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const failing = approval.checks.filter((c) => !c.passed).length;
   const done = result?.ok || approval.status !== 'proposed';
 
   return (
-    <div className="card" data-testid={`approval-${approval.id}`} style={{ marginBottom: '0.75rem' }}>
+    <div className="card" data-testid={`approval-${tid}`} style={{ marginBottom: '0.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
         <strong style={{ fontSize: 'var(--fs-subhead)' }}>{approval.summary}</strong>
-        <span className="tag" data-testid={`approval-${approval.id}-dept`}>{approval.department ?? 'general'}</span>
+        <span className="tag" data-testid={`approval-${tid}-dept`}>{approval.department ?? 'general'}</span>
       </div>
       {/* FB-051 (narrowed): what the studio can PROVE about this approval, and what to DO about it.
           Every lane read-failure on the board carries an explicit next step; this is the highest-
@@ -38,7 +43,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           agent-writable log could never do this job. */}
       {approval.provenance ? (
         <p
-          data-testid={`approval-${approval.id}-provenance`}
+          data-testid={`approval-${tid}-provenance`}
           data-grant-provenance={approval.grantProvenance}
           style={{
             fontSize: 'var(--fs-body-sm)',
@@ -66,7 +71,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           passes kept punishing. Rendered above the proposer's claims and attributed. */}
       {approval.budget ? (
         <p
-          data-testid={`approval-${approval.id}-budget`}
+          data-testid={`approval-${tid}-budget`}
           data-budget-over={approval.budget.overLimit ? 'true' : 'false'}
           style={{
             fontSize: 'var(--fs-body-sm)',
@@ -82,7 +87,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
       {approval.checks.length > 0 ? (
         <ul
           className="muted"
-          data-testid={`approval-${approval.id}-checks`}
+          data-testid={`approval-${tid}-checks`}
           style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-body-sm)' }}
         >
           <li>
@@ -102,7 +107,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
         {done ? (
           <span
             className={`tag ${approval.status === 'failed' || approval.status === 'unverified-action' ? '' : 'tag-accent'}`}
-            data-testid={`approval-${approval.id}-state`}
+            data-testid={`approval-${tid}-state`}
             style={approval.status === 'failed' || approval.status === 'unverified-action'
               ? { color: toneColor('blocked') }
               : undefined}
@@ -113,13 +118,17 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           <button
             type="button"
             className="btn btn-primary"
-            data-testid={`approval-${approval.id}-approve`}
+            data-testid={`approval-${tid}-approve`}
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                // The repo goes with the id: since FB-045 an approval id is unique only within its
-                // department's repo. The server checks it against the venture's declared repos.
-                setResult(await approveExternalAction(ventureId, approval.id, approval.repo));
+                // Three things travel with the click, not one.
+                //   repo — since FB-045 an approval id is unique only within its department's repo;
+                //          the server checks it against the venture's own declared repos.
+                //   proposalSha — the exact proposal these words were rendered from, so approving
+                //          something that changed underneath is refused rather than merely noticed
+                //          afterwards (FB-058).
+                setResult(await approveExternalAction(ventureId, approval.id, approval.repo, approval.proposalSha ?? undefined));
               })
             }
           >
@@ -127,12 +136,12 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           </button>
         )}
         {approval.outcome ? (
-          <span className="muted" data-testid={`approval-${approval.id}-outcome`} style={{ fontSize: 'var(--fs-meta)' }}>
+          <span className="muted" data-testid={`approval-${tid}-outcome`} style={{ fontSize: 'var(--fs-meta)' }}>
             {approval.outcome}
           </span>
         ) : null}
         {result ? (
-          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${approval.id}-msg`} style={{ fontSize: 'var(--fs-meta-lg)', color: result.ok ? undefined : toneColor('attention') }}>
+          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${tid}-msg`} style={{ fontSize: 'var(--fs-meta-lg)', color: result.ok ? undefined : toneColor('attention') }}>
             {result.message}
           </span>
         ) : null}

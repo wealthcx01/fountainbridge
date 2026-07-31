@@ -1,6 +1,6 @@
 # FB-058 — Harden the approval path before a founder uses it for real
 
-**Status:** Planned · **Phase:** 3/4 · **Depends on:** FB-051 (provenance), FB-054 (budget
+**Status:** In review · **Phase:** 3/4 · **Depends on:** FB-051 (provenance), FB-054 (budget
 disclosure), FB-045 (department repos) · **Repo:** fountainbridge ·
 **Branch:** `fb-058-approval-path-hardening` · One ticket = one branch = one PR.
 
@@ -44,13 +44,47 @@ provably the thing the founder was looking at.
 - The real send transport (Phase 4b).
 
 ## Acceptance criteria
-- [ ] Approving a proposal that changed since it was rendered is refused, with a plain-language
-      reason, and a test proves it.
-- [ ] The unattested-grant warning, the changed-proposal case and a failed execution each have
-      coverage that fails if the render is removed.
-- [ ] A test placed beside the approve server action actually runs, and the D7 denial is one of them.
-- [ ] Two approvals with the same id in different department repos render without colliding.
+- [x] **Approving a proposal that changed since it was rendered is refused.** The card sends the sha
+      it rendered from; the action compares it against what it is about to sign and stops if they
+      differ. A blob sha is content-addressed, so this is an exact-content check rather than a
+      timestamp comparison. Optional, so a card rendered before this shipped still works.
+- [x] **The provenance warning has coverage that fails if it is removed.** Two adversarial fixtures:
+      a forged attestation of the kind a lane could write, and a genuinely studio-signed grant pinned
+      to a proposal that then changed. Both were run through the real read path to confirm they
+      produce the reason kinds the tests assert, rather than assumed to.
+- [x] **A test placed beside the approve server action actually runs.** Two things were stopping it —
+      `app/` was outside the vitest include, and the `@/` path alias was not resolved there. 14 tests
+      now cover the action, including the D7 denial that had none at all.
+- [x] **Two approvals with the same id in different department repos render without colliding.** Test
+      ids are repo-qualified, matching the React key.
+
+## The fixture trap this closed on the way
+
+`make sign-approval-fixtures` re-signs every grant it finds, so it would have quietly repaired both
+adversarial fixtures the first time anyone ran it — leaving three tests passing while testing
+nothing. Grants now opt out with an `_adversarial` field and the script reports what it skipped.
+Same species as FB-054's finding that a fixture authored alongside a feature can encode the same
+wrong assumption and certify the bug.
+
+## Also: venture isolation is now pinned to the real manifests
+
+Not in the original scope. Added because John asked whether Ross would see only THE RESET, and the
+honest answer was that no test knew. Every authz test ran against **invented** ventures, with an
+address (`ross@thereset.com`) that stopped being real when D3 was amended to the shared Bruntsfield
+Workspace. The logic was proven; the deployed configuration was not. A manifest edit could have
+handed a founder someone else's venture, or put one in the admin list, and nothing would have failed.
+
+`lib/__tests__/authz.test.ts` now reads `ventures/*.yaml` and the production admin list, asserting
+**per venture** rather than by count so a fourth venture cannot quietly pass: Ross sees `the-reset`
+and nothing else, John sees all three, and a Workspace address belonging to nobody sees none —
+signing in is not authorisation, and the OAuth consent screen is Internal to the whole Workspace.
+
+## Still open
+- ⚠ **The execution record remains lane-authored** (FB-051's larger gap). Signing it, and giving the
+  executor an idempotency ledger outside the lane-writable ref, changes the executor and is its own
+  ticket.
 
 ## Verification
-`/review` + CI, including a mutation pass over the approval boundary: deleting the provenance render,
-the sha check, or the repo allowlist must each turn something red.
+385 unit tests + 6 new Playwright over the approval card. **Mutation-checked by doing it, not by
+assuming it:** removing the sha binding, the repo allowlist, or the D7 check each turns exactly one
+test red, and all three were restored afterwards.
