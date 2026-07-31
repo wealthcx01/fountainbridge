@@ -42,6 +42,8 @@ set -euo pipefail
 : "${OLLAMA_KEEP_ALIVE:=30s}"            # unload the model between syncs rather than squatting on RAM
 : "${BRAIN_MIN_RAM_MB:=1800}"            # below this, local embeddings are a bad trade — warn loudly
 : "${OLLAMA_BASE_URL:=http://localhost:11434/v1}"
+# Must match FOUNDRY_BRAIN_PORT in brain.env / brain-bridge.mjs.
+: "${BRIDGE_PORT:=${FOUNDRY_BRAIN_PORT:-3131}}"
 export OLLAMA_BASE_URL
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -230,6 +232,27 @@ if [ -d /etc/systemd/system ]; then
   install -m 0644 "$SCRIPT_DIR/foundry-brain-bridge.service" "$SCRIPT_DIR/foundry-brain-sync.service" \
       "$SCRIPT_DIR/foundry-brain-sync.timer" /etc/systemd/system/
   systemctl daemon-reload
+
+  # Open the bridge port to the DOCKER SUBNETS ONLY.
+  #
+  # A venture box runs ufw with SSH/80/443 and nothing else (provision-venture.sh), so traffic from
+  # the composer's container to the host's bridge port was silently DROPPED — a connect timeout, not
+  # a refusal, which is the shape of failure that looks like "the service is down" for an afternoon.
+  # The bridge itself was running perfectly and had said so.
+  #
+  # Scoped to the private bridge ranges, never `Anywhere`: the whole venture knowledge index sits
+  # behind one bearer token and this port has no business facing the internet. 172.17/16 is Docker's
+  # default bridge (what `host-gateway` resolves to); 172.18/16 is where compose puts a project.
+  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "^Status: active"; then
+    for net in 172.17.0.0/16 172.18.0.0/16; do
+      if ufw status | grep -q "$BRIDGE_PORT.*$net"; then continue; fi
+      ufw allow from "$net" to any port "$BRIDGE_PORT" proto tcp comment "foundry brain bridge" >/dev/null \
+        && say "ufw: allowed $net → $BRIDGE_PORT"
+    done
+  else
+    say "no active ufw — nothing to open (check your own firewall allows the container → host on $BRIDGE_PORT)"
+  fi
+
   systemctl enable foundry-brain-bridge.service
   # RESTART, not just `enable --now`: `--now` is a no-op on an already-active unit, so re-running the
   # installer to repair or to bump GBRAIN_PIN would leave the OLD bridge code running out of the file

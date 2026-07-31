@@ -19,6 +19,7 @@
 
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { askBrain } from './brain-query.mjs';
 import { DEPARTMENTS } from './brain-lib.mjs';
@@ -34,18 +35,49 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-// The address the venture's containers reach the host on. `host.docker.internal:host-gateway` in the
-// compose file resolves to the host's docker0 address, so that is what we listen on.
+/**
+ * The address the venture's containers reach the host on.
+ *
+ * `host.docker.internal:host-gateway` resolves to the **default bridge** (`docker0`) address —
+ * 172.17.0.1 — not to the gateway of the container's own compose network. Verified on ARCA's box by
+ * reading the container's /etc/hosts and testing both: only docker0's address answers.
+ *
+ * The trap: once every container sits on a compose-created network, `docker0` has nothing attached
+ * and goes NO-CARRIER, and node's `networkInterfaces()` omits interfaces that are down. So the
+ * address that IS the right one becomes invisible to the obvious API, the bridge falls back to
+ * 127.0.0.1, and the composer silently cannot reach the brain. That is exactly what happened here:
+ * it warned on every boot, correctly, into a log nobody was reading.
+ *
+ * So the lookup falls back to `ip`, which reports a down interface's address perfectly well. A
+ * compose network is used only if there is no docker0 at all — a setup where `host-gateway` must
+ * have been pointed elsewhere, in which case FOUNDRY_BRAIN_BIND is the honest answer.
+ */
 function dockerBridgeAddress() {
+  const found = { legacy: null, compose: null };
   for (const [name, addrs] of Object.entries(networkInterfaces())) {
-    if (!/^docker/.test(name)) continue;
     const v4 = (addrs || []).find((a) => a.family === 'IPv4' && !a.internal);
-    if (v4) return v4.address;
+    if (!v4) continue;
+    if (/^docker/.test(name)) found.legacy ??= v4.address;
+    else if (/^br-/.test(name)) found.compose ??= v4.address;
   }
-  return null;
+  // `ip` sees what os.networkInterfaces() will not: an addressed interface with no carrier.
+  if (!found.legacy) found.legacy = addressViaIpCommand('docker0');
+  return found.legacy ?? found.compose;
 }
 
-// On a cold boot this service can win the race against dockerd, and docker0 won't exist yet. Binding
+/** Read one interface's IPv4 address via iproute2. Returns null on any failure — never throws. */
+function addressViaIpCommand(iface) {
+  try {
+    const out = execFileSync('ip', ['-4', '-o', 'addr', 'show', iface], {
+      encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return out.match(/\binet\s+(\d+\.\d+\.\d+\.\d+)/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// On a cold boot this service can win the race against dockerd, and no bridge exists yet. Binding
 // 127.0.0.1 in that moment would leave the composer unable to reach the brain until someone noticed
 // and restarted the unit by hand — so wait for the interface rather than settle for the wrong
 // address. Still falls back (never crash-loops) so a box with no Docker at all runs the lane's brain
