@@ -72,8 +72,8 @@ action that costs money, the studio computes what approving it would do to that 
 and shows it as a check on the approval card — so the founder sees the impact at the moment they
 decide, not in a bill afterwards.
 
-**The file lives in the studio repo, deliberately:** `ventures/budgets/<venture-id>.yaml`, beside the
-manifests. It is *not* on the venture's `foundry-approvals` ref, because that is the ref the
+**The file lives in the studio repo, deliberately:** `ventures/budgets/<venture-id>.yaml`, in a subdirectory
+under `ventures/`. It is *not* on the venture's `foundry-approvals` ref, because that is the ref the
 venture's own lane can write — an agent must not be able to edit the limits that police its
 spending. Changing a budget therefore goes through this repo's PR + CI gate.
 
@@ -86,8 +86,9 @@ departments:
   scale: 100000        # £1,000/month
 ```
 
-A limit written in pounds (`4800.5`) is rejected **and reported** — the department says so rather
-than looking identical to having no budget. A file that exists but cannot be parsed raises a
+A limit written in pounds (`4800.5`) is rejected and reported **on the board** — a banner names the
+department. The department's own tile still reads "no budget set", so check the banner if a budget
+you configured is not showing. A file that exists but cannot be parsed raises a
 board-level warning saying no spend is being checked, rather than silently switching the gate off.
 
 For a proposal to count against an envelope the lane gives it a price:
@@ -107,6 +108,11 @@ Behaviour worth knowing before you rely on it:
   cannot squeeze out real work, and the percentage does not grow forever.
 - **The queue is shown too:** "83% of £4,800 this month; 192% if everything queued is approved."
 
-**Known gap:** spend is currently read from the venture's first repo, so a department with its own
-repo (Sell → `arca-marketing`) will read `0%` until per-department loading lands. See
-`docs/tickets/FB-054-department-budget-envelopes.md`.
+**Known gaps**, both in the ticket:
+- Spend is read from the venture's first repo, so a department with its own repo (Sell →
+  `arca-marketing`) reads `0%` until per-department loading lands.
+- The *limits* are now out of the lane's reach, but the *spend* is still summed from grant and
+  execution records the venture box writes, and no timestamp is covered by the approval HMAC. A lane
+  that rewrites its own `granted_at` can move past spend out of the current window. Future dates and
+  non-ISO strings are rejected, and the studio's own grant timestamp is preferred, which narrows it —
+  it does not close it. Closing it needs the attestation work in FB-051.

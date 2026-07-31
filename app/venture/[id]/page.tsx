@@ -4,9 +4,9 @@ import { loadVentures, ventureChatUrl } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
-import { loadVentureHealth } from '@/lib/health';
+import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { loadApprovals, attachEnvelopeChecks, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
-import { loadEnvelopes, envelopeStatus, type EnvelopeStatus } from '@/lib/budgets';
+import { loadEnvelopes, envelopeStatus, queuedSpend, type EnvelopeStatus } from '@/lib/budgets';
 import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
@@ -72,19 +72,21 @@ export default async function VenturePage({
   // cards are computed from the same bytes rather than from two reads that can disagree.
   const { envelopes, error: budgetsError } = loadEnvelopes(venture.id);
   const knownDepartments = new Set(venture.departments.map((d) => d.id));
-  const now = new Date();
-  approvals = attachEnvelopeChecks(approvals, envelopes, knownDepartments, now);
+  // The repo's existing test clock seam (FB-032). Period windowing makes "now" load-bearing, so the
+  // UI gate needs a pinned instant or its assertions rot the moment the calendar moves.
+  const now = new Date(defaultNow());
+  approvals = attachEnvelopeChecks(approvals, envelopes, knownDepartments, now, budgetsError);
 
   const spends = toSpends(approvals);
   // A status for every DECLARED department, not only those with an envelope — a department with no
-  // budget must read "none set" rather than silently rendering nothing, which was indistinguishable
-  // from a budget that had been removed or failed to parse.
+  // budget must read "no budget set" rather than silently rendering nothing, which was
+  // indistinguishable from a budget that had been removed or failed to parse.
   const budgets: EnvelopeStatus[] = venture.departments.map((d) => {
     const envelope = envelopes.find((e) => e.department === d.id);
-    const queued = approvals
-      .filter((a) => a.status === 'proposed' && a.department === d.id)
-      .reduce((sum, a) => sum + (a.amountMinor ?? 0), 0);
-    return envelopeStatus(envelope, spends, d.id, now, 0, queued);
+    // ONE queued derivation, shared with the cards — currency-aware, and it does not swallow a
+    // proposal whose price could not be read.
+    const queued = envelope ? queuedSpend(spends, d.id, envelope.currency) : { countableMinor: 0, uncountable: 0 };
+    return envelopeStatus(envelope, spends, d.id, now, 0, queued.countableMinor);
   });
   // An envelope keyed to a department the manifest does not declare is a founder typo that would
   // otherwise enforce nothing while looking configured.

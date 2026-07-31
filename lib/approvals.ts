@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
-import { envelopeCheck, normalizeCurrency, type Envelope, type Spend } from './budgets';
+import { envelopeCheck, normalizeCurrency, queuedSpend, type Envelope, type Spend } from './budgets';
 
 /** Read a proposal's stated price, keeping "no price" and "unreadable price" distinct. */
 function readPrice(raw: unknown): { amountMinor: number | null; unreadable: boolean } {
@@ -27,7 +27,10 @@ function readPrice(raw: unknown): { amountMinor: number | null; unreadable: bool
 function committedAtOf(grant: unknown, execution: unknown): string | null {
   const g = grant as { granted_at?: unknown } | null;
   const e = execution as { executed_at?: unknown; started_at?: unknown } | null;
-  for (const v of [e?.executed_at, e?.started_at, g?.granted_at]) {
+  // The STUDIO writes grant.json's `granted_at`; the venture box writes execution.json. Prefer the
+  // studio's, because the window is now load-bearing and a lane that can rewrite `executed_at` can
+  // push its own past spend out of the period. (Neither is covered by the HMAC — see the ticket.)
+  for (const v of [g?.granted_at, e?.executed_at, e?.started_at]) {
     if (typeof v === 'string' && v.trim()) return v.trim();
   }
   return null;
@@ -212,29 +215,34 @@ export function attachEnvelopeChecks(
   envelopes: Envelope[],
   knownDepartments: Set<string>,
   now: Date,
+  budgetsError: string | null = null,
 ): ActiveGraphApproval[] {
   const byDept = new Map(envelopes.map((e) => [e.department, e]));
   const spends = toSpends(approvals);
 
-  return approvals.map((a) => {
+  return approvals.map((a, i) => {
     if (a.status !== 'proposed') return a;
     const department = a.department ?? '';
-    // Everything else queued in the same department and awaiting the same human — what approving
-    // the lot would do. Excludes this proposal, which is counted as `pending`.
-    const queuedMinor = approvals
-      .filter((o) => o.id !== a.id && o.status === 'proposed' && o.department === a.department)
-      .reduce((sum, o) => sum + (o.amountMinor ?? 0), 0);
+    const envelope = byDept.get(department);
+    // Everything ELSE queued in the same department — what approving the lot would do. Computed by
+    // the shared, currency-aware helper rather than hand-rolled here and again on the board.
+    const queued = envelope
+      ? queuedSpend(spends, department, envelope.currency, (_s) => spends.indexOf(_s) === i)
+      : { countableMinor: 0, uncountable: 0 };
 
     const check = envelopeCheck(
-      byDept.get(department),
+      envelope,
       spends,
       department,
       { amountMinor: a.amountMinor, currency: a.currency, priceUnreadable: a.priceUnreadable },
       now,
-      Boolean(department) && knownDepartments.has(department),
-      queuedMinor,
+      {
+        knownDepartment: Boolean(department) && knownDepartments.has(department),
+        queuedMinor: queued.countableMinor,
+        queuedUncountable: queued.uncountable,
+        budgetsError,
+      },
     );
-    if (!check) return a;
     // Studio-computed checks are kept apart from the lane's own claims: rendering them in one
     // undifferentiated list let a proposal write its own "sell budget envelope — passed" entry that
     // the founder could not tell from this one.
@@ -246,7 +254,11 @@ export function attachEnvelopeChecks(
 export function toSpends(approvals: ActiveGraphApproval[]): Spend[] {
   return approvals.map((a) => ({
     department: a.department,
+    // `?? 0` here used to make an unreadable-price GRANTED action contribute exactly nothing to the
+    // department total, forever, named nowhere — the fail-closed rule protected the decision and
+    // left the running total it is measured against silently understated.
     amountMinor: a.amountMinor ?? 0,
+    uncountable: a.priceUnreadable ? ('unreadable-price' as const) : undefined,
     currency: a.currency,
     status: a.status,
     at: a.committedAt,

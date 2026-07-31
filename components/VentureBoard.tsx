@@ -50,22 +50,10 @@ const BUDGET_TONE: Record<EnvelopeStatus['state'], string | undefined> = {
 };
 const BUDGET_GLYPH: Record<EnvelopeStatus['state'], string> = {
   over: '⚠',
-  nearing: '◑',
+  nearing: '!',
   within: '✓',
-  unset: '·',
+  unset: '–',
 };
-
-/**
- * The more severe of "where this department stands" and "where the queue would put it".
- *
- * A department at 83% with £5,200 awaiting the founder's OK is at risk, and the board is where the
- * ticket says risk gets flagged — so the marker escalates on the projection while `detail` keeps
- * both numbers honest.
- */
-const SEVERITY: Record<EnvelopeStatus['state'], number> = { unset: 0, within: 1, nearing: 2, over: 3 };
-function worstState(b: EnvelopeStatus): EnvelopeStatus['state'] {
-  return SEVERITY[b.projectedState] > SEVERITY[b.state] ? b.projectedState : b.state;
-}
 
 /** The envelope for a department, if the founder has set one (FB-054). */
 function budgetFor(budgets: EnvelopeStatus[], departmentId: string): EnvelopeStatus | undefined {
@@ -208,8 +196,11 @@ export function VentureBoard({
             {departments.map((d) => {
               const budget = budgetFor(budgets, d.id);
               return (
-              <div key={d.id} className="card" data-testid={`dept-${d.id}`} style={{ opacity: d.provisioned ? 1 : 0.7 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
+              // The "coming" fade is applied to the HEADER only, not the whole card: compositing the
+              // budget line at 0.7 drops muted text to ~2.8:1, under WCAG AA, and a budget figure is
+              // not something to render at reduced contrast.
+              <div key={d.id} className="card" data-testid={`dept-${d.id}`}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
                   <strong style={{ fontSize: '15px' }}>{d.name}</strong>
                   <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
                     {d.provisioned ? 'active' : 'coming'}
@@ -224,7 +215,8 @@ export function VentureBoard({
                   <p
                     className="muted"
                     data-testid={`dept-${d.id}-budget`}
-                    data-budget-state={budget.state}
+                    data-budget-state={budget.shownState}
+                    data-budget-committed={budget.state}
                     style={{
                       fontSize: 'var(--fs-body-sm)',
                       margin: '0.35rem 0 0',
@@ -232,12 +224,13 @@ export function VentureBoard({
                       // least visible thing on it. The first cut rendered 108% in the same muted
                       // grey as 4%, with the state carried only by a data attribute that had no CSS
                       // behind it — a test hook, not a signal.
-                      color: BUDGET_TONE[worstState(budget)],
-                      fontWeight: worstState(budget) === 'over' ? 600 : undefined,
+                      color: BUDGET_TONE[budget.shownState],
+                      fontWeight: budget.shownState === 'over' ? 600 : undefined,
                     }}
                   >
-                    {BUDGET_GLYPH[worstState(budget)]} Budget{' '}
-                    <span className="mono">{budget.detail}</span>
+                    <span aria-hidden="true">{BUDGET_GLYPH[budget.shownState]}</span>
+                    <span className="sr-only">{budget.shownState} budget: </span> Budget{' '}
+                    {budget.detail}
                   </p>
                 ) : null}
               </div>
@@ -246,8 +239,9 @@ export function VentureBoard({
           </div>
           {budgetsError ? (
             <p className="card" data-testid="budgets-error" style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
-              ⚠ Your budgets file couldn&rsquo;t be read, so no spend is being checked against it: {budgetsError}.
-              Until it&rsquo;s fixed, treat every budget figure above as unset.
+              ⚠ {budgets.some((b) => b.state !== 'unset')
+                ? <>Part of your budgets file was rejected, so those departments are unbudgeted while the rest are still being checked: {budgetsError}.</>
+                : <>Your budgets file couldn&rsquo;t be read, so no spend is being checked against it: {budgetsError}. Until it&rsquo;s fixed, treat every budget figure above as unset.</>}
             </p>
           ) : null}
           {orphanEnvelopes.length > 0 ? (

@@ -24,36 +24,28 @@ adds a per-department spend envelope that feeds the gate + the founder brief.
 
 ## Acceptance criteria
 
-**Not met. The PR is a draft.** A 10-specialist review (2026-07-31) found 14 criticals on this
-branch. The arithmetic is sound; the *inputs* are not — and a budget gate is only as trustworthy as
-its least-protected input.
+Met in code, with two gaps stated below. **PR #54 stays a draft** until the per-department repo gap
+is closed — a department can still show a confident `0%`.
 
-- [ ] Each department carries a spend envelope, and a spend approval shows the envelope check.
-      **NOT MET.** The check is computed studio-side as designed, but every input to it is written by
-      the party being gated:
-      - `budgets.json` lives on the **same `foundry-approvals` ref the lane writes proposals to**.
-        The agent can raise its own limit, change the currency, or delete its department's entry.
-        `grant.json` on that same ref is HMAC-protected precisely because the executor's own header
-        says "the lane can write ANY file… authority CANNOT rest on file contents." The spending
-        limits got no equivalent.
-      - **The gate fails open on a missing or malformed price.** Omitting `amount_minor`, or writing
-        it as a string or float, yields *no check at all* — a £5,200 send renders as an unpriced,
-        fully-clear action. A test in this branch blesses that as intended.
-      - **`department` is unvalidated free text**, so `"Sell"` or `"marketing"` misses the envelope
-        lookup and the spend is neither checked nor accrued. The agent picks whether it is budgeted.
-      - **Lane-authored `checks` render identically to the studio-computed one**, so an agent can
-        write `{"name":"sell budget envelope","passed":true,…}` and show a forged clearance.
-- [ ] A department nearing/over its envelope is flagged on the board.
-      **NOT MET, three ways.** Spend is read from `venture.repos[0]`, but in both `arca.yaml` and
-      `the-reset.yaml` the `sell` department — the only one with `gate: activegraph` and a
-      `postmark` connector, i.e. **the only one that spends money** — has its own repo. So every Sell
-      approval lives on a ref the studio never opens and the card renders a confident `within — 0%`.
-      **The e2e fixture concealed this** by putting the sell approval under the `repos[0]` key.
-      Separately, the over state has **no visual weight at all**: `data-budget-state` has no CSS
-      behind it, so 108% renders in the same muted grey as 4%, while every other alert state in that
-      same component sets `--color-warn`/`--color-error`. And the board passes `pendingMinor: 0`
-      while the card includes it, so the two disagree by construction — `e2e/budgets.spec.ts` asserts
-      exactly that disagreement, against a comment claiming they never can.
+- [x] Each department carries a spend envelope, and a spend approval shows the envelope check.
+      Envelopes live in `ventures/budgets/<id>.yaml` in the **studio** repo, which venture lanes
+      cannot write; the check is computed studio-side and **fails closed** on every agent-supplied
+      input it cannot trust (unreadable price, no price, unknown department, unstated or foreign
+      currency, unreadable budgets file), and never returns "no check at all" — an absent line used
+      to be the cheapest bypass available.
+- [x] A department nearing/over its envelope is flagged on the board — in colour, in weight, in a
+      glyph, in a screen-reader-only state word, and in the sentence itself. The marker escalates on
+      what the queue would do, so a department at 83% with £5,200 waiting is flagged rather than
+      reading calm.
+
+**Gaps (not met):**
+- ❌ **Per-department repo selection.** Spend is read from `venture.repos[0]`, so a Sell approval in
+      `arca-marketing` is invisible and that department reads `0%`.
+- ⚠ **The numerator is still lane-authored.** The limits moved out of the lane's reach; committed
+      spend is still summed from grant/execution records written on the venture box, and no
+      timestamp is covered by the approval HMAC. Future dates and non-ISO strings are now rejected
+      and the studio's own `granted_at` is preferred, which narrows the window-escape but does not
+      close it. Closing it needs FB-051's attestation verification.
 
 ## Review findings — rework status (2026-07-31)
 

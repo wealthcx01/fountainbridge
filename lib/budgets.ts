@@ -55,12 +55,16 @@ export interface EnvelopeStatus {
   spentMinor: number;
   limitMinor: number;
   currency: string;
-  /** Spend as a percentage of the limit, rounded. 0 when there is no limit. */
+  /** Spend as a percentage of the limit, rounded. 0 with no limit and no spend; 100 once spent against. */
   percent: number;
   /** Founder-facing one-liner: "104% of £4,800 for Sell". */
   detail: string;
-  /** Currencies with committed spend that could not be counted against this envelope. */
+  /** Committed spend that could not be summed, phrased for a founder (currencies, unreadable, undated). */
   uncountedCurrencies: string[];
+  /** True when the total is known to be incomplete — a check over it must NOT read as a clean pass. */
+  incomplete: boolean;
+  /** The state actually shown: the more severe of `state` and `projectedState`. Marker AND words. */
+  shownState: EnvelopeState;
   /**
    * The state if everything currently queued for this department were approved.
    *
@@ -80,6 +84,12 @@ export interface Spend {
   /** Only committed statuses count toward spend; see `committedSpend`. */
   status: string;
   /**
+   * Why this spend cannot be summed, if it cannot. A granted action whose price was a float, string
+   * or negative used to become £0 of committed spend forever — the "malformed price renders as a
+   * free action" bug, displaced from the proposal to the RUNNING TOTAL, where it under-states.
+   */
+  uncountable?: 'unreadable-price';
+  /**
    * When this spend was committed (ISO-8601), from the grant/execution record. Null when the record
    * carries no timestamp — v0 did not require one. An undated spend counts in EVERY window rather
    * than none: dropping it would understate the total, and understating a budget is the direction
@@ -91,6 +101,26 @@ export interface Spend {
 /** The committed statuses. Shared so `committedSpend` and `mismatchedCurrencies` cannot drift. */
 const COMMITTED = new Set(['granted', 'executing', 'executed']);
 const isCommitted = (s: Spend) => COMMITTED.has(s.status);
+
+/**
+ * Spend as a percentage of a limit. ONE definition, because the projected figure used to divide by
+ * `(limitMinor || 1)` while the primary one guarded properly — so a zero limit with £5,200 queued
+ * rendered "within — 0% of £0; 52000000% if everything queued is approved": two numbers in one
+ * sentence, computed two ways, one of them garbage.
+ */
+export function pct(amountMinor: number, limitMinor: number): number {
+  if (limitMinor > 0) return Math.round((amountMinor / limitMinor) * 100);
+  return amountMinor > 0 ? 100 : 0;
+}
+
+/** The over/nearing/within ladder. One definition — a money threshold must not live in three places. */
+export function stateFor(amountMinor: number, limitMinor: number): Exclude<EnvelopeState, 'unset'> {
+  if (amountMinor > limitMinor) return 'over';
+  // The `limitMinor > 0` guard is not redundant: with a zero limit and zero spend, `0 >= 0 * 0.8`
+  // is true and a department that has spent nothing would read as "nearing".
+  if (limitMinor > 0 && amountMinor >= limitMinor * NEARING_THRESHOLD) return 'nearing';
+  return 'within';
+}
 
 /** The start of the envelope's current window. `all-time` has none. */
 export function periodStart(period: Period, now: Date): Date | null {
@@ -112,12 +142,36 @@ export function periodStart(period: Period, now: Date): Date | null {
  * every priced action is permanently "over" and the one genuine runaway is indistinguishable from
  * twelve routine sends. The label was not merely unenforced — it made the number a lie that grew.
  */
+const ISO_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * When a spend happened, or null if we cannot know.
+ *
+ * Only strict ISO-8601 WITH an offset is accepted: an offset-less datetime resolves in server-local
+ * time, so on any deployment not pinned to UTC a spend within ~14h of a period boundary would land
+ * in the wrong window, silently. A FUTURE timestamp is also rejected — the value is written by the
+ * spending agent, and `at >= start` has no upper bound, so a date in the year 3000 would otherwise
+ * book spend into every window forever.
+ */
+export function spendInstant(at: string | null | undefined, now: Date): number | null {
+  if (!at || !ISO_WITH_OFFSET.test(at)) return null;
+  const ms = Date.parse(at);
+  if (!Number.isFinite(ms) || ms > now.getTime()) return null;
+  return ms;
+}
+
+/**
+ * Is this spend inside the envelope's window?
+ *
+ * An UNDATABLE spend counts in every window rather than none — understating a budget is the
+ * direction that hurts — but it is also named in the founder-facing caveat, so "we could not date
+ * this" is visible rather than absorbed into a confident number.
+ */
 export function withinPeriod(spend: Spend, period: Period, now: Date): boolean {
   const start = periodStart(period, now);
   if (!start) return true;
-  if (!spend.at) return true; // undated: count it rather than understate the total
-  const at = Date.parse(spend.at);
-  return !Number.isFinite(at) || at >= start.getTime();
+  const ms = spendInstant(spend.at, now);
+  return ms === null || ms >= start.getTime();
 }
 
 /** How the founder should read the window in a sentence. */
@@ -171,8 +225,8 @@ export function parseEnvelopes(raw: unknown): EnvelopeSet {
   if (doc.currency !== undefined && normalizeCurrency(doc.currency) === null) {
     return { envelopes: [], error: `"${String(doc.currency)}" is not a currency code` };
   }
-  const period = parsePeriod(doc.period);
-  if (doc.period !== undefined && period === null) {
+  const period = parsePeriod(doc.period) ?? 'monthly';
+  if (doc.period !== undefined && parsePeriod(doc.period) === null) {
     return { envelopes: [], error: `"${String(doc.period)}" is not a period (monthly|quarterly|yearly|all-time)` };
   }
 
@@ -191,7 +245,7 @@ export function parseEnvelopes(raw: unknown): EnvelopeSet {
       rejected.push(department);
       continue;
     }
-    out.push({ department, limitMinor: value, currency, period: period ?? 'monthly' });
+    out.push({ department, limitMinor: value, currency, period });
   }
 
   return {
@@ -224,12 +278,18 @@ const BUDGETS_DIR = join(process.cwd(), 'ventures', 'budgets');
  * swallowed into "no budgets".
  */
 export function loadEnvelopes(ventureId: string, dir = BUDGETS_DIR): EnvelopeSet {
-  if (!/^[a-z0-9][a-z0-9-]*$/i.test(ventureId)) return { envelopes: [], error: null };
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(ventureId)) {
+    return { envelopes: [], error: `"${ventureId}" is not a usable venture id for a budgets file` };
+  }
   let text: string;
   try {
     text = readFileSync(join(dir, `${ventureId}.yaml`), 'utf8');
-  } catch {
-    return { envelopes: [], error: null }; // no budgets set for this venture
+  } catch (err) {
+    // ONLY a missing file means "no budgets set". A permissions mistake, a directory in the file's
+    // place, or any other I/O failure used to be swallowed into the same silent path — turning the
+    // money gate off with nothing on screen, which is what non-negotiable 10 exists to prevent.
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { envelopes: [], error: null };
+    return { envelopes: [], error: `the budgets file could not be read (${(err as Error).message})` };
   }
   try {
     return parseEnvelopes(yaml.load(text));
@@ -260,7 +320,57 @@ export function committedSpend(
     // currency field rendered as "208% of £4,800". Both are excluded here and both are named by
     // `mismatchedCurrencies`, so they are visible rather than ignored or wrongly counted.
     .filter((s) => !currency || s.currency === currency)
+    .filter((s) => !s.uncountable)
     .reduce((sum, s) => sum + (Number.isFinite(s.amountMinor) ? s.amountMinor : 0), 0);
+}
+
+/**
+ * Everything committed to this department that could NOT be added up, phrased for a founder.
+ *
+ * A total that quietly omits spend is more dangerous than one that admits what it left out — and
+ * every omission here is agent-reachable, so silence would be the agent's best strategy.
+ */
+export function uncountedNotes(spends: Spend[], department: string, currency: string, period: Period, now: Date): string[] {
+  const mine = spends.filter((s) => s.department === department).filter(isCommitted);
+  const notes: string[] = [];
+  const currencies = [...new Set(
+    mine.filter((s) => withinPeriod(s, period, now)).filter((s) => !s.uncountable)
+      .map((s) => s.currency).filter((c) => c !== currency).map((c) => c ?? '(unstated currency)'),
+  )].sort();
+  if (currencies.length) notes.push(`spend in ${currencies.join(', ')}`);
+  const unreadable = mine.filter((s) => s.uncountable === 'unreadable-price').length;
+  if (unreadable) notes.push(`${unreadable} action${unreadable === 1 ? '' : 's'} whose price could not be read`);
+  const undated = mine.filter((s) => !s.uncountable && spendInstant(s.at, now) === null).length;
+  if (undated && period !== 'all-time') {
+    notes.push(`${undated} undated action${undated === 1 ? '' : 's'} counted in every period`);
+  }
+  return notes;
+}
+
+/**
+ * Queued (proposed, not yet approved) spend for a department, in the envelope's currency.
+ *
+ * ONE definition, called from both the board and the cards. The first rework hand-rolled this at two
+ * sites, neither filtering currency and both coercing an unreadable price to zero with `?? 0` — so a
+ * queued $10,000 proposal was added 1:1 to a GBP envelope and drove the board's warning marker,
+ * while a malformed one silently vanished from the projection. Both are exactly the bugs the
+ * committed path had already been hardened against.
+ */
+export function queuedSpend(
+  spends: Spend[],
+  department: string,
+  currency: string,
+  excludeIndexOf?: (s: Spend) => boolean,
+): { countableMinor: number; uncountable: number } {
+  const queued = spends
+    .filter((s) => s.department === department && s.status === 'proposed')
+    .filter((s) => !excludeIndexOf || !excludeIndexOf(s));
+  return {
+    countableMinor: queued
+      .filter((s) => !s.uncountable && s.currency === currency)
+      .reduce((sum, s) => sum + s.amountMinor, 0),
+    uncountable: queued.filter((s) => s.uncountable || s.currency !== currency).length,
+  };
 }
 
 /**
@@ -327,67 +437,64 @@ export function envelopeStatus(
       percent: 0,
       detail: 'no budget set',
       uncountedCurrencies: [],
+      incomplete: false,
+      shownState: 'unset',
       projectedState: 'unset',
     };
   }
 
   const { limitMinor, currency, period } = envelope;
-  const spentMinor =
-    committedSpend(spends, envelope.department, currency, period, now) + Math.max(0, pendingMinor);
-  const uncounted = mismatchedCurrencies(spends, envelope.department, currency, period, now);
-  // A zero limit means "no spending here", so anything at all is over — but zero spend against it is
-  // still within. Guarding the division separately keeps that from becoming NaN or Infinity%.
-  const percent = limitMinor > 0 ? Math.round((spentMinor / limitMinor) * 100) : spentMinor > 0 ? 100 : 0;
-  // The `limitMinor > 0` guard on `nearing` is not redundant: with a zero limit and zero spend,
-  // `0 >= 0 * 0.8` is true, and a department that has spent nothing would read as "nearing" its
-  // budget. Nothing has happened yet — that is `within`.
-  const state: EnvelopeState =
-    spentMinor > limitMinor
-      ? 'over'
-      : limitMinor > 0 && spentMinor >= limitMinor * NEARING_THRESHOLD
-        ? 'nearing'
-        : 'within';
+  const spentMinor = committedSpend(spends, envelope.department, currency, period, now) + Math.max(0, pendingMinor);
+  const uncounted = uncountedNotes(spends, envelope.department, currency, period, now);
 
-  const of = `${formatMoney(limitMinor, currency)} ${periodLabel(period)}`;
-  // Never hide uncounted spend. "104% of £4,800" that quietly omits $4,000 of committed spend is a
-  // more dangerous number than one that admits what it could not add up.
-  const caveat = uncounted.length ? ` (excludes spend in ${uncounted.join(', ')})` : '';
-  // What the founder's OWN queue would do to this envelope. Ten £1,000 proposals each used to read
-  // "within — 21%": committed spend excludes `proposed`, and each card only added its own amount,
-  // so approving all ten spent £10,000 and no card ever said so. Sibling pending spend is the thing
-  // the founder is deciding among, so it belongs on the same line.
+  const percent = pct(spentMinor, limitMinor);
+  const state = stateFor(spentMinor, limitMinor);
   const queued = Math.max(0, queuedMinor);
-  const ifAllApproved = queued > 0
-    ? `; ${Math.round(((spentMinor + queued) / (limitMinor || 1)) * 100)}% if everything queued is approved`
-    : '';
-  const detail =
-    state === 'over'
-      ? `over — ${percent}% of ${of}${ifAllApproved}${caveat}`
-      : state === 'nearing'
-        ? `nearing — ${percent}% of ${of}${ifAllApproved}${caveat}`
-        : `within — ${percent}% of ${of}${ifAllApproved}${caveat}`;
-
   const projected = spentMinor + queued;
-  const projectedState: EnvelopeState =
-    projected > limitMinor
-      ? 'over'
-      : limitMinor > 0 && projected >= limitMinor * NEARING_THRESHOLD
-        ? 'nearing'
-        : 'within';
+  const projectedState = stateFor(projected, limitMinor);
+
+  // The words must say what the marker says. The first rework escalated colour, weight and glyph on
+  // `projectedState` while the sentence was derived from `state`, so a founder reading the text (or
+  // a screen reader) was told "nearing" beside a bold red warning — the escalation was invisible to
+  // exactly the people the non-colour signal was added for.
+  const shownState = SEVERITY[projectedState] > SEVERITY[state] ? projectedState : state;
+  const of = `${formatMoney(limitMinor, currency)} ${periodLabel(period)}`;
+  const projection = queued > 0
+    ? `; ${pct(projected, limitMinor)}% if everything queued is approved`
+    : '';
+  const caveat = uncounted.length ? ` (excludes ${uncounted.join('; ')})` : '';
+  const lead = shownState === state
+    ? `${state} — ${percent}% of ${of}`
+    : `${state} now, ${projectedState} if everything queued is approved — ${percent}% of ${of}`;
 
   return {
-    department, state, spentMinor, limitMinor, currency, percent, detail,
-    uncountedCurrencies: uncounted, projectedState,
+    department,
+    state,
+    shownState,
+    projectedState,
+    spentMinor,
+    limitMinor,
+    currency,
+    percent,
+    detail: `${lead}${projection}${caveat}`,
+    uncountedCurrencies: uncounted,
+    incomplete: uncounted.length > 0,
   };
 }
 
-/** Why a priced action could not be checked against its envelope. Never silently omitted. */
+/** Ordering of states by how much they should worry a founder. */
+export const SEVERITY: Record<EnvelopeState, number> = { unset: 0, within: 1, nearing: 2, over: 3 };
+
+/** Why a priced action could not be checked against its envelope. Machine-readable, not prose. */
 export type UncheckableReason =
   | 'no-price'
   | 'unreadable-price'
   | 'unknown-department'
+  | 'no-envelope'
+  | 'budgets-unreadable'
   | 'unstated-currency'
-  | 'foreign-currency';
+  | 'foreign-currency'
+  | 'incomplete-total';
 
 export interface PendingSpend {
   /** Integer minor units, or null when the proposal stated no readable price. */
@@ -398,13 +505,17 @@ export interface PendingSpend {
   priceUnreadable?: boolean;
 }
 
+export interface EnvelopeCheck extends PolicyCheck {
+  reason?: UncheckableReason;
+}
+
 /**
  * The policy check the founder sees on a spend approval.
  *
- * FAILS CLOSED. Every branch that cannot produce an honest number returns a check that does NOT
- * pass, saying why. The first cut returned `null` — no check at all — whenever the price was
- * missing or malformed, the department unknown, or the envelope absent, so an agent could exempt
- * its own spend by omitting one field and the card would read "✓ policy checks clear".
+ * ALWAYS returns a check. An absent studio check carries no information — a founder cannot tell
+ * "checked, and it was free" from "never checked" — so the first rework's `null` returns became the
+ * cheapest bypass available: declaring `amount_minor: 0`, or omitting the field, produced silence
+ * that read as clean. Every proposal reaching this gate now gets a line.
  *
  * `passed: false` still does not BLOCK: the founder may decide the over-budget send is right. What
  * they must not be able to do is make that call believing the spend was checked when it was not.
@@ -415,35 +526,51 @@ export function envelopeCheck(
   departmentName: string,
   pending: PendingSpend,
   now: Date,
-  knownDepartment = true,
-  queuedMinor = 0,
-): PolicyCheck | null {
-  const name = `${departmentName || 'unknown department'} budget envelope`;
-  const cannot = (detail: string): PolicyCheck => ({ name, passed: false, detail });
+  opts: { knownDepartment?: boolean; queuedMinor?: number; queuedUncountable?: number; budgetsError?: string | null } = {},
+): EnvelopeCheck {
+  const { knownDepartment = false, queuedMinor = 0, queuedUncountable = 0, budgetsError = null } = opts;
+  // A FIXED name. The raw `department` string is proposer-controlled and was previously interpolated
+  // into text badged "checked by the studio", letting attacker prose render on the trusted surface.
+  const name = 'budget envelope';
+  const cannot = (reason: UncheckableReason, detail: string): EnvelopeCheck => ({ name, passed: false, detail, reason });
 
-  // A department the manifest does not declare cannot be budgeted, and an agent choosing an
-  // unrecognised string was the first cut's way to opt its own spend out of the gate entirely.
+  if (budgetsError) {
+    // Distinct from "no budget set": a founder who configured £4,800 last week must not be told the
+    // department is deliberately unbudgeted when the truth is that nothing is being enforced.
+    return cannot('budgets-unreadable', 'cannot be checked — this venture’s budgets file could not be read');
+  }
   if (!knownDepartment) {
-    return cannot(`cannot be checked — "${departmentName}" is not a department of this venture`);
+    return cannot('unknown-department', 'cannot be checked — this action names a department this venture does not have');
   }
   if (pending.priceUnreadable) {
-    return cannot('cannot be checked — this action states a cost the studio cannot read');
+    return cannot('unreadable-price', 'cannot be checked — this action states a cost the studio cannot read');
   }
-  // Genuinely free actions say nothing; that is not a bypass because a stated-but-unreadable price
-  // is caught above.
-  if (pending.amountMinor === null || pending.amountMinor <= 0) return null;
+  if (pending.amountMinor === null) {
+    return cannot('no-price', 'cannot be checked — this action states no cost, so nothing was counted against the envelope');
+  }
   if (!envelope) {
-    return cannot(`cannot be checked — no budget is set for ${departmentName}`);
+    return cannot('no-envelope', `cannot be checked — no budget is set for ${knownDepartment ? departmentName : 'this department'}`);
   }
-  // An unstated currency used to be treated as the envelope's, so a $10,000 send with no currency
-  // field rendered as "208% of £4,800" — wrong units on the exact number being decided on.
-  if (!pending.currency) {
-    return cannot(`cannot be checked — this action states no currency; the envelope is in ${envelope.currency}`);
+  if (pending.amountMinor > 0 && !pending.currency) {
+    return cannot('unstated-currency', `cannot be checked — this action states no currency; the envelope is in ${envelope.currency}`);
   }
-  if (pending.currency !== envelope.currency) {
-    return cannot(`cannot be checked — priced in ${pending.currency}, the envelope is in ${envelope.currency}`);
+  if (pending.amountMinor > 0 && pending.currency !== envelope.currency) {
+    return cannot('foreign-currency', `cannot be checked — priced in ${pending.currency}, the envelope is in ${envelope.currency}`);
   }
 
   const status = envelopeStatus(envelope, spends, departmentName, now, pending.amountMinor, queuedMinor);
-  return { name, passed: status.state !== 'over', detail: status.detail };
+  // A check whose own detail admits it could not count some spend must not show a tick. Otherwise an
+  // agent pricing its sends in a second currency keeps every later card green however much it spent.
+  if (status.incomplete || queuedUncountable > 0) {
+    const extra = queuedUncountable > 0
+      ? `; ${queuedUncountable} queued action${queuedUncountable === 1 ? '' : 's'} could not be counted either`
+      : '';
+    return {
+      name,
+      passed: false,
+      reason: 'incomplete-total',
+      detail: `${status.detail}${extra} — the total is incomplete, so this cannot be confirmed as within budget`,
+    };
+  }
+  return { name, passed: status.state !== 'over' && status.projectedState !== 'over', detail: status.detail };
 }

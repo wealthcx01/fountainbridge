@@ -29,10 +29,13 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0', fontSize: 'var(--fs-body-sm)' }}
         >
           {approval.studioChecks.map((c, i) => (
-            <li key={i} style={{ color: c.passed ? undefined : 'var(--color-warn)' }}>
+            <li key={i} style={{ color: c.passed ? undefined : 'var(--color-error)' }}>
               {c.passed ? '✓' : '✗'} {c.name}
-              {c.detail ? <> — <span className="mono">{c.detail}</span></> : null}
-              <span className="muted"> · checked by the studio</span>
+              {c.detail ? <> — {c.detail}</> : null}
+              {/* Precise about what was independently verified: the studio owns the LIMIT and the
+                  running total, but the cost is the proposer's own assertion — there is no
+                  independent price source, so "checked by the studio" alone would launder it. */}
+              <span className="muted"> · limit and total checked by the studio; cost as stated by the proposer</span>
             </li>
           ))}
         </ul>
@@ -41,7 +44,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
         <ul
           className="muted"
           data-testid={`approval-${approval.id}-checks`}
-          style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-meta-lg)' }}
+          style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-meta)' }}
         >
           <li>
             {failing === 0 ? '✓ stated by the proposer' : `⚠ ${failing} check${failing === 1 ? '' : 's'} the proposer flagged`}
