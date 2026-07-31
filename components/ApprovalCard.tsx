@@ -117,7 +117,9 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                setResult(await approveExternalAction(ventureId, approval.id));
+                // The repo goes with the id: since FB-045 an approval id is unique only within its
+                // department's repo. The server checks it against the venture's declared repos.
+                setResult(await approveExternalAction(ventureId, approval.id, approval.repo));
               })
             }
           >

@@ -30,6 +30,8 @@ approval_matrix:
 
 repos:
   - arca
+  - arca-marketing   # Sell — provisioned FB-045
+  - arca-ops         # Scale — provisioned FB-045
 
 lanes:
   - id: arca
@@ -56,14 +58,14 @@ departments:
   - id: sell
     venture_id: arca
     name: Sell — Go-to-market
-    repo: arca-marketing        # content + interest-based sends (to be provisioned)
+    repo: arca-marketing        # content + interest-based sends
     queue_path: docs/tickets
     gate: activegraph           # external sends gate on a recorded ActiveGraph approval (research-gtm)
     connectors: []
   - id: scale
     venture_id: arca
     name: Scale — Growth & Ops
-    repo: arca-ops              # analytics, ops, finance (to be provisioned)
+    repo: arca-ops              # analytics, ops, finance
     queue_path: docs/tickets
     gate: tbd-fb012             # ops/finance mutations gate; reads free (Phase 4 / FB-012 follow-on)
     connectors: []

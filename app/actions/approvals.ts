@@ -17,7 +17,7 @@ import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { GitHubClient } from '@/lib/github';
-import { APPROVALS_REF, type ApprovalProposal } from '@/lib/approvals';
+import { APPROVALS_REF, approvalRepos, type ApprovalProposal } from '@/lib/approvals';
 import { attestationFor, approverRoleForDepartment, canApprove } from '@/lib/approval-attestation';
 import { verifyGrant } from '@/lib/provenance';
 
@@ -26,7 +26,19 @@ export interface ApproveResult {
   message: string;
 }
 
-export async function approveExternalAction(ventureId: string, approvalId: string): Promise<ApproveResult> {
+export async function approveExternalAction(
+  ventureId: string,
+  approvalId: string,
+  /**
+   * Which repo the approval lives in (FB-045). Since departments got their own repos, an approval id
+   * is only unique WITHIN a repo — a Sell proposal lives in the marketing repo, and approving it
+   * against the product repo would look up the wrong file, or the wrong approval of the same name.
+   *
+   * Client-supplied, so it is checked against the venture's own declared repos below and never used
+   * as given. Optional so the previous single-repo call still works.
+   */
+  repoParam?: string,
+): Promise<ApproveResult> {
   if (!/^[A-Za-z0-9._-]+$/.test(approvalId)) return { ok: false, message: 'Invalid approval id.' };
 
   const session = await auth();
@@ -47,8 +59,16 @@ export async function approveExternalAction(ventureId: string, approvalId: strin
     return { ok: false, message: 'Approvals are not set up on the studio yet (missing signing secret or write token).' };
   }
 
-  const repo = venture.repos[0];
+  // The repo must be one this venture actually declares. Taking the client's word would let a signed
+  // grant be issued for a repo outside the venture — and while the attestation binds the repo (so the
+  // executor would still be verifying the right thing), the studio would have written a founder's
+  // approval into a repository nobody scoped them to.
+  const allowedRepos = approvalRepos(venture);
+  const repo = repoParam ?? allowedRepos[0];
   if (!repo) return { ok: false, message: 'This venture has no repo configured.' };
+  if (!allowedRepos.includes(repo)) {
+    return { ok: false, message: 'That approval is not in one of this venture’s repositories.' };
+  }
 
   // Read the proposal (read App) + guard against re-granting.
   const reader = new GitHubClient();

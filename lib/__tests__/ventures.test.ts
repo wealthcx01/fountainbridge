@@ -31,7 +31,7 @@ describe('loadVentures (against the real ventures/ manifests)', () => {
     expect(loadVentures('/no/such/dir')).toEqual([]);
   });
 
-  it('parses the Build/Sell/Scale surfaces, marking declared-but-unprovisioned ones (FB-048)', () => {
+  it('parses the Build/Sell/Scale surfaces (FB-048), all three provisioned since FB-045', () => {
     const arca = loadVentures(DIR).find((v) => v.id === 'arca');
     expect(arca?.departments.map((d) => d.id)).toEqual(['build', 'sell', 'scale']);
     const build = arca?.departments.find((d) => d.id === 'build');
@@ -39,7 +39,15 @@ describe('loadVentures (against the real ventures/ manifests)', () => {
     expect(build?.provisioned).toBe(true); // repo 'arca' is in the venture's repos
     const sell = arca?.departments.find((d) => d.id === 'sell');
     expect(sell?.gate).toBe('activegraph');
-    expect(sell?.provisioned).toBe(false); // 'arca-marketing' not provisioned yet
+    expect(sell?.provisioned).toBe(true); // 'arca-marketing' created + in repos (FB-045)
+    expect(arca?.departments.find((d) => d.id === 'scale')?.provisioned).toBe(true);
+  });
+
+  it('still marks a declared-but-unprovisioned department as coming', () => {
+    // the-reset's repos exist in the manifest but not yet as real repos — the "coming" state has to
+    // survive arca's departments going live, or the studio would promise a surface nobody can use.
+    const reset = loadVentures(DIR).find((v) => v.id === 'the-reset');
+    expect(reset?.departments.some((d) => !d.provisioned)).toBe(true);
   });
 
   it('exposes the box host and derives the chat URL (FB-025)', () => {

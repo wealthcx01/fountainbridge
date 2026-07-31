@@ -55,6 +55,43 @@ log() { flog "$@"; }
 RUNDIR="${STATE_DIR:-/opt/foundry/lane/state}/runs/${SLUG}-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$RUNDIR"
 
+# FB-045: does this ticket's work end in an external action that a human must approve? Set by
+# run-once.sh from the department's gate. When it is 1 the lane must produce a proposal, and the
+# ABSENCE of one is a blocking failure — otherwise the cheapest way to finish a send ticket would be
+# to write a nice PR and quietly never propose the send.
+: "${LANE_REQUIRE_PROPOSAL:=0}"
+# Outside the venture worktree, so `git add -A` at COMMIT cannot sweep the proposal — a
+# frozen draft and a compliance record — into the founder's PR as a stray file.
+PROPOSAL_FILE="$RUNDIR/proposal.json"
+PROPOSAL_INSTRUCTION=""
+if [ "$LANE_REQUIRE_PROPOSAL" = 1 ]; then
+  # The draft is inlined into the proposal rather than referenced, because the founder must approve
+  # the bytes that would actually go out — a path can change between approval and execution while the
+  # signature over the proposal still verifies.
+  PROPOSAL_INSTRUCTION="
+
+THIS TICKET ENDS IN AN EXTERNAL ACTION — something that reaches a person outside the company. You do
+the work; you do NOT perform the action, and you hold no credentials to. Prepare it and propose it:
+  1. Do the work in the repo as usual (write the draft into the repo where the ticket says).
+  2. ALSO write $PROPOSAL_FILE with exactly this shape:
+     {
+       \"action_type\": \"send\" | \"publish\" | \"outreach\",
+       \"summary\": \"one plain sentence the founder decides on (max 300 chars)\",
+       \"draft\": \"THE FULL TEXT that would go out — inline it, never a file path\",
+       \"compliance\": {
+         \"recipients\": \"who they are and how they came to be on this list\",
+         \"lawful_basis\": \"why we may write to them\",
+         \"suppression_checked\": true,
+         \"sender\": \"the identity it would come from\"
+       },
+       \"amount_minor\": <integer pence, only if it costs money>, \"currency\": \"GBP\"
+     }
+     Do not add approval, attestation, actor or status fields — those are not yours to write, and a
+     proposal containing one is refused outright.
+  3. If you cannot honestly fill in the compliance facts, say so and stop. Do not guess them."
+fi
+
+
 fail()    { write_runreport "$SLUG" "failed"  "$1" "" "$STARTED"; flog "FAILED: $1";  exit 1; }
 blocked() { write_runreport "$SLUG" "blocked" "$1" "" "$STARTED"; flog "BLOCKED: $1"; exit 0; }
 
@@ -270,7 +307,7 @@ while : ; do
     IMPL_PROMPT="You are a Foundry engineering lane on the '$REPO' repo. Implement EXACTLY this ticket by following
 your PRP at $PLAN_FILE — including making its Validation gates actually hold. Make the smallest
 correct change. Edit files in the working tree only — do NOT commit, push, or open a PR (the
-supervisor does that), and do NOT run deploy or send commands.
+supervisor does that), and do NOT run deploy or send commands.${PROPOSAL_INSTRUCTION}
 When done, print ONE plain-English line summarising what you changed."
   else
     log "REPAIR (round $ROUND/$MAX_VALIDATION_ROUNDS)…"
@@ -530,11 +567,49 @@ ${GATE_REPORT:-_No validation gates were declared._}
 A human still reviews + merges (nothing merges or ships automatically)."
 PR_JSON=$(gh_api -X POST "$API/repos/$REPO/pulls" \
   -d "$(node -e 'const[t,h,b,body]=process.argv.slice(1);process.stdout.write(JSON.stringify({title:t,head:h,base:b,body}))' \
-        "ARCA: $SLUG (Foundry lane)" "$BRANCH" "$BASE_BRANCH" "$PR_BODY")")
+        "${LANE_DEPARTMENT:-build}: $SLUG (Foundry lane)" "$BRANCH" "$BASE_BRANCH" "$PR_BODY")")
 PR_URL=$(printf '%s' "$PR_JSON" | jval '.html_url')
 [ -n "$PR_URL" ] || fail "PR creation failed: $(printf '%s' "$PR_JSON" | jval '.message')"
 log "opened PR $PR_URL"
 
-# --- 10. RunReport: done (with the gate evidence) --------------------------------------------------
-write_runreport "$SLUG" "opened_pr" "$SUMMARY — researched from the venture's $RESEARCH_MODE, planned as a PRP with $GATE_COUNT validation gate(s) ($PRP_MODE), then $VALIDATION_NOTE against them plus tests, /review $RSTATUS and /qa: $QA_NOTE." "$PR_URL" "$STARTED"
+# --- 10. PROPOSE the external action, if this department gates one (FB-045) -------------------------
+# The PR carries the work; this carries the ACTION. They are separate on purpose: merging a draft is a
+# code review, sending it to three hundred people is not, and only the second one needs a human whose
+# approval the studio can prove.
+#
+# A missing or refused proposal BLOCKS. The alternative — open the PR, log a warning, report success —
+# is the failure mode where a founder believes a send is queued for their approval and nothing is.
+PROPOSAL_NOTE=""
+if [ "$LANE_REQUIRE_PROPOSAL" = 1 ]; then
+  log "PROPOSE (department $LANE_DEPARTMENT, gate ${LANE_GATE:-activegraph})…"
+  PROPOSAL_ID="$(node "$SCRIPT_DIR/proposal-check.mjs" id "$SLUG")"
+  set +e
+  NORMALISED="$(node "$SCRIPT_DIR/proposal-check.mjs" validate "$PROPOSAL_FILE" \
+      --department "$LANE_DEPARTMENT" --ticket "$SLUG" 2>"$RUNDIR/proposal-problems.txt")"
+  PRC=$?
+  set -e
+  case "$PRC" in
+    0) ;;
+    1) blocked "This ticket ends in something that goes to real people, so it needs your approval before it happens — but the lane never wrote the proposal for you to approve. The work is in $PR_URL; the send is NOT queued. It needs a human." ;;
+    *) blocked "The lane prepared this action but the proposal was refused: $(tr '\n' '; ' <"$RUNDIR/proposal-problems.txt" | head -c 400). Nothing is waiting for your approval. The work is in $PR_URL." ;;
+  esac
+  # Record which PR carries the draft, so the founder can read the work beside the decision.
+  NORMALISED="$(node -e '
+    const [json, pr] = process.argv.slice(1);
+    const p = JSON.parse(json); p.pr_url = pr;
+    process.stdout.write(JSON.stringify(p, null, 2));
+  ' "$NORMALISED" "$PR_URL")"
+  if write_proposal "$PROPOSAL_ID" "$NORMALISED"; then
+    PROPOSAL_NOTE=" The action itself is waiting for your OK in the studio — nothing has been sent."
+  else
+    blocked "The lane prepared this action and opened $PR_URL, but could not file the proposal for your approval (GitHub refused the write). Nothing is waiting for you, and nothing has been sent."
+  fi
+fi
+
+# --- 11. RunReport: done (with the gate evidence) --------------------------------------------------
+if [ -n "$PROPOSAL_NOTE" ]; then
+  write_runreport "$SLUG" "awaiting_founder" "$SUMMARY — researched from the venture's $RESEARCH_MODE, planned as a PRP with $GATE_COUNT validation gate(s) ($PRP_MODE), then $VALIDATION_NOTE against them plus tests, /review $RSTATUS and /qa: $QA_NOTE.$PROPOSAL_NOTE" "$PR_URL" "$STARTED"
+else
+  write_runreport "$SLUG" "opened_pr" "$SUMMARY — researched from the venture's $RESEARCH_MODE, planned as a PRP with $GATE_COUNT validation gate(s) ($PRP_MODE), then $VALIDATION_NOTE against them plus tests, /review $RSTATUS and /qa: $QA_NOTE." "$PR_URL" "$STARTED"
+fi
 log "done."

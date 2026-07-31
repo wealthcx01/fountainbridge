@@ -171,7 +171,7 @@ export function VentureBoard({
         <div data-testid="approvals-queue" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Needs your OK — before anything goes out</p>
           {pendingApprovals.map((a) => (
-            <ApprovalCard key={a.id} ventureId={venture.id} approval={a} />
+            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} />
           ))}
         </div>
       ) : null}
@@ -180,7 +180,7 @@ export function VentureBoard({
         <div data-testid="approvals-attention" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Went out, or tried to — needs your eye</p>
           {needsAttention.map((a) => (
-            <ApprovalCard key={a.id} ventureId={venture.id} approval={a} />
+            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} />
           ))}
         </div>
       ) : null}
