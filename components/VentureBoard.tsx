@@ -97,7 +97,7 @@ export function VentureBoard({
   fetchedAt,
   org,
 }: {
-  venture: { id: string; name: string; status: string; founderName: string | null; chatUrl: string | null };
+  venture: { id: string; name: string; status: string; founderName: string | null; hasComposer: boolean };
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
@@ -176,19 +176,20 @@ export function VentureBoard({
           what exists without telling you what to do about it. */}
       {brief ? <FounderBrief brief={brief} /> : null}
 
-      {/* Conversational composer entry (FB-025). A real link once the venture's box is provisioned
-          (chat.<box host>); otherwise an honest "coming with your box" note — never a dead link. */}
-      {venture.chatUrl ? (
-        <a
+      {/* Conversational composer entry (FB-025, moved inside the studio by FB-065). It used to be an
+          external link to the venture's own LibreChat — a different address, a different-looking
+          product, and no way back to the board. Same engine, same behaviour; the surface is now a
+          studio page. Still gated on the box existing: no box, no engine, and an honest note beats
+          a dead link. */}
+      {venture.hasComposer ? (
+        <Link
           className="btn btn-primary"
-          href={venture.chatUrl}
-          target="_blank"
-          rel="noreferrer"
+          href={`/venture/${venture.id}/composer`}
           data-testid="venture-chat-link"
           style={{ marginTop: '0.25rem' }}
         >
-          Chat — describe what you want
-        </a>
+          Tell the studio what you want
+        </Link>
       ) : (
         <p className="card muted" data-testid="venture-chat-pending" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.25rem' }}>
           Your conversational composer — describe what you want in plain English and it becomes a

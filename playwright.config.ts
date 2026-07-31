@@ -40,6 +40,10 @@ export default defineConfig({
       RUNREPORTS_FIXTURE_DIR: 'e2e/fixtures/runreports',
       // FB-064. Gated on E2E_TEST_LOGIN at the call site as well — this surface can MERGE.
       WORK_FIXTURE_DIR: 'e2e/fixtures/work',
+      // FB-065. A recorded stream off the real ARCA box, including the inconsistent tool-call
+      // indices the engine actually sends — so the UI gate proves the surface against what the
+      // engine does, not against what its format says it should do.
+      COMPOSER_FIXTURE: 'e2e/fixtures/composer/stream.sse',
       // The gate's shared secret. Without it every fixture grant reads `unattested` and a granted
       // spend silently reverts to "awaiting your OK" — which is the correct product behaviour
       // (FB-051) but means the e2e would never exercise the attested path at all. The fixture

@@ -68,6 +68,34 @@ The seed is the single source of truth for the agent prompts (the modelSpecs are
 default) and **Foundry Research** (web_search only) — and grants each PUBLIC VIEW (visible to every
 venture founder) + owner to the author.
 
+### Letting the studio host the conversation (FB-065)
+The composer is now a page **inside the Foundry Studio**; this box is the engine behind it. That runs
+over LibreChat's documented Agents API (`/api/agents/v1/chat/completions`), not the internal browser
+route, so it does not break on their next release.
+
+```bash
+# on the box, after the agent seed:
+./enable-agents-api.sh                         # composer agent, the box's first user
+./enable-agents-api.sh agent_foundry_research founder@example.com
+```
+
+It prints one key. Put it on the **studio** (Railway → Variables) as
+`COMPOSER_API_KEY_<VENTURE_ID>` — one key per venture, because one box per venture (D1). It never
+goes in this repo (CLAUDE.md #8).
+
+Three things have to be true before that API answers, and the script does all three because missing
+any one of them fails in a way that reads like the feature being off:
+
+| | What | If it is missing |
+| --- | --- | --- |
+| 1 | `interface.remoteAgents.use: true` in `librechat.yaml` | every call 401s |
+| 2 | an API key from `/api/api-keys` | every call 401s |
+| 3 | a REMOTE_AGENT grant **per agent** | `/v1/models` returns an empty list — the API answers, and has nothing to offer |
+
+LibreChat's own `backfillRemoteAgentPermissions` writes grant 3, but it cannot be driven from outside
+the running server (its `~/…` aliases are registered by the app entrypoint), so the script writes the
+row in the shape that helper produces, reading `permBits` and `roleId` from the role document.
+
 ### Web search (FB-035)
 The composer + research agents gather market/competitor/pricing context via **Tavily** (one key does
 search + scraping). `librechat.yaml` has the `webSearch` block + `web_search` in the agents

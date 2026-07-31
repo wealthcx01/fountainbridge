@@ -11,6 +11,15 @@ interface:
   memories: true         # FB-036: show the memory toggle + let the founder view/manage memories
   presets: false
   parameters: false
+  # FB-065: the Agents API — an OpenAI-compatible endpoint at /api/agents/v1 that lets the STUDIO
+  # host the conversation instead of sending the founder to a second product at a second address.
+  # Off by default in LibreChat; `use` also grants the API-key routes (/api/apiKeys). `create` stays
+  # false: keys are minted once, by an admin, not by whoever is chatting.
+  remoteAgents:
+    use: true
+    create: false
+    share: false
+    public: false
 
 # The write tool: the Foundry composer files an approved ticket to the venture backlog as a PR.
 # FB-033: stdio transport. LibreChat spawns this file with the api container's own node. A stdio
