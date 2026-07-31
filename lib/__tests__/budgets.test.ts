@@ -191,3 +191,59 @@ describe('attachEnvelopeChecks — the check the card renders', () => {
     expect(second.checks[1]).toMatchObject({ passed: true });
   });
 });
+
+// --- Review finding (FB-054 /review) -------------------------------------------------------------
+describe('currencies are only comparable within themselves', () => {
+  const mixed: Spend[] = [
+    spend({ amountMinor: 400_000, currency: 'USD' }),
+    spend({ amountMinor: 100_000, currency: 'GBP' }),
+  ];
+
+  it('does NOT count a USD spend against a GBP envelope', () => {
+    // Before this fix, $4,000 was added to a £4,800 envelope as if it were £4,000 and rendered
+    // "over — 104% of £4,800": a silent 100%+ mispricing of a money gate.
+    const s = envelopeStatus(envelope, mixed, 'sell');
+    expect(s.spentMinor).toBe(100_000);
+    expect(s.percent).toBe(21);
+    expect(s.state).toBe('within');
+  });
+
+  it('says plainly what it could not add up, rather than hiding it', () => {
+    const s = envelopeStatus(envelope, mixed, 'sell');
+    expect(s.uncountedCurrencies).toEqual(['USD']);
+    expect(s.detail).toContain('excludes spend in USD');
+  });
+
+  it('counts a spend with no stated currency, and adds no caveat', () => {
+    const s = envelopeStatus(envelope, [spend({ amountMinor: 100_000, currency: null })], 'sell');
+    expect(s.spentMinor).toBe(100_000);
+    expect(s.uncountedCurrencies).toEqual([]);
+    expect(s.detail).not.toContain('excludes');
+  });
+
+  it('lists each uncounted currency once, sorted', () => {
+    const s = envelopeStatus(envelope, [
+      spend({ currency: 'USD' }), spend({ currency: 'EUR' }), spend({ currency: 'USD' }),
+    ], 'sell');
+    expect(s.uncountedCurrencies).toEqual(['EUR', 'USD']);
+  });
+
+  it('carries the caveat into the approval check the founder reads', () => {
+    const check = envelopeCheck(envelope, mixed, 'sell', 100_000);
+    expect(check?.detail).toContain('excludes spend in USD');
+  });
+});
+
+describe('a proposal priced in another currency cannot be checked', () => {
+  it('refuses to imply it is within budget', () => {
+    const check = envelopeCheck(envelope, [], 'sell', 500_000, 'USD');
+    expect(check?.passed).toBe(false);
+    expect(check?.detail).toContain('cannot be checked');
+    expect(check?.detail).toContain('priced in USD');
+  });
+
+  it('checks normally when the currency matches, or is not stated', () => {
+    expect(envelopeCheck(envelope, [], 'sell', 100_000, 'GBP')?.passed).toBe(true);
+    expect(envelopeCheck(envelope, [], 'sell', 100_000, null)?.passed).toBe(true);
+  });
+});

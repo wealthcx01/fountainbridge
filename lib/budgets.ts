@@ -52,6 +52,8 @@ export interface EnvelopeStatus {
   percent: number;
   /** Founder-facing one-liner: "104% of £4,800 for Sell". */
   detail: string;
+  /** Currencies with committed spend that could not be counted against this envelope. */
+  uncountedCurrencies: string[];
 }
 
 /** Anything with a department and a cost — the shape both approvals and test fixtures satisfy. */
@@ -96,11 +98,32 @@ export function parseEnvelopes(raw: unknown): Envelope[] {
  * mid-flight. `proposed` is excluded — it has not been approved, and counting it would let an
  * unapproved (or never-to-be-approved) proposal squeeze out real work.
  */
-export function committedSpend(spends: Spend[], department: string): number {
+export function committedSpend(spends: Spend[], department: string, currency?: string): number {
   return spends
     .filter((s) => s.department === department)
     .filter((s) => s.status === 'granted' || s.status === 'executing' || s.status === 'executed')
+    // Minor units are only comparable within one currency. Adding $4,000 to a £4,800 envelope as if
+    // it were £4,000 is a silent 100%+ mispricing of a MONEY gate — the one place being quietly
+    // wrong is worst. A spend in another currency is excluded here and surfaced separately by
+    // `mismatchedCurrencies`, so it is visible rather than either ignored or wrongly counted.
+    .filter((s) => !currency || !s.currency || s.currency === currency)
     .reduce((sum, s) => sum + (Number.isFinite(s.amountMinor) ? s.amountMinor : 0), 0);
+}
+
+/**
+ * Spend in this department that could NOT be counted because it is in another currency.
+ *
+ * Converting would need an exchange rate and a rate date, which is a real feature (and a compliance
+ * question) rather than something to guess at inside a read model. So the honest answer is to count
+ * what is comparable and tell the founder plainly what was left out.
+ */
+export function mismatchedCurrencies(spends: Spend[], department: string, currency: string): string[] {
+  const found = spends
+    .filter((s) => s.department === department)
+    .filter((s) => s.status === 'granted' || s.status === 'executing' || s.status === 'executed')
+    .map((s) => s.currency)
+    .filter((c): c is string => Boolean(c) && c !== currency);
+  return [...new Set(found)].sort();
 }
 
 /** Format minor units as a founder-facing amount: 480000 + GBP → "£4,800". */
@@ -136,11 +159,13 @@ export function envelopeStatus(
       currency: 'GBP',
       percent: 0,
       detail: 'no budget set',
+      uncountedCurrencies: [],
     };
   }
 
-  const spentMinor = committedSpend(spends, envelope.department) + Math.max(0, pendingMinor);
   const { limitMinor, currency } = envelope;
+  const spentMinor = committedSpend(spends, envelope.department, currency) + Math.max(0, pendingMinor);
+  const uncounted = mismatchedCurrencies(spends, envelope.department, currency);
   // A zero limit means "no spending here", so anything at all is over — but zero spend against it is
   // still within. Guarding the division separately keeps that from becoming NaN or Infinity%.
   const percent = limitMinor > 0 ? Math.round((spentMinor / limitMinor) * 100) : spentMinor > 0 ? 100 : 0;
@@ -155,14 +180,17 @@ export function envelopeStatus(
         : 'within';
 
   const of = `${formatMoney(limitMinor, currency)} ${envelope.period}`;
+  // Never hide uncounted spend. "104% of £4,800" that quietly omits $4,000 of committed spend is a
+  // more dangerous number than one that admits what it could not add up.
+  const caveat = uncounted.length ? ` (excludes spend in ${uncounted.join(', ')})` : '';
   const detail =
     state === 'over'
-      ? `over — ${percent}% of ${of}`
+      ? `over — ${percent}% of ${of}${caveat}`
       : state === 'nearing'
-        ? `nearing — ${percent}% of ${of}`
-        : `within — ${percent}% of ${of}`;
+        ? `nearing — ${percent}% of ${of}${caveat}`
+        : `within — ${percent}% of ${of}${caveat}`;
 
-  return { department, state, spentMinor, limitMinor, currency, percent, detail };
+  return { department, state, spentMinor, limitMinor, currency, percent, detail, uncountedCurrencies: uncounted };
 }
 
 /**
@@ -177,9 +205,23 @@ export function envelopeCheck(
   spends: Spend[],
   departmentName: string,
   pendingMinor: number,
+  pendingCurrency?: string | null,
 ): PolicyCheck | null {
   // Nothing to say about an action that costs nothing, or a department with no envelope set.
   if (!envelope || pendingMinor <= 0) return null;
+
+  // The pending proposal's own currency has to match too. Counting a $5,000 send against a £4,800
+  // envelope is the same silent mispricing as counting past spend that way — and here it is the
+  // number the founder is looking at while deciding.
+  if (pendingCurrency && pendingCurrency !== envelope.currency) {
+    return {
+      name: `${departmentName} budget envelope`,
+      // Not a pass. We cannot say this is within budget, so we must not imply it is.
+      passed: false,
+      detail: `cannot be checked — this is priced in ${pendingCurrency}, the envelope is in ${envelope.currency}`,
+    };
+  }
+
   const status = envelopeStatus(envelope, spends, departmentName, pendingMinor);
   return {
     name: `${departmentName} budget envelope`,

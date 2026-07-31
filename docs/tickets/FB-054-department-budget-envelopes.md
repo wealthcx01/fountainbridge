@@ -56,5 +56,5 @@ Two things this ticket fixed on the way past: the approval card was **discarding
 defeated this ticket's entire point; and FB-046 shipped the approval read model with **no fixture
 source**, so the approval card had no deterministic UI coverage at all. Both are now covered.
 
-148 tests, lint, typecheck, build, the Playwright UI gate (36, two new), ticket parse, manifest
+155 tests, lint, typecheck, build, the Playwright UI gate (36, two new), ticket parse, manifest
 validation and shellcheck all green.

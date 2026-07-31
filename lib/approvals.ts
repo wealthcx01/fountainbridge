@@ -224,7 +224,7 @@ export function attachEnvelopeChecks(
 
   return approvals.map((a) => {
     if (a.status !== 'proposed' || !a.department || a.amountMinor <= 0) return a;
-    const check = envelopeCheck(byDept.get(a.department), spends, a.department, a.amountMinor);
+    const check = envelopeCheck(byDept.get(a.department), spends, a.department, a.amountMinor, a.currency);
     return check ? { ...a, checks: [...a.checks, check] } : a;
   });
 }
