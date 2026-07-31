@@ -92,12 +92,20 @@ export function composeBrief(input: BriefInput): Brief {
     });
   }
 
-  // 5. The engine itself, always — including when it is healthy and idle, because "nothing happened"
-  //    and "nothing could happen" are the two states a founder most needs told apart.
-  lines.push({
-    tone: input.engine.state === 'stalled' ? 'blocked' : input.engine.state === 'unknown' ? 'idle' : 'working',
-    text: input.engine.text,
-  });
+  // 5. The engine — when it is worth saying. "Nothing happened" and "nothing could happen" are the
+  //    two states a founder most needs told apart, so a stalled or absent lane always appears here,
+  //    and so does a healthy one when there is nothing else to report.
+  //
+  //    But NOT when it is healthy and something else is already on the list: the activity strip
+  //    directly below prints the same sentence, and a brief that repeats the line beneath it
+  //    verbatim is padding rather than a summary (FB-063).
+  const engineIsNews = input.engine.state === 'stalled' || input.engine.state === 'unknown';
+  if (engineIsNews || lines.length === 0) {
+    lines.push({
+      tone: input.engine.state === 'stalled' ? 'blocked' : input.engine.state === 'unknown' ? 'idle' : 'working',
+      text: input.engine.text,
+    });
+  }
 
   if (input.degraded) {
     lines.push({
