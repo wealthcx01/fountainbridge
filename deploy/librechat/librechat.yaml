@@ -132,6 +132,14 @@ fileConfig:
 # seeded first (see README) or this default will reference a missing agent_id.
 modelSpecs:
   prioritize: true          # the modelSpec is the default selection for a new chat
+  # Founders cannot leave the agent surface. Without this, `ENDPOINTS` still offers the raw
+  # `anthropic` endpoint — a Claude with NO tools — and a founder who lands there gets a model that
+  # will happily DESCRIBE filing a ticket it has no way to file. That happened: on 2026-07-29 the
+  # composer answered "File venture ticket: arca-price-history" (the example slug from its own
+  # prompt), and only admitted nothing had been written when the founder thought to ask "did that
+  # actually send to Git?". Telling a founder work happened when it did not is the worst failure this
+  # product has, so the surface that makes it possible is closed rather than documented.
+  enforce: true
   list:
     - name: "foundry-composer"
       label: "Foundry Composer"
