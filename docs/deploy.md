@@ -30,7 +30,7 @@ from Phase 2 on; the read-only studio needs none yet). Auth: **Google OAuth**.
 | `GITHUB_TOKEN` | **PAT path (v0):** org-scoped read PAT so lanes/tickets/PRs render. Takes precedence over the App vars below if both are set. |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | **GitHub App path (production, FB-020):** set all three (and leave `GITHUB_TOKEN` unset) to have the studio mint short-lived installation tokens from the App key. The private key is the App's `.pem`; escaped `\n` in the env value is normalised automatically. |
 | `GITHUB_ORG` | `wealthcx01` (default; set if different) |
-| `FOUNDRY_APPROVAL_SECRET` | **FB-046/044 external-action gate:** the HMAC secret the studio uses to sign approval grants. Must be **identical** to the value on each venture's gated executor, and must **never** be set on a lane box. `openssl rand -hex 32`. |
+| `FOUNDRY_APPROVAL_SECRET` | **FB-046/044 external-action gate:** the HMAC secret the studio uses to sign approval grants **and to verify them on read**. Absent, the studio cannot check any approval: every approval card renders a warning saying so, and (because the executor may still hold a working secret) an approved action can still go out. Must be **identical** to the value on each venture's gated executor, and must **never** be set on a lane box. `openssl rand -hex 32`. |
 | `STUDIO_APPROVAL_GITHUB_TOKEN` | **FB-046:** a write-scoped token for the venture's `foundry-approvals` ref (the read App/PAT stays read-only). Absent → the Approve button reports "approvals not set up yet". |
 
 Use **one** of the two GitHub auth paths: a `GITHUB_TOKEN` PAT, or the three `GITHUB_APP_*` vars.

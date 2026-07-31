@@ -23,7 +23,7 @@ Behind it, an audit found the **engine is design-only**:
 | Agent lane **runtime** on the venture box | **ABSENT** | ARCA's box runs only the LibreChat docker stack — no `claude`/`gstack`/`gbrain`/node/repo/tmux |
 | Founder second brain in **git `context/`/`library/`** (D8) | **ABSENT** | neither `wealthcx01/arca` nor `modernisation-engine` has `context/` or `library/` |
 | Composer knowledge ↔ **gbrain** | **FULLY SEPARATE** | founder uploads live in a LibreChat pgvector silo; the studio never calls gbrain |
-| **ActiveGraph** gate (approval events) | **DESIGN-ONLY** | "Approval" is a read-model over open PRs (`lib/attention.ts`); no `approval.proposed/granted` emission |
+| **ActiveGraph** gate (approval events) | **SHIPPED, narrowed** | Git-backed gate with an attestation-verified grant (FB-044/046/051): `lib/provenance.ts` verifies, the executor enforces. The event stream was withdrawn — a log on a lane-writable ref proves nothing |
 | **Department** + **RunReport** entities | **ABSENT** | zero references in `lib/ app/ components/ tools/` |
 
 So the composer can *file* a ticket (a real PR opens on the venture repo), but **nothing picks it up

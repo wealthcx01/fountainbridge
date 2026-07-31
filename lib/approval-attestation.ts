@@ -2,23 +2,40 @@
  * Approval attestation (FB-046) — the studio side of the FB-044 gate.
  *
  * When a human approves an external action in the studio, the server signs the grant with an HMAC
- * over {approval id, proposal blob sha, approver}. The gated executor (deploy/executor/executor.mjs)
- * recomputes the same HMAC with the SHARED secret and refuses anything that doesn't match — so a lane
- * (which never holds the secret) cannot forge a grant.
+ * over {repo, approval id, proposal blob sha, approver}. The gated executor
+ * (deploy/executor/executor.mjs) recomputes the same HMAC with the SHARED secret and refuses anything
+ * that doesn't match — so a lane (which never holds the secret) cannot forge a grant.
  *
- * ⚠ The formula here MUST stay byte-identical to `expectedAttestation()` in
- * deploy/executor/executor.mjs: `HMAC-SHA256(secret, "<id>|<proposal_sha>|<approver>")` as lowercase
- * hex, with `approver` lowercased. The compat test in lib/__tests__/approval-attestation.test.ts pins
- * a known vector; if you change the format, change BOTH and the vector.
+ * **The repo is in the signed message deliberately.** One secret serves every venture, and a git blob
+ * sha is content-addressed — the same proposal bytes hash identically in any repository, and the
+ * approval id is just a directory name a lane chooses. Without the repo, a lane on venture B that
+ * could read venture A's approvals ref could copy A's proposal.json and grant.json into its own tree
+ * and have the pair verify: a real signature, for an approval no human ever issued for that venture,
+ * executed with venture B's credentials. No guard can catch that — only the signed message can.
+ *
+ * ⚠ There are THREE implementations of this formula and they must stay byte-identical:
+ * `attestationFor()` here, `verifyGrant()` in lib/provenance.ts (which calls this one — keep it that
+ * way), and `expectedAttestation()` in deploy/executor/executor.mjs. The compat test in
+ * lib/__tests__/approval-attestation.test.ts pins a known vector; change the format and you change
+ * the executor and the vector in the same commit.
  *
  * Server-only — the secret (FOUNDRY_APPROVAL_SECRET) must never reach the client or the lane box.
  */
 
+import 'server-only';
 import { createHmac } from 'node:crypto';
 import type { VentureSummary } from './ventures';
 
-export function attestationFor(id: string, proposalSha: string, approver: string, secret: string): string {
-  return createHmac('sha256', secret).update(`${id}|${proposalSha}|${approver.toLowerCase()}`).digest('hex');
+export function attestationFor(
+  repo: string,
+  id: string,
+  proposalSha: string,
+  approver: string,
+  secret: string,
+): string {
+  return createHmac('sha256', secret)
+    .update(`${repo}|${id}|${proposalSha}|${approver.trim().toLowerCase()}`)
+    .digest('hex');
 }
 
 /** A department's gate — mirrors the manifest `departments[].gate`. */

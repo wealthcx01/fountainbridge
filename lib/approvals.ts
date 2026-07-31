@@ -10,10 +10,12 @@
  * The fetch source is injectable so mapping is unit-tested offline (APPROVALS_FIXTURE_DIR / a stub).
  */
 
+import 'server-only';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
+import { verifyGrant, describeProvenance, type GrantProvenance, type VerifiedGrant } from './provenance';
 
 export const APPROVALS_REF = 'foundry-approvals';
 
@@ -33,7 +35,13 @@ export interface ApprovalProposal {
   checks?: PolicyCheck[];
 }
 
-export type ApprovalStatus = 'proposed' | 'granted' | 'executing' | 'executed' | 'rejected';
+/**
+ * `failed` did not exist before FB-051 and nothing wrote one, so a throw in the executor left the
+ * record at `executing` forever. `unverified-action` is new too: an execution record with no
+ * verifiable grant behind it, which must never render as a clean outcome.
+ */
+export type ApprovalStatus =
+  | 'proposed' | 'granted' | 'executing' | 'executed' | 'rejected' | 'failed' | 'unverified-action';
 
 /** An Approval(kind='activegraph') — an external action awaiting (or past) the human gate. */
 export interface ActiveGraphApproval {
@@ -48,8 +56,19 @@ export interface ActiveGraphApproval {
   actionType: string | null;
   summary: string;
   checks: PolicyCheck[];
-  /** result/reason from execution.json when past the gate. */
+  /** result/reason once past the gate. */
   outcome: string | null;
+  // --- FB-051 (narrowed): what the studio can PROVE about the grant ------------------------------
+  /** `attested` when the HMAC verifies; `unattested` when a grant exists but does not. */
+  grantProvenance: GrantProvenance;
+  /**
+   * The founder-facing provenance line and its next step, or null when nothing has been granted.
+   *
+   * The approver and timestamp are embedded in `text` rather than carried as separate fields: this
+   * object is handed to a 'use client' component, and shipping the approver's email as a field
+   * nothing renders is the same defect this ticket condemns about `compliance.recipient`.
+   */
+  provenance: { text: string; nextStep: string } | null;
 }
 
 /** Reads the raw JSON files of one approval; returns null for a missing file. Injectable for tests. */
@@ -57,6 +76,10 @@ export interface ApprovalSource {
   /** approval ids under `approvals/` on the ref. */
   listIds(repo: string): Promise<string[]>;
   read(repo: string, id: string, file: 'proposal' | 'grant' | 'execution'): Promise<{ json: unknown; sha: string } | null>;
+  // NOTE: the append-only event files under `approvals/<id>/events/` are deliberately NOT read
+  // here. They are an annotation stream a lane can write to, so they can prove nothing — and
+  // reading them cost one directory listing plus one request PER EVENT, per approval, per render.
+  // The attestation is the anchor; see lib/provenance.ts.
 }
 
 /** A GitHub-backed source over the `foundry-approvals` ref. */
@@ -95,13 +118,28 @@ export function fixtureApprovalSource(dir: string): ApprovalSource {
   };
 }
 
-function statusOf(grant: unknown, execution: unknown): ApprovalStatus {
+/**
+ * The approval's state.
+ *
+ * Two things the file-presence version got wrong. Any grant file at all read as `granted`, including
+ * one no human issued — an unattested grant now stays `proposed`. And there was no `failed` state at
+ * all and nothing wrote one, so a throw in the executor left the record stuck at `executing` forever
+ * with no alert; this branch adds both the writer and the state.
+ *
+ * Terminal states are PROVENANCE-QUALIFIED. Reading `execution.json` first would let a lane write
+ * `{status:'executed'}` with no grant at all and have the studio report a completed external action
+ * naming nobody — forging a grant gets a red warning, so deleting one must not buy silence.
+ */
+function statusOf(grant: VerifiedGrant, execution: unknown): ApprovalStatus {
   const ex = execution as { status?: string } | null;
+  const terminal = ex?.status === 'executed' || ex?.status === 'executing'
+    || ex?.status === 'rejected' || ex?.status === 'failed';
+  if (terminal && grant.provenance !== 'attested') return 'unverified-action';
   if (ex?.status === 'executed') return 'executed';
   if (ex?.status === 'executing') return 'executing';
   if (ex?.status === 'rejected') return 'rejected';
-  if (grant) return 'granted';
-  return 'proposed';
+  if (ex?.status === 'failed') return 'failed';
+  return grant.provenance === 'attested' ? 'granted' : 'proposed';
 }
 
 /** Build the approval list for one venture from a source. */
@@ -109,6 +147,8 @@ export async function loadApprovals(
   venture: VentureSummary,
   source: ApprovalSource,
   repo = venture.repos[0],
+  /** The studio's signing secret. Absent ⇒ nothing can be verified, and every grant says so. */
+  secret: string | undefined = process.env.FOUNDRY_APPROVAL_SECRET,
 ): Promise<ActiveGraphApproval[]> {
   if (!repo) return [];
   const ids = await source.listIds(repo);
@@ -121,24 +161,35 @@ export async function loadApprovals(
     ]);
     if (!proposalR || !proposalR.json) continue; // an approval is defined by its proposal
     const p = proposalR.json as ApprovalProposal;
+    // The ONE thing the studio can prove. Everything else on this card is a report.
+    const grant = verifyGrant(repo, id, proposalR.sha || null, grantR?.json as never, secret);
+
     out.push({
       id,
       kind: 'activegraph',
       ventureId: venture.id,
       repo,
-      status: statusOf(grantR?.json ?? null, execR?.json ?? null),
+      // Status comes from the records the EXECUTOR acts on, so the studio and the executor cannot
+      // disagree about what happened. A grant that does not verify is not shown as granted.
+      status: statusOf(grant, execR?.json ?? null),
       proposalSha: proposalR.sha || null,
+      // Every founder-visible field is read from the sha-pinned proposal — the artefact the
+      // attestation covers and the executor performs. The previous design rendered the summary from
+      // a lane-written event while the attestation pinned the proposal, so the founder could approve
+      // one document and the executor send another.
       ticket: p.ticket ?? null,
       department: p.department ?? null,
       actionType: p.action_type ?? null,
       summary: p.summary ?? '(no summary)',
       checks: Array.isArray(p.checks) ? p.checks : [],
-      outcome: (execR?.json as { reason?: string; result?: { note?: string } } | null)?.reason
+      grantProvenance: grant.provenance,
+      provenance: describeProvenance(grant),
+      outcome: (execR?.json as { reason?: string } | null)?.reason
         ?? (execR?.json as { result?: { note?: string } } | null)?.result?.note
         ?? null,
     });
   }
   // Proposed (awaiting the gate) first, then in-flight, then terminal.
-  const rank: Record<ApprovalStatus, number> = { proposed: 0, granted: 1, executing: 2, executed: 3, rejected: 4 };
+  const rank: Record<ApprovalStatus, number> = { 'unverified-action': 0, proposed: 1, granted: 2, executing: 3, failed: 4, executed: 5, rejected: 6 };
   return out.sort((a, b) => rank[a.status] - rank[b.status] || a.id.localeCompare(b.id));
 }
