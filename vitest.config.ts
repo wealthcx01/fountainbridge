@@ -13,10 +13,17 @@ export default defineConfig({
   resolve: {
     alias: {
       'server-only': fileURLToPath(new URL('./node_modules/server-only/empty.js', import.meta.url)),
+      // The `@/` path alias tsconfig gives the app. Without it nothing under app/ could be imported
+      // here at all — the second half of why the approve server action had no tests.
+      '@': fileURLToPath(new URL('.', import.meta.url)),
     },
   },
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts', 'deploy/**/*.test.mjs', 'scripts/**/*.test.mjs'],
+    // `app/` is included since FB-058. It was outside this glob, so a test placed beside the approve
+    // server action — the most consequential control in the product — silently never ran, and its D7
+    // denial path had no coverage at all. A test that does not run is worse than no test: it reads
+    // as reassurance.
+    include: ['lib/**/*.test.ts', 'app/**/*.test.ts', 'deploy/**/*.test.mjs', 'scripts/**/*.test.mjs'],
   },
 });

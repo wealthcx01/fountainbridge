@@ -28,6 +28,7 @@ const attestationFor = (repo, id, proposalSha, approver) =>
     .digest('hex');
 
 let signed = 0;
+let skipped = 0;
 for (const repoDir of readdirSync(ROOT, { withFileTypes: true }).filter((d) => d.isDirectory())) {
   // The source keys the directory by repo with slashes doubled to underscores.
   const repo = repoDir.name.replace(/__/g, '/');
@@ -35,6 +36,10 @@ for (const repoDir of readdirSync(ROOT, { withFileTypes: true }).filter((d) => d
     const grantPath = join(ROOT, repoDir.name, idDir.name, 'grant.json');
     if (!existsSync(grantPath)) continue;
     const grant = JSON.parse(readFileSync(grantPath, 'utf8'));
+    // Some fixtures are adversarial ON PURPOSE — a forged attestation, a grant pinned to a proposal
+    // that has since changed. Signing them would quietly repair them, and the tests that depend on
+    // them would go on passing while testing nothing. They opt out by saying so in the file.
+    if (grant._adversarial) { skipped += 1; continue; }
     if (!grant.approver) throw new Error(`${grantPath}: a grant with no approver cannot be signed`);
     const proposalSha = `sha-${idDir.name}-proposal`;
     grant.proposal_sha = proposalSha;
@@ -43,4 +48,7 @@ for (const repoDir of readdirSync(ROOT, { withFileTypes: true }).filter((d) => d
     signed += 1;
   }
 }
-console.log(`sign-approval-fixtures: signed ${signed} grant${signed === 1 ? '' : 's'}.`);
+console.log(
+  `sign-approval-fixtures: signed ${signed} grant${signed === 1 ? '' : 's'}` +
+    (skipped ? `, left ${skipped} adversarial fixture${skipped === 1 ? '' : 's'} unsigned.` : '.'),
+);

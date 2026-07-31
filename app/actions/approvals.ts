@@ -38,6 +38,18 @@ export async function approveExternalAction(
    * as given. Optional so the previous single-repo call still works.
    */
   repoParam?: string,
+  /**
+   * The sha of the proposal the founder was LOOKING AT when they clicked (FB-058).
+   *
+   * Without it the action re-read whatever was current and signed that, so a proposal swapped
+   * between render and click was approved unexamined. Verification caught it afterwards — the pinned
+   * sha stops matching and the card says so — but "we will notice later" is not the same as "it
+   * cannot happen", and this is the one control in the product that causes something irreversible.
+   *
+   * Optional, because a card rendered before this shipped has no sha to send. When it is absent the
+   * old behaviour stands and nothing breaks; when it is present it must match.
+   */
+  seenProposalSha?: string,
 ): Promise<ApproveResult> {
   if (!/^[A-Za-z0-9._-]+$/.test(approvalId)) return { ok: false, message: 'Invalid approval id.' };
 
@@ -80,6 +92,15 @@ export async function approveExternalAction(
   // answered "this has already been approved". An UNATTESTED grant is not an approval, so the real
   // approver's signed grant may overwrite it; that is the only in-band repair, and it is safe because
   // only the studio can produce the replacement.
+  // The proposal must be the one the founder read. A blob sha is content-addressed, so this is an
+  // exact-content check, not a timestamp comparison: same bytes, same sha, whatever else moved.
+  if (seenProposalSha && seenProposalSha !== proposalR.sha) {
+    return {
+      ok: false,
+      message: 'This request changed after the page loaded, so it was not approved. Refresh and read it again before approving.',
+    };
+  }
+
   let proposal: ApprovalProposal;
   try { proposal = JSON.parse(proposalR.text) as ApprovalProposal; } catch { return { ok: false, message: 'The proposal could not be read.' }; }
 
