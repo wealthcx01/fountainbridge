@@ -28,7 +28,8 @@ const CHECK_LABEL: Record<string, string> = {
   success: 'All automatic checks passed',
   failure: 'The automatic checks did not pass',
   pending: 'The automatic checks are still running',
-  unknown: 'No automatic checks reported',
+  unknown: 'This work has no automatic checks',
+  unavailable: 'The studio could not read the automatic checks',
 };
 
 export function WorkDetail({ ventureId, work }: { ventureId: string; work: WorkItem }) {
@@ -39,7 +40,8 @@ export function WorkDetail({ ventureId, work }: { ventureId: string; work: WorkI
   // this one gives the founder a reason, the server one makes a stale accept impossible.
   const verdict = acceptability(work, { seenHeadSha: work.headSha, configured: true });
   const done = result?.ok || work.merged;
-  const checkTone = work.checks === 'failure' ? 'blocked' : work.checks === 'success' ? 'ok' : 'working';
+  const checkTone = work.checks === 'failure' || work.checks === 'unavailable' ? 'blocked'
+    : work.checks === 'success' ? 'ok' : 'working';
 
   return (
     <section data-testid={`work-${work.repo}/${work.number}`}>
@@ -60,7 +62,7 @@ export function WorkDetail({ ventureId, work }: { ventureId: string; work: WorkI
           fontWeight: checkTone === 'blocked' ? 600 : undefined,
         }}
       >
-        {work.checks === 'failure' ? (
+        {work.checks === 'failure' || work.checks === 'unavailable' ? (
           <>
             <span aria-hidden="true">⚠ </span>
             <span className="sr-only">Warning: </span>
@@ -76,6 +78,21 @@ export function WorkDetail({ ventureId, work }: { ventureId: string; work: WorkI
           </>
         ) : null}
       </p>
+
+      {/* What the team that made this said about it. For lane-built work this is the gate evidence —
+          which validation gates held, whether /review cleared it, what /qa saw — and when the change
+          itself is code a founder cannot read, this IS the thing they judge. Leaving it out was the
+          gap: the view showed the files and hid the reasoning. */}
+      {work.description ? (
+        <div data-testid="work-description" style={{ marginTop: '1.25rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>What the team says about it</p>
+          <div className="card">
+            <p style={{ fontSize: 'var(--fs-body-sm)', whiteSpace: 'pre-wrap', margin: 0, maxWidth: 'var(--content-narrow)' }}>
+              {work.description}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* What changed. Readable kinds are shown; the rest are described honestly. */}
       <div data-testid="work-changes" style={{ marginTop: '1.25rem' }}>

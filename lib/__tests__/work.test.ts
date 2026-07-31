@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classify, isReadable, readableAdditions, describeChange, acceptability, summariseChanges, type ChangedFile } from '../work';
+import { classify, combineChecks, isReadable, readableAdditions, describeChange, acceptability, summariseChanges, previewUrlFrom, type ChangedFile } from '../work';
 
 describe('what a founder can actually judge', () => {
   it('treats a ticket as the description of the work', () => {
@@ -77,6 +77,56 @@ describe('describing what cannot be shown', () => {
   });
 });
 
+describe('reading the automatic checks out of both places GitHub keeps them', () => {
+  const run = (conclusion: string | null, status = 'completed') => ({ status, conclusion });
+
+  it('does not call "no statuses at all" a run in progress', () => {
+    // The bug the live test found. GitHub answers the combined-status endpoint with
+    // `state: "pending", total_count: 0` for a commit that has no statuses — so every ARCA PR sat
+    // behind "the checks are still running" forever and no work could ever be accepted.
+    expect(combineChecks({ combined: { state: 'pending', total: 0 }, checkRuns: [] })).toBe('unknown');
+  });
+
+  it('sees GitHub Actions, which never appear in the combined status', () => {
+    // The other direction: this studio's PRs have one commit status (the Railway deploy) and
+    // eighteen check runs (the real CI). Reading the status alone called a change green off its
+    // deploy while its CI was invisible.
+    expect(combineChecks({
+      combined: { state: 'success', total: 1 },
+      checkRuns: [run('success'), run('failure')],
+    })).toBe('failure');
+  });
+
+  it('reports failure ahead of anything still running', () => {
+    expect(combineChecks({ checkRuns: [run(null, 'in_progress'), run('failure')] })).toBe('failure');
+  });
+
+  it('waits when any check is still going', () => {
+    expect(combineChecks({ checkRuns: [run('success'), run(null, 'queued')] })).toBe('pending');
+  });
+
+  it('counts every kind of not-passing conclusion as a failure', () => {
+    for (const c of ['failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure']) {
+      expect(combineChecks({ checkRuns: [run(c)] }), c).toBe('failure');
+    }
+  });
+
+  it('never lets a skipped check stand in for a passing one', () => {
+    // A skipped job checked nothing. Treating it as a pass would make an unchecked change look
+    // checked — the exact thing the accept button must not be able to say.
+    expect(combineChecks({ checkRuns: [run('skipped'), run('neutral'), run('stale')] })).toBe('unknown');
+    expect(combineChecks({ checkRuns: [run('skipped'), run('success')] })).toBe('success');
+  });
+
+  it('passes only when something actually passed and nothing else objected', () => {
+    expect(combineChecks({ combined: { state: 'success', total: 1 }, checkRuns: [run('success')] })).toBe('success');
+  });
+
+  it('ignores the combined state when there are no statuses behind it', () => {
+    expect(combineChecks({ combined: { state: 'pending', total: 0 }, checkRuns: [run('success')] })).toBe('success');
+  });
+});
+
 describe('whether it can be accepted', () => {
   const work = (over = {}) => ({
     checks: 'success' as const, mergeable: true, merged: false, state: 'open' as const,
@@ -117,6 +167,23 @@ describe('whether it can be accepted', () => {
     expect(acceptability(work(), { ...ok, seenHeadSha: 'abc123' }).ok).toBe(true);
   });
 
+  it('accepts work in a repo that has no automatic checks', () => {
+    // ARCA has no CI. "No checks" is a settled fact with nothing to wait for, so it must not block
+    // the founder forever — the lane's own /review and /qa gates are what stood behind this work.
+    expect(acceptability(work({ checks: 'unknown' }), ok).ok).toBe(true);
+  });
+
+  it('refuses when the studio could not read the checks at all', () => {
+    // Distinct from "no checks": here the gate could not see its own evidence, so it must block
+    // rather than guess, and must not blame the founder's work for it.
+    const r = acceptability(work({ checks: 'unavailable' }), ok);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toBe('checks-unreadable');
+      expect(r.nextStep).toContain('something is wrong with the studio');
+    }
+  });
+
   it('says so plainly when the studio is not set up to accept', () => {
     const r = acceptability(work(), { configured: false });
     expect(r.ok).toBe(false);
@@ -155,5 +222,73 @@ describe('summarising a change without listing files', () => {
 
   it('says plainly when there is nothing', () => {
     expect(summariseChanges([])).toBe('No changes recorded.');
+  });
+});
+
+describe('finding where the work can be seen running', () => {
+  it('reads Railway\'s hostname out of the status description', () => {
+    // Railway puts its own dashboard in target_url and the app host in the description.
+    expect(previewUrlFrom([{
+      state: 'success',
+      description: 'Success - foundry-studio-fountainbridge-pr-67.up.railway.app',
+      target_url: 'https://railway.com/project/abc?environmentId=def',
+    }])).toBe('https://foundry-studio-fountainbridge-pr-67.up.railway.app');
+  });
+
+  it('reads Vercel-style deployments out of target_url', () => {
+    expect(previewUrlFrom([{ state: 'success', description: 'Deployment ready', target_url: 'https://arca-git-pr-9.vercel.app' }]))
+      .toBe('https://arca-git-pr-9.vercel.app');
+  });
+
+  it('never returns a link to a deployment console', () => {
+    // "See it running" that opens Railway's dashboard is a broken promise on the one control meant
+    // to let a founder judge what they cannot read.
+    expect(previewUrlFrom([{ state: 'success', description: 'Deploying', target_url: 'https://railway.com/project/abc' }])).toBeNull();
+    expect(previewUrlFrom([{ state: 'success', description: 'built', target_url: 'https://github.com/x/y/actions/runs/1' }])).toBeNull();
+  });
+
+  it('ignores a deployment that has not succeeded', () => {
+    expect(previewUrlFrom([{ state: 'pending', description: 'Railway is deploying the service - x.up.railway.app' }])).toBeNull();
+  });
+
+  it('takes the first successful one when a commit has several', () => {
+    expect(previewUrlFrom([
+      { state: 'failure', description: 'x - old.up.railway.app' },
+      { state: 'success', description: 'Success - new.up.railway.app' },
+    ])).toBe('https://new.up.railway.app');
+  });
+
+  it('returns nothing when there is no deployment at all — the normal case for a venture repo', () => {
+    expect(previewUrlFrom([])).toBeNull();
+    expect(previewUrlFrom([{ state: 'success', description: 'All checks have passed' }])).toBeNull();
+  });
+});
+
+describe('resolving the repo before it reaches GitHub', () => {
+  it('qualifies a short manifest name with the owner', async () => {
+    // A venture declares `arca` because that is what a founder recognises; the API needs
+    // `wealthcx01/arca`. Missing this made every LIVE lookup 404 while fixtures passed — a fixture
+    // keys on whatever string it is handed, so tests and the UI gate both stayed green.
+    const seen: string[] = [];
+    const client = {
+      async getPullRequest(repo: string) { seen.push(repo); return null; },
+      async listPullFiles() { return []; },
+      async request() { return {}; },
+    } as never;
+    const { githubWorkSource } = await import('../work-load');
+    await githubWorkSource(client, 'wealthcx01').get('arca', 23);
+    expect(seen).toEqual(['wealthcx01/arca']);
+  });
+
+  it('leaves an already-qualified name alone', async () => {
+    const seen: string[] = [];
+    const client = {
+      async getPullRequest(repo: string) { seen.push(repo); return null; },
+      async listPullFiles() { return []; },
+      async request() { return {}; },
+    } as never;
+    const { githubWorkSource } = await import('../work-load');
+    await githubWorkSource(client, 'wealthcx01').get('someone/else', 1);
+    expect(seen).toEqual(['someone/else']);
   });
 });

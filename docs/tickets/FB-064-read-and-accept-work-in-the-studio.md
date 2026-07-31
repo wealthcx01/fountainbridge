@@ -93,19 +93,61 @@ That is not a limitation to apologise for. The lane has already reviewed and tes
 not auditing an implementation.
 
 ## Still open
-- ❌ **`previewUrl` is still not populated.** Railway PR environments were switched on the same day,
-  so the field can now be filled from the deployment — but wiring it is its own change and this
-  ticket did not do it. The view renders the link correctly when the value is there.
-- ⚠ **The accept path has no live test against a real repository.** The unit tests cover every
-  refusal and the e2e covers the rendered surface, but nothing has merged a real pull request through
-  this button yet. That wants doing on ARCA before a founder relies on it.
+- ⚠ **`fountainbridge` is not a venture repo, so the studio cannot show its own work.** The preview
+  link is verified against the real Railway payload, but no founder-facing route reaches this repo's
+  PRs. That is correct for now — a founder should not be reading the studio's own changes — but it
+  means the preview link has never been *clicked* from inside the studio. It will be the first time a
+  venture repo deploys per-PR.
+
+## What the live test found
+Nothing here was found by the unit tests or the UI gate. All of it came from pointing the built app
+at real GitHub credentials and clicking the button.
+
+**Every ARCA PR was permanently unacceptable.** GitHub answers `/commits/:sha/status` with
+`state: "pending"` when a commit has *no* statuses at all (`total_count: 0`). ARCA has no CI, so the
+studio told the founder "the automatic checks are still running — give it a few minutes and refresh"
+forever, and the accept button never appeared. The whole surface was inert for the one venture it was
+built for.
+
+**And this studio's own PRs were being called green off the deploy alone.** The commit-status endpoint
+does not include GitHub Actions at all — those are *check runs*, a separate system. PR #67 has one
+commit status (the Railway deploy) and eighteen check runs (the real CI). "All automatic checks passed"
+was reading the deploy and nothing else: a CI failure with a healthy deploy would have shown as clean.
+
+Both are now read through `combineChecks`, which merges the two systems, and the fix carries into the
+attention queue's CI dot, which had the same two faults. Three states are now distinguished where
+there used to be one:
+
+| | means | can the founder accept? |
+|---|---|---|
+| `pending` | something is genuinely still running | no — wait |
+| `unknown` | this work has no automatic checks | **yes** — nothing to wait for |
+| `unavailable` | the studio could not find out | no — and it says the fault is the studio's |
+
+The last one matters: a gate that cannot read its own evidence must block rather than guess, and the
+old code returned `unknown` on a failed read, which would have counted as a pass.
 
 ## Verification
-25 unit tests over the read model (classification, readable extraction, the honest description, and
-every refusal path) plus 7 Playwright over the rendered surface — including an assertion that **no
-link on either page points at github.com**, which is the regression that would undo this ticket.
+43 unit tests over the read model — classification, readable extraction, the honest description,
+every refusal path, and both ways the check reading was wrong — plus 7 Playwright over the rendered
+surface, including an assertion that **no link on either page points at github.com**, which is the
+regression that would undo this ticket.
 
-Driven in a real browser: attention queue → click the title → the work view renders the ticket body
-as prose, describes the code change as "a small change to the app's code (seed.ts) — 31 lines added,
-8 removed", reports the checks, and offers one button. Work with checks still running shows no button
-and says "give it a few minutes and refresh" instead.
+Driven in a real browser against fixtures: attention queue → click the title → the work view renders
+the ticket body as prose, describes the code change as "a small change to the app's code (seed.ts) —
+31 lines added, 8 removed", reports the checks, and offers one button. Work with checks still running
+shows no button and says "give it a few minutes and refresh" instead.
+
+**Then driven against live GitHub, which is where the real faults were.** A production build with the
+studio's own credentials, signed in as john.gallagher@wealthcx.com (Google is the only real provider;
+the e2e credentials form is the one identity shortcut — every authorization check and the merge itself
+ran for real):
+
+- `arca#23` renders live: the lane's full gate evidence under "what the team says about it", the code
+  change described rather than diffed, and — before the fix — a permanent "checks are still running".
+- **`arca#21` was merged through the Accept button**: squash commit `9b69869`, 2026-07-31 21:18 UTC,
+  by the studio's write token. The founder-facing loop now closes without github.com.
+- The preview link resolves against the real Railway payload for this PR
+  (`foundry-studio-fountainbridge-pr-67.up.railway.app`, health 200) — the app host is read out of the
+  status *description*, because Railway puts its own dashboard in `target_url` and a "See it running"
+  link that opens a deployment console is a broken promise.

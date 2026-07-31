@@ -32,10 +32,65 @@ export interface ChangedFile {
   preview: string | null;
 }
 
+/**
+ * Work out what the automatic checks actually say, from both places GitHub keeps them.
+ *
+ * GitHub has two check systems and neither one sees the other:
+ *
+ *  - **Commit statuses** (`/commits/:sha/status`) — what deploy bots like Railway post.
+ *  - **Check runs** (`/commits/:sha/check-runs`) — what GitHub Actions posts, i.e. our CI.
+ *
+ * Reading only the first produced a wrong answer in both directions, and the live test found both:
+ *
+ *  1. ARCA has no commit statuses at all, and the combined endpoint answers `"pending"` with
+ *     `total_count: 0` for that — so every ARCA PR sat behind "the checks are still running"
+ *     forever and no work could ever be accepted.
+ *  2. This studio's own PRs have exactly one commit status (the Railway deploy) and eighteen check
+ *     runs (the real CI). "All checks passed" was being claimed from the deploy alone — a CI failure
+ *     with a healthy deploy would have read as green.
+ *
+ * `unknown` (no checks exist anywhere) is deliberately distinct from `unavailable` (the read
+ * failed): the first is safe to accept over, the second must never be.
+ */
+export interface CheckSignals {
+  /** The commit-status roll-up. `total` matters: 0 statuses is not the same as 0 verdicts. */
+  combined?: { state: string; total: number } | null;
+  checkRuns?: Array<{ status: string; conclusion: string | null }>;
+}
+
+export function combineChecks(signals: CheckSignals): PrCiStatus {
+  let failure = false, pending = false, success = false;
+
+  if (signals.combined && signals.combined.total > 0) {
+    const s = signals.combined.state;
+    if (s === 'success') success = true;
+    else if (s === 'failure' || s === 'error') failure = true;
+    else pending = true;
+  }
+
+  for (const run of signals.checkRuns ?? []) {
+    if (run.status !== 'completed') { pending = true; continue; }
+    switch (run.conclusion) {
+      case 'success': success = true; break;
+      // Neutral, skipped and stale are explicitly not verdicts — a skipped job must not be able to
+      // make a change look checked when nothing checked it.
+      case 'neutral': case 'skipped': case 'stale': break;
+      case null: pending = true; break;
+      default: failure = true; // failure, cancelled, timed_out, action_required, startup_failure
+    }
+  }
+
+  if (failure) return 'failure';
+  if (pending) return 'pending';
+  if (success) return 'success';
+  return 'unknown';
+}
+
 /** Why accepting is refused. Each maps to a sentence the founder can act on. */
 export type BlockedReason =
   | 'checks-running'
   | 'checks-failed'
+  | 'checks-unreadable'
   | 'conflicts'
   | 'already-merged'
   | 'closed'
@@ -48,6 +103,12 @@ export interface WorkItem {
   title: string;
   /** The ticket this work belongs to, when it names one. */
   ticketId: string | null;
+  /**
+   * What the team that made this said about it. For lane-built work this carries the gate evidence —
+   * which validation gates held, whether /review cleared it, what /qa saw — and that is precisely
+   * what a founder should weigh when the change itself is code they cannot read.
+   */
+  description: string | null;
   author: string | null;
   createdAt: string;
   checks: PrCiStatus;
@@ -159,6 +220,16 @@ export function acceptability(
       nextStep: 'Give it a few minutes and refresh.',
     };
   }
+  // Not the same as having no checks: here the studio asked and did not get an answer. Accepting on
+  // a gate that could not read its own evidence is the one failure this whole surface exists to
+  // prevent, so it blocks — and says so rather than pretending the work is clean.
+  if (work.checks === 'unavailable') {
+    return {
+      ok: false, reason: 'checks-unreadable',
+      text: 'The studio could not find out whether the automatic checks passed.',
+      nextStep: 'Try again in a few minutes. If it keeps happening, tell us — something is wrong with the studio, not your work.',
+    };
+  }
   // `mergeable: null` means GitHub has not finished working it out — treat as not-yet, never as yes.
   if (work.mergeable === false || work.mergeable === null) {
     return {
@@ -187,4 +258,38 @@ export function summariseChanges(files: ChangedFile[], moreFiles = 0): string {
   const total = files.length + moreFiles;
   const list = say.length === 1 ? say[0] : `${say.slice(0, -1).join(', ')} and ${say[say.length - 1]}`;
   return `${total} file${total === 1 ? '' : 's'}: ${list}.`;
+}
+
+
+/**
+ * The URL where this work can actually be seen running (FB-064 follow-up).
+ *
+ * Deployment providers advertise a preview two different ways, and neither is the GitHub
+ * `deployments` API — that one's `environment_url` points at the provider's own dashboard, which is
+ * a console a founder has no business in.
+ *
+ *  - Vercel and Netlify put the app URL in a commit status's `target_url`.
+ *  - Railway puts the Railway dashboard in `target_url` and the app's hostname in the DESCRIPTION
+ *    ("Success - foundry-studio-fountainbridge-pr-67.up.railway.app").
+ *
+ * So both are read, and anything that looks like a provider console is rejected. A wrong link here
+ * is worse than none: "see it running" that opens a deployment dashboard is a broken promise on the
+ * one control meant to let a founder judge what they cannot read.
+ */
+const CONSOLE_HOSTS = /\b(railway\.com|railway\.app\/project|vercel\.com|app\.netlify\.com|github\.com)\b/i;
+const APP_HOST = /\b([a-z0-9][a-z0-9-]*\.(?:up\.railway\.app|vercel\.app|netlify\.app|pages\.dev))\b/i;
+
+export function previewUrlFrom(
+  statuses: Array<{ state?: string; description?: string | null; target_url?: string | null }>,
+): string | null {
+  for (const s of statuses) {
+    if (s.state && s.state !== 'success') continue;
+    // The hostname in the description (Railway's shape).
+    const fromText = s.description?.match(APP_HOST)?.[1];
+    if (fromText) return `https://${fromText}`;
+    // A target_url that is the app rather than the provider's console (Vercel/Netlify's shape).
+    const t = s.target_url;
+    if (t && !CONSOLE_HOSTS.test(t) && APP_HOST.test(t)) return t;
+  }
+  return null;
 }

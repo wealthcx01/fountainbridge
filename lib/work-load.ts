@@ -9,7 +9,7 @@
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
-import { classify, isReadable, readableAdditions, type ChangedFile, type WorkItem } from './work';
+import { classify, combineChecks, isReadable, readableAdditions, previewUrlFrom, type ChangedFile, type WorkItem } from './work';
 import type { PrCiStatus } from './attention';
 
 /** Injectable, so the view is testable and the UI gate can run offline. */
@@ -20,12 +20,24 @@ export interface WorkSource {
   } | null>;
   files(repo: string, number: number): Promise<Array<{ path: string; added: number; removed: number; patch?: string }>>;
   checks(repo: string, sha: string): Promise<PrCiStatus>;
+  /** Where the work can be seen running, when a deployment advertised one. */
+  preview(repo: string, sha: string): Promise<string | null>;
 }
 
-export function githubWorkSource(client: GitHubClient): WorkSource {
+/**
+ * `org` qualifies a short repo name before it reaches GitHub.
+ *
+ * A venture manifest declares repos by short name (`arca`), because that is what a founder would
+ * recognise — but the API needs `wealthcx01/arca`. `lib/attention.ts` has always done this; this
+ * loader did not, so every live lookup asked GitHub for `/repos/arca/pulls/23` and got a 404. The
+ * fixture path hid it completely: a fixture keys on whatever string it is handed, so the tests and
+ * the UI gate both passed while the real thing could not find a single piece of work.
+ */
+export function githubWorkSource(client: GitHubClient, org = process.env.GITHUB_ORG ?? 'wealthcx01'): WorkSource {
+  const full = (repo: string) => (repo.includes('/') ? repo : `${org}/${repo}`);
   return {
     async get(repo, number) {
-      const pr = await client.getPullRequest(repo, number);
+      const pr = await client.getPullRequest(full(repo), number);
       if (!pr) return null;
       return {
         number: pr.number, title: pr.title, body: pr.body, state: pr.state,
@@ -34,20 +46,37 @@ export function githubWorkSource(client: GitHubClient): WorkSource {
       };
     },
     async files(repo, number) {
-      const files = await client.listPullFiles(repo, number);
+      const files = await client.listPullFiles(full(repo), number);
       return files.map((f) => ({ path: f.filename, added: f.additions, removed: f.deletions, patch: f.patch }));
+    },
+    async preview(repo, sha) {
+      try {
+        const s = await client.request<{ statuses?: Array<{ state?: string; description?: string | null; target_url?: string | null }> }>(
+          `/repos/${full(repo)}/commits/${sha}/status`,
+        );
+        return previewUrlFrom(s.statuses ?? []);
+      } catch {
+        return null; // no deployment is the normal case for a venture repo, not an error
+      }
     },
     async checks(repo, sha) {
       try {
-        const s = await client.request<{ state: string }>(`/repos/${repo}/commits/${sha}/status`);
-        if (s.state === 'success') return 'success';
-        if (s.state === 'failure' || s.state === 'error') return 'failure';
-        if (s.state === 'pending') return 'pending';
-        return 'unknown';
+        // Both systems, because neither one can see the other. See combineChecks for what each
+        // endpoint knows and what reading only one of them got wrong.
+        const [combined, runs] = await Promise.all([
+          client.request<{ state: string; total_count?: number }>(`/repos/${full(repo)}/commits/${sha}/status`),
+          client.request<{ check_runs?: Array<{ status: string; conclusion: string | null }> }>(
+            `/repos/${full(repo)}/commits/${sha}/check-runs`,
+          ),
+        ]);
+        return combineChecks({
+          combined: { state: combined.state, total: combined.total_count ?? 0 },
+          checkRuns: runs.check_runs ?? [],
+        });
       } catch {
         // A checks read that fails must not present as "no checks" — that would let the accept path
-        // treat an unknown state as a pass.
-        return 'unknown';
+        // treat a failed read as a pass. `unavailable` blocks; `unknown` does not.
+        return 'unavailable';
       }
     },
   };
@@ -93,10 +122,11 @@ export async function loadWork(
     number: pr.number,
     title: pr.title,
     ticketId: ticketIdFrom(pr.title),
+    description: pr.body?.trim() || null,
     author: pr.author,
     createdAt: pr.createdAt,
     checks: pr.merged || pr.state !== 'open' ? 'unknown' : await source.checks(repo, pr.headSha),
-    previewUrl: null,
+    previewUrl: pr.state === 'open' ? await source.preview(repo, pr.headSha) : null,
     merged: pr.merged,
     state: pr.state === 'open' ? 'open' : 'closed',
     mergeable: pr.mergeable,

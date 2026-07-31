@@ -75,6 +75,10 @@ export function prCiTone(status: PrCiStatus): Tone {
       return 'working';
     case 'unknown':
       return 'idle';
+    // The studio could not read the checks. Not idle — something needs looking at, even if it is
+    // the studio rather than the work.
+    case 'unavailable':
+      return 'attention';
     default: {
       const _exhaustive: never = status;
       return _exhaustive;

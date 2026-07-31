@@ -38,6 +38,10 @@ export function fixtureWorkSource(dir: string): WorkSource {
       const j = read(repo, number);
       return Array.isArray(j?.files) ? j.files : [];
     },
+    async preview(repo, sha) {
+      const [, num] = sha.split(/-(\d+)$/);
+      return read(repo, Number(num))?.previewUrl ?? null;
+    },
     async checks(repo, sha) {
       // The fixture pins checks on the work itself; the sha is carried so a fixture can model a
       // moved branch by changing it.

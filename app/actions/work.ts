@@ -71,7 +71,10 @@ export async function acceptWork(
   try {
     // The sha is pinned server-side too: GitHub 409s if the branch moved between our read and this
     // call. The check above gives a good message; this makes the race impossible.
-    const res = await writer.mergePullRequest(repo, number, { sha: work.headSha, method: 'squash', title: work.title });
+    // Same owner qualification as the read path — a short manifest name is not an API path.
+    const org = process.env.GITHUB_ORG ?? 'wealthcx01';
+    const full = repo.includes('/') ? repo : `${org}/${repo}`;
+    const res = await writer.mergePullRequest(full, number, { sha: work.headSha, method: 'squash', title: work.title });
     if (!res.merged) return { ok: false, message: 'GitHub did not accept the change. Nothing was merged.' };
     return { ok: true, message: 'Accepted. It is now part of your product.' };
   } catch (e) {
