@@ -19,6 +19,7 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { GitHubClient } from '@/lib/github';
 import { APPROVALS_REF, type ApprovalProposal } from '@/lib/approvals';
 import { attestationFor, approverRoleForDepartment, canApprove } from '@/lib/approval-attestation';
+import { verifyGrant } from '@/lib/provenance';
 
 export interface ApproveResult {
   ok: boolean;
@@ -53,13 +54,26 @@ export async function approveExternalAction(ventureId: string, approvalId: strin
   const reader = new GitHubClient();
   const proposalR = await reader.getFileWithSha(repo, `approvals/${approvalId}/proposal.json`, APPROVALS_REF);
   if (!proposalR) return { ok: false, message: 'That approval no longer exists.' };
-  const alreadyGranted = await reader.getFileContent(repo, `approvals/${approvalId}/grant.json`, APPROVALS_REF);
-  if (alreadyGranted) return { ok: false, message: 'This has already been approved.' };
-  const alreadyDone = await reader.getFileContent(repo, `approvals/${approvalId}/execution.json`, APPROVALS_REF);
-  if (alreadyDone) return { ok: false, message: 'This approval has already been actioned.' };
-
+  // VERIFY the existing grant rather than testing for the file. A lane can write grant.json, so
+  // presence alone proved nothing — and refusing on presence dead-ended the founder: the card said
+  // "the studio cannot verify this, treat it as unapproved", offered the only remedy, and the click
+  // answered "this has already been approved". An UNATTESTED grant is not an approval, so the real
+  // approver's signed grant may overwrite it; that is the only in-band repair, and it is safe because
+  // only the studio can produce the replacement.
   let proposal: ApprovalProposal;
   try { proposal = JSON.parse(proposalR.text) as ApprovalProposal; } catch { return { ok: false, message: 'The proposal could not be read.' }; }
+
+  const existingGrant = await reader.getFileContent(repo, `approvals/${approvalId}/grant.json`, APPROVALS_REF);
+  if (existingGrant) {
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(existingGrant); } catch { parsed = null; }
+    const verified = verifyGrant(repo, approvalId, proposalR.sha, parsed as never, secret);
+    if (verified.provenance === 'attested') {
+      return { ok: false, message: `This was already approved by ${verified.approver}.` };
+    }
+  }
+  const alreadyDone = await reader.getFileContent(repo, `approvals/${approvalId}/execution.json`, APPROVALS_REF);
+  if (alreadyDone) return { ok: false, message: 'This approval has already been actioned — it cannot be approved again.' };
 
   // D7: is this user the approver for the department's change class?
   const role = approverRoleForDepartment(venture, proposal.department ?? 'general');
@@ -68,8 +82,8 @@ export async function approveExternalAction(ventureId: string, approvalId: strin
   }
 
   // Sign + write the grant (the executor verifies the attestation; a lane can't forge it).
-  const attestation = attestationFor(approvalId, proposalR.sha, email, secret);
-  const grant = { id: approvalId, decision: 'granted', approver: email, proposal_sha: proposalR.sha, attestation, granted_at: new Date().toISOString() };
+  const attestation = attestationFor(repo, approvalId, proposalR.sha, email, secret);
+  const grant = { id: approvalId, repo, decision: 'granted', approver: email, proposal_sha: proposalR.sha, attestation, granted_at: new Date().toISOString() };
   const writer = new GitHubClient({ token: writeToken });
   try {
     await writer.putFile(repo, `approvals/${approvalId}/grant.json`, {
@@ -77,7 +91,10 @@ export async function approveExternalAction(ventureId: string, approvalId: strin
       message: `grant ${approvalId} (approved by ${email})`,
       branch: APPROVALS_REF,
     });
-  } catch {
+  } catch (err) {
+    // Surface the cause server-side: a 403 from a mis-scoped write token and a transient 502 are
+    // indistinguishable to an operator otherwise (CLAUDE.md #10).
+    console.error('[approve] grant write failed', { ventureId, approvalId, err });
     return { ok: false, message: 'Could not record the approval on GitHub — please try again.' };
   }
 

@@ -20,9 +20,10 @@
  * ## What is actually verifiable
  *
  * Exactly one thing: **FB-044's HMAC attestation**. The studio issues it on human Approve, over
- * `id|proposal_sha|approver`, with `FOUNDRY_APPROVAL_SECRET` held by the studio and the executor and
- * NEVER on a lane box. A lane can write any file it likes on that ref; it cannot produce a valid
- * attestation, and it cannot alter the proposal a valid one pins.
+ * `repo|id|proposal_sha|approver`, with `FOUNDRY_APPROVAL_SECRET` held by the studio and the executor
+ * and NEVER on a lane box. A lane can write any file it likes on that ref; it cannot produce a valid
+ * attestation, and it cannot alter the proposal a valid one pins. (The repo is in the message because
+ * one secret serves every venture and a blob sha is content-addressed — see approval-attestation.ts.)
  *
  * So this module does one job: recompute the attestation and say what it found. Three states, and
  * the studio never guesses between them:
@@ -35,14 +36,36 @@
  *                  rotation. The studio shows it AS unverified and never as a human's approval.
  *   `none`       — no grant record. Awaiting the gate.
  *
- * The studio does not adjudicate beyond that. The executor is the component that refuses to act on
- * an unattested grant, and it holds the same secret; this is the founder-facing read of the same
- * fact, not a second gate that could disagree with the first.
+ * The studio does not adjudicate beyond that. The executor is the component that refuses to act on an
+ * unattested grant.
+ *
+ * The two are NOT guaranteed to agree, and the copy says so where it matters. The executor
+ * additionally enforces an `APPROVER_IDENTITIES` allowlist held on its own box, so a grant this module
+ * calls attested can still be refused there (a founder added to the manifest but not to that env var).
+ * And when the studio has no secret it can verify nothing while the executor may hold a working one —
+ * the only case where "nothing will be sent" would be a lie, which `describeProvenance` handles
+ * explicitly rather than promising.
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import 'server-only';
+import { timingSafeEqual } from 'node:crypto';
+import { attestationFor } from './approval-attestation';
 
 export type GrantProvenance = 'attested' | 'unattested' | 'none';
+
+/**
+ * Why a grant could not be verified. Discriminated, because the RESPONSES differ completely: a
+ * changed proposal is a routine re-approve; a bad signature means something with write access to the
+ * venture repo forged a human approval, which is an incident; and a missing studio secret is OUR
+ * misconfiguration, where the executor may still act.
+ */
+export type UnattestedReason =
+  | 'no-studio-secret'
+  | 'no-approver'
+  | 'no-signature'
+  | 'proposal-unreadable'
+  | 'proposal-changed'
+  | 'bad-signature';
 
 export interface GrantRecord {
   approver?: unknown;
@@ -53,15 +76,19 @@ export interface GrantRecord {
 
 export interface VerifiedGrant {
   provenance: GrantProvenance;
-  /** The approver, ONLY when the attestation verifies. Null otherwise — an unverified name is noise. */
+  /**
+   * The approver, ONLY when the attestation verifies, and in the CANONICAL form the signature
+   * actually covered. Returning the raw field would let anyone holding a copy of a valid grant
+   * rewrite it to a case or Unicode variant that folds identically — still verifying, while
+   * displaying a name the signature never covered.
+   */
   approver: string | null;
   /** When the studio recorded the grant, only when attested. */
   grantedAt: string | null;
-  /** Why an existing grant did not verify, for the founder-facing line. */
-  reason: string | null;
+  reasonKind: UnattestedReason | null;
 }
 
-const NONE: VerifiedGrant = { provenance: 'none', approver: null, grantedAt: null, reason: null };
+const NONE: VerifiedGrant = { provenance: 'none', approver: null, grantedAt: null, reasonKind: null };
 
 function equal(a: string, b: string): boolean {
   const x = Buffer.from(a, 'utf8');
@@ -80,6 +107,7 @@ function equal(a: string, b: string): boolean {
  * to trusting the file: an unverifiable grant is exactly what this exists to catch.
  */
 export function verifyGrant(
+  repo: string,
   id: string,
   proposalSha: string | null,
   grant: GrantRecord | null | undefined,
@@ -92,34 +120,73 @@ export function verifyGrant(
   const pinned = typeof grant.proposal_sha === 'string' ? grant.proposal_sha : '';
   const grantedAt = typeof grant.granted_at === 'string' && grant.granted_at.trim() ? grant.granted_at.trim() : null;
 
-  const unattested = (reason: string): VerifiedGrant =>
-    ({ provenance: 'unattested', approver: null, grantedAt: null, reason });
+  const no = (reasonKind: UnattestedReason): VerifiedGrant =>
+    ({ provenance: 'unattested', approver: null, grantedAt: null, reasonKind });
 
-  if (!secret) return unattested('the studio has no signing secret configured, so it cannot verify this');
-  if (!approver) return unattested('the grant record names no approver');
-  if (!attestation) return unattested('the grant record carries no attestation');
-  if (!proposalSha) return unattested('the proposal it was granted against could not be read');
-  if (pinned && pinned !== proposalSha) {
-    return unattested('the proposal changed after it was approved, so the approval no longer covers it');
-  }
+  if (!secret) return no('no-studio-secret');
+  if (!approver) return no('no-approver');
+  if (!attestation) return no('no-signature');
+  if (!proposalSha) return no('proposal-unreadable');
+  // No `pinned &&` short-circuit: the executor rejects a grant with no proposal_sha outright
+  // (executor.mjs attestationValid), and a verifier that is laxer than the enforcer is a divergence
+  // waiting to rot.
+  if (pinned !== proposalSha) return no('proposal-changed');
 
-  const expected = createHmac('sha256', secret)
-    .update(`${id}|${proposalSha}|${approver.toLowerCase()}`)
-    .digest('hex');
-  if (!equal(attestation, expected)) {
-    return unattested('the attestation does not verify — this was not issued by the studio');
-  }
-  return { provenance: 'attested', approver, grantedAt, reason: null };
+  // ONE implementation of the formula, shared with the signer. Re-deriving it here is how the
+  // verifier and the signer drift apart while CI stays green.
+  const canonical = approver.toLowerCase();
+  if (!equal(attestation, attestationFor(repo, id, proposalSha, canonical, secret))) return no('bad-signature');
+  return { provenance: 'attested', approver: canonical, grantedAt, reasonKind: null };
 }
 
-/** The founder-facing line. Plain about what is proven and what is merely recorded. */
-export function describeProvenance(grant: VerifiedGrant): string | null {
-  switch (grant.provenance) {
-    case 'none':
-      return null;
-    case 'attested':
-      return `Approved by ${grant.approver}${grant.grantedAt ? ` on ${grant.grantedAt.slice(0, 10)}` : ''}, verified by the studio.`;
-    case 'unattested':
-      return `⚠ This is recorded as approved, but the studio cannot verify it: ${grant.reason}. Treat it as unapproved — the executor will refuse to act on it.`;
+/**
+ * The founder-facing line, with a NEXT STEP.
+ *
+ * Every lane read-failure on the board gets an explicit "Next step:" (VentureBoard's
+ * `laneErrorNextStep`); the highest-stakes surface in the product had none. The responses genuinely
+ * differ — a changed proposal is a re-read and re-approve, a bad signature is an incident to escalate,
+ * and a missing studio secret is our own misconfiguration where the send may still go out.
+ *
+ * No implementation words: not "attestation", not "executor". FB-024 established that the founder
+ * sees plain English, and this is the one screen where being understood matters most.
+ */
+export function describeProvenance(grant: VerifiedGrant): { text: string; nextStep: string } | null {
+  if (grant.provenance === 'none') return null;
+  if (grant.provenance === 'attested') {
+    const when = grant.grantedAt ? new Date(grant.grantedAt) : null;
+    const on = when && !Number.isNaN(when.getTime()) ? ` on ${when.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : '';
+    return { text: `Approved by ${grant.approver}${on}. The studio checked this approval and it holds.`, nextStep: '' };
+  }
+  switch (grant.reasonKind) {
+    case 'proposal-changed':
+      return {
+        text: 'This was approved earlier, but what it would do has changed since. The earlier approval no longer covers it.',
+        nextStep: 'Read the summary above — it is the current version — then approve again if it is still right.',
+      };
+    case 'bad-signature':
+    case 'no-signature':
+      return {
+        text: 'This is recorded as approved, but the studio did not issue that approval. Nothing has been sent.',
+        nextStep: 'Do not approve. Tell Bruntsfield — something with write access to this venture wrote a false approval.',
+      };
+    case 'no-approver':
+      return {
+        text: 'This is recorded as approved, but the record names nobody. Nothing has been sent.',
+        nextStep: 'Do not approve. Tell Bruntsfield — this approval record is not trustworthy.',
+      };
+    case 'proposal-unreadable':
+      return {
+        text: 'The studio could not read what this action would do, so it cannot confirm the approval covers it.',
+        nextStep: 'Do not approve. Tell Bruntsfield — this venture\u2019s approval records need a look.',
+      };
+    case 'no-studio-secret':
+      // The one case where the promise "nothing will be sent" would be FALSE: the studio cannot
+      // verify while the executor may hold a working secret, so a real approval can still execute.
+      return {
+        text: 'This studio is not set up to check approvals yet, so it cannot tell you whether this one is genuine — and an action approved here may still go out.',
+        nextStep: 'An admin needs to finish setting up approvals before you rely on this screen.',
+      };
+    default:
+      return { text: 'The studio cannot confirm this approval.', nextStep: 'Do not approve until Bruntsfield has looked at it.' };
   }
 }

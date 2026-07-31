@@ -10,6 +10,7 @@
  * The fetch source is injectable so mapping is unit-tested offline (APPROVALS_FIXTURE_DIR / a stub).
  */
 
+import 'server-only';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
@@ -35,11 +36,12 @@ export interface ApprovalProposal {
 }
 
 /**
- * `failed` was missing before FB-051, and its absence was a misrepresentation: v0 inferred status
- * from file presence, so an execution that FAILED fell through to "granted" — the founder saw a
- * send as approved-and-fine when it had actually errored. The projection has a real failed state.
+ * `failed` did not exist before FB-051 and nothing wrote one, so a throw in the executor left the
+ * record at `executing` forever. `unverified-action` is new too: an execution record with no
+ * verifiable grant behind it, which must never render as a clean outcome.
  */
-export type ApprovalStatus = 'proposed' | 'granted' | 'executing' | 'executed' | 'rejected' | 'failed';
+export type ApprovalStatus =
+  | 'proposed' | 'granted' | 'executing' | 'executed' | 'rejected' | 'failed' | 'unverified-action';
 
 /** An Approval(kind='activegraph') — an external action awaiting (or past) the human gate. */
 export interface ActiveGraphApproval {
@@ -59,11 +61,14 @@ export interface ActiveGraphApproval {
   // --- FB-051 (narrowed): what the studio can PROVE about the grant ------------------------------
   /** `attested` when the HMAC verifies; `unattested` when a grant exists but does not. */
   grantProvenance: GrantProvenance;
-  /** The approver — ONLY when the attestation verifies. An unverified name is noise. */
-  grantedBy: string | null;
-  grantedAt: string | null;
-  /** The founder-facing provenance line, or null when nothing has been granted yet. */
-  provenanceNote: string | null;
+  /**
+   * The founder-facing provenance line and its next step, or null when nothing has been granted.
+   *
+   * The approver and timestamp are embedded in `text` rather than carried as separate fields: this
+   * object is handed to a 'use client' component, and shipping the approver's email as a field
+   * nothing renders is the same defect this ticket condemns about `compliance.recipient`.
+   */
+  provenance: { text: string; nextStep: string } | null;
 }
 
 /** Reads the raw JSON files of one approval; returns null for a missing file. Injectable for tests. */
@@ -114,15 +119,22 @@ export function fixtureApprovalSource(dir: string): ApprovalSource {
 }
 
 /**
- * The approval's state, from the records the executor acts on.
+ * The approval's state.
  *
- * Two rules the file-presence version got wrong: an execution that FAILED read as `granted` (there
- * was no `failed` case, so an errored send showed the founder as approved and fine); and any grant
- * file at all read as `granted`, including one no human issued. An unattested grant now stays
- * `proposed` — the executor will refuse it, and the card says why.
+ * Two things the file-presence version got wrong. Any grant file at all read as `granted`, including
+ * one no human issued — an unattested grant now stays `proposed`. And there was no `failed` state at
+ * all and nothing wrote one, so a throw in the executor left the record stuck at `executing` forever
+ * with no alert; this branch adds both the writer and the state.
+ *
+ * Terminal states are PROVENANCE-QUALIFIED. Reading `execution.json` first would let a lane write
+ * `{status:'executed'}` with no grant at all and have the studio report a completed external action
+ * naming nobody — forging a grant gets a red warning, so deleting one must not buy silence.
  */
 function statusOf(grant: VerifiedGrant, execution: unknown): ApprovalStatus {
   const ex = execution as { status?: string } | null;
+  const terminal = ex?.status === 'executed' || ex?.status === 'executing'
+    || ex?.status === 'rejected' || ex?.status === 'failed';
+  if (terminal && grant.provenance !== 'attested') return 'unverified-action';
   if (ex?.status === 'executed') return 'executed';
   if (ex?.status === 'executing') return 'executing';
   if (ex?.status === 'rejected') return 'rejected';
@@ -150,7 +162,7 @@ export async function loadApprovals(
     if (!proposalR || !proposalR.json) continue; // an approval is defined by its proposal
     const p = proposalR.json as ApprovalProposal;
     // The ONE thing the studio can prove. Everything else on this card is a report.
-    const grant = verifyGrant(id, proposalR.sha || null, grantR?.json as never, secret);
+    const grant = verifyGrant(repo, id, proposalR.sha || null, grantR?.json as never, secret);
 
     out.push({
       id,
@@ -171,15 +183,13 @@ export async function loadApprovals(
       summary: p.summary ?? '(no summary)',
       checks: Array.isArray(p.checks) ? p.checks : [],
       grantProvenance: grant.provenance,
-      grantedBy: grant.approver,
-      grantedAt: grant.grantedAt,
-      provenanceNote: describeProvenance(grant),
+      provenance: describeProvenance(grant),
       outcome: (execR?.json as { reason?: string } | null)?.reason
         ?? (execR?.json as { result?: { note?: string } } | null)?.result?.note
         ?? null,
     });
   }
   // Proposed (awaiting the gate) first, then in-flight, then terminal.
-  const rank: Record<ApprovalStatus, number> = { proposed: 0, granted: 1, executing: 2, failed: 3, executed: 4, rejected: 5 };
+  const rank: Record<ApprovalStatus, number> = { 'unverified-action': 0, proposed: 1, granted: 2, executing: 3, failed: 4, executed: 5, rejected: 6 };
   return out.sort((a, b) => rank[a.status] - rank[b.status] || a.id.localeCompare(b.id));
 }

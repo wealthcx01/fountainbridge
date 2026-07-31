@@ -5,30 +5,40 @@
 One ticket = one branch = one PR.
 
 ## Why this matters (for the founder)
-Every outside action — every email, every deploy — is a permanent, replayable record: who proposed it,
-what it was, who approved it, when, on what lawful basis. Defensible to a regulator or a bank, by
-construction. It's the difference between "we have a log" and "we can prove exactly what happened."
+When the studio says an outside action was approved by a person, that is checkable — not a claim
+sitting in a file anyone with repo access could have written. And when it *cannot* check, it says so
+plainly and tells you what to do about it.
 
 ## Context
-FB-044 shipped a **minimal git-backed** approval gate (proposed/granted/executed as files + an HMAC
-attestation) — the right shape, deliberately not the full runtime. `docs/research-gtm.md` §5 specifies
-the real **ActiveGraph**: `approval.proposed → approval.granted` as first-class lifecycle events, an
-**immutable append-only event log that IS the audit log**, actor attribution + causal lineage per
-event, deterministic replay. This applies ActiveGraph **fully**.
+FB-044 shipped a git-backed gate: proposal / grant / execution as files on a `foundry-approvals` ref,
+with an HMAC attestation the executor verifies. `docs/research-gtm.md` §5 asked for an event-sourced
+ActiveGraph runtime on top — an append-only log as the audit record, with the human gate enforced by
+the projection.
 
-## Scope (fully applies ActiveGraph)
-- Move the gate from git-backed files to the **ActiveGraph event-sourced runtime** (per venture): emit
-  real `approval.proposed`/`approval.granted`/`approval.executed` events; the append-only log is the
-  audit record (replayable, actor-attributed).
-- The **compliance record as events** (research-gtm §5): recipient PECR classification, lawful basis /
-  LIA reference, suppression-check result, frozen draft, sending identity + scope, approver + timestamp.
-- The studio Approve (FB-046) and the executor (FB-044) write/read ActiveGraph events instead of git
-  files; the attention queue renders from the event stream.
-- Unsubscribes/objections write back to the suppression list as events.
+**That was attempted and withdrawn.** The log lives on a ref the proposing lane holds repo-write on,
+so a projection over it can enforce nothing: a lane writing an `approval.granted` event with
+`actor.kind: 'founder'` projected to granted, by a named human, with no fault raised. Exactly one
+thing here is unforgeable — the attestation — because its secret lives on the studio and the executor
+and never on a lane box. So the ticket became: verify that, and be honest about everything else.
+
+## Scope
+- **Verify the attestation in the studio's read path** (`lib/provenance.ts`), reporting
+  `attested` / `unattested` / `none`. An unattested grant is never shown as an approval.
+- **Bind the venture into the signed message.** One secret serves every venture and a git blob sha is
+  content-addressed, so `id|proposal_sha|approver` alone could be replayed from another repo.
+- **Read every founder-visible field from the sha-pinned proposal**, so what a founder approves and
+  what the executor performs are the same artefact.
+- **Write a real `failed` status**, and render terminal states, so an errored send is loud.
+- **Say what to do next** for each way verification can fail — a changed proposal is a re-approve, a
+  bad signature is an incident.
 
 ## Out of scope
-- The actual send transport (Phase 4b send tickets wire Postmark/Workspace into the executor's
-  `performAction()`). The engineering PR gate (stays git/CI).
+- The send transport (Phase 4b). The engineering PR gate (stays git/CI).
+
+### Originally scoped, withdrawn
+Emitting `approval.proposed`/`granted`/`executed` events; the append-only log as the audit record;
+the attention queue rendering from the event stream. `lib/activegraph.ts`,
+`lib/activegraph-bridge.ts` and `docs/activegraph-runtime.md` are deleted.
 
 ## Acceptance criteria
 
@@ -39,7 +49,7 @@ enforce nothing, and the design doc's claim that "a forged grant cannot even pro
 was false. What ships instead verifies the one thing that IS unforgeable and is honest about the rest.
 
 - [x] **The studio verifies what it can prove.** `lib/provenance.ts` recomputes FB-044's HMAC
-      attestation over `id|proposal_sha|approver` — the studio issues those and holds the secret,
+      attestation over `repo|id|proposal_sha|approver` — the studio issues those and holds the secret,
       which the lane never does. Three states, never guessed between: `attested` (provably issued by
       the studio, for this exact proposal, naming this approver), `unattested` (a grant record that
       does not verify — shown as unverified, never as a human's approval, and the executor refuses
@@ -73,28 +83,41 @@ Deleting the projection removed the defects it carried, rather than guarding the
 | `lineage` / `compliance` on the client | `compliance.recipient` — a real person's email — serialized into the browser payload for zero consumers |
 | Fault-based button withholding | One junk event froze every external action for a venture, with no in-band repair |
 | The studio's event append | A silently-swallowed 422 told the founder "Approved" while the audit write did not happen; a lane could pre-squat the path |
+| The executor's event append | The surviving half of the same log — write-only, on a lane-writable ref, justified by a comment about a bridge this branch deleted |
 
-**The events themselves are gone from the studio's read and write paths.** The executor still appends
-an operational trace for an operator reading the ref; nothing depends on it and nothing claims
-anything about it.
+**The event log is gone entirely** — from the studio and from the executor. Keeping a write-only log
+on the ref the audited party can rewrite was the artefact this narrowing exists to remove.
 
 ## Still open
-- ⚠ **The spend/outcome records remain lane-authored.** The attestation covers `id|proposal_sha|
-  approver` and nothing else — not `granted_at`, not the execution record. A lane can still write
-  `execution.json {status:'rejected'}` over its own grant. Widening the signed payload is the next
-  real step, and FB-054's reported figures depend on it too.
+- ⚠ **The execution record remains lane-authored.** The attestation now covers
+  `repo|id|proposal_sha|approver`, so a grant cannot be forged or replayed across ventures — but the
+  outcome is not signed. A lane can still write `execution.json {status:'rejected'}` over its own
+  grant, or DELETE it to make the executor re-run a genuinely approved send. The studio now reports
+  an execution with no verifiable grant as `unverified-action` rather than as a clean outcome, which
+  makes deletion visible; it does not make it impossible. **Signing the execution record, and giving
+  the executor an idempotency ledger outside the lane-writable ref, is the next real step** — and
+  FB-054's reported spend depends on the same change.
 - ❌ **The approve click is not bound to the proposal the founder saw.** `proposalSha` is computed
   and unused; the server action re-reads and signs whatever is current, so a pre-grant swap is
-  unguarded. The verification above catches it AFTERWARDS (the sha no longer matches) but does not
-  prevent it.
+  unguarded. Verification catches it afterwards (the sha stops matching) but does not prevent it.
+- ❌ **No component or e2e coverage of the approval card.** The provenance render — the only place
+  the warning reaches a human — is deletable without failing a test: there is no approvals fixture
+  and `app/` is outside the vitest glob. Wiring `APPROVALS_FIXTURE_DIR` the way tickets/PRs/health
+  are wired is the fix; `fixtureApprovalSource` already exists and has no caller.
+- ❌ **The approve server action is untested**, including its D7 denial: `app/` is outside the vitest
+  include, so a test placed there would silently never run.
 
 ## Verification
-20 unit tests over provenance and the approval read path: a forged grant refused and its named
-approver suppressed; a grant signed for another approval, another approver, another proposal sha or
-another secret all refused; no-secret reported rather than trusted; `none` distinguished from
-failure; a failed execution read as `failed`; and every founder-visible field read from the pinned
-proposal. 140 tests, lint, typecheck, build, UI gate (34), ticket parse, manifest validation,
-shellcheck.
+32 unit tests over provenance, the approval read path and the executor, written against a mutation
+pass that ran 32 mutations and found 10 surviving. Now pinned: a truncated or extended signature
+(a prefix comparison verified `attestation:'a'` roughly one time in sixteen); the verifier's own
+case/whitespace normalisation (a grant the studio issued for a mixed-case address read as forged);
+cross-venture replay; a lane-written `summary` in `grant.json` being ignored in favour of the pinned
+proposal, proved with an adversarial fixture rather than an absent one; a throwing action recorded as
+`failed` and never `executed`; and the missing-secret case, which previously read `process.env` and
+would have gone red the moment `FOUNDRY_APPROVAL_SECRET` was set.
+
+160 tests, lint, typecheck, build, UI gate (34), ticket parse, manifest validation, shellcheck.
 
 **Not yet run on ARCA's box.** The verification path needs `FOUNDRY_APPROVAL_SECRET` set on the
 studio — the same value the executor holds. Until it is, every grant reads `unattested`, which is the

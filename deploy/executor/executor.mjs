@@ -16,13 +16,20 @@
 //     where a human approves via Google OAuth + the D7 matrix) signs the grant with an HMAC secret
 //     (`FOUNDRY_APPROVAL_SECRET`) held ONLY by the studio (issuer) and this executor (verifier) —
 //     NEVER on the lane box (which holds no secrets, §8). A lane can write a grant.json but cannot
-//     produce a valid attestation → rejected. The attestation covers {id, proposal_sha, approver}, so
-//     it also PINS the exact proposal approved (a post-grant proposal swap is rejected — TOCTOU).
+//     produce a valid attestation → rejected. The attestation covers {repo, id, proposal_sha,
+//     approver}, so it PINS the exact proposal approved (a post-grant swap is rejected — TOCTOU) and
+//     the venture (a grant cannot be replayed from another repo — the sha alone is content-addressed).
 //   - The studio endpoint that issues the attestation on human Approve is FB-046. performAction() is
 //     a stub until real sends (Phase 4b); the executor's creds (not the lane's) run it then.
 //
-// Event-sourced on a dedicated `foundry-approvals` ref (git = the audit log):
-//   approvals/<id>/proposal.json | grant.json {approver, proposal_sha, attestation} | execution.json
+// Git-backed on a dedicated `foundry-approvals` ref:
+//   approvals/<id>/proposal.json  ← the lane writes what it wants to do
+//   approvals/<id>/grant.json     ← the STUDIO writes {repo, approver, proposal_sha, attestation}
+//   approvals/<id>/execution.json ← this executor writes the outcome: executing | executed | failed
+//                                   | rejected
+//
+// There is no event log. FB-051 removed it: it lived on a ref the lane can write, so it could prove
+// nothing, and nothing read it. The attestation on grant.json is the only anchor here.
 //
 // Usage:  node executor.mjs        # one pass over pending grants
 // Env: REPO, APPROVALS_REF (default foundry-approvals), EXECUTOR_GITHUB_TOKEN (REQUIRED, its own),
@@ -30,6 +37,7 @@
 //      APPROVER_IDENTITIES (REQUIRED, comma-sep approver ids allowed to grant).
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { expectedAttestation as sharedAttestation, decideExecution } from './executor-lib.mjs';
 
 const REPO = process.env.REPO || 'wealthcx01/arca';
 const REF = process.env.APPROVALS_REF || 'foundry-approvals';
@@ -40,15 +48,19 @@ const toSet = (v) => new Set((v || '').split(',').map((s) => s.trim().toLowerCas
 const APPROVER_IDS = toSet(process.env.APPROVER_IDENTITIES);
 const ID_RE = /^[A-Za-z0-9._-]+$/;
 
-// The attestation a legit grant must carry: HMAC-SHA256(secret, "<id>|<proposal_sha>|<approver>").
-// The studio issues this on human Approve; the lane cannot (no secret).
+// The attestation a legit grant must carry:
+//   HMAC-SHA256(secret, "<repo>|<id>|<proposal_sha>|<approver>")
+// The studio issues this on human Approve; the lane cannot (no secret). The REPO is in the message
+// because one secret serves every venture and a git blob sha is content-addressed — without it, a
+// lane could copy another venture's proposal+grant pair into its own tree and have it verify.
+// MUST stay byte-identical to attestationFor() in lib/approval-attestation.ts.
 function expectedAttestation(id, proposalSha, approver) {
-  return createHmac('sha256', SECRET).update(`${id}|${proposalSha}|${approver}`).digest('hex');
+  return sharedAttestation(createHmac, SECRET, REPO, id, proposalSha, approver);
 }
 function attestationValid(grant, id, proposalSha) {
   const approver = String(grant.approver || '').toLowerCase();
   if (!approver || !APPROVER_IDS.has(approver)) return { ok: false, reason: `grant approver '${approver || '(none)'}' is not an allowed approver` };
-  if (grant.proposal_sha !== proposalSha) return { ok: false, reason: 'grant does not pin the current proposal (it was changed after approval, or never matched)' };
+  if (!grant.proposal_sha || grant.proposal_sha !== proposalSha) return { ok: false, reason: 'grant does not pin the current proposal (it was changed after approval, or never matched)' };
   const got = String(grant.attestation || '');
   const want = expectedAttestation(id, proposalSha, approver);
   const a = Buffer.from(got, 'utf8'); const b = Buffer.from(want, 'utf8');
@@ -110,48 +122,6 @@ async function performAction(proposal) {
   }
 }
 
-// --- FB-051: the append-only event log -----------------------------------------------------------
-// The executor's outcome is the half of the audit record only it can write. Without these events the
-// log has a hole exactly where the external action happened — "granted" with nothing after it.
-//
-// Best-effort by design: a failure to append must never stop, or double-run, a real send. The
-// execution.json write remains the authority for control flow (it is what makes the run idempotent);
-// events are the record. If an append fails the studio's bridge still derives the event from the
-// file, so the log degrades in fidelity, never in truth.
-async function readEventSeq(id) {
-  // gh() returns null ONLY on a definitive 404 and THROWS otherwise, precisely so a transient error
-  // is never read as "absent". Catching here undid that: a rate-limit or 5xx restarted the sequence
-  // at 1 and wrote a duplicate into an append-only log. Let it throw; appendEvent is best-effort and
-  // logs, so a failed listing skips the annotation rather than corrupting it.
-  const dir = await gh(`/repos/${REPO}/contents/approvals/${id}/events?ref=${encodeURIComponent(REF)}`);
-  if (!Array.isArray(dir)) return 0;
-  return dir.reduce((max, e) => {
-    const n = Number.parseInt(String(e.name ?? ''), 10);
-    return Number.isFinite(n) && n > max ? n : max;
-  }, 0);
-}
-
-async function appendEvent(id, type, actorId, data) {
-  try {
-    const seq = (await readEventSeq(id)) + 1;
-    const event = {
-      seq,
-      type,
-      at: new Date().toISOString(),
-      actor: { kind: 'executor', id: actorId },
-      causedBy: seq > 1 ? seq - 1 : null,
-      data,
-    };
-    await writeJson(
-      `approvals/${id}/events/${String(seq).padStart(4, '0')}-${type.replace('approval.', '')}.json`,
-      event,
-      `executor: event ${id}#${seq} ${type}`,
-    );
-  } catch (err) {
-    log(`approval ${id}: could not append ${type} to the event log — ${err?.message ?? err}`);
-  }
-}
-
 async function handleApproval(id) {
   if (!ID_RE.test(id)) { log(`skip malformed approval id ${JSON.stringify(id)}`); return 0; }
   const grant = await readFile(`approvals/${id}/grant.json`);
@@ -163,33 +133,21 @@ async function handleApproval(id) {
   // Verify the studio-issued attestation (allowlisted approver + pins this exact proposal + valid
   // HMAC signature). A lane-written grant.json has no valid attestation → rejected.
   const v = attestationValid(grant.json, id, proposal.sha);
-  if (!v.ok) {
-    log(`approval ${id}: REJECTED — ${v.reason}`);
-    await writeJson(`approvals/${id}/execution.json`, { id, status: 'rejected', reason: v.reason, executed_at: new Date().toISOString() }, `executor: reject ${id}`);
-    await appendEvent(id, 'approval.rejected', 'foundry-executor', { reason: v.reason });
-    return 1;
-  }
+  if (v.ok) log(`approval ${id}: attestation valid (approver ${v.approver}) — executing ${proposal.json.action_type}`);
+  else log(`approval ${id}: REJECTED — ${v.reason}`);
 
-  // Intent-before-action (P1-5): record "executing" first so a crash can't cause a silent re-run.
-  await writeJson(`approvals/${id}/execution.json`, { id, status: 'executing', approver: v.approver, started_at: new Date().toISOString() }, `executor: begin ${id}`);
-  await appendEvent(id, 'approval.executing', 'foundry-executor', { approver: v.approver });
-  log(`approval ${id}: attestation valid (approver ${v.approver}) — executing ${proposal.json.action_type}`);
-  // A throw here used to leave execution.json at 'executing' forever: the early-return at the top of
-  // handleApproval then skipped it on every subsequent pass, so a half-completed real send showed in
-  // the studio as permanently in-flight with no alert. `failed` was defined as a status and written
-  // by nothing (FB-051 review).
-  let result;
-  try {
-    result = await performAction(proposal.json);
-  } catch (err) {
-    const reason = `the action threw: ${err?.message ?? err}`;
-    log(`approval ${id}: FAILED — ${reason}`);
-    await writeJson(`approvals/${id}/execution.json`, { id, status: 'failed', approver: v.approver, reason, executed_at: new Date().toISOString() }, `executor: failed ${id}`);
-    await appendEvent(id, 'approval.failed', 'foundry-executor', { reason });
-    return 1;
+  // The decision is made by the shared, tested module — decideExecution returns the records to
+  // persist, so a throw records `failed` and never `executed`.
+  const records = await decideExecution({
+    id,
+    proposal: proposal.json,
+    verify: v,
+    performAction,
+    now: new Date().toISOString(),
+  });
+  for (const record of records) {
+    await writeJson(`approvals/${id}/execution.json`, record, `executor: ${record.status} ${id}`);
   }
-  await writeJson(`approvals/${id}/execution.json`, { id, status: 'executed', action_type: proposal.json.action_type, approver: v.approver, result, executed_at: new Date().toISOString() }, `executor: execute ${id}`);
-  await appendEvent(id, 'approval.executed', 'foundry-executor', { action_type: proposal.json.action_type, approver: v.approver, reason: result?.note, result });
   return 1;
 }
 
