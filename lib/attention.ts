@@ -199,13 +199,15 @@ async function mapGhPr(client: GitHubClient, fullName: string, p: RawGhPr): Prom
       // repo whose Actions failed look green off its deploy alone.
       const [combined, runs] = await Promise.all([
         client.request<{ state: string; total_count?: number }>(`/repos/${fullName}/commits/${p.head.sha}/status`),
-        client.request<{ check_runs?: Array<{ status: string; conclusion: string | null }> }>(
-          `/repos/${fullName}/commits/${p.head.sha}/check-runs`,
+        client.request<{ total_count?: number; check_runs?: Array<{ status: string; conclusion: string | null }> }>(
+          `/repos/${fullName}/commits/${p.head.sha}/check-runs?per_page=100`,
         ),
       ]);
+      const checkRuns = runs.check_runs ?? [];
       base.ciStatus = combineChecks({
         combined: { state: combined.state, total: combined.total_count ?? 0 },
-        checkRuns: runs.check_runs ?? [],
+        checkRuns,
+        checkRunsTruncated: (runs.total_count ?? checkRuns.length) > checkRuns.length,
       });
     } catch {
       base.ciStatus = 'unavailable';

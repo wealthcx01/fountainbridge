@@ -56,6 +56,12 @@ export interface CheckSignals {
   /** The commit-status roll-up. `total` matters: 0 statuses is not the same as 0 verdicts. */
   combined?: { state: string; total: number } | null;
   checkRuns?: Array<{ status: string; conclusion: string | null }>;
+  /**
+   * Set when GitHub reported more check runs than were fetched. The list is paginated, so a failing
+   * run can sit on a page we never asked for — and a green verdict read off a partial list is
+   * exactly the false pass this whole function exists to prevent.
+   */
+  checkRunsTruncated?: boolean;
 }
 
 export function combineChecks(signals: CheckSignals): PrCiStatus {
@@ -80,7 +86,10 @@ export function combineChecks(signals: CheckSignals): PrCiStatus {
     }
   }
 
+  // A failure we can see is a failure regardless of what we could not. Anything softer than that,
+  // read off an incomplete list, is a guess — and this gate does not guess.
   if (failure) return 'failure';
+  if (signals.checkRunsTruncated) return 'unavailable';
   if (pending) return 'pending';
   if (success) return 'success';
   return 'unknown';

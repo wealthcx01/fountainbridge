@@ -122,6 +122,17 @@ describe('reading the automatic checks out of both places GitHub keeps them', ()
     expect(combineChecks({ combined: { state: 'success', total: 1 }, checkRuns: [run('success')] })).toBe('success');
   });
 
+  it('refuses to call a partial list green', () => {
+    // /check-runs is paginated. A failing run on a page we never fetched would read as a pass, so
+    // an incomplete list can only produce "could not find out" — never success.
+    expect(combineChecks({ checkRuns: [run('success')], checkRunsTruncated: true })).toBe('unavailable');
+    expect(combineChecks({ checkRuns: [], checkRunsTruncated: true })).toBe('unavailable');
+  });
+
+  it('still reports a failure it can see, even from a partial list', () => {
+    expect(combineChecks({ checkRuns: [run('failure')], checkRunsTruncated: true })).toBe('failure');
+  });
+
   it('ignores the combined state when there are no statuses behind it', () => {
     expect(combineChecks({ combined: { state: 'pending', total: 0 }, checkRuns: [run('success')] })).toBe('success');
   });
@@ -261,6 +272,40 @@ describe('finding where the work can be seen running', () => {
   it('returns nothing when there is no deployment at all — the normal case for a venture repo', () => {
     expect(previewUrlFrom([])).toBeNull();
     expect(previewUrlFrom([{ state: 'success', description: 'All checks have passed' }])).toBeNull();
+  });
+});
+
+describe('counting the whole change, not the page of it we fetched', () => {
+  const source = (changedFiles: number, files: number) => ({
+    async get() {
+      return {
+        number: 1, title: 't', body: null, state: 'open', merged: false, mergeable: true,
+        author: null, createdAt: '2026-07-21T10:00:00Z', headSha: 'abc', changedFiles,
+      };
+    },
+    async files() {
+      return Array.from({ length: files }, (_, i) => ({ path: `src/f${i}.ts`, added: 1, removed: 0 }));
+    },
+    async checks() { return 'success' as const; },
+    async preview() { return null; },
+  });
+  const venture = { id: 'arca', name: 'ARCA', repos: ['arca'] } as never;
+
+  it('reports the files it did not fetch, not just the ones it did not render', async () => {
+    // listPullFiles stops at 50. Without GitHub's own count a 300-file change would tell the
+    // founder it was a 50-file change — the truncation reading as the whole thing.
+    const { loadWork } = await import('../work-load');
+    const work = await loadWork(venture, 'arca', 1, source(300, 50));
+    expect(work?.files).toHaveLength(12);
+    expect(work?.moreFiles).toBe(288);
+    expect(summariseChanges(work!.files, work!.moreFiles)).toContain('300 files');
+  });
+
+  it('does not undercount when GitHub reports fewer files than were returned', async () => {
+    const { loadWork } = await import('../work-load');
+    const work = await loadWork(venture, 'arca', 1, source(0, 3));
+    expect(work?.moreFiles).toBe(0);
+    expect(work?.files).toHaveLength(3);
   });
 });
 

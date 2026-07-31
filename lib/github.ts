@@ -307,6 +307,8 @@ export interface RawPullRequest {
   user: { login: string } | null;
   created_at: string;
   head: { sha: string; ref: string };
+  /** GitHub's own count. The files endpoint is paginated, so this is the only honest total. */
+  changed_files: number;
 }
 
 export interface RawPullFile {

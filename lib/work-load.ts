@@ -17,6 +17,8 @@ export interface WorkSource {
   get(repo: string, number: number): Promise<{
     number: number; title: string; body: string | null; state: string; merged: boolean;
     mergeable: boolean | null; author: string | null; createdAt: string; headSha: string;
+    /** Every file the work changed, not just the page of them we fetched. */
+    changedFiles: number;
   } | null>;
   files(repo: string, number: number): Promise<Array<{ path: string; added: number; removed: number; patch?: string }>>;
   checks(repo: string, sha: string): Promise<PrCiStatus>;
@@ -43,6 +45,7 @@ export function githubWorkSource(client: GitHubClient, org = process.env.GITHUB_
         number: pr.number, title: pr.title, body: pr.body, state: pr.state,
         merged: pr.merged, mergeable: pr.mergeable,
         author: pr.user?.login ?? null, createdAt: pr.created_at, headSha: pr.head.sha,
+        changedFiles: pr.changed_files ?? 0,
       };
     },
     async files(repo, number) {
@@ -65,13 +68,17 @@ export function githubWorkSource(client: GitHubClient, org = process.env.GITHUB_
         // endpoint knows and what reading only one of them got wrong.
         const [combined, runs] = await Promise.all([
           client.request<{ state: string; total_count?: number }>(`/repos/${full(repo)}/commits/${sha}/status`),
-          client.request<{ check_runs?: Array<{ status: string; conclusion: string | null }> }>(
-            `/repos/${full(repo)}/commits/${sha}/check-runs`,
+          // per_page=100 is the API maximum; the client does not paginate, and 30 (the default) is
+          // within reach of a repo with a few workflows.
+          client.request<{ total_count?: number; check_runs?: Array<{ status: string; conclusion: string | null }> }>(
+            `/repos/${full(repo)}/commits/${sha}/check-runs?per_page=100`,
           ),
         ]);
+        const checkRuns = runs.check_runs ?? [];
         return combineChecks({
           combined: { state: combined.state, total: combined.total_count ?? 0 },
-          checkRuns: runs.check_runs ?? [],
+          checkRuns,
+          checkRunsTruncated: (runs.total_count ?? checkRuns.length) > checkRuns.length,
         });
       } catch {
         // A checks read that fails must not present as "no checks" — that would let the accept path
@@ -132,6 +139,8 @@ export async function loadWork(
     mergeable: pr.mergeable,
     headSha: pr.headSha,
     files,
-    moreFiles: Math.max(0, raw.length - RENDER_CAP),
+    // Counted from GitHub's total, not from the page we fetched — `listPullFiles` stops at 50, so
+    // a 300-file change would otherwise announce itself as a 50-file one.
+    moreFiles: Math.max(0, Math.max(pr.changedFiles, raw.length) - files.length),
   };
 }

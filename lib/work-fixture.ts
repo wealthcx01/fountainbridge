@@ -32,6 +32,7 @@ export function fixtureWorkSource(dir: string): WorkSource {
         author: j.author ?? null,
         createdAt: j.createdAt ?? '2026-07-21T10:00:00Z',
         headSha: j.headSha ?? `sha-${repo}-${number}`,
+        changedFiles: j.changedFiles ?? (Array.isArray(j.files) ? j.files.length : 0),
       };
     },
     async files(repo, number) {

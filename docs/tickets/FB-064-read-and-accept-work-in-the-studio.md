@@ -127,6 +127,12 @@ there used to be one:
 The last one matters: a gate that cannot read its own evidence must block rather than guess, and the
 old code returned `unknown` on a failed read, which would have counted as a pass.
 
+**Two more false-green paths closed in review.** `/check-runs` is paginated and the client does not
+page, so a failing run on the second page would have read as green — the request now asks for the
+maximum page and reports `unavailable` rather than a verdict if GitHub says there are more. And the
+file list stops at 50, so a 300-file change announced itself as a 50-file one; the count now comes
+from GitHub's own `changed_files`, which is the only honest total.
+
 ## Verification
 43 unit tests over the read model — classification, readable extraction, the honest description,
 every refusal path, and both ways the check reading was wrong — plus 7 Playwright over the rendered
