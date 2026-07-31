@@ -12,6 +12,10 @@ import { STATUS_LABEL } from '@/lib/glossary';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard } from './ApprovalCard';
+import { FounderBrief } from './FounderBrief';
+import { LaneActivity } from './LaneActivity';
+import type { Brief } from '@/lib/brief';
+import type { RunReport } from '@/lib/runreports';
 
 // FB-048: the founder's three owned surfaces. Plain-language gate labels (FB-024) — the founder sees
 // "how work here is approved", never the contract enum.
@@ -78,6 +82,10 @@ export function VentureBoard({
   approvals = [],
   budgets = [],
   budgetsError = null,
+  brief = null,
+  runs = [],
+  runsTotal = 0,
+  engine = null,
   orphanEnvelopes = [],
   staleRepos = [],
   totalWarnings,
@@ -89,6 +97,12 @@ export function VentureBoard({
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
   budgets?: (BudgetDisclosure | null)[];
+  /** The venture in a paragraph (FB-042) — composed server-side so the ordering has one owner. */
+  brief?: Brief | null;
+  /** What the agent lanes did, newest first (FB-042). */
+  runs?: RunReport[];
+  runsTotal?: number;
+  engine?: { state: string; text: string } | null;
   /** Non-null when the venture's budgets file exists but could not be read (FB-054). */
   budgetsError?: string | null;
   /** Envelopes keyed to departments this venture does not declare — configured but enforcing nothing. */
@@ -145,6 +159,10 @@ export function VentureBoard({
         </Link>
       </p>
 
+      {/* FB-042: the brief goes FIRST. Everything below it is a dashboard, and a dashboard shows you
+          what exists without telling you what to do about it. */}
+      {brief ? <FounderBrief brief={brief} /> : null}
+
       {/* Conversational composer entry (FB-025). A real link once the venture's box is provisioned
           (chat.<box host>); otherwise an honest "coming with your box" note — never a dead link. */}
       {venture.chatUrl ? (
@@ -184,6 +202,8 @@ export function VentureBoard({
           ))}
         </div>
       ) : null}
+
+      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} /> : null}
 
       {/* The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately. */}

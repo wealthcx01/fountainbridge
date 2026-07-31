@@ -1,0 +1,10 @@
+{
+  "ticket": "ARCA-12",
+  "lane": "arca",
+  "status": "opened_pr",
+  "summary": "Added the movers screener filter and its tests.",
+  "pr_url": "https://github.com/wealthcx01/arca/pull/12",
+  "started": "2026-07-21T14:00:00Z",
+  "finished": "2026-07-21T14:22:00Z",
+  "repo": "wealthcx01/arca"
+}

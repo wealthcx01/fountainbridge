@@ -7,6 +7,8 @@ import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { loadApprovals, attachBudgetDisclosure, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
+import { loadRunReports, engineState, githubRunReportSource, fixtureRunReportSource, type RunReport } from '@/lib/runreports';
+import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
 import { loadEnvelopes } from '@/lib/budgets-load';
 import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
@@ -77,6 +79,25 @@ export default async function VenturePage({
   const now = new Date(defaultNow());
   approvals = attachBudgetDisclosure(approvals, envelopes, knownDepartments, now);
 
+  // FB-042: what the engine actually did. The lanes have written a RunReport after every wake since
+  // FB-040 and nothing has ever rendered one — a founder could not tell a lane that gave up three
+  // attempts ago from one that was never installed.
+  //
+  // `degraded` is tracked separately from "no reports": an unreadable state ref and a genuinely idle
+  // venture look identical from here, and the brief must not compose a calm summary out of the first.
+  let runs: { reports: RunReport[]; heartbeats: RunReport[]; total: number } = { reports: [], heartbeats: [], total: 0 };
+  let runsDegraded = false;
+  try {
+    const runSource =
+      process.env.RUNREPORTS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1'
+        ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
+        : githubRunReportSource(new GitHubClient());
+    runs = await loadRunReports(venture, runSource);
+  } catch {
+    runsDegraded = true;
+  }
+  const engine = engineState(runs.heartbeats, now);
+
   // Pure, unit-tested, and shared with the cards — the previous version lived inline here and was
   // reachable only through Playwright.
   const { budgets, orphanEnvelopes } = departmentBudgets(
@@ -85,6 +106,20 @@ export default async function VenturePage({
     toSpends(approvals),
     now,
   );
+
+  const brief: Brief = composeBrief({
+    ventureName: venture.name,
+    awaitingApproval: approvals.filter((a) => a.status === 'proposed').length,
+    openPrs: attention.approvals.length,
+    ...bucketRuns(runs.reports),
+    engine,
+    overBudget: venture.departments
+      .map((d, i) => (budgets[i]?.overLimit ? d.name : null))
+      .filter((n): n is string => !!n),
+    // Any read that failed leaves the brief working from an incomplete picture, and it says so
+    // rather than reassuring the founder from a partial one.
+    degraded: runsDegraded || attention.errors.length > 0 || !!budgetsError,
+  });
 
   return (
     <VentureBoard
@@ -99,6 +134,10 @@ export default async function VenturePage({
       totalWarnings={data.totalWarnings}
       fetchedAt={data.fetchedAt}
       org={org}
+      brief={brief}
+      runs={runs.reports}
+      runsTotal={runs.total}
+      engine={engine}
     />
   );
 }

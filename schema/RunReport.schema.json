@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "RunOutcome": {
+      "description": "How a lane run ENDED — terminal states only; an in-flight run has ``outcome=None``.\n\n``no-useful-work`` is a first-class outcome: the pre-check that decides not to burn a session is\na success, not a failure (Phase 2 scheduler).\n\nThe three states past ``progress`` exist because collapsing them loses exactly what the\nstudio's surface is for. A founder blocked at 22:00 must see *why* (fountainbridge\nnon-negotiable 10), and \"the lane could not get this past its own review\", \"the lane finished\nand is waiting for your decision\" and \"the lane crashed\" call for three different actions from\nthem. Only the last is an error; reporting the other two as one would be the silent failure the\nrule forbids.",
+      "enum": [
+        "progress",
+        "opened-pr",
+        "no-useful-work",
+        "blocked",
+        "awaiting-approval",
+        "error"
+      ],
+      "title": "RunOutcome",
+      "type": "string"
+    },
+    "RunTrigger": {
+      "description": "What woke a lane for a run.",
+      "enum": [
+        "manual",
+        "scheduled"
+      ],
+      "title": "RunTrigger",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The record a lane writes back after a run (Phase 2 scheduler; surfaced in the studio).\n\nKeyed by ``lane_id`` + ``started_at`` — a run has no separate id. ``no-useful-work`` is a\nlegitimate outcome, not a failure, so nothing fails silently (fountainbridge non-negotiable).",
+  "properties": {
+    "ended_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When the run ended; None while in flight.",
+      "title": "Ended At"
+    },
+    "error_detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Why, in plain language, for the outcomes that owe the founder a reason — 'error' and 'blocked'. None otherwise.",
+      "title": "Error Detail"
+    },
+    "lane_id": {
+      "description": "The lane this run belongs to.",
+      "minLength": 1,
+      "title": "Lane Id",
+      "type": "string"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunOutcome"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "How the run ended; None while it is still in flight (see ``ended_at``)."
+    },
+    "pr_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The pull request this run opened, when outcome is 'opened-pr'.",
+      "title": "Pr Url"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "summary_md": {
+      "default": "",
+      "description": "Plain-language markdown summary of the run.",
+      "title": "Summary Md",
+      "type": "string"
+    },
+    "tickets_touched": {
+      "description": "Ids of tickets this run touched.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Tickets Touched",
+      "type": "array"
+    },
+    "trigger": {
+      "$ref": "#/$defs/RunTrigger"
+    }
+  },
+  "required": [
+    "lane_id",
+    "started_at",
+    "trigger"
+  ],
+  "title": "RunReport",
+  "type": "object"
+}
