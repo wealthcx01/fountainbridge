@@ -170,6 +170,15 @@ function seedAgent(def) {
         instructions: def.instructions,
         provider: 'anthropic',
         model: 'claude-sonnet-5',
+        // Extended thinking OFF. With it on, LibreChat replays the assistant's thinking block into
+        // the next request and the Anthropic API rejects the conversation:
+        //   400 invalid_request_error: messages.1.content.0.thinking.thinking: Field required
+        // That 400 lands on the SECOND leg of a tool-using turn — after the tools have run, before
+        // the model can say anything — so every conversation that actually uses a tool dies at the
+        // exact moment it matters, leaving the founder a turn with tool calls and no words. It is
+        // the most likely mechanism behind the composer appearing to file a ticket on 2026-07-29
+        // (FB-062) and it made the composer unusable for its entire purpose.
+        model_parameters: { thinking: false },
         tools: def.tools,
         mcpServerNames: def.mcpServerNames,
         conversation_starters: def.conversation_starters,

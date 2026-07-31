@@ -41,6 +41,27 @@ have gone away believing a ticket existed, and found out days later that it did 
 That is the exact inversion of non-negotiable 10. The studio's whole claim is that nothing fails
 silently; here something failed silently *and announced success*.
 
+## The mechanism, found by using it
+
+After shipping the two fixes below I drove the composer as a founder — four sessions through the
+real API, same agent, same tools — and every tool-using turn came back with tool calls and **no
+words**. The API log said why:
+
+```
+400 invalid_request_error: messages.1.content.0.thinking.thinking: Field required
+```
+
+Extended thinking was on, and LibreChat replays the assistant's thinking block into the next
+request. On the SECOND leg of a tool-using turn — after the tools have run, before the model can say
+anything — Anthropic rejects the conversation. So **every conversation that actually used a tool died
+at the exact moment it mattered**, leaving the founder a turn with no answer in it.
+
+That is almost certainly what John hit on 29 July, and it is why the composer has never been usable
+for the thing it exists to do. `model_parameters: { thinking: false }` on the agent fixes it, and the
+difference is total: the same four sessions then produced grounded answers, a refusal to paraphrase a
+document as "verbatim", a web search that checked Bloomberg's actual trademark terms, an unprompted
+deposit of a durable product decision, and four tickets filed with real tool results behind them.
+
 ## Scope
 - **`modelSpecs.enforce: true`.** A founder cannot leave the agent surface. The toolless endpoint
   stops being reachable rather than being documented as a hazard.
@@ -50,6 +71,12 @@ silently; here something failed silently *and announced success*.
   stop — being unable to file is a small problem; saying it filed when it did not is the worst thing
   the product can do to a founder.
 - **Remove the copyable example slug** from the prompt; derive the slug from the founder's own words.
+- **Turn extended thinking off for the composer** (`model_parameters: { thinking: false }`), which is
+  what made every tool-using turn fail.
+- **Put `gbrain` on the brain bridge's PATH.** Found in the same pass: the bridge started, answered
+  `/health` and failed every query with `flock: failed to execute gbrain: No such file or directory`.
+  bun installs to `~/.bun/bin`, which systemd does not put on a unit's PATH — the lane already
+  prepends it, the bridge is a separate process and needed its own.
 
 ## Out of scope
 - The other three composer faults found the same afternoon (the brain being unreachable) — FB-061.
@@ -61,6 +88,10 @@ silently; here something failed silently *and announced success*.
 - [x] No example slug in the prompt can be echoed back as a real one.
 - [x] Deployed and verified on ARCA's box: `enforce: true` present in the container's config, api
       healthy, agent re-seeded with all six tools.
+- [x] **A founder can hold a real conversation and get a ticket filed.** Four sessions through the
+      live composer produced PRs #12, #13, #15 and #16 on `wealthcx01/arca`, each with a
+      `file_venture_ticket` tool result behind it, plus #14 — a durable product decision the composer
+      deposited to the venture's knowledge without being asked.
 
 ## Still open
 - ❌ **No automated test proves the composer will not narrate a filing.** This is a prompt-level

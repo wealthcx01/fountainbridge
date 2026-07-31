@@ -11,6 +11,11 @@ Type=simple
 # Bridge token + brain source + the lock the refresh also takes. Written by install-gbrain.sh; local
 # to this box, never in the repo (§8).
 EnvironmentFile=/opt/foundry/lane/brain.env
+# gbrain is installed by bun into ~/.bun/bin, which is NOT on the PATH systemd hands a unit. Without
+# this the bridge starts, answers /health, accepts queries — and every one of them fails with
+# "flock: failed to execute gbrain: No such file or directory". The lane already prepends this in
+# foundry-lib.sh; the bridge is a separate process and needed its own.
+Environment=PATH=/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/usr/bin/env node /opt/foundry/lane/brain-bridge.mjs
 Restart=always
 RestartSec=5
