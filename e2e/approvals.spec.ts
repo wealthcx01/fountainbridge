@@ -58,6 +58,16 @@ test.describe('what the studio can prove about an approval', () => {
     await expect(prov).toContainText('john.gallagher@wealthcx.com');
   });
 
+  test('an approved action stays visible instead of disappearing', async ({ page }) => {
+    // Found by writing the test above: `granted` rendered NOWHERE. A founder clicked Approve on
+    // something irreversible and the card vanished, returning only if it later failed. Every
+    // approval now appears somewhere with its state on it.
+    const decided = page.getByTestId('approvals-decided');
+    await expect(decided).toBeVisible();
+    await expect(decided).toContainText('Decided');
+    await expect(page.getByTestId('approval-arca/past-send-state')).toHaveText('approved');
+  });
+
   test('two approvals in different repos do not collide in the DOM', async ({ page }) => {
     // Since FB-045 an approval id is unique only within its department's repo. Repo-qualified test
     // ids are what keeps Playwright's strict mode from failing the moment two departments share a

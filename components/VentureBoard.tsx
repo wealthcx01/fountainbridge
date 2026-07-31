@@ -118,6 +118,14 @@ export function VentureBoard({
   // an errored real action loud — silently vanished from the queue, as did an unverifiable one
   // (CLAUDE.md #10 inverted).
   const needsAttention = approvals.filter((a) => a.status === 'failed' || a.status === 'unverified-action');
+  // FB-058: and everything else. `granted`, `executing`, `executed` and `rejected` rendered NOWHERE,
+  // so a founder clicked Approve and watched the card disappear with no evidence anything was queued
+  // — the approval only came back into view if it later failed. Approving something irreversible and
+  // being shown nothing is the same silent gap in a worse place, so every approval now appears
+  // somewhere with its state on it.
+  const decided = approvals.filter(
+    (a) => a.status === 'granted' || a.status === 'executing' || a.status === 'executed' || a.status === 'rejected',
+  );
   const [selected, setSelected] = useState<Selected | null>(null);
   const stale = new Set(staleRepos);
 
@@ -189,6 +197,15 @@ export function VentureBoard({
         <div data-testid="approvals-queue" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Needs your OK — before anything goes out</p>
           {pendingApprovals.map((a) => (
+            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} />
+          ))}
+        </div>
+      ) : null}
+
+      {decided.length > 0 ? (
+        <div data-testid="approvals-decided" style={{ marginTop: '1.25rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Decided — what happened next</p>
+          {decided.map((a) => (
             <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} />
           ))}
         </div>

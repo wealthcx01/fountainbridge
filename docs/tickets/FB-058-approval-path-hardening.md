@@ -58,6 +58,15 @@ provably the thing the founder was looking at.
 - [x] **Two approvals with the same id in different department repos render without colliding.** Test
       ids are repo-qualified, matching the React key.
 
+## What the new tests found
+
+Writing the coverage immediately surfaced a fifth gap that none of the three tickets had recorded:
+**`granted`, `executing`, `executed` and `rejected` approvals rendered nowhere.** The board showed
+`proposed` and, since FB-051, `failed`/`unverified-action` — so a founder clicked Approve on
+something irreversible and watched the card disappear, with no evidence anything was queued, and it
+only came back into view if it later went wrong. Fixed here rather than deferred: it is the same
+silent gap FB-051 closed for failures, in a worse place, on the surface Ross is about to use.
+
 ## The fixture trap this closed on the way
 
 `make sign-approval-fixtures` re-signs every grant it finds, so it would have quietly repaired both
