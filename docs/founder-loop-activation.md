@@ -65,7 +65,17 @@ else in the loop works without it — FB-042 just can't render typed run history
 Sell/Scale operational half. See `docs/founder-to-lane-execution.md` for the loop and the memory files
 for the full FB-041…057 roadmap.
 
-## 4. Department budget envelopes (FB-054) — one file, no deploy
+## 4. Department budget envelopes (FB-054) — NOT READY, do not rely on this
+
+> **⚠ A 10-specialist review on 2026-07-31 found this feature's gate is not trustworthy.** The
+> arithmetic is correct; every input to it is writable by the agent being gated. Do not configure a
+> venture expecting it to constrain spend. Specifically: `budgets.json` sits on the same ref the lane
+> writes proposals to (it can raise its own limit); an omitted or malformed `amount_minor` produces
+> no check at all; `department` is unvalidated; spend is read from the wrong repo for the only
+> department that spends money; and `period` is a label — spend is summed over all time, so the
+> percentage grows without bound. See `docs/tickets/FB-054-department-budget-envelopes.md`.
+>
+> The setup below is the intended shape, kept so the fix has a target.
 
 Each department (Build / Sell / Scale) can carry a spend envelope. When a lane proposes an external
 action that costs money, the studio computes what approving it would do to that department's budget
