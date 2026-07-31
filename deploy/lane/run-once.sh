@@ -52,6 +52,16 @@ has_open_pr() {
 # The department also decides how the ticket's work is allowed to end: `pr` means a pull request and
 # nothing more; `activegraph` and anything unrecognised mean an external action must be PROPOSED for
 # the founder, never performed.
+#
+# The venture's PRIMARY repo, captured before any department is walked. Scanning rebinds REPO for
+# each department, and the liveness heartbeat has to land somewhere the studio actually reads —
+# without this it was written against whichever department the loop happened to end on, which is the
+# LAST one, which is the one most likely to be misconfigured. Caught live: with Sell and Scale
+# declared but not yet cloned, every idle wake reported "could not ensure state ref" and the studio
+# stopped hearing from a lane that was running perfectly well.
+PRIMARY_REPO="$REPO"
+PRIMARY_BASE="$BASE_BRANCH"
+
 work_department() {
   DEPT_ID="$(dept_field "$1" 1)"; REPO="$(dept_field "$1" 2)"
   BASE_BRANCH="$(dept_field "$1" 3)"; DEPT_GATE="$(dept_field "$1" 4)"
@@ -100,7 +110,7 @@ brain_refresh_if_available() {
 }
 
 # --- scan each department for the first workable ticket ---------------------------------------------
-PICK="" PICK_SLUG="" PICK_DEPT="" PICK_GATE="" PICK_REPO="" PICK_DIR=""
+PICK="" PICK_SLUG="" PICK_DEPT="" PICK_GATE="" PICK_REPO="" PICK_DIR="" PICK_BASE=""
 shopt -s nullglob
 scan_department() {
 for f in docs/tickets/*.md; do
@@ -127,7 +137,7 @@ for f in docs/tickets/*.md; do
     flog "skip $slug — gave up after $MAX_ATTEMPTS attempts (surfaced)"; continue
   fi
   PICK="$REPO_DIR/$f"; PICK_SLUG="$slug"
-  PICK_DEPT="$DEPT_ID"; PICK_GATE="$DEPT_GATE"; PICK_REPO="$REPO"; PICK_DIR="$REPO_DIR"
+  PICK_DEPT="$DEPT_ID"; PICK_GATE="$DEPT_GATE"; PICK_REPO="$REPO"; PICK_DIR="$REPO_DIR"; PICK_BASE="$BASE_BRANCH"
   return 0
 done
 return 1
@@ -139,12 +149,15 @@ for entry in $(departments); do
   brain_refresh_if_available
   scan_department && break
 done
-# The dispatch below runs against the department the pick came from, not whichever one the loop
-# happened to end on — an empty last department would otherwise reset REPO out from under it.
+# Everything below runs against the department the pick came from — not whichever one the loop
+# happened to end on. With no pick at all, fall back to the venture's primary repo so the heartbeat
+# is written where the studio reads it.
 if [ -n "$PICK" ]; then
   REPO="$PICK_REPO"; REPO_DIR="$PICK_DIR"; export REPO
-  BASE_BRANCH="$(dept_field "$(departments | grep -m1 "^$PICK_DEPT:")" 3)"; export BASE_BRANCH
+  BASE_BRANCH="$PICK_BASE"; export BASE_BRANCH
   cd "$REPO_DIR"
+else
+  REPO="$PRIMARY_REPO"; BASE_BRANCH="$PRIMARY_BASE"; export REPO BASE_BRANCH
 fi
 
 # --- "useful work?" — nothing ready → idle heartbeat, no model session -----------------------------
