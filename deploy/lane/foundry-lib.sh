@@ -9,6 +9,9 @@
 : "${REPO:=wealthcx01/arca}"
 : "${BASE_BRANCH:=master}"
 : "${STATE_REF:=foundry-state}"
+# Where a human decision is recorded (FB-044). Separate from the state ref: that one is engine
+# bookkeeping the lane owns, this one is the audit record of what a person agreed to.
+: "${APPROVALS_REF:=foundry-approvals}"
 : "${API:=https://api.github.com}"
 # This box serves ONE department's queue (FB-041 slice). FB-045 provisions the Sell/Scale boxes/repos.
 : "${LANE_DEPARTMENT:=build}"
@@ -70,6 +73,81 @@ write_runreport() {
   body="$body}"
   gh_api -X PUT "$API/repos/$REPO/contents/$path" -d "$body" >/dev/null
   flog "runreport → $STATE_REF:$path ($status)"
+}
+
+# ---------------------------------------------------------------------------------------------------
+# Departments (FB-045). One box serves every department of ONE venture: Build works the product repo,
+# Sell works the marketing repo, Scale works the ops repo. Each has its own queue, its own base
+# branch and its own gate.
+# ---------------------------------------------------------------------------------------------------
+#
+# Configured as space-separated `id:owner/repo:base:gate` entries, so a new department is a line in
+# lane.env and not a code change:
+#
+#   FOUNDRY_DEPARTMENTS="build:wealthcx01/arca:master:pr sell:wealthcx01/arca-marketing:main:activegraph"
+#
+# Unset → the single Build department this box ran before FB-045, built from REPO/BASE_BRANCH. An
+# older lane.env therefore keeps working exactly as it did, rather than finding no departments and
+# going quietly idle.
+departments() {
+  # Word-splitting is the point: the variable is a space-separated list of entries.
+  # shellcheck disable=SC2086
+  if [ -n "${FOUNDRY_DEPARTMENTS:-}" ]; then printf '%s\n' ${FOUNDRY_DEPARTMENTS}; return; fi
+  printf '%s:%s:%s:%s\n' "${LANE_DEPARTMENT:-build}" "$REPO" "$BASE_BRANCH" "${LANE_GATE:-pr}"
+}
+
+# dept_field <entry> <1..4> — id | repo | base | gate. A malformed entry yields an empty gate, and
+# every caller treats an unrecognised gate as the STRICTEST one rather than as `pr`.
+dept_field() { printf '%s' "$1" | cut -d: -f"$2"; }
+
+# The directory a department's repo is checked out in, derived from the repo name so two departments
+# can never share a worktree (they hold different branches at the same moment).
+dept_dir() { printf '%s/%s' "${LANE_HOME:-/opt/foundry/lane}" "$(printf '%s' "$1" | cut -d/ -f2)"; }
+
+# is_external_action <ticket-file> — would working this ticket reach someone outside the company?
+#
+# Deliberately generous. A false positive costs one approval click; a false negative sends an email
+# nobody agreed to. The same widening applies to the sensitive-ticket routing in run-once.sh, which
+# this complements: that one asks "is this high blast-radius?", this asks "does this leave the box?".
+is_external_action() {
+  grep -qiE '\bsend(s|ing)?\b|\bemail(s|ing)?\b|\boutreach\b|\bcampaign\b|\bnewsletter\b|\bpublish(es|ing)?\b|\bbroadcast\b|\bsequence\b|\bmailshot\b|\bdm\b|\bpost (to|on) (twitter|x|linkedin|instagram)\b' "$1" 2>/dev/null
+}
+
+# write_proposal <approval-id> <normalised-proposal-json> — file an external action for the founder's
+# approval, on the venture's `foundry-approvals` ref.
+#
+# The ref lives on the department's OWN repo, so the studio reads a Sell proposal where Sell's work
+# is. Writing it is the last thing the lane does about that action: it holds no send credentials, and
+# only a studio-issued grant lets the separate executor act (FB-044).
+#
+# The HTTP status is checked. `gh_api` is curl without --fail, so a 403/409/422 exits 0 with an error
+# body — the failure mode FB-052 found on the PRP write, where the lane reported filing something it
+# had never filed. Here that would mean telling a founder an action is waiting for them when nothing
+# is.
+write_proposal() {
+  local id="$1" json="$2" path="approvals/$1/proposal.json"
+  ensure_approvals_ref || { flog "could not ensure the approvals ref — proposal NOT filed"; return 1; }
+  local existing_sha; existing_sha=$(gh_api "$API/repos/$REPO/contents/$path?ref=$APPROVALS_REF" | jval '.sha')
+  local b64; b64=$(printf '%s' "$json" | base64 -w0)
+  local body="{\"message\":\"propose: $id\",\"content\":\"$b64\",\"branch\":\"$APPROVALS_REF\""
+  [ -n "$existing_sha" ] && body="$body,\"sha\":\"$existing_sha\""
+  body="$body}"
+  local code; code=$(gh_api -o /dev/null -w '%{http_code}' -X PUT "$API/repos/$REPO/contents/$path" -d "$body")
+  case "$code" in
+    200|201) flog "proposal → $APPROVALS_REF:$path (awaiting the founder)"; return 0 ;;
+    *) flog "proposal write REFUSED by GitHub (HTTP $code) — nothing is waiting for the founder"; return 1 ;;
+  esac
+}
+
+# Ensure the approvals ref exists on this repo. Same shape as ensure_state_ref, separate ref: the
+# state ref is engine bookkeeping, this one is the audit record of things a human decided.
+ensure_approvals_ref() {
+  if ! gh_api "$API/repos/$REPO/git/ref/heads/$APPROVALS_REF" | grep -q '"ref"'; then
+    local base_sha; base_sha=$(gh_api "$API/repos/$REPO/git/ref/heads/$BASE_BRANCH" | jval '.object.sha')
+    [ -n "$base_sha" ] || return 1
+    gh_api -X POST "$API/repos/$REPO/git/refs" -d "{\"ref\":\"refs/heads/$APPROVALS_REF\",\"sha\":\"$base_sha\"}" >/dev/null
+    flog "created approvals ref $APPROVALS_REF"
+  fi
 }
 
 # ---------------------------------------------------------------------------------------------------

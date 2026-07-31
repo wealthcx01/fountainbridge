@@ -14,11 +14,12 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   // FB-025/FB-038: the conversational composer entry point. ARCA's box is provisioned
   // (ventures/arca.yaml has vps.host) → the live chat link, not the pending note.
   await expect(page.getByTestId('venture-chat-link')).toBeVisible();
-  // FB-048: the three founder-owned surfaces. Build is active (repo provisioned); Sell/Scale come
-  // with their repos.
+  // FB-048: the three founder-owned surfaces. FB-045 provisioned Sell and Scale their own repos, so
+  // all three now read active — selling and scaling are worked by the lane, not only declared.
   await expect(page.getByTestId('dept-build')).toBeVisible();
   await expect(page.getByTestId('dept-build-state')).toHaveText('active');
-  await expect(page.getByTestId('dept-sell-state')).toHaveText('coming');
+  await expect(page.getByTestId('dept-sell-state')).toHaveText('active');
+  await expect(page.getByTestId('dept-scale-state')).toHaveText('active');
   // Graceful degradation, surfaced not hidden: the imperfect ticket (ARCA-4, odd status) drives the
   // warnings badge; the stray README is counted as a skipped non-ticket file, not shown as a card.
   await expect(page.getByTestId('warnings-badge')).toBeVisible();

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { loadApprovals, attachBudgetDisclosure, toSpends, type ApprovalSource } from '../approvals';
+import { loadApprovals, approvalRepos, attachBudgetDisclosure, toSpends, type ApprovalSource } from '../approvals';
 import { attestationFor } from '../approval-attestation';
 import type { VentureSummary } from '../ventures';
 
@@ -209,5 +209,85 @@ describe('loadApprovals verifies the grant rather than trusting the file', () =>
     const [a] = await loadApprovals(venture, source({ proposal: {}, grant: goodGrant() }));
     expect(a.grantProvenance).toBe('attested');
     vi.unstubAllEnvs();
+  });
+});
+
+// --- FB-045: departments have their own repos, and the gate has to see all of them ----------------
+describe('approvals across department repos', () => {
+  const venture = {
+    id: 'arca',
+    repos: ['arca'],
+    departments: [
+      { id: 'build', repo: 'arca' },
+      { id: 'sell', repo: 'arca-marketing' },
+      { id: 'scale', repo: 'arca-ops' },
+    ],
+  } as never;
+
+  /** A source that knows which repo it was asked about — the thing the old repos[0] read could not. */
+  const multiRepo = (byRepo: Record<string, Record<string, unknown>>): ApprovalSource => ({
+    async listIds(repo) { return Object.keys(byRepo[repo] ?? {}); },
+    async read(repo, id, file) {
+      const p = byRepo[repo]?.[id];
+      return file === 'proposal' && p ? { json: p, sha: `sha-${repo}-${id}` } : null;
+    },
+  });
+
+  it('finds a Sell proposal that lives in the marketing repo', async () => {
+    // This is the defect: the only department that spends money has its own repo, so reading
+    // repos[0] rendered an empty approval queue and a confident £0 of Sell spend.
+    const out = await loadApprovals(venture, multiRepo({
+      arca: {},
+      'arca-marketing': { 'sell-002': { department: 'sell', summary: 'Send the invitation', amount_minor: 520_000, currency: 'GBP' } },
+      'arca-ops': {},
+    }));
+    expect(out).toHaveLength(1);
+    expect(out[0].repo).toBe('arca-marketing');
+    expect(out[0].amountMinor).toBe(520_000);
+  });
+
+  it('keeps approvals from different repos distinct even when they share an id', async () => {
+    const out = await loadApprovals(venture, multiRepo({
+      arca: { launch: { department: 'build', summary: 'Product launch note' } },
+      'arca-marketing': { launch: { department: 'sell', summary: 'Launch campaign' } },
+      'arca-ops': {},
+    }));
+    expect(out).toHaveLength(2);
+    expect(new Set(out.map((a) => a.repo))).toEqual(new Set(['arca', 'arca-marketing']));
+  });
+
+  it('orders across repos, not within each — a waiting proposal outranks another repo\'s finished one', async () => {
+    const out = await loadApprovals(venture, multiRepo({
+      arca: { 'a-done': { department: 'build', summary: 'Done' } },
+      'arca-marketing': { 'b-waiting': { department: 'sell', summary: 'Waiting on you' } },
+      'arca-ops': {},
+    }));
+    // Both are `proposed` here (no grants), so ordering falls to id — the point is one sorted list.
+    expect(out.map((a) => a.id)).toEqual(['a-done', 'b-waiting']);
+  });
+
+  it('does not read the same repo twice when a department names the venture repo', async () => {
+    let calls = 0;
+    const counting: ApprovalSource = {
+      async listIds() { calls += 1; return []; },
+      async read() { return null; },
+    };
+    await loadApprovals(venture, counting);
+    expect(calls).toBe(3); // arca, arca-marketing, arca-ops — not four
+  });
+});
+
+describe('approvalRepos', () => {
+  it('is the venture repos plus every department repo, deduplicated', () => {
+    expect(approvalRepos({ repos: ['arca'], departments: [{ id: 'build', repo: 'arca' }, { id: 'sell', repo: 'arca-marketing' }] } as never))
+      .toEqual(['arca', 'arca-marketing']);
+  });
+
+  it('survives a venture with no departments declared', () => {
+    expect(approvalRepos({ repos: ['arca'], departments: [] } as never)).toEqual(['arca']);
+  });
+
+  it('drops empty entries rather than reading a repo called ""', () => {
+    expect(approvalRepos({ repos: ['arca', ''], departments: [{ id: 'x', repo: '' }] } as never)).toEqual(['arca']);
   });
 });

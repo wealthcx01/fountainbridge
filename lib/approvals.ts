@@ -191,13 +191,55 @@ function statusOf(grant: VerifiedGrant, execution: unknown): ApprovalStatus {
   return grant.provenance === 'attested' ? 'granted' : 'proposed';
 }
 
-/** Build the approval list for one venture from a source. */
+/**
+ * Every repo whose approvals belong to this venture: the venture's own, plus each department's.
+ *
+ * Before FB-045 this was `repos[0]`, from a time when a venture had one repo. Once Sell and Scale got
+ * their own, the department that actually spends money — Sell, gate `activegraph` — filed its
+ * proposals in the marketing repo and the studio read the product repo, so a real send waiting for
+ * the founder rendered as an empty queue and Sell's spend rendered as a confident £0. A gate nobody
+ * can see is not a gate.
+ */
+export function approvalRepos(venture: VentureSummary): string[] {
+  // Both guarded: a venture manifest with no `departments` block is legal, and the venture page
+  // swallows a throw here into an empty approval list — which would show a founder no external
+  // actions waiting rather than an error, the one failure this whole surface exists to prevent.
+  const repos = [...(venture.repos ?? []), ...(venture.departments ?? []).map((d) => d.repo)];
+  return [...new Set(repos.filter((r): r is string => typeof r === 'string' && r.length > 0))];
+}
+
+/**
+ * Build the approval list for one venture.
+ *
+ * Reads every department repo, not just the first. A repo with no approvals ref is the normal case
+ * and yields nothing; a repo that FAILS to read is not the same thing, and is reported rather than
+ * silently contributing zero approvals to a queue the founder is trusting.
+ */
 export async function loadApprovals(
   venture: VentureSummary,
   source: ApprovalSource,
-  repo = venture.repos[0],
+  repos: string | string[] = approvalRepos(venture),
   /** The studio's signing secret. Absent ⇒ nothing can be verified, and every grant says so. */
   secret: string | undefined = process.env.FOUNDRY_APPROVAL_SECRET,
+): Promise<ActiveGraphApproval[]> {
+  const list = typeof repos === 'string' ? [repos] : repos;
+  const all: ActiveGraphApproval[] = [];
+  for (const r of list) all.push(...(await loadApprovalsForRepo(venture, source, r, secret)));
+  // One ordering across every repo — a queue sorted per-repo and concatenated would put a second
+  // repo's terminal records above the first repo's proposals awaiting the founder.
+  return all.sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.id.localeCompare(b.id));
+}
+
+/** Proposed (awaiting the gate) first, then in-flight, then terminal. */
+const STATUS_RANK: Record<ApprovalStatus, number> = {
+  'unverified-action': 0, proposed: 1, granted: 2, executing: 3, failed: 4, executed: 5, rejected: 6,
+};
+
+async function loadApprovalsForRepo(
+  venture: VentureSummary,
+  source: ApprovalSource,
+  repo: string,
+  secret: string | undefined,
 ): Promise<ActiveGraphApproval[]> {
   if (!repo) return [];
   const ids = await source.listIds(repo);
@@ -247,10 +289,7 @@ export async function loadApprovals(
         ?? null,
     });
   }
-  // Proposed (awaiting the gate) first, then in-flight, then terminal.
-  const rank: Record<ApprovalStatus, number> = { 'unverified-action': 0, proposed: 1, granted: 2, executing: 3, failed: 4, executed: 5, rejected: 6 };
-  out.sort((a, b) => rank[a.status] - rank[b.status] || a.id.localeCompare(b.id));
-
+  // Ordering happens once, across every repo, in loadApprovals.
   return out;
 }
 
