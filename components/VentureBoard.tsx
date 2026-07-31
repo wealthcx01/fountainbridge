@@ -8,6 +8,7 @@ import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/ticke
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import { STATUS_LABEL } from '@/lib/glossary';
+import { laneErrorTone, toneColor } from '@/lib/status';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard } from './ApprovalCard';
 
@@ -35,14 +36,10 @@ interface Selected {
 }
 
 // FB-021: present each read-failure state so a founder can tell "not set up yet" from "broken".
-// Setup states read amber (a next step, not a crash); an unexpected/unknown fault reads red.
+// Setup states read `attention` (a next step, not a crash); an unexpected fault reads `blocked`.
+// FB-057 moved the tone decision itself into lib/status.ts — the studio has one status vocabulary,
+// and a component that keeps its own private one is how the patchwork starts.
 type LaneErrorKind = LaneTickets['errorKind'];
-
-function laneErrorTone(kind: LaneErrorKind): 'warn' | 'error' {
-  // Only the two known setup states are amber. `error` and any unclassified/null failure read red —
-  // fail loud on severity rather than dressing an unknown fault as a benign notice.
-  return kind === 'no-credentials' || kind === 'unreadable' ? 'warn' : 'error';
-}
 
 function laneErrorNextStep(kind: LaneErrorKind): string | null {
   switch (kind) {
@@ -119,7 +116,7 @@ export function VentureBoard({
           </span>
         ) : null}
       </div>
-      <p className="muted" style={{ fontSize: '14px' }}>
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
         {venture.founderName ? <>Founder: {venture.founderName} · </> : null}
         <span className="mono">updated {new Date(fetchedAt).toLocaleTimeString()}</span> ·{' '}
         <Link href={`/venture/${venture.id}?refresh=1`} className="mono" data-testid="refresh">
@@ -141,7 +138,7 @@ export function VentureBoard({
           💬 Chat — describe what you want
         </a>
       ) : (
-        <p className="card muted" data-testid="venture-chat-pending" style={{ fontSize: '14px', marginTop: '0.25rem' }}>
+        <p className="card muted" data-testid="venture-chat-pending" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.25rem' }}>
           💬 Your conversational composer — describe what you want in plain English and it becomes a
           workstream — will appear here once this venture’s box is set up.
         </p>
@@ -172,16 +169,16 @@ export function VentureBoard({
       {departments.length > 0 ? (
         <div data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(11.25rem, 1fr))', gap: '0.75rem' }}>
             {departments.map((d) => (
               <div key={d.id} className="card" data-testid={`dept-${d.id}`} style={{ opacity: d.provisioned ? 1 : 0.7 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
-                  <strong style={{ fontSize: '15px' }}>{d.name}</strong>
+                  <strong style={{ fontSize: 'var(--fs-subhead)' }}>{d.name}</strong>
                   <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
                     {d.provisioned ? 'active' : 'coming'}
                   </span>
                 </div>
-                <p className="muted" style={{ fontSize: '13px', margin: '0.35rem 0 0' }}>
+                <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
                   {d.provisioned
                     ? <>Work here is <span className="mono">{GATE_LABEL[d.gate] ?? d.gate}</span>.</>
                     : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
@@ -195,10 +192,10 @@ export function VentureBoard({
 
       {lanes.map((lane) => (
         <div key={lane.repo} style={{ marginBottom: '2.5rem' }} data-testid={`lane-${lane.repo}`}>
-          <h3 className="mono" style={{ fontSize: '15px' }}>
+          <h3 className="mono" style={{ fontSize: 'var(--fs-subhead)' }}>
             {lane.repo} <span className="muted">· {lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
             {stale.has(lane.repo) ? (
-              <span className="tag" data-testid={`lane-stale-${lane.repo}`} title="No repo activity in the staleness window" style={{ marginLeft: '0.4rem', color: 'var(--color-warn)' }}>
+              <span className="tag" data-testid={`lane-stale-${lane.repo}`} title="No repo activity in the staleness window" style={{ marginLeft: '0.4rem', color: toneColor('attention') }}>
                 ⚠ stale
               </span>
             ) : null}
@@ -215,13 +212,13 @@ export function VentureBoard({
               data-testid="lane-error"
               data-error-kind={lane.errorKind ?? 'error'}
               style={{
-                borderColor: laneErrorTone(lane.errorKind) === 'warn' ? 'var(--color-warn)' : 'var(--color-error)',
-                color: laneErrorTone(lane.errorKind) === 'warn' ? 'var(--color-warn)' : 'var(--color-error)',
+                borderColor: toneColor(laneErrorTone(lane.errorKind)),
+                color: toneColor(laneErrorTone(lane.errorKind)),
               }}
             >
               <div>{lane.error}</div>
               {laneErrorNextStep(lane.errorKind) ? (
-                <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: '13px' }}>
+                <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: 'var(--fs-meta-lg)' }}>
                   <strong>Next step:</strong> {laneErrorNextStep(lane.errorKind)}
                 </div>
               ) : null}
@@ -247,10 +244,10 @@ export function VentureBoard({
                         data-testid={`ticket-${item.ticket.id}`}
                         onClick={() => setSelected({ repo: lane.repo, ref: lane.ref, item })}
                       >
-                        <span className="mono eyebrow-id" style={{ fontSize: '11px' }}>{item.ticket.id}</span>
-                        <div style={{ fontSize: '14px', marginTop: '0.15rem' }}>{item.ticket.title}</div>
+                        <span className="mono eyebrow-id" style={{ fontSize: 'var(--fs-eyebrow)' }}>{item.ticket.id}</span>
+                        <div style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.15rem' }}>{item.ticket.title}</div>
                         {item.warnings.length > 0 ? (
-                          <span className="tag" style={{ marginTop: '0.35rem', color: 'var(--color-warn)' }}>
+                          <span className="tag" style={{ marginTop: '0.35rem', color: toneColor('attention') }}>
                             ⚠ {item.warnings.length}
                           </span>
                         ) : null}

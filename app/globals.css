@@ -42,10 +42,30 @@
   --fs-h2: clamp(26px, 2.6vw, 34px);
   --fs-h3: 22px;
   --fs-h4: 18px;
+  --fs-subhead: 15px;
   --fs-body: 16px;
   --fs-body-sm: 14px;
+  --fs-meta-lg: 13px;
   --fs-meta: 12px;
   --fs-eyebrow: 11px;
+
+  /*
+   * Status tones (FB-057) — the studio's ONE status vocabulary. Every domain status (CI, ticket,
+   * approval, lane fault) maps to one of these five tones in lib/status.ts, so the same meaning is
+   * the same colour on every screen. Components reference --tone-*, never the raw --color-* below:
+   * that indirection is the whole point, and design-lint enforces it.
+   *
+   *   ok        it worked / healthy / done
+   *   working   under way right now
+   *   attention needs a human, or a next step the founder must take (never a crash)
+   *   blocked   it failed, or cannot proceed
+   *   idle      nothing is happening, or we do not know
+   */
+  --tone-ok: var(--color-ok);
+  --tone-working: var(--color-accent);
+  --tone-attention: var(--color-warn);
+  --tone-blocked: var(--color-error);
+  --tone-idle: var(--color-ink-muted);
 
   /* Chrome */
   --topbar-height: 3.75rem;

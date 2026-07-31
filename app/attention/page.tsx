@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadAccessibleAttention, type PrApproval } from '@/lib/attention';
 import { APPROVAL_REASSURANCE } from '@/lib/glossary';
+import { prCiTone, toneColor } from '@/lib/status';
 
 // The attention queue (FB-007): open PRs across every accessible venture, awaiting the human gate.
 // Scoping runs server-side in loadAccessibleAttention.
@@ -25,14 +26,14 @@ export default async function AttentionPage({
         <h1 style={{ margin: 0 }}>Awaiting review</h1>
         <span className="tag" data-testid="attention-count">{approvals.length}</span>
       </div>
-      <p className="muted" style={{ fontSize: '14px' }}>
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
         Everything across your ventures waiting on your OK. {APPROVAL_REASSURANCE} Oldest first.{' '}
         <Link href="/attention?refresh=1" className="mono" data-testid="attention-refresh">refresh</Link>
       </p>
       <hr className="hr" />
 
       {errors.length > 0 ? (
-        <p className="card muted" data-testid="attention-errors" style={{ borderColor: 'var(--color-warn)', fontSize: '13px' }}>
+        <p className="card muted" data-testid="attention-errors" style={{ borderColor: toneColor('attention'), fontSize: 'var(--fs-meta-lg)' }}>
           Some repos couldn’t be read: {errors.join(' · ')}
         </p>
       ) : null}
@@ -61,7 +62,7 @@ function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureN
         <CiDot status={approval.ciStatus} />
         {approval.previewUrl ? <span className="tag tag-accent">preview</span> : null}
       </div>
-      <div className="muted mono" style={{ fontSize: '12px', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+      <div className="muted mono" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
         <span>{approval.repo}</span>
         <span>· {ventureName}</span>
         {approval.linkedTicketId ? <span>· {approval.linkedTicketId}</span> : null}
@@ -74,8 +75,7 @@ function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureN
 }
 
 function CiDot({ status }: { status: PrApproval['ciStatus'] }) {
-  const color =
-    status === 'success' ? 'var(--color-ok)' : status === 'failure' ? 'var(--color-error)' : 'var(--color-ink-muted)';
+  const color = toneColor(prCiTone(status));
   return (
     <span className="tag mono" title={`CI: ${status}`} style={{ color }} data-testid="approval-ci">
       CI {status}

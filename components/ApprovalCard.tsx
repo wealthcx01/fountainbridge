@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import { toneColor } from '@/lib/status';
 import { approveExternalAction } from '@/app/actions/approvals';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
@@ -27,7 +28,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
   return (
     <div className="card" data-testid={`approval-${approval.id}`} style={{ marginBottom: '0.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
-        <strong style={{ fontSize: 'var(--fs-body)' }}>{approval.summary}</strong>
+        <strong style={{ fontSize: 'var(--fs-subhead)' }}>{approval.summary}</strong>
         <span className="tag" data-testid={`approval-${approval.id}-dept`}>{approval.department ?? 'general'}</span>
       </div>
       {/* FB-051 (narrowed): what the studio can PROVE about this approval, and what to DO about it.
@@ -42,7 +43,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
             fontSize: 'var(--fs-body-sm)',
             margin: '0.5rem 0 0',
             maxWidth: 'var(--content-narrow)',
-            color: approval.grantProvenance === 'unattested' ? 'var(--color-error)' : undefined,
+            color: approval.grantProvenance === 'unattested' ? toneColor('blocked') : undefined,
             fontWeight: approval.grantProvenance === 'unattested' ? 600 : undefined,
           }}
         >
@@ -59,7 +60,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
         </p>
       ) : null}
       {approval.checks.length > 0 ? (
-        <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: 'var(--fs-meta)', margin: '0.35rem 0 0' }}>
+        <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
           {failing === 0 ? '✓ policy checks clear' : `⚠ ${failing} policy check${failing === 1 ? '' : 's'} need a look`} ·{' '}
           {approval.checks.map((c) => `${c.passed ? '✓' : '✗'} ${c.name}`).join(' · ')}
         </p>
@@ -70,7 +71,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
             className={`tag ${approval.status === 'failed' || approval.status === 'unverified-action' ? '' : 'tag-accent'}`}
             data-testid={`approval-${approval.id}-state`}
             style={approval.status === 'failed' || approval.status === 'unverified-action'
-              ? { color: 'var(--color-error)' }
+              ? { color: toneColor('blocked') }
               : undefined}
           >
             {result?.ok ? 'approved' : STATE_LABEL[approval.status] ?? approval.status}
@@ -96,7 +97,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           </span>
         ) : null}
         {result ? (
-          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${approval.id}-msg`} style={{ fontSize: 'var(--fs-meta)', color: result.ok ? undefined : 'var(--color-warn)' }}>
+          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${approval.id}-msg`} style={{ fontSize: 'var(--fs-meta-lg)', color: result.ok ? undefined : toneColor('attention') }}>
             {result.message}
           </span>
         ) : null}

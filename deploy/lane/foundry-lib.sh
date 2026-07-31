@@ -23,6 +23,10 @@ flog() { echo "[lane $(date -u +%FT%TZ)] $*" >&2; }
 # supervisor.sh, and a system unit with no `User=` is not guaranteed a $HOME — a bare "$HOME" would
 # abort the source and take the whole autonomous lane dark, which is precisely the failure PR #49
 # fixed for the timer. A brain convenience line must never be able to cause it.
+# Where the lane's own helper scripts live. Defined once, up here, because everything below resolves
+# against it and this file is sourced under `set -u`.
+LANE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 LANE_BUN_BIN="${BUN_INSTALL:-${HOME:-/root}/.bun}/bin"
 case ":${PATH:-}:" in
   *":$LANE_BUN_BIN:"*) ;;
@@ -174,9 +178,118 @@ review_status() {
 mem_available_mb() { awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0; }
 
 # ---------------------------------------------------------------------------------------------------
+# PRP — Product Requirement Prompt (FB-052). See docs/lane-rpiv-loop.md §PRP.
+#
+# The PLAN step writes one before any code exists: intent, context, tasks, and explicit VALIDATION
+# GATES. These helpers are the supervisor's interface to it. The parsing itself lives in prp-lib.mjs
+# (pure, unit-tested); bash only ever asks questions through prp-check.mjs.
+# ---------------------------------------------------------------------------------------------------
+: "${PRP_CHECK_BIN:=$LANE_LIB_DIR/prp-check.mjs}"
+
+# prp_ok <file> — true if the document is a usable PRP (required sections + at least one gate).
+prp_ok() { [ -s "$1" ] && node "$PRP_CHECK_BIN" validate "$1" >/dev/null 2>&1; }
+
+# prp_problems <file> — plain-language reasons it is not a usable PRP (empty when it is).
+# The `|| true` is load-bearing. This is only ever called when validation ALREADY failed, so the
+# pipeline's first command exits non-zero by design — and supervisor.sh runs under `set -euo
+# pipefail`, where `WHY="$(prp_problems …)"` would then kill the lane outright: no `blocked`
+# RunReport, no log line, claim branch stranded. Reporting why a PRP is malformed must never be more
+# fatal than the malformed PRP.
+prp_problems() {
+  [ -f "$PRP_CHECK_BIN" ] || { echo "the PRP checker isn't installed on this box"; return 0; }
+  { { node "$PRP_CHECK_BIN" validate "$1" 2>&1 >/dev/null || true; } \
+    | sed -E 's/^\[prp\] not a usable PRP: //' | head -1; } || true
+}
+
+# prp_gate_count <file> — how many validation gates it declares (0 on any error).
+prp_gate_count() { node "$PRP_CHECK_BIN" validate "$1" 2>/dev/null || echo 0; }
+
+# prp_dimension_note <file> — which of the four gate dimensions the PRP does NOT name, if any.
+# The checker computes this and writes it to stderr; every other caller discards stderr, so without
+# this it would be worked out and thrown away while the docs promise gates "covering four dimensions".
+prp_dimension_note() {
+  { node "$PRP_CHECK_BIN" validate "$1" 2>&1 >/dev/null || true; } | sed -nE 's/^\[prp\] note: //p' | head -1
+}
+
+# prp_gate_list <file> — the gates as "id<TAB>text" lines, for the checking prompt.
+prp_gate_list() { node "$PRP_CHECK_BIN" gates "$1" 2>/dev/null || true; }
+
+# prp_gate_report <file> <verdicts.json> [expected-gates] — founder-facing ✅/❌ list on stdout;
+# non-zero if ANY gate failed or went unreported, if no gates could be read at all, or if the gate
+# list no longer matches <expected-gates>. Unreported counts as failed: silence is not evidence.
+prp_gate_report() { node "$PRP_CHECK_BIN" report "$1" "$2" "${3:-}" 2>/dev/null; }
+
+# prp_gate_summary <file> <verdicts.json> [expected-gates] — the failures as one line for a RunReport.
+prp_gate_summary() { node "$PRP_CHECK_BIN" summary "$1" "$2" "${3:-}" 2>/dev/null || true; }
+
+# prp_path <slug> — where a PRP lives on the engine-state ref. One spelling, used everywhere.
+prp_path() { printf 'prps/%s.md' "$1"; }
+
+# ticket_fingerprint <ticket-file> — content hash of the ticket a PRP was written from.
+ticket_fingerprint() { sha256sum "$1" 2>/dev/null | cut -c1-16; }
+
+# write_prp <slug> <file> <ticket-file> — persist the PRP to the engine-state ref so it outlives this
+# process. This is what makes Archon's "clear the chat, resume from the board" true here: the durable
+# context is the ticket plus this file, never a session's history.
+#
+# The ticket's fingerprint goes in as a trailer. Without it a resumed PRP is bound to the slug alone,
+# and run-once.sh's un-stick path — which exists precisely so a founder who EDITS a stuck ticket gets
+# it retried — would hand the retry the plan and gates written from the OLD ticket text, silently
+# ignoring the edit while the PR claimed it validated against them.
+write_prp() {
+  local slug="$1" file="$2" ticket="${3:-}" path
+  path="$(prp_path "$slug")"
+  [ -s "$file" ] || return 1
+  ensure_state_ref || return 1
+
+  local tmp; tmp="$(mktemp)"
+  cat "$file" >"$tmp"
+  [ -n "$ticket" ] && printf '\n<!-- foundry-ticket: %s -->\n' "$(ticket_fingerprint "$ticket")" >>"$tmp"
+
+  local existing_sha; existing_sha=$(gh_api "$API/repos/$REPO/contents/$path?ref=$STATE_REF" | jval '.sha')
+  local body; body=$(node -e '
+    const [msg,content,branch,sha]=process.argv.slice(1);
+    const o={message:msg,content,branch};
+    if (sha) o.sha=sha;
+    process.stdout.write(JSON.stringify(o));
+  ' "prp: $slug" "$(base64 -w0 <"$tmp")" "$STATE_REF" "$existing_sha")
+  rm -f "$tmp"
+
+  # gh_api is `curl -sS` with no --fail, so a 409/403/422 would otherwise exit 0 and this would
+  # report success for a file that was never written — leaving the PR body pointing at nothing and
+  # the resume feature silently degraded to re-planning forever.
+  local code
+  code=$(gh_api -o /dev/null -w '%{http_code}' -X PUT "$API/repos/$REPO/contents/$path" -d "$body")
+  case "$code" in
+    200|201) flog "PRP → $STATE_REF:$path" ;;
+    *) flog "could not persist the PRP (HTTP $code)"; return 1 ;;
+  esac
+}
+
+# read_prp <slug> <dest> [ticket-file] — fetch a previously-written PRP. Non-zero when there isn't
+# one (the normal first-run case) or when it was written from a DIFFERENT version of the ticket.
+read_prp() {
+  local slug="$1" dest="$2" ticket="${3:-}" content
+  content=$(gh_api "$API/repos/$REPO/contents/$(prp_path "$slug")?ref=$STATE_REF" | jval '.content')
+  [ -n "$content" ] || return 1
+  printf '%s' "$content" | tr -d '\n' | base64 -d >"$dest" 2>/dev/null || return 1
+  [ -s "$dest" ] || return 1
+
+  if [ -n "$ticket" ]; then
+    local stored want
+    stored=$(sed -nE 's/^<!-- foundry-ticket: ([0-9a-f]+) -->$/\1/p' "$dest" | tail -1)
+    want="$(ticket_fingerprint "$ticket")"
+    if [ -z "$stored" ] || [ "$stored" != "$want" ]; then
+      flog "the stored PRP was written from a different version of this ticket — re-planning"
+      rm -f "$dest"
+      return 1
+    fi
+  fi
+}
+
+# ---------------------------------------------------------------------------------------------------
 # The venture brain (FB-050). See docs/venture-brain.md.
 # ---------------------------------------------------------------------------------------------------
-LANE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${BRAIN_QUERY_BIN:=$LANE_LIB_DIR/brain-query.mjs}"
 : "${BRAIN_RESEARCH_TIMEOUT:=180}"
 

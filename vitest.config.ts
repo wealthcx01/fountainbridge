@@ -17,6 +17,6 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts', 'deploy/**/*.test.mjs'],
+    include: ['lib/**/*.test.ts', 'deploy/**/*.test.mjs', 'scripts/**/*.test.mjs'],
   },
 });

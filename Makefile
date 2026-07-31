@@ -8,14 +8,20 @@
 #
 # provision-lint: shellcheck + syntax-check the provisioning scripts (FB-011) and the venture-box lane
 # scripts (FB-039/040/041) — the RPIV engine is only linted here, never executed (it touches the box).
+#
+# design-lint: enforce the studio design contract (FB-057, docs/studio-design-contract.md) — tokens
+# only, one status vocabulary, no dead controls. Needs no install; it reads app/ and components/.
 
-.PHONY: validate-manifests parse-tickets provision-lint
+.PHONY: validate-manifests parse-tickets provision-lint design-lint
 
 validate-manifests:
 	cd tools/manifest-validate && npm ci && npm test
 
 parse-tickets:
 	cd tools/ticket-parser && npm ci && npm run typecheck && npm test
+
+design-lint:
+	node scripts/design-lint.mjs
 
 provision-lint:
 	bash -n scripts/provision-venture.sh
