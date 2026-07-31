@@ -39,6 +39,16 @@ esac
 gh_api() { curl -sS -H "Authorization: Bearer ${TICKET_GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
                  -H "X-GitHub-Api-Version: 2022-11-28" "$@"; }
 
+# The authenticated URL for the CURRENT department's repo.
+#
+# The stored `origin` is deliberately tokenless — a clone URL with credentials in it lands in
+# .git/config in plaintext and in every `git remote -v` an operator runs — so every network git
+# operation supplies the token here instead. A bare `git fetch origin` against a private repo fails
+# with "could not read Username for 'https://github.com'", which is how this was found: the arca
+# clone predated the token-stripping and still had credentials baked in, so Build worked and the two
+# new departments did not.
+origin_url() { printf 'https://x-access-token:%s@github.com/%s.git' "$TICKET_GITHUB_TOKEN" "$REPO"; }
+
 # Extract a value from JSON on stdin via a JS accessor, e.g. jval '.object.sha'. Empty on miss.
 jval() { node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(String(eval('JSON.parse(d)'+process.argv[1])??''))}catch{process.stdout.write('')}})" "$1"; }
 
@@ -104,13 +114,39 @@ dept_field() { printf '%s' "$1" | cut -d: -f"$2"; }
 # can never share a worktree (they hold different branches at the same moment).
 dept_dir() { printf '%s/%s' "${LANE_HOME:-/opt/foundry/lane}" "$(printf '%s' "$1" | cut -d/ -f2)"; }
 
+# ticket_gate <ticket-file> — the gate the TICKET declares (`**Gate:** pr|activegraph|...`), or empty.
+#
+# The ticket is the right place for this. A department's gate says what its risky work requires; only
+# the ticket knows whether this particular piece of work IS risky, and a keyword scan of prose cannot
+# tell. Empty means "not declared" — distinct from "declared pr" — so the caller can fall back.
+ticket_gate() {
+  grep -oiE '\*\*Gate:\*\*[[:space:]]*[A-Za-z0-9-]+' "$1" 2>/dev/null | head -1 \
+    | sed -E 's/.*\*\*Gate:\*\*[[:space:]]*//I' | tr '[:upper:]' '[:lower:]'
+}
+
 # is_external_action <ticket-file> — would working this ticket reach someone outside the company?
 #
-# Deliberately generous. A false positive costs one approval click; a false negative sends an email
-# nobody agreed to. The same widening applies to the sensitive-ticket routing in run-once.sh, which
-# this complements: that one asks "is this high blast-radius?", this asks "does this leave the box?".
+# The ticket's own `**Gate:**` wins when it declares one. Only when it says nothing does this fall
+# back to reading the prose, and the fallback stays generous.
+#
+# The generous fallback used to be the WHOLE rule, justified by "a false positive costs one approval
+# click". That was wrong, and the first real Sell ticket proved it: SELL-001 writes a positioning
+# document and mentions in passing that the landing page and the emails depend on it. The scan
+# matched "emails", the lane was told to produce a send proposal for a ticket with no send, it
+# correctly refused to fabricate one — and the supervisor would then have BLOCKED it for the
+# omission. A false positive costs a blocked ticket, not a click.
+#
+# Neither direction can cause an unapproved send: the box holds no send credentials at all (§8). A
+# false negative means a draft arrives as a PR with no approval card beside it — visible, and fixed
+# by declaring the gate on the ticket.
 is_external_action() {
-  grep -qiE '\bsend(s|ing)?\b|\bemail(s|ing)?\b|\boutreach\b|\bcampaign\b|\bnewsletter\b|\bpublish(es|ing)?\b|\bbroadcast\b|\bsequence\b|\bmailshot\b|\bdm\b|\bpost (to|on) (twitter|x|linkedin|instagram)\b' "$1" 2>/dev/null
+  local declared; declared="$(ticket_gate "$1")"
+  case "$declared" in
+    pr) return 1 ;;          # the author says this one is ordinary work
+    '') ;;                   # nothing declared → fall through to reading the prose
+    *) return 0 ;;           # any non-pr gate → treat as an external action
+  esac
+  grep -qiE '\bsend(s|ing)?\b|\bemail(s|ing)?\b|\boutreach\b|\bcampaign\b|\bnewsletter\b|\bpublish(es|ing)?\b|\bbroadcast\b|\bsequence\b|\bmailshot\b|\bmailshots\b|\bpost (to|on) (twitter|x|linkedin|instagram)\b' "$1" 2>/dev/null
 }
 
 # write_proposal <approval-id> <normalised-proposal-json> — file an external action for the founder's
