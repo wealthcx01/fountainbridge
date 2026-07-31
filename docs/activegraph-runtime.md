@@ -1,5 +1,22 @@
 # The ActiveGraph runtime for external actions
 
+> **⚠ THIS DOCUMENT DESCRIBES AN INTENDED DESIGN, NOT THE SHIPPED BEHAVIOUR.**
+>
+> A 10-specialist review on 2026-07-31 found that the central claims below are false in the code as
+> written. Read this as a specification to build against, not as a description of what runs:
+>
+> - **"A forged grant cannot even project to `granted`" is false.** The gate reads `actor.kind` from
+>   a JSON file the lane can write. Nothing verifies the HMAC attestation anywhere in the studio.
+> - **"The append-only log is the source of truth" is false in production.** Nothing writes an
+>   `approval.proposed` event, so `logFor` discards every native log and uses the file-derived
+>   bridge. The event files are write-only.
+> - **"Where both exist, they are reconciled rather than ranked" is false.** `reconcile()` is
+>   unreachable, and in the one scenario it was written for its own guard early-returns.
+> - **"A bridged record is marked and is weaker evidence"** — it is marked in the data and never
+>   surfaced in any UI, so a bridged record is displayed identically to a native one.
+>
+> The full finding list and the fix directions are in `docs/tickets/FB-051-full-activegraph-runtime.md`.
+
 **FB-051.** How the studio records every action that reaches the outside world, and why the record is
 worth trusting. Applies the model of [ActiveGraph](https://github.com/yoheinakajima/activegraph)
 (Yohei Nakajima) — event-sourced, append-only log as source of truth, state as a projection — to our
