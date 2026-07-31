@@ -29,6 +29,27 @@ fi
 STATE_DIR="${STATE_DIR:-/opt/foundry/lane/state}"; mkdir -p "$STATE_DIR"
 SUP="$SCRIPT_DIR/supervisor.sh"
 
+# --- one wake at a time on this box ------------------------------------------------------------------
+# A wake now takes as long as the RPIV loop takes — plan, implement, validate, repair, review, qa —
+# which is routinely longer than the five minutes between timer firings. Without this, the timer
+# starts a second wake on top of the first.
+#
+# The claim (a branch-create CAS) does not prevent it, because the second wake reads the first's
+# claim branch, sees no open PR behind it, and cannot tell "a run is working on this right now" from
+# "a run died and left this behind" — so it does exactly what it was built to do and reclaims the
+# orphan. Observed live: two supervisors on SELL-001, each burning its own Claude sessions, racing
+# on one branch.
+#
+# One box serves one venture (D1), so a box-local lock is the whole answer. Non-blocking on purpose:
+# a wake that arrives while another is running should step aside, not queue up behind it and start
+# the moment it finishes.
+LOCK_FILE="$STATE_DIR/.wake.lock"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  flog "another wake is still running on this box — stepping aside"
+  exit 0
+fi
+
 DAY=$(date -u +%F); BUDGET_FILE="$STATE_DIR/wakes-$DAY"
 runs_today() { if [ -f "$BUDGET_FILE" ]; then wc -l < "$BUDGET_FILE" | tr -d ' '; else echo 0; fi; }
 attempts_of() { if [ -f "$STATE_DIR/attempts-$1" ]; then cat "$STATE_DIR/attempts-$1"; else echo 0; fi; }

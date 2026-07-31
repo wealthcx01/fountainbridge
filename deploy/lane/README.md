@@ -54,13 +54,18 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y 
 npm install -g @anthropic-ai/claude-code
 git clone https://x-access-token:<LANE_TOKEN>@github.com/<owner>/<repo>.git /opt/foundry/lane/<repo>
 
-# the lane's own scripts. They resolve helpers RELATIVE TO THEMSELVES, so they all live together in
-# /opt/foundry/lane — copy the whole set, not a subset, or the lane silently loses a capability
-# (a missing prp-check.mjs blocks every ticket; a missing brain-query.mjs degrades RESEARCH to files):
-install -m 0755 -t /opt/foundry/lane \
-  <checkout>/deploy/lane/{supervisor.sh,run-once.sh,foundry-lib.sh,install-gstack.sh,install-gbrain.sh,gbrain-refresh.sh}
-install -m 0644 -t /opt/foundry/lane \
-  <checkout>/deploy/lane/{prp-lib.mjs,prp-check.mjs,brain-lib.mjs,brain-query.mjs,brain-bridge.mjs}
+# the lane's own files. They resolve helpers RELATIVE TO THEMSELVES, so they all live together in
+# /opt/foundry/lane — copy the WHOLE directory. A named list goes stale every time a ticket adds a
+# file, and the failure is quiet: a missing prp-check.mjs blocks every ticket, a missing
+# brain-query.mjs degrades RESEARCH to reading files, and a missing .service left install-gbrain.sh
+# failing on its last step with the brain otherwise fully installed.
+install -m 0755 -t /opt/foundry/lane <checkout>/deploy/lane/*.sh
+install -m 0644 -t /opt/foundry/lane <checkout>/deploy/lane/*.mjs \
+  <checkout>/deploy/lane/*.service <checkout>/deploy/lane/*.timer
+
+# clone each department's repo + write FOUNDRY_DEPARTMENTS (FB-045). Skip for a single-department box:
+FOUNDRY_DEPARTMENTS="build:<owner>/<repo>:<base>:pr sell:<owner>/<repo>-marketing:main:activegraph" \
+  /opt/foundry/lane/install-departments.sh
 
 # install gstack so the lane runs the real RPIV loop (once, ~1.7 GB incl. the browser stack):
 /opt/foundry/lane/install-gstack.sh
