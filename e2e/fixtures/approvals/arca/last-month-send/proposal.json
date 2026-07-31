@@ -1,0 +1,8 @@
+{
+  "id": "last-month-send",
+  "department": "sell",
+  "action_type": "send",
+  "summary": "LAST MONTH: launch teaser to the waiting list",
+  "amount_minor": 450000,
+  "currency": "GBP"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "over-budget-send",
+  "department": "sell",
+  "action_type": "send",
+  "summary": "Send the launch announcement to the 4,000-person waiting list",
+  "amount_minor": 520000,
+  "currency": "GBP",
+  "checks": [
+    { "name": "no personal data in the body", "passed": true }
+  ]
+}

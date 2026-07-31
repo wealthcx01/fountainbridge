@@ -7,6 +7,7 @@ import Link from 'next/link';
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { TicketDrawer } from './TicketDrawer';
@@ -44,18 +45,30 @@ type LaneErrorKind = LaneTickets['errorKind'];
 function laneErrorNextStep(kind: LaneErrorKind): string | null {
   switch (kind) {
     case 'no-credentials':
-      return 'an admin connects the studio to GitHub (install the Foundry GitHub App, or set a read token) so it can see this venture’s work.';
+      return 'an admin connects the studio to GitHub (install the Foundry GitHub App, or set a read token) so it can see this venture\u2019s work.';
     case 'unreadable':
-      return 'give the studio’s GitHub credential read access to this repository (install or scope the Foundry GitHub App, or the read token) — or check the repository name is right.';
-    case 'rate-limit': // resolves on refresh; the message already says so.
+      return 'give the studio\u2019s GitHub credential read access to this repository (install or scope the Foundry GitHub App, or the read token) \u2014 or check the repository name is right.';
+    case 'rate-limit':
     case 'error':
     case null:
       return null;
     default: {
-      const _exhaustive: never = kind; // a new LaneErrorKind must be handled above.
+      const _exhaustive: never = kind;
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Over the limit gets weight and colour; everything else is ordinary text.
+ *
+ * There is no state ladder to announce any more — the sentence says what it says, and `overLimit` is
+ * a statement about the reported figures rather than a verdict on an action. The previous version
+ * carried four states across a glyph, a colour, a DOM attribute and an sr-only twin, and they
+ * drifted apart from each other and from the words.
+ */
+function budgetTone(budget: BudgetDisclosure | null): { color?: string; weight?: number } {
+  return budget?.overLimit ? { color: toneColor('blocked'), weight: 600 } : {};
 }
 
 export function VentureBoard({
@@ -63,6 +76,9 @@ export function VentureBoard({
   lanes,
   departments = [],
   approvals = [],
+  budgets = [],
+  budgetsError = null,
+  orphanEnvelopes = [],
   staleRepos = [],
   totalWarnings,
   fetchedAt,
@@ -72,6 +88,11 @@ export function VentureBoard({
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
+  budgets?: (BudgetDisclosure | null)[];
+  /** Non-null when the venture's budgets file exists but could not be read (FB-054). */
+  budgetsError?: string | null;
+  /** Envelopes keyed to departments this venture does not declare — configured but enforcing nothing. */
+  orphanEnvelopes?: string[];
   staleRepos?: string[];
   totalWarnings: number;
   fetchedAt: number;
@@ -170,9 +191,14 @@ export function VentureBoard({
         <div data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(11.25rem, 1fr))', gap: '0.75rem' }}>
-            {departments.map((d) => (
-              <div key={d.id} className="card" data-testid={`dept-${d.id}`} style={{ opacity: d.provisioned ? 1 : 0.7 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
+            {departments.map((d) => {
+              const budget = budgets[departments.indexOf(d)] ?? null;
+              return (
+              // The "coming" fade is applied to the HEADER only, not the whole card: compositing the
+              // budget line at 0.7 drops muted text to ~2.8:1, under WCAG AA, and a budget figure is
+              // not something to render at reduced contrast.
+              <div key={d.id} className="card" data-testid={`dept-${d.id}`}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
                   <strong style={{ fontSize: 'var(--fs-subhead)' }}>{d.name}</strong>
                   <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
                     {d.provisioned ? 'active' : 'coming'}
@@ -183,9 +209,41 @@ export function VentureBoard({
                     ? <>Work here is <span className="mono">{GATE_LABEL[d.gate] ?? d.gate}</span>.</>
                     : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
                 </p>
+                {/* One string owner: `describe` returns a whole sentence, so the view adds no
+                    prefix of its own — "Budget no budget set" came from gluing a word onto a
+                    fragment. The sentence names whose figure it is, so no glyph or sr-only twin is
+                    needed to carry state that the words already carry. */}
+                <p
+                  className={budget?.overLimit ? undefined : 'muted'}
+                  data-testid={`dept-${d.id}-budget`}
+                  data-budget-over={budget?.overLimit ? 'true' : 'false'}
+                  style={{
+                    fontSize: 'var(--fs-body-sm)',
+                    margin: '0.35rem 0 0',
+                    color: budgetTone(budget).color,
+                    fontWeight: budgetTone(budget).weight,
+                  }}
+                >
+                  {describeBudget(budget, d.name)}
+                </p>
               </div>
-            ))}
+              );
+            })}
           </div>
+          {budgetsError ? (
+            <p className="card" data-testid="budgets-error" style={{ borderColor: toneColor('blocked'), color: toneColor('blocked'), fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
+              ⚠ {budgets.some(Boolean)
+                ? <>Part of your budgets file was rejected, so those departments have no limit while the rest still report normally: {budgetsError}.</>
+                : <>Your budgets file couldn&rsquo;t be read, so no limits are set: {budgetsError}.</>}
+            </p>
+          ) : null}
+          {orphanEnvelopes.length > 0 ? (
+            <p className="card muted" data-testid="budgets-orphans" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
+              ⚠ Budget{orphanEnvelopes.length === 1 ? '' : 's'} set for{' '}
+              <span className="mono">{orphanEnvelopes.join(', ')}</span>, which {orphanEnvelopes.length === 1 ? 'is not a department' : 'are not departments'} of this
+              venture — so {orphanEnvelopes.length === 1 ? 'it is' : 'they are'} enforcing nothing. Check the spelling against your surfaces above.
+            </p>
+          ) : null}
         </div>
       ) : null}
       <hr className="hr" />

@@ -1,0 +1,12 @@
+# ARCA — department spend envelopes (FB-054).
+#
+# This file lives in the STUDIO repo, beside the venture manifests, and NOT on the venture's
+# foundry-approvals ref — the ref its own lane can write. An agent must not be able to edit the
+# limits that police its spending, so changing a budget goes through this repo's PR + CI gate.
+#
+# Limits are integer MINOR units (pence for GBP). 480000 is £4,800, not £480,000.
+currency: GBP
+period: monthly       # monthly | quarterly | yearly | all-time
+departments:
+  sell: 480000        # £4,800/month for go-to-market sends
+  scale: 100000       # £1,000/month for growth/ops

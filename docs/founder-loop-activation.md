@@ -67,3 +67,42 @@ else in the loop works without it — FB-042 just can't render typed run history
 **Nothing above blocks building more** (FB-041 etc. proceed). These three activate *going live* + the
 Sell/Scale operational half. See `docs/founder-to-lane-execution.md` for the loop and the memory files
 for the full FB-041…057 roadmap.
+
+## 4. Department budgets (FB-054) — one file in THIS repo, no deploy
+
+Each department can carry a spend limit. When a lane proposes an action that costs money, the studio
+shows you where that department's budget stands before you approve.
+
+**It discloses; it does not judge.** The studio owns the limit and shows it. The *spend* is what the
+venture reports — summed where it can be, named where it cannot, and labelled as the venture's
+figure rather than a verified one. There is deliberately no "within budget / over budget" verdict,
+because the amount, currency, department and timestamps are all written by the agent whose spending
+is being reported. Dressing that up as a check the studio had verified would be the dishonest part.
+
+**The file lives here, in the studio repo:** `ventures/budgets/<venture-id>.yaml`, in a subdirectory
+under `ventures/`. It is *not* on the venture's `foundry-approvals` ref, because that is the ref the
+venture's own lane can write. Changing a limit goes through this repo's PR + CI gate.
+
+```yaml
+# ventures/budgets/arca.yaml
+currency: GBP
+period: monthly        # monthly | quarterly | yearly | all-time — enforced, not a label
+departments:
+  sell: 480000         # £4,800/month. Integer MINOR units: pence, not pounds.
+  scale: 100000        # £1,000/month
+```
+
+A limit written in pounds (`4800.5`) is rejected, and a banner on the board names the department. A
+file that exists but cannot be parsed raises a board-level warning rather than silently leaving every
+department unlimited.
+
+For spend to be counted the lane gives the proposal a price:
+`{ "department": "sell", "amount_minor": 520000, "currency": "GBP" }`. An action with no price is
+simply free — it is not treated as spend the studio failed to count.
+
+**Known gaps**, both in the ticket:
+- Spend is read from the venture's first repo, so a department with its own repo (Sell →
+  `arca-marketing`) reports £0 until per-department loading lands.
+- The reported spend is lane-authored and no timestamp is covered by the approval HMAC, so a lane
+  can move its own past spend between windows. Future dates and non-ISO strings are rejected, which
+  narrows it; closing it needs FB-051's attestation work.

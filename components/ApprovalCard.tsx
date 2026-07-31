@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import { describe as describeBudget } from '@/lib/budgets';
 import { toneColor } from '@/lib/status';
 import { approveExternalAction } from '@/app/actions/approvals';
 
@@ -59,11 +60,43 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           ) : null}
         </p>
       ) : null}
-      {approval.checks.length > 0 ? (
-        <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
-          {failing === 0 ? '✓ policy checks clear' : `⚠ ${failing} policy check${failing === 1 ? '' : 's'} need a look`} ·{' '}
-          {approval.checks.map((c) => `${c.passed ? '✓' : '✗'} ${c.name}`).join(' · ')}
+      {/* What the STUDIO can say about the budget: the founder's own limit, and the spend the
+          VENTURE reports. Deliberately not a pass/fail check — the studio owns the limit and does
+          not own the total, and dressing an unverifiable figure as a verdict is what three review
+          passes kept punishing. Rendered above the proposer's claims and attributed. */}
+      {approval.budget ? (
+        <p
+          data-testid={`approval-${approval.id}-budget`}
+          data-budget-over={approval.budget.overLimit ? 'true' : 'false'}
+          style={{
+            fontSize: 'var(--fs-body-sm)',
+            margin: '0.5rem 0 0',
+            color: approval.budget.overLimit ? toneColor('blocked') : undefined,
+            fontWeight: approval.budget.overLimit ? 600 : undefined,
+          }}
+        >
+          {describeBudget(approval.budget, approval.department ?? 'this surface')}{' '}
+          <span className="muted">Limit set in the studio; spend as reported by the venture.</span>
         </p>
+      ) : null}
+      {approval.checks.length > 0 ? (
+        <ul
+          className="muted"
+          data-testid={`approval-${approval.id}-checks`}
+          style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-body-sm)' }}
+        >
+          <li>
+            {failing === 0 ? '✓ stated by the proposer' : `⚠ ${failing} check${failing === 1 ? '' : 's'} the proposer flagged`}
+          </li>
+          {approval.checks.map((c, i) => (
+            <li key={i}>
+              <span aria-hidden="true">{c.passed ? '✓' : '✗'}</span>
+              <span className="sr-only">{c.passed ? 'passed: ' : 'failed: '}</span>
+              {c.name}
+              {c.detail ? <> — {c.detail}</> : null}
+            </li>
+          ))}
+        </ul>
       ) : null}
       <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
         {done ? (
