@@ -6,7 +6,30 @@ always been looking at.
 
 Visual proposal: <https://claude.ai/code/artifact/d82294d1-2398-4907-bbaf-092f2c03b9aa>
 
-Delivered by **FB-064** … **FB-068**.
+Delivered by **FB-064** … **FB-069**.
+
+## The first action
+
+The one thing on day one is **a conversation, not a form** — and not "file me a ticket" either.
+
+A founder arrives with work already done: exports from other chats, research reports, competitor
+notes, a deck, customer interviews. They should hand that corpus over first, and it should become the
+venture's knowledge rather than context that evaporates when the tab closes.
+
+Then the conversation should go where our own playbook goes — who exactly this is for, what they do
+today instead, and the question founders skip: **what would stop someone copying this?** Durable
+advantage for a new company comes overwhelmingly from **counter-positioning** or a **cornered
+resource**, and the newcomer's move is only available before you have a legacy to protect. A feature
+list is not a moat. Barriers, not benefits.
+
+Out of that comes a **thesis** — who it is for, what it replaces, the power being built, what would
+falsify it — saved to the venture's knowledge, feeding the founding run, and traceable from every
+ticket that follows.
+
+We already ship all of this teaching: 8 handbook chapters, 12 playbook chapters, Disciplined
+Entrepreneurship's 24 steps, 7 Powers. **The composer has never been given any of it** — not one
+reference in its instructions, and the brain indexes the venture's repo rather than this content. We
+teach the method in one room and hand founders an assistant that has not read it. (FB-069.)
 
 ## The premise
 
@@ -76,21 +99,34 @@ If a founder needs a glossary, the interface has failed.
 
 ## On Rive
 
-Rive was raised as a way to bring this under one flow. It is the wrong tool for that, and the right
-tool for something else — worth writing down so it is not re-litigated.
+Researched properly rather than dismissed, because the first answer undersold it.
 
-Rive is a real-time **animation and motion** runtime: state machines for graphics, embedded as `.riv`
-assets. It does not unify applications, render pull requests, or replace a front end. Pointing it at
-"the composer is a separate app and I have to go to GitHub" would be a category error — those are
-missing *surfaces*, and surfaces are Next.js pages against APIs we already have.
+**It is more capable than "animation".** Rive is an interactive runtime with **state machines** and
+**data binding**: an application reads and updates values inside a `.riv` file at runtime — text,
+numbers, booleans, lists (add, remove, edit, swap), image swaps, artboard swaps, responsive layouts.
+Duolingo is the reference case: instead of pre-baking every reaction they built modular pieces and let
+the state machine blend them live, triggered by app events like `correct_answer` or
+`streak_milestone`, syncing to audio and reacting to taps. Eight head and eight body animations
+compose into 64+ variations, in **under a megabyte**. That is a genuine UI runtime for stateful,
+expressive components — not decoration.
 
-`FB-027` already scopes Rive correctly, and already records the sharp edge: the Rust CLI is an
-**authoring** tool for producing `.riv` files, never a runtime dependency. It is explicitly gated
-behind substance — and it should stay there. A studio that animates beautifully while sending a
-founder to github.com to accept their own work is worse than one that does neither.
+**It is still not application architecture.** Rive's own documentation does not claim it replaces
+HTML and CSS for forms, tables or text-heavy screens, and those are most of what the studio is. More
+to the point, it cannot answer the actual problem: "the composer is a separate app and I have to go to
+GitHub to accept my own work" describes **missing surfaces**, and surfaces are Next.js pages against
+APIs we already have. No animation runtime fixes a hole in the flow.
 
-Once FB-064 through FB-068 are in, Rive is exactly the right way to make the result feel made:
-the state transition when work moves, the moment a ticket lands on the board, the machine running on
-the Foundry page.
+So: the right tool, aimed at the wrong problem *for now*. `FB-027` already scopes it correctly and
+records the sharp edge — the Rust CLI is an **authoring** tool for producing `.riv` files, never a
+runtime dependency — and gates it behind substance.
 
-**Substance, then shine.**
+Where it earns its place, once FB-064 to FB-068 are in: the moment a ticket lands on the board, the
+transition as work moves between states, an approval resolving, the machine running on the Foundry
+page. Those are exactly the stateful, event-driven moments Rive is built for, and they are the
+difference between a studio that works and one that feels made.
+
+**Substance, then shine** — and then shine properly, with the tool that does it well.
+
+Sources: [Rive data binding](https://rive.app/docs/runtimes/data-binding) ·
+[Duolingo's AI-powered Video Call brings Lily to life with Rive](https://rive.app/blog/duolingo-s-ai-powered-video-call-brings-lily-to-life) ·
+[Engineering interactive mascots with Rive's state machine](https://dev.to/uianimation/engineering-interactive-mascots-with-rives-state-machine-and-runtime-architecture-4e2h)

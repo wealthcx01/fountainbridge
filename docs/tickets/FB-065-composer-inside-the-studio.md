@@ -30,19 +30,36 @@ drift into the easiest:
    navigation break — but the inner product still looks like itself, so it half-solves the problem.
 2. **Re-skin it.** LibreChat supports custom branding and CSS. Better fidelity, still a second
    application underneath, and every upgrade risks the skin.
-3. **Build the conversation surface in the studio** and keep LibreChat as the engine behind an API —
-   we already drive exactly that API programmatically (`/api/agents/chat`), so it is proven. Most
-   work, and the only one that genuinely produces one product.
+3. **Build the conversation surface in the studio** and keep LibreChat as the engine behind its API.
+   Most work, and the only one that genuinely produces one product.
 
-**Recommendation: (3), scoped tightly** — one conversation view, the same agent, the same tools, the
-same instructions. Not a LibreChat clone; the founder-facing subset.
+**Recommendation: (3) — and the research says it is better supported than we assumed.**
+
+LibreChat ships an official **Agents API** for exactly this: `POST /api/agents/v1/chat/completions`
+(OpenAI-compatible, so a standard SDK works by changing `base_url`) and `POST /api/agents/v1/responses`
+(their agentic format, with native tool use and structured outputs), plus `GET /api/agents/v1/models`
+to list agents. Auth is an API key generated in the UI once `remoteAgents` is enabled, or an OIDC
+bearer token for machine-to-machine. Streaming is supported.
+
+That matters. When I drove the composer during the ARCA dogfood I reverse-engineered the *internal*
+route (`/api/agents/chat`, needing a browser User-Agent to get past a bot check and a hand-minted
+JWT). Building a product on that would have been building on someone's private internals. The Agents
+API is documented, versioned and intended for this — so option (3) stops being "the ambitious one"
+and becomes the supported one.
+
+**Still to confirm before committing:** file uploads are not covered in the Agents API docs, and
+depositing a document is half of why the composer exists. If uploads are not exposed there, the
+upload path may need to stay on LibreChat's own surface for a first cut — which is a reason to scope
+this in two steps rather than one.
 
 ## Scope
 - One conversation surface inside the studio: send a message, see the reply, see what it did.
 - **Tool calls are visible as actions, not hidden.** When it searches the venture's knowledge, files a
   ticket or saves a fact, the founder sees that happen — it is the evidence the thing is real, and it
   is what makes "filed" trustworthy after FB-062.
-- File upload, since depositing a document is half of why the composer exists.
+- File upload, since depositing a document is half of why the composer exists — **confirm first**
+  whether the Agents API exposes it; if not, say so plainly in the ticket rather than discovering it
+  mid-build.
 - Conversation history, so a founder can return to a thread.
 - The engine stays on the box. No venture content moves off it (D1).
 
