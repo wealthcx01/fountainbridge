@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 // `/playbook/<slug>` so cross-links work from any route; external/absolute/anchor links pass through.
 export function PlaybookProse({ body }: { body: string }) {
   return (
-    <div className="playbook-prose" style={{ fontSize: '16px', lineHeight: 1.65, maxWidth: '46rem' }}>
+    <div className="playbook-prose" style={{ fontSize: 'var(--fs-body)', lineHeight: 1.65, maxWidth: '46rem' }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

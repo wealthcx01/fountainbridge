@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import { toneColor } from '@/lib/status';
 import { approveExternalAction } from '@/app/actions/approvals';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
@@ -16,11 +17,11 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
   return (
     <div className="card" data-testid={`approval-${approval.id}`} style={{ marginBottom: '0.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
-        <strong style={{ fontSize: '15px' }}>{approval.summary}</strong>
+        <strong style={{ fontSize: 'var(--fs-subhead)' }}>{approval.summary}</strong>
         <span className="tag" data-testid={`approval-${approval.id}-dept`}>{approval.department ?? 'general'}</span>
       </div>
       {approval.checks.length > 0 ? (
-        <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: '13px', margin: '0.35rem 0 0' }}>
+        <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
           {failing === 0 ? '✓ policy checks clear' : `⚠ ${failing} policy check${failing === 1 ? '' : 's'} need a look`} ·{' '}
           {approval.checks.map((c) => `${c.passed ? '✓' : '✗'} ${c.name}`).join(' · ')}
         </p>
@@ -46,7 +47,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           </button>
         )}
         {result ? (
-          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${approval.id}-msg`} style={{ fontSize: '13px', color: result.ok ? undefined : 'var(--color-warn)' }}>
+          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${approval.id}-msg`} style={{ fontSize: 'var(--fs-meta-lg)', color: result.ok ? undefined : toneColor('attention') }}>
             {result.message}
           </span>
         ) : null}
