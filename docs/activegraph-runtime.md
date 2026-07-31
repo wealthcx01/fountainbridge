@@ -98,9 +98,27 @@ the three files, and everything downstream sees one model.
 - The proposer is attributed to a **lane**, never a human. Attributing a v0 proposal to a person is
   the one lie that would matter: it would make an ungranted action look approved.
 
-A native log is preferred **only when it is a complete chain** (opens with `approval.proposed`). A
-log that opens mid-story is the signature of a partial migration, and the v0 files are then the more
-complete record — preferring the truncated log would lose history rather than gain provenance.
+A log that opens mid-story is the signature of a partial migration, and the v0 files are then the
+more complete record — preferring the truncated log would lose history rather than gain provenance.
+
+**Where both exist, they are reconciled rather than ranked.** Appending an event and writing the v0
+file are two separate writes and either can fail alone, so "prefer the native log" is not safe. The
+dangerous direction is a `grant.json` that landed while its `approval.granted` event did not: the
+native log would project to `proposed`, the studio would offer Approve on an action that is *already
+granted*, and the executor — which reads `grant.json` — would run it. The founder would be told an
+approved action still needs approving, and could grant it twice. So whatever the files know that the
+log does not is folded onto the end of the log, marked `repaired`.
+
+## Which faults withhold approval
+
+Not all of them. `out-of-order` is derived from the order events *arrived* in — a directory listing —
+not from anything in the events themselves; every one of them can still be valid. Since an
+unverifiable record withholds the Approve button, treating storage noise as damning would let a
+listing quirk **block a founder from approving a sound record**: a false accusation with a real cost.
+
+So faults are split. `ADVISORY_FAULTS` (currently just `out-of-order`) are reported but do not make a
+record indefensible. Everything that impugns what the log *says* — no proposal, illegal transition,
+broken lineage, duplicate `seq`, post-terminal events, a non-human grant — blocks.
 
 ## Write ordering, and what fails safe
 

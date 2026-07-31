@@ -88,17 +88,41 @@ export interface ApprovalEvent {
 
 export type ProjectedStatus = 'proposed' | 'granted' | 'executing' | 'executed' | 'rejected' | 'failed';
 
+export type FaultCode =
+  | 'no-proposal'
+  | 'out-of-order'
+  | 'duplicate-seq'
+  | 'broken-lineage'
+  | 'non-human-grant'
+  | 'illegal-transition'
+  | 'post-terminal';
+
 export interface Fault {
   seq: number | null;
-  code:
-    | 'no-proposal'
-    | 'out-of-order'
-    | 'duplicate-seq'
-    | 'broken-lineage'
-    | 'non-human-grant'
-    | 'illegal-transition'
-    | 'post-terminal';
+  code: FaultCode;
   message: string;
+}
+
+/**
+ * Faults that say something about STORAGE, not about whether the record is true.
+ *
+ * `out-of-order` is derived from the order the events arrived in — a directory listing — not from
+ * anything in the events themselves. Every one of them can still be perfectly valid. Because an
+ * unverifiable record withholds the Approve button, treating this as damning would let a listing
+ * quirk BLOCK a founder from approving a sound record: a false accusation with a real cost.
+ *
+ * It is still reported (it means something wrote history rather than appending to it, which is worth
+ * knowing) — it just does not make the record indefensible on its own.
+ */
+export const ADVISORY_FAULTS: readonly FaultCode[] = ['out-of-order'];
+
+export function isAdvisory(fault: Fault): boolean {
+  return ADVISORY_FAULTS.includes(fault.code);
+}
+
+/** The faults that mean the record itself cannot be trusted. */
+export function blockingFaults(faults: Fault[]): Fault[] {
+  return faults.filter((f) => !isAdvisory(f));
 }
 
 export interface ProjectedApproval {
@@ -301,9 +325,17 @@ export function replayTo(events: ApprovalEvent[], seq: number): ProjectedApprova
   return project(ordered(events).filter((e) => e.seq <= seq));
 }
 
-/** Is this approval's record defensible — a clean chain, granted by a human? */
+/**
+ * Is this approval's record defensible — a clean chain, granted by a human?
+ *
+ * Advisory faults (storage-order noise) do not make a record indefensible; only faults that impugn
+ * what the log SAYS do. See ADVISORY_FAULTS.
+ */
 export function isDefensible(projected: ProjectedApproval): boolean {
-  return projected.faults.length === 0 && (projected.status !== 'granted' || projected.grantedBy !== null);
+  return (
+    blockingFaults(projected.faults).length === 0 &&
+    (projected.status !== 'granted' || projected.grantedBy !== null)
+  );
 }
 
 /**

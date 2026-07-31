@@ -156,17 +156,61 @@ export function fixtureApprovalSource(dir: string): ApprovalSource {
  */
 async function logFor(source: ApprovalSource, repo: string, id: string, files: LegacyFiles): Promise<ApprovalEvent[]> {
   const events = source.readEvents ? await source.readEvents(repo, id) : [];
-  // A native log is authoritative only when it is a COMPLETE chain. A log that opens mid-story is
-  // the signature of a partial migration — the studio's grant event landed but the proposal was
-  // never migrated, or an append failed — and in that case FB-044's files are the more complete
-  // record of what actually happened. Preferring a truncated event log over them would lose history
-  // rather than gain provenance.
-  if (events.length && ordered(events)[0]?.type === 'approval.proposed') return events;
   const bridged = eventsFromLegacy(files);
-  if (bridged.length) return bridged;
-  // Neither is complete: return whatever we have so `project()` reports the faults rather than the
-  // approval silently vanishing from the founder's queue.
-  return events;
+
+  // No native log at all: the v0 files are the whole record.
+  if (!events.length) return bridged;
+  // A native log that opens mid-story is a partial migration — the files are the fuller record.
+  if (ordered(events)[0]?.type !== 'approval.proposed') return bridged.length ? bridged : events;
+
+  // Both exist. RECONCILE rather than prefer, because appending an event and writing the v0 file are
+  // two separate writes and either can fail alone.
+  //
+  // The dangerous direction is a grant.json that landed while its `approval.granted` event did not:
+  // the native log would project to `proposed`, the studio would offer Approve on an action that is
+  // ALREADY granted, and the executor — which reads grant.json — would run it. The founder would be
+  // told an approved action still needs approving, and could grant it twice. Taking whichever record
+  // is further along closes that, in both directions.
+  return reconcile(events, bridged);
+}
+
+/** Rank of the furthest state a log reaches, for comparing two records of the same approval. */
+const REACHED: Record<string, number> = {
+  'approval.proposed': 0,
+  'approval.granted': 1,
+  'approval.executing': 2,
+  'approval.rejected': 3,
+  'approval.failed': 3,
+  'approval.executed': 3,
+};
+
+function furthest(events: ApprovalEvent[]): number {
+  return events.reduce((max, e) => Math.max(max, REACHED[e.type] ?? 0), 0);
+}
+
+/**
+ * Fold whatever the v0 files know that the native log does not onto the end of the native log.
+ *
+ * The appended events are marked `bridged` (they came from a file, not from a real append), so the
+ * studio can still tell a fully-native record from a repaired one.
+ */
+function reconcile(events: ApprovalEvent[], bridged: ApprovalEvent[]): ApprovalEvent[] {
+  if (!bridged.length || furthest(bridged) <= furthest(events)) return events;
+
+  const have = new Set(events.map((e) => e.type));
+  const missing = bridged.filter((e) => !have.has(e.type) && e.type !== 'approval.proposed');
+  if (!missing.length) return events;
+
+  const log = ordered(events);
+  let seq = log[log.length - 1].seq;
+  return [
+    ...log,
+    ...missing.map((e) => {
+      const causedBy = seq;
+      seq += 1;
+      return { ...e, seq, causedBy, data: { ...(e.data ?? {}), bridged: true, repaired: true } };
+    }),
+  ];
 }
 
 /** Build the approval list for one venture from a source. */

@@ -77,7 +77,7 @@ Two prior misrepresentations fixed on the way past: a **failed execution used to
 founder as approved and fine), and an unverifiable record now **withholds the Approve button** rather
 than rendering a confident status over a broken chain.
 
-159 tests, lint, typecheck, build, the Playwright UI gate, ticket parse, manifest validation and
+164 tests, lint, typecheck, build, the Playwright UI gate, ticket parse, manifest validation and
 shellcheck all green.
 
 **Still to do (needs John / a migration):** retire the v0 files once ventures are migrated and the

@@ -113,3 +113,50 @@ describe('loadApprovals projects from the event log', () => {
     expect(a.outcome).toBe('smtp refused');
   });
 });
+
+describe('a grant whose event append failed must still read as granted', () => {
+  const venture = { id: 'arca', repos: ['wealthcx01/arca'] } as never;
+  const proposedEvent = {
+    seq: 1, type: 'approval.proposed', at: 't1', actor: { kind: 'lane', id: 'lane' }, causedBy: null,
+    summary: 'Send it', department: 'sell',
+  };
+  const src = (events: unknown[], files: Record<string, unknown>): ApprovalSource => ({
+    async listIds() { return ['a1']; },
+    async read(_r, _i, file) {
+      return files[file] === undefined ? null : { json: files[file], sha: `sha-${file}` };
+    },
+    async readEvents() { return events as never; },
+  });
+
+  it('reconciles grant.json onto a native log that is missing its granted event', async () => {
+    // Appending the event and writing grant.json are two writes; either can fail alone. If the
+    // studio showed `proposed` here it would offer Approve on an action the executor is about to
+    // run from grant.json — the founder told an approved action needs approving, and able to grant
+    // it twice.
+    const [a] = await loadApprovals(venture, src([proposedEvent], {
+      proposal: { summary: 'Send it' },
+      grant: { approver: 'ross@b.capital', granted_at: 't2' },
+    }));
+    expect(a.status).toBe('granted');
+    expect(a.grantedBy).toEqual({ kind: 'founder', id: 'ross@b.capital' });
+    expect(a.faults).toEqual([]);
+  });
+
+  it('reconciles an execution recorded only in the files', async () => {
+    const [a] = await loadApprovals(venture, src(
+      [proposedEvent, { seq: 2, type: 'approval.granted', at: 't2', actor: { kind: 'founder', id: 'r' }, causedBy: 1 }],
+      { proposal: {}, grant: { approver: 'r' }, execution: { status: 'executed', reason: 'sent' } },
+    ));
+    expect(a.status).toBe('executed');
+    expect(a.outcome).toBe('sent');
+  });
+
+  it('leaves a native log alone when it is already the furthest record', async () => {
+    const [a] = await loadApprovals(venture, src(
+      [proposedEvent, { seq: 2, type: 'approval.granted', at: 't2', actor: { kind: 'founder', id: 'r' }, causedBy: 1 }],
+      { proposal: {}, grant: { approver: 'r' } },
+    ));
+    expect(a.status).toBe('granted');
+    expect(a.bridged).toBe(false);
+  });
+});

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import { blockingFaults } from '@/lib/activegraph';
 import { approveExternalAction } from '@/app/actions/approvals';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
@@ -12,6 +13,9 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const failing = approval.checks.filter((c) => !c.passed).length;
   const done = result?.ok || approval.status !== 'proposed';
+  // Only faults that impugn what the log SAYS withhold approval. Storage-order noise must never
+  // block a founder from approving a sound record (FB-051 review).
+  const blocking = blockingFaults(approval.faults);
 
   return (
     <div className="card" data-testid={`approval-${approval.id}`} style={{ marginBottom: '0.75rem' }}>
@@ -22,13 +26,13 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
       {/* FB-051: a record whose event log does not hold up must SAY SO, in front of the approve
           button. The whole promise of the gate is "we can prove exactly what happened" — rendering a
           confident status over a broken chain would quietly turn that into a lie. */}
-      {approval.faults.length > 0 ? (
+      {blocking.length > 0 ? (
         <p
           className="card"
           data-testid={`approval-${approval.id}-faults`}
           style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)', padding: '0.5rem 0.75rem', margin: '0.5rem 0 0', fontSize: '13px' }}
         >
-          ⚠ This record cannot be verified — {approval.faults.map((f) => f.message).join('; ')}. Its
+          ⚠ This record cannot be verified — {blocking.map((f) => f.message).join('; ')}. Its
           audit trail is incomplete, so treat what it says with caution.
         </p>
       ) : null}
@@ -43,7 +47,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           <span className="tag tag-accent" data-testid={`approval-${approval.id}-state`}>
             {result?.ok ? 'approved' : approval.status}
           </span>
-        ) : approval.faults.length > 0 ? (
+        ) : blocking.length > 0 ? (
           // Deliberately no Approve button. Approving against a log we cannot verify would produce
           // exactly the record this ticket exists to make impossible — a grant whose provenance is
           // already in doubt. A human must sort the log out first.

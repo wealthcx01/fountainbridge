@@ -6,6 +6,7 @@ import {
   ordered,
   isDefensible,
   isHuman,
+  blockingFaults,
   suppressionList,
   isSuppressed,
   type ApprovalEvent,
@@ -284,5 +285,25 @@ describe('suppression — the right to object is absolute', () => {
 
   it('ignores a blank address rather than suppressing everyone', () => {
     expect(suppressionList([add(1, '   ')]).size).toBe(0);
+  });
+});
+
+// --- Review findings (FB-051 /review) ------------------------------------------------------------
+describe('storage-order noise must not make a sound record indefensible', () => {
+  it('reports out-of-order but does NOT block approval', () => {
+    // The listing order is a property of the STORE, not of the record. Because an unverifiable
+    // record withholds the Approve button, treating this as damning would let a directory-listing
+    // quirk block a founder from approving a perfectly valid grant.
+    const p = project([granted, proposed]);
+    expect(p.status).toBe('granted');
+    expect(p.faults.map((f) => f.code)).toEqual(['out-of-order']);
+    expect(blockingFaults(p.faults)).toEqual([]);
+    expect(isDefensible(p)).toBe(true);
+  });
+
+  it('still blocks on faults that impugn what the log says', () => {
+    const p = project([proposed, { ...granted, actor: lane }]);
+    expect(blockingFaults(p.faults).map((f) => f.code)).toContain('non-human-grant');
+    expect(isDefensible(p)).toBe(false);
   });
 });
