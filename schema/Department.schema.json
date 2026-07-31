@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "DepartmentGate": {
+      "description": "How a department's actions are gated. GTM/external gates firm up post-FB-012.",
+      "enum": [
+        "pr",
+        "activegraph",
+        "tbd-fb012"
+      ],
+      "title": "DepartmentGate",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A venture department (engineering, GTM, ops, …) with its own repo/queue and gate.",
+  "properties": {
+    "connectors": {
+      "description": "Connector names this department uses (e.g. 'stripe').",
+      "items": {
+        "type": "string"
+      },
+      "title": "Connectors",
+      "type": "array"
+    },
+    "gate": {
+      "$ref": "#/$defs/DepartmentGate"
+    },
+    "id": {
+      "description": "Department id, unique within the venture.",
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "description": "Human-readable department name.",
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "queue_path": {
+      "description": "Path (in the repo) to the department's work queue.",
+      "minLength": 1,
+      "title": "Queue Path",
+      "type": "string"
+    },
+    "repo": {
+      "description": "Repo backing this department's work.",
+      "minLength": 1,
+      "title": "Repo",
+      "type": "string"
+    },
+    "venture_id": {
+      "description": "The owning venture's id.",
+      "minLength": 1,
+      "title": "Venture Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "venture_id",
+    "name",
+    "repo",
+    "queue_path",
+    "gate"
+  ],
+  "title": "Department",
+  "type": "object"
+}

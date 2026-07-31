@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
+import { approvalRepos } from './venture-repos';
 import { disclose, normalizeCurrency, type BudgetDisclosure, type Envelope, type Spend } from './budgets';
 
 /** Read a proposal's stated price, keeping "no price" and "unreadable price" distinct. */
@@ -39,6 +40,10 @@ function committedAtOf(grant: unknown, execution: unknown): string | null {
 import { verifyGrant, describeProvenance, type GrantProvenance, type VerifiedGrant } from './provenance';
 
 export const APPROVALS_REF = 'foundry-approvals';
+
+// Re-exported so existing importers keep working; the definition lives in a module free of the
+// server-only chain this file pulls in (see lib/venture-repos.ts).
+export { approvalRepos };
 
 export interface PolicyCheck {
   name: string;
@@ -189,23 +194,6 @@ function statusOf(grant: VerifiedGrant, execution: unknown): ApprovalStatus {
   if (ex?.status === 'rejected') return 'rejected';
   if (ex?.status === 'failed') return 'failed';
   return grant.provenance === 'attested' ? 'granted' : 'proposed';
-}
-
-/**
- * Every repo whose approvals belong to this venture: the venture's own, plus each department's.
- *
- * Before FB-045 this was `repos[0]`, from a time when a venture had one repo. Once Sell and Scale got
- * their own, the department that actually spends money — Sell, gate `activegraph` — filed its
- * proposals in the marketing repo and the studio read the product repo, so a real send waiting for
- * the founder rendered as an empty queue and Sell's spend rendered as a confident £0. A gate nobody
- * can see is not a gate.
- */
-export function approvalRepos(venture: VentureSummary): string[] {
-  // Both guarded: a venture manifest with no `departments` block is legal, and the venture page
-  // swallows a throw here into an empty approval list — which would show a founder no external
-  // actions waiting rather than an error, the one failure this whole surface exists to prevent.
-  const repos = [...(venture.repos ?? []), ...(venture.departments ?? []).map((d) => d.repo)];
-  return [...new Set(repos.filter((r): r is string => typeof r === 'string' && r.length > 0))];
 }
 
 /**

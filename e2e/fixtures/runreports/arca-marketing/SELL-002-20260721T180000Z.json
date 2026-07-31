@@ -1,0 +1,9 @@
+{
+  "lane_id": "sell",
+  "started_at": "2026-07-21T18:00:00Z",
+  "ended_at": "2026-07-21T18:30:00Z",
+  "trigger": "scheduled",
+  "outcome": "awaiting-approval",
+  "summary_md": "Drafted the early-access invitation and proposed the send for your approval.",
+  "tickets_touched": ["SELL-002"]
+}
