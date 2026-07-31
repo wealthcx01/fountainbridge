@@ -7,7 +7,7 @@ import Link from 'next/link';
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
-import type { EnvelopeStatus } from '@/lib/budgets';
+import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard } from './ApprovalCard';
@@ -35,56 +35,41 @@ interface Selected {
   item: TicketWithMeta;
 }
 
-/**
- * How each budget state reads at a glance (FB-054).
- *
- * Colour AND a glyph, because colour alone fails for a founder who cannot distinguish these hues —
- * and because `nearing`, the state whose entire job is early warning, previously had no marker of
- * any kind, so telling it from `within` meant reading a full sentence on every card.
- */
-const BUDGET_TONE: Record<EnvelopeStatus['state'], string | undefined> = {
-  over: 'var(--color-error)',
-  nearing: 'var(--color-warn)',
-  within: undefined,
-  unset: undefined,
-};
-const BUDGET_GLYPH: Record<EnvelopeStatus['state'], string> = {
-  over: '⚠',
-  nearing: '!',
-  within: '✓',
-  unset: '–',
-};
-
-/** The envelope for a department, if the founder has set one (FB-054). */
-function budgetFor(budgets: EnvelopeStatus[], departmentId: string): EnvelopeStatus | undefined {
-  return budgets.find((b) => b.department === departmentId);
-}
-
 // FB-021: present each read-failure state so a founder can tell "not set up yet" from "broken".
 // Setup states read amber (a next step, not a crash); an unexpected/unknown fault reads red.
 type LaneErrorKind = LaneTickets['errorKind'];
 
 function laneErrorTone(kind: LaneErrorKind): 'warn' | 'error' {
-  // Only the two known setup states are amber. `error` and any unclassified/null failure read red —
-  // fail loud on severity rather than dressing an unknown fault as a benign notice.
   return kind === 'no-credentials' || kind === 'unreadable' ? 'warn' : 'error';
 }
 
 function laneErrorNextStep(kind: LaneErrorKind): string | null {
   switch (kind) {
     case 'no-credentials':
-      return 'an admin connects the studio to GitHub (install the Foundry GitHub App, or set a read token) so it can see this venture’s work.';
+      return 'an admin connects the studio to GitHub (install the Foundry GitHub App, or set a read token) so it can see this venture\u2019s work.';
     case 'unreadable':
-      return 'give the studio’s GitHub credential read access to this repository (install or scope the Foundry GitHub App, or the read token) — or check the repository name is right.';
-    case 'rate-limit': // resolves on refresh; the message already says so.
+      return 'give the studio\u2019s GitHub credential read access to this repository (install or scope the Foundry GitHub App, or the read token) \u2014 or check the repository name is right.';
+    case 'rate-limit':
     case 'error':
     case null:
       return null;
     default: {
-      const _exhaustive: never = kind; // a new LaneErrorKind must be handled above.
+      const _exhaustive: never = kind;
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Over the limit gets weight and colour; everything else is ordinary text.
+ *
+ * There is no state ladder to announce any more — the sentence says what it says, and `overLimit` is
+ * a statement about the reported figures rather than a verdict on an action. The previous version
+ * carried four states across a glyph, a colour, a DOM attribute and an sr-only twin, and they
+ * drifted apart from each other and from the words.
+ */
+function budgetTone(budget: BudgetDisclosure | null): { color?: string; weight?: number } {
+  return budget?.overLimit ? { color: 'var(--color-error)', weight: 600 } : {};
 }
 
 export function VentureBoard({
@@ -104,7 +89,7 @@ export function VentureBoard({
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
-  budgets?: EnvelopeStatus[];
+  budgets?: (BudgetDisclosure | null)[];
   /** Non-null when the venture's budgets file exists but could not be read (FB-054). */
   budgetsError?: string | null;
   /** Envelopes keyed to departments this venture does not declare — configured but enforcing nothing. */
@@ -194,7 +179,7 @@ export function VentureBoard({
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
             {departments.map((d) => {
-              const budget = budgetFor(budgets, d.id);
+              const budget = budgets[departments.indexOf(d)] ?? null;
               return (
               // The "coming" fade is applied to the HEADER only, not the whole card: compositing the
               // budget line at 0.7 drops muted text to ~2.8:1, under WCAG AA, and a budget figure is
@@ -211,37 +196,32 @@ export function VentureBoard({
                     ? <>Work here is <span className="mono">{GATE_LABEL[d.gate] ?? d.gate}</span>.</>
                     : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
                 </p>
-                {budget ? (
-                  <p
-                    className="muted"
-                    data-testid={`dept-${d.id}-budget`}
-                    data-budget-state={budget.shownState}
-                    data-budget-committed={budget.state}
-                    style={{
-                      fontSize: 'var(--fs-body-sm)',
-                      margin: '0.35rem 0 0',
-                      // The one line on this card whose job is to catch the eye must not be the
-                      // least visible thing on it. The first cut rendered 108% in the same muted
-                      // grey as 4%, with the state carried only by a data attribute that had no CSS
-                      // behind it — a test hook, not a signal.
-                      color: BUDGET_TONE[budget.shownState],
-                      fontWeight: budget.shownState === 'over' ? 600 : undefined,
-                    }}
-                  >
-                    <span aria-hidden="true">{BUDGET_GLYPH[budget.shownState]}</span>
-                    <span className="sr-only">{budget.shownState} budget: </span> Budget{' '}
-                    {budget.detail}
-                  </p>
-                ) : null}
+                {/* One string owner: `describe` returns a whole sentence, so the view adds no
+                    prefix of its own — "Budget no budget set" came from gluing a word onto a
+                    fragment. The sentence names whose figure it is, so no glyph or sr-only twin is
+                    needed to carry state that the words already carry. */}
+                <p
+                  className={budget?.overLimit ? undefined : 'muted'}
+                  data-testid={`dept-${d.id}-budget`}
+                  data-budget-over={budget?.overLimit ? 'true' : 'false'}
+                  style={{
+                    fontSize: 'var(--fs-body-sm)',
+                    margin: '0.35rem 0 0',
+                    color: budgetTone(budget).color,
+                    fontWeight: budgetTone(budget).weight,
+                  }}
+                >
+                  {describeBudget(budget, d.name)}
+                </p>
               </div>
               );
             })}
           </div>
           {budgetsError ? (
             <p className="card" data-testid="budgets-error" style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
-              ⚠ {budgets.some((b) => b.state !== 'unset')
-                ? <>Part of your budgets file was rejected, so those departments are unbudgeted while the rest are still being checked: {budgetsError}.</>
-                : <>Your budgets file couldn&rsquo;t be read, so no spend is being checked against it: {budgetsError}. Until it&rsquo;s fixed, treat every budget figure above as unset.</>}
+              ⚠ {budgets.some(Boolean)
+                ? <>Part of your budgets file was rejected, so those departments have no limit while the rest still report normally: {budgetsError}.</>
+                : <>Your budgets file couldn&rsquo;t be read, so no limits are set: {budgetsError}.</>}
             </p>
           ) : null}
           {orphanEnvelopes.length > 0 ? (

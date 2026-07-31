@@ -24,98 +24,57 @@ adds a per-department spend envelope that feeds the gate + the founder brief.
 
 ## Acceptance criteria
 
-Met in code, with two gaps stated below. **PR #54 stays a draft** until the per-department repo gap
-is closed — a department can still show a confident `0%`.
+**Narrowed, on John's call (2026-07-31), after three review passes returned 57 criticals without
+converging.** The feature now DISCLOSES rather than judges. See `lib/budgets.ts` for the reasoning.
 
-- [x] Each department carries a spend envelope, and a spend approval shows the envelope check.
-      Envelopes live in `ventures/budgets/<id>.yaml` in the **studio** repo, which venture lanes
-      cannot write; the check is computed studio-side and **fails closed** on every agent-supplied
-      input it cannot trust (unreadable price, no price, unknown department, unstated or foreign
-      currency, unreadable budgets file), and never returns "no check at all" — an absent line used
-      to be the cheapest bypass available.
-- [x] A department nearing/over its envelope is flagged on the board — in colour, in weight, in a
-      glyph, in a screen-reader-only state word, and in the sentence itself. The marker escalates on
-      what the queue would do, so a department at 83% with £5,200 waiting is flagged rather than
-      reading calm.
+- [x] Each department carries a spend limit, and a spend approval shows the budget position. The
+      limit lives in `ventures/budgets/<id>.yaml` in the **studio** repo, which venture lanes cannot
+      write; the spend is summed where it can be, **named where it cannot**, and attributed to the
+      venture rather than presented as verified.
+- [x] A department over its limit is marked on the board — colour, weight, and the sentence itself.
+      One string owner (`describe`), so the view adds no prefix and the words cannot drift from the
+      state.
 
-**Gaps (not met):**
+**What changed, and why.** The original design rendered a pass/fail policy check: "within budget" /
+"over budget". A verdict must be either true or false, and the studio can support neither, because
+almost every input belongs to the party being gated — the amount, currency and department are
+lane-written; the timestamps are lane-written and unattested; a lane can write
+`execution.json {status:'rejected'}` over its own grant and erase the spend; and a department with
+its own repo is not read at all. Each guard added to compensate produced a worse failure than the
+one it replaced:
+
+| Guard added | Failure it created |
+| --- | --- |
+| Fail closed on anything uncountable | An ordinary **no-cost action** (`{amountMinor: 0, currency: null}` — a post, a tweet, every proposal predating this feature) was booked as spend in an unknown currency, so the gate went permanently red on any real venture. A lane could freeze a department by filing one costless proposal. |
+| Judge on the queue | One unapproved £1,000,000 proposal failed every honest card beside it. |
+| Escalate the marker on the projection | Colour, glyph, DOM attribute and words drifted apart; the announcement stuttered and contradicted itself. |
+
+So the studio now says what it knows and whose number it is. That removes the incomplete-total
+poisoning, the denial-of-approval, the pass/projection conflation, the board-vs-card contradictions
+and the "checked by the studio" laundering — because there is no verdict left to be wrong.
+
+`lib/budgets.ts` went from 576 lines to ~300, and the loader was split into `lib/budgets-load.ts`
+(it reaches for `node:fs`, and the board renders `describe()` from a client component).
+
+**Still open:**
 - ❌ **Per-department repo selection.** Spend is read from `venture.repos[0]`, so a Sell approval in
-      `arca-marketing` is invisible and that department reads `0%`.
-- ⚠ **The numerator is still lane-authored.** The limits moved out of the lane's reach; committed
-      spend is still summed from grant/execution records written on the venture box, and no
-      timestamp is covered by the approval HMAC. Future dates and non-ISO strings are now rejected
-      and the studio's own `granted_at` is preferred, which narrows the window-escape but does not
-      close it. Closing it needs FB-051's attestation verification.
-
-## Review findings — rework status (2026-07-31)
-
-**Fixed in the rework (commit on this branch):**
-
-1. ✅ **Envelopes moved off the lane-writable ref.** They now live in `ventures/budgets/<id>.yaml`
-   in the **studio** repo, beside the venture manifests, where venture lanes have no write access —
-   changing a budget goes through this repo's own PR + CI gate. `readBudgets` is gone from
-   `ApprovalSource` entirely, so the venture ref can no longer supply limits.
-   *(A subdirectory, not `ventures/<id>.budgets.yaml`: the manifest validator globs `ventures/*.yaml`
-   and `loadVentures` reads the same directory, so a sibling file was parsed as a malformed Venture
-   by both — caught by CI during the rework.)*
-2. ✅ **The check fails closed.** `envelopeCheck` returns a **non-passing** check — never `null` —
-   for an unreadable price, an unknown department, a missing envelope, an unstated currency, or a
-   foreign currency. `null` is now reserved for a genuinely free action. `amountMinor` is
-   `number | null` with a separate `priceUnreadable` flag, so "free" and "we could not read the
-   price" are no longer the same value.
-3. ✅ **Department validated against the manifest.** `attachEnvelopeChecks` takes the venture's
-   declared department ids; anything else reports "not a department of this venture" instead of
-   silently exempting the spend. Envelopes keyed to a department the venture does not declare are
-   surfaced on the board as configured-but-enforcing-nothing.
-4. ✅ **Spend windowed by period.** `period` is now a typed `monthly | quarterly | yearly | all-time`
-   and is **enforced** by `withinPeriod`, with the label rendered from the same value ("this month"),
-   so the numerator and denominator finally describe the same window. An undated v0 spend counts in
-   every window rather than none — understating a budget is the direction that hurts.
-5. ✅ **Sibling queued spend counted.** Every card and department line now carries
-   "…; 192% if everything queued is approved", and the board's warning marker escalates on the
-   projected state, so a department at 83% with £5,200 waiting is flagged rather than reading calm.
-6. ✅ **Currency normalised and validated** (ISO-4217 shape, trimmed, upper-cased) so `"gbp "` cannot
-   dodge the comparison. An **unstated** currency is now uncountable rather than assumed to be the
-   envelope's, and both foreign and unstated spend are named in the caveat.
-7. ✅ **Over-budget is visible** — colour from `--color-error`/`--color-warn`, weight on `over`, and
-   a per-state glyph (`✓ ◑ ⚠ ·`) so the states are distinguishable without relying on colour.
-   `nearing` has a marker for the first time. Sizes use the token scale.
-8. ✅ **Corrupt is distinguishable from absent.** `loadEnvelopes` returns `{ envelopes, error }`; a
-   file that exists but cannot be read renders a board-level warning telling the founder no spend is
-   being checked. A limit written in pounds instead of pence is reported by name.
-9. ✅ **Provenance separated in the UI.** Studio-computed checks render in their own list labelled
-   "checked by the studio"; the proposer's own claims render separately under "stated by the
-   proposer". Each check is its own element, so a delimiter inside a lane-authored string can no
-   longer fabricate extra passing entries.
-11. ✅ `budgets` is read **once** and threaded through (the double fetch is gone); `formatMoney` uses
-    `Object.hasOwn`, so a currency of `"constructor"` no longer renders
-    `function Object() { [native code] }4,800`.
-12. ✅ **Tests pin the boundaries**: exactly 100% of the envelope, one penny over, one penny below
-    the nearing threshold, and the e2e now asserts arithmetic that moves (£4,000 committed +
-    £5,200 queued against £4,800 → 83% / 192%) instead of the limit string.
-
-**Still open — deliberately not in this pass:**
-
-- ❌ **Per-department repo selection (finding 3).** Approvals are still read from
-  `venture.repos[0]`, so a Sell approval living in `arca-marketing` is invisible and the department
-  reads a confident `0%`. This is the one remaining finding that can still show a wrong number, and
-  it needs `loadApprovals` to fan out across department repos — a change to the approval-loading
-  architecture that touches FB-046's read path, not just this feature. **Next.**
-- ❌ **Binding the approve click to the proposal the founder saw (finding 10).** `proposalSha` is
-  computed and unused; the server action re-reads and signs whatever is current. That is the FB-046
-  approve path rather than the budget feature, and it overlaps FB-051's confused-deputy finding —
-  it should be fixed once, there.
-- The e2e still gates the fixture source on `E2E_TEST_LOGIN`; `NODE_ENV` is unusable because
-  `next start` sets it to production for the UI gate too.
+      `arca-marketing` is invisible and the department reports £0. The disclosure now *says* it is
+      the venture's report, which makes an incomplete figure less misleading — it does not make it
+      complete.
+- ⚠ **The reported spend is lane-authored** and no timestamp is covered by the approval HMAC.
+      Future dates and non-ISO strings are rejected and the studio's own `granted_at` is preferred,
+      which narrows the window-escape. Closing it needs FB-051's attestation work.
 
 ## Verification
-34 unit tests over the budget layer and the approval boundary (envelope loading from the studio repo
-incl. a corrupt file and a path-escape attempt; currency normalisation; period windowing incl. an
-undated spend; committed-status rules; every fail-closed branch; the over/nearing/within boundaries
-at exactly the limit, +1 and -1; the `Object.hasOwn` symbol lookup) + 3 Playwright tests asserting
-real arithmetic on the real render. 156 tests, lint, typecheck, build, UI gate (37), ticket parse,
-manifest validation and shellcheck all green.
+103 unit tests over the budget layer and the approval boundary, including the wiring that mutation
+testing showed was deletable (`toSpends` carrying `uncountable` and `committedAt`; the studio grant
+timestamp winning over a lane-written execution one), the ENOENT-vs-other read split, a real file
+planted outside the budgets directory for the path guard, previous-window exclusion, and the case
+that broke the last design — **a free action must not read as uncountable spend**. Plus 3 Playwright
+tests asserting arithmetic that moves: £4,000 reported + £5,200 queued against £4,800 → 192%, with a
+previous-month £4,500 that must not appear and a free action that must not be flagged.
 
-**Not yet run against a real venture.** The fixture proves the maths and the render; no venture has
-a `ventures/budgets/*.yaml` in production except arca's, and no lane has yet written a priced
-proposal.
+The UI gate caught a real defect during this rework: the proposal being decided was counted as both
+pending and queued, reading 300% where it should read 192%.
+
+155 tests, lint, typecheck, build, UI gate (37), ticket parse, manifest validation, shellcheck.

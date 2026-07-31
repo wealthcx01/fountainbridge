@@ -3,308 +3,193 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  parseEnvelopes,
-  loadEnvelopes,
-  normalizeCurrency,
-  periodStart,
-  withinPeriod,
-  committedSpend,
-  queuedSpend,
-  spendInstant,
-  uncountedNotes,
-  pct,
-  envelopeStatus,
-  envelopeCheck,
-  formatMoney,
-  NEARING_THRESHOLD,
-  type Spend,
-  type Envelope,
+  normalizeCurrency, parsePeriod, periodStart, periodLabel,
+  withinPeriod, spendInstant, disclose, describe as describeBudget, departmentBudgets,
+  formatMoney, pct, type Spend, type Envelope,
 } from '../budgets';
+import { parseEnvelopes, loadEnvelopes } from '../budgets-load';
 
 const NOW = new Date('2026-07-15T12:00:00Z');
 const envelope: Envelope = { department: 'sell', limitMinor: 480_000, currency: 'GBP', period: 'monthly' };
-
 const spend = (over: Partial<Spend> = {}): Spend => ({
-  department: 'sell',
-  amountMinor: 100_000,
-  currency: 'GBP',
-  status: 'executed',
-  at: '2026-07-10T00:00:00Z',
-  ...over,
+  department: 'sell', amountMinor: 100_000, currency: 'GBP', status: 'executed',
+  at: '2026-07-10T00:00:00Z', ...over,
 });
 
-describe('envelopes come from the studio repo, and a broken file says so', () => {
+describe('limits come from the studio repo, and a broken file says so', () => {
   const dir = mkdtempSync(join(tmpdir(), 'budgets-'));
 
   it('loads a venture budgets file', () => {
     writeFileSync(join(dir, 'arca.yaml'), 'currency: GBP\nperiod: monthly\ndepartments:\n  sell: 480000\n');
-    const { envelopes, error } = loadEnvelopes('arca', dir);
-    expect(error).toBeNull();
-    expect(envelopes).toEqual([{ department: 'sell', limitMinor: 480_000, currency: 'GBP', period: 'monthly' }]);
+    expect(loadEnvelopes('arca', dir)).toEqual({ envelopes: [envelope], error: null });
   });
 
-  it('treats a missing file as "no budgets set", not an error', () => {
+  it('treats a MISSING file as "no budgets", but reports any other read failure', () => {
     expect(loadEnvelopes('nosuchventure', dir)).toEqual({ envelopes: [], error: null });
+    // A directory where the file should be (EISDIR). Collapsing this into "no budgets" is how the
+    // disclosure would switch itself off with nothing on screen.
+    mkdirSync(join(dir, 'eisdir.yaml'), { recursive: true });
+    expect(loadEnvelopes('eisdir', dir).error).toMatch(/could not be read/);
   });
 
-  it('REPORTS an unreadable file instead of silently disabling the gate', () => {
-    // The first cut collapsed a corrupt file into an empty list, so the money gate turned itself off
-    // with nothing on any screen to say why (non-negotiable 10).
+  it('reports unparseable YAML', () => {
     writeFileSync(join(dir, 'broken.yaml'), 'currency: GBP\n  departments: {oh no\n');
-    const { envelopes, error } = loadEnvelopes('broken', dir);
-    expect(envelopes).toEqual([]);
-    expect(error).toMatch(/could not be read/);
-  });
-
-  it('reports a limit written in pounds instead of pence, rather than dropping it silently', () => {
-    const { envelopes, error } = parseEnvelopes({ departments: { sell: 4800.5 } });
-    expect(envelopes).toEqual([]);
-    expect(error).toMatch(/whole number of minor units/);
-  });
-
-  it('rejects a bad currency or period outright', () => {
-    expect(parseEnvelopes({ currency: 'pounds', departments: { sell: 1 } }).error).toMatch(/not a currency/);
-    expect(parseEnvelopes({ period: 'fortnightly', departments: { sell: 1 } }).error).toMatch(/not a period/);
+    expect(loadEnvelopes('broken', dir).error).toMatch(/could not be read/);
   });
 
   it('refuses a venture id that could escape the directory', () => {
-    // A readable file really does sit outside the budgets dir, so this fails the moment the guard
-    // goes — the previous version passed either way because the target simply did not exist.
+    // A readable file really does sit outside, so this fails the moment the guard goes.
     writeFileSync(join(dir, 'escaped.yaml'), 'departments:\n  sell: 999999\n');
-    const nested = join(dir, 'budgets');
-    mkdirSync(nested, { recursive: true });
+    const nested = join(dir, 'nested'); mkdirSync(nested, { recursive: true });
     expect(loadEnvelopes('../escaped', nested).envelopes).toEqual([]);
-  });
-
-  it('reports an unusable venture id rather than calling it "no budgets"', () => {
     expect(loadEnvelopes('has_underscore', dir).error).toMatch(/not a usable venture id/);
   });
+
+  it('rejects a pounds-for-pence limit, a bad currency, a bad period, and a list', () => {
+    expect(parseEnvelopes({ departments: { sell: 4800.5 } }).error).toMatch(/whole number of minor units/);
+    expect(parseEnvelopes({ currency: 'pounds', departments: { sell: 1 } }).error).toMatch(/not a currency/);
+    expect(parseEnvelopes({ period: 'fortnightly', departments: { sell: 1 } }).error).toMatch(/not a period/);
+    expect(parseEnvelopes([{ sell: 1 }]).error).toMatch(/is a list/);
+    expect(parseEnvelopes({ currency: 'GBP' }).error).toMatch(/sets no departments/);
+  });
+
+  it('keeps the valid limits when only some are rejected', () => {
+    const { envelopes, error } = parseEnvelopes({ departments: { sell: 480_000, scale: 4800.5 } });
+    expect(envelopes.map((e) => e.department)).toEqual(['sell']);
+    expect(error).toMatch(/scale/);
+  });
 });
 
-describe('currency normalisation', () => {
-  it('accepts ISO-4217 shapes, case- and space-insensitively', () => {
+describe('currency, period and money formatting', () => {
+  it('normalises a currency, and rejects anything that is not one', () => {
     expect(normalizeCurrency(' gbp ')).toBe('GBP');
-    expect(normalizeCurrency('USD')).toBe('USD');
+    for (const bad of ['', 'POUNDS', 'G', 42, null, {}]) expect(normalizeCurrency(bad)).toBeNull();
   });
-  it('rejects anything else, so "gbp"-style variants cannot dodge the comparison', () => {
-    for (const bad of ['', 'POUNDS', 'G', 42, null, undefined, {}]) expect(normalizeCurrency(bad)).toBeNull();
-  });
-});
 
-describe('spend is windowed to the envelope period', () => {
-  it('computes the window start', () => {
-    expect(periodStart('monthly', NOW)?.toISOString()).toBe('2026-07-01T00:00:00.000Z');
-    // Mid-quarter, so monthly and quarterly give DIFFERENT answers — NOW (15 July) is in the first
-    // month of Q3, where the two coincide and a monthly/quarterly mix-up is invisible.
+  it('computes window starts — mid-quarter, so monthly and quarterly differ', () => {
     const midQ = new Date('2026-08-15T12:00:00Z');
     expect(periodStart('quarterly', midQ)?.toISOString()).toBe('2026-07-01T00:00:00.000Z');
     expect(periodStart('monthly', midQ)?.toISOString()).toBe('2026-08-01T00:00:00.000Z');
-    expect(periodStart('yearly', NOW)?.toISOString()).toBe('2026-01-01T00:00:00.000Z');
-    expect(periodStart('all-time', NOW)).toBeNull();
+    expect(periodStart('yearly', midQ)?.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+    expect(periodStart('all-time', midQ)).toBeNull();
   });
 
-  it('excludes spend from a previous window', () => {
-    // Before this, spend was summed over ALL TIME against a monthly limit, so a venture spending
-    // exactly on budget read 100% in month 1 and 1200% in month 12.
-    const old = spend({ at: '2026-06-02T00:00:00Z' });
-    expect(committedSpend([old, spend()], 'sell', 'GBP', 'monthly', NOW)).toBe(100_000);
-    expect(committedSpend([old, spend()], 'sell', 'GBP', 'all-time', NOW)).toBe(200_000);
+  it('labels every period distinctly', () => {
+    expect((['monthly', 'quarterly', 'yearly', 'all-time'] as const).map(periodLabel))
+      .toEqual(['this month', 'this quarter', 'this year', 'all time']);
+    expect(parsePeriod('QUARTERLY ')).toBe('quarterly');
+    expect(parsePeriod('fortnightly')).toBeNull();
   });
 
-  it('counts an undated spend in every window rather than dropping it', () => {
-    // Understating a budget is the direction that hurts, so v0 records with no timestamp count.
-    expect(withinPeriod(spend({ at: null }), 'monthly', NOW)).toBe(true);
-    expect(committedSpend([spend({ at: null })], 'sell', 'GBP', 'monthly', NOW)).toBe(100_000);
-  });
-});
-
-describe('committedSpend', () => {
-  it('counts granted, executing and executed only', () => {
-    const s = [spend({ status: 'granted' }), spend({ status: 'executing' }), spend({ status: 'executed' })];
-    expect(committedSpend(s, 'sell', 'GBP', 'monthly', NOW)).toBe(300_000);
-    expect(committedSpend([spend({ status: 'proposed' })], 'sell', 'GBP', 'monthly', NOW)).toBe(0);
-    expect(committedSpend([spend({ status: 'rejected' })], 'sell', 'GBP', 'monthly', NOW)).toBe(0);
-  });
-
-  it('excludes a foreign OR unstated currency, and names both as uncounted', () => {
-    const mixed = [spend({ currency: 'USD' }), spend({ currency: null }), spend()];
-    expect(committedSpend(mixed, 'sell', 'GBP', 'monthly', NOW)).toBe(100_000);
-    expect(uncountedNotes(mixed, 'sell', 'GBP', 'monthly', NOW)[0]).toBe('spend in (unstated currency), USD');
-  });
-});
-
-describe('envelopeStatus', () => {
-  const at = (amountMinor: number) => envelopeStatus(envelope, [spend({ amountMinor })], 'sell', NOW);
-
-  it('pins the over/nearing/within boundaries exactly', () => {
-    // Flipping `>` to `>=` on a money gate must break a test.
-    expect(at(envelope.limitMinor).state).toBe('nearing');
-    expect(at(envelope.limitMinor).percent).toBe(100);
-    expect(at(envelope.limitMinor + 1).state).toBe('over');
-    // Literals, not expressions over the constant: changing NEARING_THRESHOLD to 0.5 previously
-    // survived the whole suite because every assertion was written relative to it.
-    expect(NEARING_THRESHOLD).toBe(0.8);
-    expect(at(384_000).state).toBe('nearing');
-    expect(at(383_999).state).toBe('within');
-  });
-
-  it('reads "unset" — never "over" — when no envelope exists', () => {
-    const s = envelopeStatus(undefined, [spend()], 'sell', NOW);
-    expect(s.state).toBe('unset');
-    expect(s.detail).toBe('no budget set');
-  });
-
-  it('labels the window honestly instead of a period it does not enforce', () => {
-    expect(at(100_000).detail).toContain('of £4,800 this month');
-    const yearly = envelopeStatus({ ...envelope, period: 'yearly' }, [spend()], 'sell', NOW);
-    expect(yearly.detail).toContain('this year');
-  });
-
-  it('shows what the whole queue would do, not just this one proposal', () => {
-    // Ten £1,000 proposals each read "within — 21%"; approving all ten spent £10,000 and no card
-    // ever said so.
-    const s = envelopeStatus(envelope, [], 'sell', NOW, 100_000, 900_000);
-    expect(s.detail).toContain('208% if everything queued is approved');
-  });
-
-  it('handles a zero limit without dividing by zero', () => {
-    const zero = { ...envelope, limitMinor: 0 };
-    expect(envelopeStatus(zero, [], 'sell', NOW).state).toBe('within');
-    expect(Number.isFinite(envelopeStatus(zero, [spend({ amountMinor: 1 })], 'sell', NOW).percent)).toBe(true);
-  });
-});
-
-describe('formatMoney', () => {
-  it('renders minor units as a founder reads them', () => {
+  it('formats money, without walking the prototype chain for a symbol', () => {
     expect(formatMoney(480_000, 'GBP')).toBe('£4,800');
     expect(formatMoney(1_050, 'GBP')).toBe('£10.50');
-    expect(formatMoney(500, 'CHF')).toBe('5 CHF');
-  });
-
-  it('does not walk the prototype chain for a symbol', () => {
-    // "constructor" previously returned an inherited function and rendered
-    // `function Object() { [native code] }4,800` on the card.
     expect(formatMoney(480_000, 'constructor')).toBe('4,800 constructor');
-    expect(formatMoney(480_000, 'toString')).toBe('4,800 toString');
-  });
-});
-
-describe('the check FAILS CLOSED — and ALWAYS emits a line', () => {
-  const priced = { amountMinor: 100_000, currency: 'GBP' };
-  const known = { knownDepartment: true };
-
-  it('FAILS a spend that takes the department past its envelope', () => {
-    // Mutation-tested: `passed: status.state !== 'over'` → `passed: true` previously survived the
-    // entire suite. The headline behaviour of the feature was pinned by nothing.
-    const c = envelopeCheck(envelope, [spend({ amountMinor: 400_000 })], 'sell', { amountMinor: 200_000, currency: 'GBP' }, NOW, known);
-    expect(c.passed).toBe(false);
-    expect(c.detail).toMatch(/^over — 125%/);
-  });
-
-  it('never returns null — an absent check carries no information', () => {
-    // "Checked, and it was free" must not look identical to "never checked". Declaring
-    // amount_minor: 0 or omitting it was the cheapest bypass in the first rework.
-    expect(envelopeCheck(envelope, [], 'sell', { amountMinor: null, currency: null }, NOW, known).reason).toBe('no-price');
-    expect(envelopeCheck(envelope, [], 'sell', { amountMinor: 0, currency: 'GBP' }, NOW, known).passed).toBe(true);
-  });
-
-  it('fails when the price was stated but could not be read', () => {
-    const c = envelopeCheck(envelope, [], 'sell', { amountMinor: null, currency: 'GBP', priceUnreadable: true }, NOW, known);
-    expect(c).toMatchObject({ passed: false, reason: 'unreadable-price' });
-  });
-
-  it('fails on a department this venture does not declare — and does not echo the name', () => {
-    const c = envelopeCheck(undefined, [], 'sell budget envelope — within — 12% · checked by the studio', priced, NOW, { knownDepartment: false });
-    expect(c).toMatchObject({ passed: false, reason: 'unknown-department' });
-    expect(c.name).toBe('budget envelope');
-    expect(c.detail).not.toContain('checked by the studio'); // proposer prose must not reach the trusted line
-  });
-
-  it('distinguishes "no budget set" from "the budgets file is broken"', () => {
-    expect(envelopeCheck(undefined, [], 'sell', priced, NOW, known).reason).toBe('no-envelope');
-    expect(envelopeCheck(undefined, [], 'sell', priced, NOW, { ...known, budgetsError: 'bad yaml' }).reason)
-      .toBe('budgets-unreadable');
-  });
-
-  it('fails on an unstated or foreign currency', () => {
-    expect(envelopeCheck(envelope, [], 'sell', { amountMinor: 100_000, currency: null }, NOW, known).reason).toBe('unstated-currency');
-    expect(envelopeCheck(envelope, [], 'sell', { amountMinor: 100_000, currency: 'USD' }, NOW, known).reason).toBe('foreign-currency');
-  });
-
-  it('will NOT show a tick over a total it admits is incomplete', () => {
-    // An agent pricing its sends in USD would otherwise keep every later GBP card green, since each
-    // foreign spend is warned about once and then excluded from the total forever.
-    const c = envelopeCheck(envelope, [spend({ currency: 'USD' })], 'sell', { amountMinor: 50_000, currency: 'GBP' }, NOW, known);
-    expect(c).toMatchObject({ passed: false, reason: 'incomplete-total' });
-    expect(c.detail).toMatch(/total is incomplete/);
-  });
-
-  it('fails when the queue would take it over, even if committed spend is fine', () => {
-    const c = envelopeCheck(envelope, [], 'sell', priced, NOW, { ...known, queuedMinor: 500_000 });
-    expect(c.passed).toBe(false);
-  });
-
-  it('passes a real within-budget spend on a complete total', () => {
-    expect(envelopeCheck(envelope, [], 'sell', priced, NOW, known).passed).toBe(true);
-  });
-});
-
-describe('the projection, and what cannot be counted', () => {
-  it('escalates the SHOWN state on the queue without moving committed state', () => {
-    const s = envelopeStatus(envelope, [spend({ amountMinor: 400_000 })], 'sell', NOW, 0, 520_000);
-    expect(s.state).toBe('nearing');
-    expect(s.projectedState).toBe('over');
-    expect(s.shownState).toBe('over');
-    // The WORDS must escalate too — colour and glyph alone leave a screen-reader user with 'nearing'.
-    expect(s.detail).toContain('over if everything queued is approved');
-  });
-
-  it('uses one percentage formula, so a zero limit cannot produce garbage', () => {
-    const zero = { ...envelope, limitMinor: 0 };
-    const s = envelopeStatus(zero, [], 'sell', NOW, 0, 500_000);
-    expect(s.detail).not.toMatch(/\d{5,}%/); // previously "50000000%" via `/(limitMinor || 1)`
-    expect(pct(500_000, 0)).toBe(100);
-  });
-
-  it('names committed spend it could not add up, in the detail the founder reads', () => {
-    const s = envelopeStatus(envelope, [spend(), spend({ currency: 'USD' })], 'sell', NOW);
-    expect(s.detail).toContain('(excludes spend in USD)');
-    expect(s.incomplete).toBe(true);
-  });
-
-  it('names an unreadable committed price rather than counting it as £0', () => {
-    const s = envelopeStatus(envelope, [spend({ uncountable: 'unreadable-price' })], 'sell', NOW);
-    expect(s.spentMinor).toBe(0);
-    expect(s.detail).toMatch(/1 action whose price could not be read/);
-    expect(s.incomplete).toBe(true);
-  });
-
-  it('queuedSpend excludes foreign and unreadable proposals, and counts them', () => {
-    const q = queuedSpend([
-      spend({ status: 'proposed', amountMinor: 100_000 }),
-      spend({ status: 'proposed', amountMinor: 999_999, currency: 'USD' }),
-      spend({ status: 'proposed', amountMinor: 0, uncountable: 'unreadable-price' }),
-      spend({ status: 'proposed', amountMinor: 500_000, department: 'scale' }),
-    ], 'sell', 'GBP');
-    expect(q.countableMinor).toBe(100_000); // not 1,099,999, and not leaking scale's 500,000
-    expect(q.uncountable).toBe(2);
+    expect(pct(500_000, 0)).toBe(100); // one formula, no divide-by-zero garbage
   });
 });
 
 describe('timestamps are not taken on trust', () => {
-  it('rejects a future date, so a year-3000 grant cannot sit in every window', () => {
+  it('rejects a future date, an offset-less datetime, and a non-ISO string', () => {
     expect(spendInstant('3000-01-01T00:00:00Z', NOW)).toBeNull();
-  });
-
-  it('rejects an offset-less datetime, which would resolve in server-local time', () => {
     expect(spendInstant('2026-07-10T00:00:00', NOW)).toBeNull();
     expect(spendInstant('07/10/2026', NOW)).toBeNull();
     expect(spendInstant('2026-07-10T00:00:00Z', NOW)).toBe(Date.parse('2026-07-10T00:00:00Z'));
   });
 
-  it('counts an undatable spend in every window BUT names it', () => {
-    const s = envelopeStatus(envelope, [spend({ at: null })], 'sell', NOW);
-    expect(s.spentMinor).toBe(100_000);
-    expect(s.detail).toMatch(/1 undated action counted in every period/);
+  it('counts an undatable spend in every window', () => {
+    expect(withinPeriod(spend({ at: null }), 'monthly', NOW)).toBe(true);
+    expect(withinPeriod(spend({ at: '2026-06-02T00:00:00Z' }), 'monthly', NOW)).toBe(false);
+    expect(withinPeriod(spend({ at: '2026-06-02T00:00:00Z' }), 'all-time', NOW)).toBe(true);
+  });
+});
+
+describe('the disclosure reports, and names what it could not add up', () => {
+  it('sums committed spend in the window and in the limit’s currency', () => {
+    const d = disclose(envelope, [spend(), spend({ at: '2026-06-02T00:00:00Z' })], NOW);
+    expect(d.reportedMinor).toBe(100_000); // last month excluded
+    expect(d.overLimit).toBe(false);
+    expect(d.notes).toEqual([]);
+  });
+
+  it('includes the proposal being decided, and the rest of the queue separately', () => {
+    const d = disclose(envelope, [spend(), spend({ status: 'proposed', amountMinor: 300_000 })], NOW, 200_000);
+    expect(d.reportedMinor).toBe(300_000);   // 100k committed + 200k pending
+    expect(d.queuedMinor).toBe(300_000);
+    expect(d.overLimit).toBe(true);          // 600k > 480k
+  });
+
+  it('A FREE ACTION IS NOT UNCOUNTABLE SPEND', () => {
+    // The defect that made the previous design unusable: an action with no price arrives as
+    // {amountMinor: 0, currency: null}, and `null !== 'GBP'` booked it as spend-in-an-unknown-
+    // currency — so every ordinary post or tweet permanently poisoned its department.
+    const free = spend({ amountMinor: 0, currency: null });
+    const d = disclose(envelope, [free, spend()], NOW);
+    expect(d.notes).toEqual([]);
+    expect(d.reportedMinor).toBe(100_000);
+    // …and a free proposal queued by a lane cannot poison it either.
+    expect(disclose(envelope, [free, { ...free, status: 'proposed' }], NOW).notes).toEqual([]);
+  });
+
+  it('names foreign, unreadable and undated spend rather than silently dropping it', () => {
+    const d = disclose(envelope, [
+      spend({ currency: 'USD', amountMinor: 900_000 }),
+      spend({ amountMinor: 0, uncountable: 'unreadable-price' }),
+      spend({ at: null }),
+    ], NOW);
+    expect(d.reportedMinor).toBe(100_000); // only the datable GBP one
+    expect(d.notes).toEqual([
+      'spend in USD',
+      '1 action stating a cost the studio cannot read',
+      '1 action with no usable date, counted in every period',
+    ]);
+  });
+
+  it('does not let a PREVIOUS window’s foreign spend taint this one', () => {
+    const old = spend({ currency: 'USD', at: '2026-06-02T00:00:00Z' });
+    expect(disclose(envelope, [old], NOW).notes).toEqual([]);
+  });
+
+  it('ignores a negative pending amount rather than crediting the limit', () => {
+    expect(disclose(envelope, [spend()], NOW, -1_000_000).reportedMinor).toBe(100_000);
+  });
+});
+
+describe('the sentence a founder reads', () => {
+  it('is a whole sentence, owned here — the view adds no prefix', () => {
+    const d = disclose(envelope, [spend({ amountMinor: 400_000 })], NOW);
+    expect(describeBudget(d, 'Sell'))
+      .toBe('Limit £4,800 this month. The venture reports £4,000 spent — 83% of the limit.');
+  });
+
+  it('names the queue and the uncounted', () => {
+    const d = disclose(envelope, [spend({ amountMinor: 400_000 }), spend({ status: 'proposed', amountMinor: 520_000 }), spend({ currency: 'USD', amountMinor: 1 })], NOW);
+    const text = describeBudget(d, 'Sell');
+    expect(text).toContain('£5,200 more awaiting your OK');
+    expect(text).toContain('192% of the limit');
+    expect(text).toContain('Not counted: spend in USD.');
+  });
+
+  it('says so plainly when there is no budget', () => {
+    expect(describeBudget(null, 'Build')).toBe('No budget set for Build.');
+  });
+});
+
+describe('departmentBudgets — the board, now a pure function', () => {
+  it('returns a disclosure per declared department and flags orphan limits', () => {
+    const { budgets, orphanEnvelopes } = departmentBudgets(
+      ['build', 'sell'],
+      [envelope, { ...envelope, department: 'marketing' }],
+      [spend()],
+      NOW,
+    );
+    expect(budgets[0]).toBeNull();               // build has no limit
+    expect(budgets[1]?.reportedMinor).toBe(100_000);
+    expect(orphanEnvelopes).toEqual(['marketing']);
+  });
+
+  it('does not count another department’s spend', () => {
+    const { budgets } = departmentBudgets(['sell'], [envelope], [spend({ department: 'scale', amountMinor: 999_999 })], NOW);
+    expect(budgets[0]?.reportedMinor).toBe(0);
   });
 });

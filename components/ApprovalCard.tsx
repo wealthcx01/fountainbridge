@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import { describe as describeBudget } from '@/lib/budgets';
 import { approveExternalAction } from '@/app/actions/approvals';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
@@ -19,39 +20,39 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
         <strong style={{ fontSize: '15px' }}>{approval.summary}</strong>
         <span className="tag" data-testid={`approval-${approval.id}-dept`}>{approval.department ?? 'general'}</span>
       </div>
-      {/* The STUDIO's own checks, kept visually apart from the proposer's. Rendering both in one
-          undifferentiated list let a proposal write its own "sell budget envelope — passed" entry
-          that the founder could not tell from the one the studio computed. Each check is its own
-          element, so a delimiter inside a lane-authored string cannot fabricate extra entries. */}
-      {approval.studioChecks.length > 0 ? (
-        <ul
-          data-testid={`approval-${approval.id}-studio-checks`}
-          style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0', fontSize: 'var(--fs-body-sm)' }}
+      {/* What the STUDIO can say about the budget: the founder's own limit, and the spend the
+          VENTURE reports. Deliberately not a pass/fail check — the studio owns the limit and does
+          not own the total, and dressing an unverifiable figure as a verdict is what three review
+          passes kept punishing. Rendered above the proposer's claims and attributed. */}
+      {approval.budget ? (
+        <p
+          data-testid={`approval-${approval.id}-budget`}
+          data-budget-over={approval.budget.overLimit ? 'true' : 'false'}
+          style={{
+            fontSize: 'var(--fs-body-sm)',
+            margin: '0.5rem 0 0',
+            color: approval.budget.overLimit ? 'var(--color-error)' : undefined,
+            fontWeight: approval.budget.overLimit ? 600 : undefined,
+          }}
         >
-          {approval.studioChecks.map((c, i) => (
-            <li key={i} style={{ color: c.passed ? undefined : 'var(--color-error)' }}>
-              {c.passed ? '✓' : '✗'} {c.name}
-              {c.detail ? <> — {c.detail}</> : null}
-              {/* Precise about what was independently verified: the studio owns the LIMIT and the
-                  running total, but the cost is the proposer's own assertion — there is no
-                  independent price source, so "checked by the studio" alone would launder it. */}
-              <span className="muted"> · limit and total checked by the studio; cost as stated by the proposer</span>
-            </li>
-          ))}
-        </ul>
+          {describeBudget(approval.budget, approval.department ?? 'this surface')}{' '}
+          <span className="muted">Limit set in the studio; spend as reported by the venture.</span>
+        </p>
       ) : null}
       {approval.checks.length > 0 ? (
         <ul
           className="muted"
           data-testid={`approval-${approval.id}-checks`}
-          style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-meta)' }}
+          style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-body-sm)' }}
         >
           <li>
             {failing === 0 ? '✓ stated by the proposer' : `⚠ ${failing} check${failing === 1 ? '' : 's'} the proposer flagged`}
           </li>
           {approval.checks.map((c, i) => (
             <li key={i}>
-              {c.passed ? '✓' : '✗'} {c.name}
+              <span aria-hidden="true">{c.passed ? '✓' : '✗'}</span>
+              <span className="sr-only">{c.passed ? 'passed: ' : 'failed: '}</span>
+              {c.name}
               {c.detail ? <> — {c.detail}</> : null}
             </li>
           ))}

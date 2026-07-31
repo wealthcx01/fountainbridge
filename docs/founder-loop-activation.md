@@ -65,54 +65,41 @@ else in the loop works without it — FB-042 just can't render typed run history
 Sell/Scale operational half. See `docs/founder-to-lane-execution.md` for the loop and the memory files
 for the full FB-041…057 roadmap.
 
-## 4. Department budget envelopes (FB-054) — one file in THIS repo, no deploy
+## 4. Department budgets (FB-054) — one file in THIS repo, no deploy
 
-Each department (Build / Sell / Scale) can carry a spend envelope. When a lane proposes an external
-action that costs money, the studio computes what approving it would do to that department's budget
-and shows it as a check on the approval card — so the founder sees the impact at the moment they
-decide, not in a bill afterwards.
+Each department can carry a spend limit. When a lane proposes an action that costs money, the studio
+shows you where that department's budget stands before you approve.
 
-**The file lives in the studio repo, deliberately:** `ventures/budgets/<venture-id>.yaml`, in a subdirectory
+**It discloses; it does not judge.** The studio owns the limit and shows it. The *spend* is what the
+venture reports — summed where it can be, named where it cannot, and labelled as the venture's
+figure rather than a verified one. There is deliberately no "within budget / over budget" verdict,
+because the amount, currency, department and timestamps are all written by the agent whose spending
+is being reported. Dressing that up as a check the studio had verified would be the dishonest part.
+
+**The file lives here, in the studio repo:** `ventures/budgets/<venture-id>.yaml`, in a subdirectory
 under `ventures/`. It is *not* on the venture's `foundry-approvals` ref, because that is the ref the
-venture's own lane can write — an agent must not be able to edit the limits that police its
-spending. Changing a budget therefore goes through this repo's PR + CI gate.
+venture's own lane can write. Changing a limit goes through this repo's PR + CI gate.
 
 ```yaml
 # ventures/budgets/arca.yaml
 currency: GBP
-period: monthly        # monthly | quarterly | yearly | all-time — ENFORCED, not a label
+period: monthly        # monthly | quarterly | yearly | all-time — enforced, not a label
 departments:
   sell: 480000         # £4,800/month. Integer MINOR units: pence, not pounds.
   scale: 100000        # £1,000/month
 ```
 
-A limit written in pounds (`4800.5`) is rejected and reported **on the board** — a banner names the
-department. The department's own tile still reads "no budget set", so check the banner if a budget
-you configured is not showing. A file that exists but cannot be parsed raises a
-board-level warning saying no spend is being checked, rather than silently switching the gate off.
+A limit written in pounds (`4800.5`) is rejected, and a banner on the board names the department. A
+file that exists but cannot be parsed raises a board-level warning rather than silently leaving every
+department unlimited.
 
-For a proposal to count against an envelope the lane gives it a price:
-
-```jsonc
-{ "department": "sell", "amount_minor": 520000, "currency": "GBP", "summary": "…" }
-```
-
-Behaviour worth knowing before you rely on it:
-
-- **The check informs, it does not block.** An over-envelope action still shows Approve — you may
-  decide the over-budget send is right. What you must not be able to do is make that call unaware.
-- **It fails closed.** A price the studio cannot read, a department the manifest does not declare, a
-  missing envelope, or an unstated/foreign currency all produce a check that does **not** pass and
-  says why. Only a genuinely free action produces no check.
-- **Only granted/executing/executed spend counts**, windowed to the period — so an unapproved queue
-  cannot squeeze out real work, and the percentage does not grow forever.
-- **The queue is shown too:** "83% of £4,800 this month; 192% if everything queued is approved."
+For spend to be counted the lane gives the proposal a price:
+`{ "department": "sell", "amount_minor": 520000, "currency": "GBP" }`. An action with no price is
+simply free — it is not treated as spend the studio failed to count.
 
 **Known gaps**, both in the ticket:
 - Spend is read from the venture's first repo, so a department with its own repo (Sell →
-  `arca-marketing`) reads `0%` until per-department loading lands.
-- The *limits* are now out of the lane's reach, but the *spend* is still summed from grant and
-  execution records the venture box writes, and no timestamp is covered by the approval HMAC. A lane
-  that rewrites its own `granted_at` can move past spend out of the current window. Future dates and
-  non-ISO strings are rejected, and the studio's own grant timestamp is preferred, which narrows it —
-  it does not close it. Closing it needs the attestation work in FB-051.
+  `arca-marketing`) reports £0 until per-department loading lands.
+- The reported spend is lane-authored and no timestamp is covered by the approval HMAC, so a lane
+  can move its own past spend between windows. Future dates and non-ISO strings are rejected, which
+  narrows it; closing it needs FB-051's attestation work.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadApprovals, attachEnvelopeChecks, type ApprovalSource } from '../approvals';
+import { loadApprovals, attachBudgetDisclosure, toSpends, type ApprovalSource } from '../approvals';
 import type { VentureSummary } from '../ventures';
 
 const venture: VentureSummary = {
@@ -79,62 +79,45 @@ describe('a proposal cannot exempt itself by malforming its price', () => {
   });
 });
 
-describe('attachEnvelopeChecks', () => {
+describe('attachBudgetDisclosure + toSpends wiring', () => {
   const envelope = { department: 'sell', limitMinor: 480_000, currency: 'GBP', period: 'monthly' as const };
   const NOW = new Date('2026-07-15T12:00:00Z');
   const approval = (over: Record<string, unknown> = {}) => ({
     id: 'a1', kind: 'activegraph', ventureId: 'arca', repo: 'r', status: 'proposed',
     proposalSha: 's', ticket: null, department: 'sell', actionType: 'send', summary: 'Send',
-    checks: [{ name: 'no PII', passed: true }], amountMinor: 200_000, priceUnreadable: false,
-    currency: 'GBP', committedAt: null, studioChecks: [], outcome: null, ...over,
+    checks: [], amountMinor: 200_000, priceUnreadable: false,
+    currency: 'GBP', committedAt: null, budget: null, outcome: null, ...over,
   }) as never;
 
-  it('puts the studio check in studioChecks, never mixed with the proposer’s own', () => {
-    const [a] = attachEnvelopeChecks([approval()], [envelope], new Set(['sell']), NOW);
-    expect(a.checks).toHaveLength(1);                    // the lane's claim, untouched
-    expect(a.studioChecks).toHaveLength(1);
-    expect(a.studioChecks[0].name).toBe('budget envelope');
+  it('discloses against the department’s limit, including this proposal', () => {
+    const [a] = attachBudgetDisclosure([approval()], [envelope], new Set(['sell']), NOW);
+    expect(a.budget).toMatchObject({ department: 'sell', limitMinor: 480_000, reportedMinor: 200_000 });
   });
 
-  it('fails closed on a department the venture does not declare', () => {
-    const [a] = attachEnvelopeChecks([approval({ department: 'marketing' })], [envelope], new Set(['sell']), NOW);
-    expect(a.studioChecks[0]).toMatchObject({ passed: false });
-    expect(a.studioChecks[0].detail).toMatch(/department this venture does not have/);
+  it('discloses nothing for an unknown department or an approval past the gate', () => {
+    expect(attachBudgetDisclosure([approval({ department: 'marketing' })], [envelope], new Set(['sell']), NOW)[0].budget).toBeNull();
+    expect(attachBudgetDisclosure([approval({ status: 'granted' })], [envelope], new Set(['sell']), NOW)[0].budget).toBeNull();
   });
 
-  it('counts sibling queued proposals by the NUMBER, so a split spend cannot hide', () => {
-    // Asserting only the phrase previously survived two mutations: dropping the self-exclusion
-    // (the card counts itself) and dropping the department filter (spend leaks across departments).
-    const many = [
-      ...Array.from({ length: 5 }, (_, i) => approval({ id: `a${i}`, amountMinor: 200_000 })),
-      approval({ id: 'other-dept', department: 'scale', amountMinor: 900_000 }),
-    ];
-    const [first] = attachEnvelopeChecks(many, [envelope], new Set(['sell', 'scale']), NOW);
-    // pending 200k + queued 4 × 200k = 1,000,000 of 480,000 = 208%. Self-inclusion → 250%;
-    // cross-department leakage → higher again.
-    expect(first.studioChecks[0].detail).toContain('208% if everything queued is approved');
+  it('counts siblings queued in the same department, and not other departments', () => {
+    const [a] = attachBudgetDisclosure([
+      approval({ id: 'a', amountMinor: 200_000 }),
+      approval({ id: 'b', amountMinor: 300_000 }),
+      approval({ id: 'c', department: 'scale', amountMinor: 900_000 }),
+    ], [envelope], new Set(['sell', 'scale']), NOW);
+    // Its own 200k as pending, its sibling's 300k as queued. It must NOT count itself twice, and
+    // the scale proposal belongs to another department.
+    expect(a.budget).toMatchObject({ reportedMinor: 200_000, queuedMinor: 300_000 });
   });
 
-  it('does not check an approval already past the gate', () => {
-    // Deleting the `status !== 'proposed'` guard previously survived: every fixture was proposed,
-    // and in the e2e a granted approval would silently count its own spend twice.
-    const [a] = attachEnvelopeChecks([approval({ status: 'granted' })], [envelope], new Set(['sell']), NOW);
-    expect(a.studioChecks).toHaveLength(0);
+  // The wiring below was deletable under mutation: the units were tested, the connections were not.
+  it('toSpends carries the unreadable-price flag onto the spend', () => {
+    const s = toSpends([approval({ status: 'granted', amountMinor: null, priceUnreadable: true })]);
+    expect(s[0].uncountable).toBe('unreadable-price');
   });
 
-  it('carries the grant timestamp through to the spend, so windowing is real', () => {
-    // `committedAt` → null and `at: a.committedAt` → null both survived mutation before: the entire
-    // approval→Spend timestamp plumbing was deletable.
-    const src2: ApprovalSource = {
-      async listIds() { return ['g']; },
-      async read(_r, _i, file) {
-        if (file === 'proposal') return { json: { department: 'sell', amount_minor: 100, currency: 'GBP' }, sha: 's' };
-        if (file === 'grant') return { json: { approver: 'x', granted_at: '2026-06-20T00:00:00Z' }, sha: 's' };
-        return null;
-      },
-    };
-    return loadApprovals({ id: 'arca', repos: ['r'] } as never, src2).then((out) => {
-      expect(out[0].committedAt).toBe('2026-06-20T00:00:00Z');
-    });
+  it('toSpends carries committedAt onto the spend, so windowing is real', () => {
+    const s = toSpends([approval({ status: 'granted', committedAt: '2026-06-20T00:00:00Z' })]);
+    expect(s[0].at).toBe('2026-06-20T00:00:00Z');
   });
 });

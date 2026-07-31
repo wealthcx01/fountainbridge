@@ -5,8 +5,9 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
-import { loadApprovals, attachEnvelopeChecks, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
-import { loadEnvelopes, envelopeStatus, queuedSpend, type EnvelopeStatus } from '@/lib/budgets';
+import { loadApprovals, attachBudgetDisclosure, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
+import { loadEnvelopes } from '@/lib/budgets-load';
 import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
@@ -67,30 +68,23 @@ export default async function VenturePage({
     approvals = [];
   }
 
-  // FB-054: envelopes come from the STUDIO repo (ventures/budgets/<id>.yaml), never from the venture
-  // ref the proposing lane can write. Read ONCE here and threaded through, so the board and the
-  // cards are computed from the same bytes rather than from two reads that can disagree.
+  // FB-054: limits come from the STUDIO repo (ventures/budgets/<id>.yaml), never from the venture ref
+  // the proposing lane can write. Read once and threaded through, so the board and the cards are
+  // computed from the same bytes.
   const { envelopes, error: budgetsError } = loadEnvelopes(venture.id);
   const knownDepartments = new Set(venture.departments.map((d) => d.id));
-  // The repo's existing test clock seam (FB-032). Period windowing makes "now" load-bearing, so the
-  // UI gate needs a pinned instant or its assertions rot the moment the calendar moves.
+  // The repo's existing test clock seam (FB-032). Period windowing makes "now" load-bearing.
   const now = new Date(defaultNow());
-  approvals = attachEnvelopeChecks(approvals, envelopes, knownDepartments, now, budgetsError);
+  approvals = attachBudgetDisclosure(approvals, envelopes, knownDepartments, now);
 
-  const spends = toSpends(approvals);
-  // A status for every DECLARED department, not only those with an envelope — a department with no
-  // budget must read "no budget set" rather than silently rendering nothing, which was
-  // indistinguishable from a budget that had been removed or failed to parse.
-  const budgets: EnvelopeStatus[] = venture.departments.map((d) => {
-    const envelope = envelopes.find((e) => e.department === d.id);
-    // ONE queued derivation, shared with the cards — currency-aware, and it does not swallow a
-    // proposal whose price could not be read.
-    const queued = envelope ? queuedSpend(spends, d.id, envelope.currency) : { countableMinor: 0, uncountable: 0 };
-    return envelopeStatus(envelope, spends, d.id, now, 0, queued.countableMinor);
-  });
-  // An envelope keyed to a department the manifest does not declare is a founder typo that would
-  // otherwise enforce nothing while looking configured.
-  const orphanEnvelopes = envelopes.filter((e) => !knownDepartments.has(e.department)).map((e) => e.department);
+  // Pure, unit-tested, and shared with the cards — the previous version lived inline here and was
+  // reachable only through Playwright.
+  const { budgets, orphanEnvelopes } = departmentBudgets(
+    venture.departments.map((d) => d.id),
+    envelopes,
+    toSpends(approvals),
+    now,
+  );
 
   return (
     <VentureBoard
