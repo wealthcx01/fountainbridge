@@ -117,6 +117,11 @@ export function approvalTone(status: ApprovalStatus): Tone {
     case 'proposed':
       return 'attention';
     case 'rejected':
+    case 'failed':
+      return 'blocked';
+    // An action that reached the outside world with no verifiable human approval behind it. Blocked,
+    // not merely attention: it is the state the whole gate exists to make impossible (FB-051).
+    case 'unverified-action':
       return 'blocked';
     default: {
       const _exhaustive: never = status;

@@ -99,6 +99,11 @@ export function VentureBoard({
   org: string;
 }) {
   const pendingApprovals = approvals.filter((a) => a.status === 'proposed');
+  // Nothing that reached the executor may leave the founder's view without a visible outcome. The
+  // previous version rendered ONLY `proposed`, so a `failed` send — the state added precisely to make
+  // an errored real action loud — silently vanished from the queue, as did an unverifiable one
+  // (CLAUDE.md #10 inverted).
+  const needsAttention = approvals.filter((a) => a.status === 'failed' || a.status === 'unverified-action');
   const [selected, setSelected] = useState<Selected | null>(null);
   const stale = new Set(staleRepos);
 
@@ -166,6 +171,15 @@ export function VentureBoard({
         <div data-testid="approvals-queue" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Needs your OK — before anything goes out</p>
           {pendingApprovals.map((a) => (
+            <ApprovalCard key={a.id} ventureId={venture.id} approval={a} />
+          ))}
+        </div>
+      ) : null}
+
+      {needsAttention.length > 0 ? (
+        <div data-testid="approvals-attention" style={{ marginTop: '1.25rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Went out, or tried to — needs your eye</p>
+          {needsAttention.map((a) => (
             <ApprovalCard key={a.id} ventureId={venture.id} approval={a} />
           ))}
         </div>

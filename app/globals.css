@@ -232,14 +232,15 @@ a { color: inherit; text-decoration: none; }
 .hr { height: 1px; background: var(--color-border); border: 0; margin: 2rem 0; }
 .muted { color: var(--color-ink-muted); }
 
-/* Visually hidden, still announced. State carried only by colour or a glyph is state a screen-reader
-   user does not get — every such marker needs a text twin. */
+/* Visually hidden, still announced. State carried only by colour or a glyph is state a
+   screen-reader user does not get — every such marker needs a text twin. */
 .sr-only {
   position: absolute;
   width: 1px; height: 1px;
   padding: 0; margin: -1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }

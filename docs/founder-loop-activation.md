@@ -28,7 +28,10 @@ These turn the **Approve button** in the studio from "not set up yet" into a liv
   signature with the **same** secret before it acts. **An agent lane never has this secret**, so a
   runaway agent can't approve its own external action. It must be **identical** on the studio and on
   each venture's executor.
-  - **What you do:** I'll generate one (`openssl rand -hex 32`) and give it to you; you paste it into
+  - **Until it is set** the studio cannot verify any approval: every approval card shows a warning
+    saying approvals are not set up here, and an action approved anyway may still be sent by the
+    executor. That is the correct failure direction, but it means real approvals carry a warning.
+  - **What you do:** generate one (`openssl rand -hex 32`) and paste it into
     Railway (below); I set the identical value on the executor. (Or you generate it and share it — same
     result. Never put it on a lane box.)
 

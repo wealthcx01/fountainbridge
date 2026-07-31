@@ -11,7 +11,8 @@ approvals/<id>/proposal.json   ← a lane/composer proposes an external action
                                  (for a send: the E2 compliance record — recipient class, lawful
                                   basis, suppression check, frozen draft; research-gtm §5)
 approvals/<id>/grant.json      ← a HUMAN approver grants it (the studio Approve button; D7 matrix)
-approvals/<id>/execution.json  ← the executor writes this AFTER acting (or rejecting)
+approvals/<id>/execution.json  ← the executor writes this AFTER acting: executing | executed | failed | rejected
+#                                (FB-051 added `failed`; before it, a throw left the record at `executing` forever)
 ```
 
 ## The guarantee (rebuilt after adversarial review)
