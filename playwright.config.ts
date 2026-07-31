@@ -38,6 +38,8 @@ export default defineConfig({
       // FB-042. The heartbeat fixture is dated relative to E2E_NOW below, so the engine reads as
       // running rather than as stalled-for-six-months every time the real clock moves on.
       RUNREPORTS_FIXTURE_DIR: 'e2e/fixtures/runreports',
+      // FB-064. Gated on E2E_TEST_LOGIN at the call site as well — this surface can MERGE.
+      WORK_FIXTURE_DIR: 'e2e/fixtures/work',
       // The gate's shared secret. Without it every fixture grant reads `unattested` and a granted
       // spend silently reverts to "awaiting your OK" — which is the correct product behaviour
       // (FB-051) but means the e2e would never exercise the attested path at all. The fixture

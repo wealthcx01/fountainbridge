@@ -1,6 +1,6 @@
 # FB-054 — Department budget envelopes (apply meridian's budgets)
 
-**Status:** In progress · **Phase:** 4 · **Depends on:** FB-048 (departments), FB-040 (budget cap), FB-044
+**Status:** Shipped · **Phase:** 4 · **Depends on:** FB-048 (departments), FB-040 (budget cap), FB-044
 (gate checks) · **Repo:** fountainbridge · **Branch:** `fb-054-department-budget-envelopes` · One ticket = one branch = one PR.
 
 ## Why this matters (for the founder)

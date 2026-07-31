@@ -16,6 +16,9 @@ import { join } from 'node:path';
 import { loadVentures, type VentureSummary } from './ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from './authz';
 import { GitHubClient, GitHubError } from './github';
+// The type lives here, the combining logic lives with the founder-facing gate that depends on it
+// being right. `import type` above means there is no runtime cycle.
+import { combineChecks } from './work';
 
 /** A raw PR as our source yields it — the minimum the queue and inference need. */
 export interface RawPr {
@@ -31,7 +34,12 @@ export interface RawPr {
   previewUrl?: string | null;
 }
 
-export type PrCiStatus = 'success' | 'failure' | 'pending' | 'unknown';
+/**
+ * `unknown` means "this work has no automatic checks" — a settled fact, nothing to wait for.
+ * `unavailable` means "the studio could not find out" — never treat it as either a pass or an
+ * absence, because a gate that cannot read its evidence must block rather than guess.
+ */
+export type PrCiStatus = 'success' | 'failure' | 'pending' | 'unknown' | 'unavailable';
 
 /** An Approval(kind='pr') — a PR awaiting the human gate. */
 export interface PrApproval {
@@ -186,21 +194,28 @@ async function mapGhPr(client: GitHubClient, fullName: string, p: RawGhPr): Prom
   // CI status only for open PRs (the queue items) to bound quota; failure → 'unknown', never a throw.
   if (base.state === 'open' && p.head?.sha) {
     try {
-      const status = await client.request<{ state: string }>(`/repos/${fullName}/commits/${p.head.sha}/status`);
-      base.ciStatus = mapCombinedStatus(status.state);
+      // Both check systems — the same read the work view uses (lib/work.ts combineChecks). Reading
+      // only the commit statuses made a repo with no deploy bot look permanently "pending" and a
+      // repo whose Actions failed look green off its deploy alone.
+      const [combined, runs] = await Promise.all([
+        client.request<{ state: string; total_count?: number }>(`/repos/${fullName}/commits/${p.head.sha}/status`),
+        client.request<{ total_count?: number; check_runs?: Array<{ status: string; conclusion: string | null }> }>(
+          `/repos/${fullName}/commits/${p.head.sha}/check-runs?per_page=100`,
+        ),
+      ]);
+      const checkRuns = runs.check_runs ?? [];
+      base.ciStatus = combineChecks({
+        combined: { state: combined.state, total: combined.total_count ?? 0 },
+        checkRuns,
+        checkRunsTruncated: (runs.total_count ?? checkRuns.length) > checkRuns.length,
+      });
     } catch {
-      base.ciStatus = 'unknown';
+      base.ciStatus = 'unavailable';
     }
   }
   return base;
 }
 
-function mapCombinedStatus(state: string): PrCiStatus {
-  if (state === 'success') return 'success';
-  if (state === 'failure' || state === 'error') return 'failure';
-  if (state === 'pending') return 'pending';
-  return 'unknown';
-}
 
 /** Offline fixture source (dev / Playwright): reads `<dir>/<repo>.json` as RawPr[]. */
 export function fixturePrFetcher(dir: string): RepoPrFetcher {

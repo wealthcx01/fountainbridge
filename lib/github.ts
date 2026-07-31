@@ -243,4 +243,78 @@ export class GitHubClient {
       throw e;
     }
   }
+
+  // --- FB-064: reading and accepting a piece of work without leaving the studio ------------------
+
+  /** One pull request, including `mergeable` — which GitHub computes lazily and may return null for. */
+  async getPullRequest(repo: string, number: number): Promise<RawPullRequest | null> {
+    try {
+      return await this.request<RawPullRequest>(`/repos/${repo}/pulls/${number}`);
+    } catch (e) {
+      if (e instanceof GitHubError && e.status === 404) return null;
+      throw e;
+    }
+  }
+
+  /**
+   * The files a pull request changed, with their patches.
+   *
+   * Capped at one page on purpose: the founder-facing view shows a bounded list and says how many
+   * more there are (`summariseChanges`), which is honest. Paging through a 300-file change to render
+   * all of it would be slow and would not help anyone judge it.
+   */
+  async listPullFiles(repo: string, number: number, perPage = 50): Promise<RawPullFile[]> {
+    try {
+      return await this.request<RawPullFile[]>(`/repos/${repo}/pulls/${number}/files?per_page=${perPage}`);
+    } catch (e) {
+      if (e instanceof GitHubError && e.status === 404) return [];
+      throw e;
+    }
+  }
+
+  /**
+   * Accept a piece of work.
+   *
+   * `sha` pins the commit the founder was actually looking at — GitHub refuses the merge with 409 if
+   * the branch has moved since, which is the server-side half of the binding `acceptability()` does
+   * client-side. Both, deliberately: one gives a good message, the other makes it impossible.
+   */
+  async mergePullRequest(
+    repo: string,
+    number: number,
+    params: { sha: string; method?: 'merge' | 'squash' | 'rebase'; title?: string },
+  ): Promise<{ merged: boolean; message: string }> {
+    return this.request<{ merged: boolean; message: string }>(`/repos/${repo}/pulls/${number}/merge`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        sha: params.sha,
+        merge_method: params.method ?? 'squash',
+        ...(params.title ? { commit_title: params.title } : {}),
+      }),
+    });
+  }
+}
+
+/** The subset of GitHub's pull-request payload this app reads. */
+export interface RawPullRequest {
+  number: number;
+  title: string;
+  body: string | null;
+  html_url: string;
+  state: string;
+  merged: boolean;
+  mergeable: boolean | null;
+  user: { login: string } | null;
+  created_at: string;
+  head: { sha: string; ref: string };
+  /** GitHub's own count. The files endpoint is paginated, so this is the only honest total. */
+  changed_files: number;
+}
+
+export interface RawPullFile {
+  filename: string;
+  additions: number;
+  deletions: number;
+  status: string;
+  patch?: string;
 }
