@@ -18,8 +18,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   echo "need Claude auth: set CLAUDE_CODE_OAUTH_TOKEN (Max, preferred) or ANTHROPIC_API_KEY" >&2; exit 1
 fi
-# Each wake now runs the RPIV loop = up to ~4 agentic sessions (plan/implement/review/qa), not one, so
-# the default wake budget is lower to stay within shared Claude Max limits (adversarial review P2).
+# A wake runs the whole RPIV loop, so it is many agentic sessions, not one. Since FB-052 the worst
+# case is: up to 2 PLAN attempts + MAX_VALIDATION_ROUNDS × (implement + gate-check + review + qa) —
+# about 10 sessions at the default of 2 rounds, against a shared Claude Max. The budget counts WAKES,
+# not sessions, so it bounds how many tickets get worked per day rather than the spend within one.
+# Lower MAX_VALIDATION_ROUNDS (supervisor.sh) if that ceiling matters more than the repair attempt.
 : "${DAILY_WAKE_BUDGET:=8}"
 : "${MAX_ATTEMPTS:=3}"          # per-ticket circuit breaker
 : "${PLAN_TIMEOUT:=600}"
