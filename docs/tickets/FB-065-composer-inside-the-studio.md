@@ -35,11 +35,15 @@ drift into the easiest:
 
 **Recommendation: (3) — and the research says it is better supported than we assumed.**
 
-LibreChat ships an official **Agents API** for exactly this: `POST /api/agents/v1/chat/completions`
-(OpenAI-compatible, so a standard SDK works by changing `base_url`) and `POST /api/agents/v1/responses`
-(their agentic format, with native tool use and structured outputs), plus `GET /api/agents/v1/models`
-to list agents. Auth is an API key generated in the UI once `remoteAgents` is enabled, or an OIDC
-bearer token for machine-to-machine. Streaming is supported.
+LibreChat ships an official **Agents API** for exactly this.
+
+- `POST /api/agents/v1/chat/completions` — OpenAI-compatible, so a standard SDK works by changing
+  `base_url`.
+- `POST /api/agents/v1/responses` — their own format, with tool use and structured outputs built in.
+- `GET /api/agents/v1/models` — lists the agents.
+
+Auth is an API key generated in the UI once `remoteAgents` is enabled, or an OIDC bearer token for
+machine-to-machine. Streaming is supported.
 
 That matters. When I drove the composer during the ARCA dogfood I reverse-engineered the *internal*
 route (`/api/agents/chat`, needing a browser User-Agent to get past a bot check and a hand-minted

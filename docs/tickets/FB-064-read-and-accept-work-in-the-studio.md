@@ -43,11 +43,10 @@ Missing: **what changed**, and **accept**.
 - **A work detail view inside the studio.** From the attention queue, a founder opens a piece of work
   and sees: what it does in plain language (the ticket body, not the commit log), what changed, the
   checks and whether they passed, and the preview link when one exists.
-- **Show the change in a way a non-technical founder can judge.** For prose and configuration — which
-  is most of what a founder's tickets produce — render the before/after readably. For source code,
-  do not pretend: say plainly that this part is code, summarise what it touches, and offer the
-  preview and the check results as the evidence they can actually act on. **Never dress a diff up as
-  something it is not.**
+- **Show the change in a way a founder can judge.** Most of what a founder's tickets produce is
+  prose. Render that so they can read it. For source code, do not pretend: say plainly that this part
+  is code, say what it touches, and give them the preview and the check results instead — that is the
+  evidence they can actually act on. **Never dress a diff up as something it is not.**
 - **An Accept button that merges**, using a write-scoped credential the read App does not hold —
   the same split FB-046 established for `STUDIO_APPROVAL_GITHUB_TOKEN`.
 - **Refuse to merge what should not be merged**, in the founder's language: checks still running,
@@ -82,10 +81,12 @@ A founder can genuinely judge prose — a ticket, a piece of copy, something the
 cannot judge a TypeScript diff, and showing them one dressed up as a review is asking them to
 rubber-stamp what they cannot read.
 
-So changes are **classified by what they mean to a founder**, not by file extension: the description
-of the work, writing, something your venture knows, a change to the app, settings. The first three
-are rendered. The last two are *described* — what it touches, how big it is — alongside the evidence
-that actually bears on the decision: did the checks pass, is there a preview to look at.
+So changes are sorted by **what they mean to a founder**, not by file type: the description of the
+work, writing, something your venture knows, a change to the app, settings.
+
+The first three are shown. The last two are described — what it touches, how big it is. Beside them
+sits the evidence that actually bears on the decision: did the checks pass, and is there a preview to
+look at.
 
 That is not a limitation to apologise for. The lane has already reviewed and tested its own work
 (FB-041's `/review` and `/qa` gates run before the PR exists). The founder is accepting an outcome,

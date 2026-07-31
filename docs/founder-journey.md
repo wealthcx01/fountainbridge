@@ -77,7 +77,7 @@ else ends here.
 
 ## Navigation
 
-Eight destinations become four, named for the job rather than for our architecture: **your venture**,
+Eight destinations become four, named for the job rather than for the way we built it: **your venture**,
 **needs you**, **what happened**, **handbook**. The composer becomes an *action* you take, not a place
 you go. "Foundry" is the story of how this works — it belongs on the public site, where people are
 deciding whether to join, not in a working founder's header. (FB-067.)
@@ -110,7 +110,7 @@ the state machine blend them live, triggered by app events like `correct_answer`
 compose into 64+ variations, in **under a megabyte**. That is a genuine UI runtime for stateful,
 expressive components — not decoration.
 
-**It is still not application architecture.** Rive's own documentation does not claim it replaces
+**It still cannot be the whole front end.** Rive's own documentation does not claim it replaces
 HTML and CSS for forms, tables or text-heavy screens, and those are most of what the studio is. More
 to the point, it cannot answer the actual problem: "the composer is a separate app and I have to go to
 GitHub to accept my own work" describes **missing surfaces**, and surfaces are Next.js pages against

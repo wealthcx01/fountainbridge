@@ -11,7 +11,7 @@ each other, and you cannot tell them apart from the words.
 ## Context
 From the FB-063 walkthrough. The current header is `Ventures · Workstreams · Attention · Activity ·
 Foundry · Handbook`, plus a `03 — Foundry Studio` label that is a section number from our own
-marketing site. The names describe our information architecture rather than the founder's day.
+marketing site. The names describe how we organised the software, not what the founder came to do.
 
 ## Scope
 - **Four destinations**, named for the job: **your venture**, **needs you**, **what happened**, and
