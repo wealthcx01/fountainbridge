@@ -1,0 +1,8 @@
+{
+  "id": "past-send",
+  "department": "sell",
+  "action_type": "send",
+  "summary": "Earlier this month: onboarding sequence to 300 signups",
+  "amount_minor": 400000,
+  "currency": "GBP"
+}

@@ -35,6 +35,38 @@ interface Selected {
   item: TicketWithMeta;
 }
 
+/**
+ * How each budget state reads at a glance (FB-054).
+ *
+ * Colour AND a glyph, because colour alone fails for a founder who cannot distinguish these hues —
+ * and because `nearing`, the state whose entire job is early warning, previously had no marker of
+ * any kind, so telling it from `within` meant reading a full sentence on every card.
+ */
+const BUDGET_TONE: Record<EnvelopeStatus['state'], string | undefined> = {
+  over: 'var(--color-error)',
+  nearing: 'var(--color-warn)',
+  within: undefined,
+  unset: undefined,
+};
+const BUDGET_GLYPH: Record<EnvelopeStatus['state'], string> = {
+  over: '⚠',
+  nearing: '◑',
+  within: '✓',
+  unset: '·',
+};
+
+/**
+ * The more severe of "where this department stands" and "where the queue would put it".
+ *
+ * A department at 83% with £5,200 awaiting the founder's OK is at risk, and the board is where the
+ * ticket says risk gets flagged — so the marker escalates on the projection while `detail` keeps
+ * both numbers honest.
+ */
+const SEVERITY: Record<EnvelopeStatus['state'], number> = { unset: 0, within: 1, nearing: 2, over: 3 };
+function worstState(b: EnvelopeStatus): EnvelopeStatus['state'] {
+  return SEVERITY[b.projectedState] > SEVERITY[b.state] ? b.projectedState : b.state;
+}
+
 /** The envelope for a department, if the founder has set one (FB-054). */
 function budgetFor(budgets: EnvelopeStatus[], departmentId: string): EnvelopeStatus | undefined {
   return budgets.find((b) => b.department === departmentId);
@@ -73,6 +105,8 @@ export function VentureBoard({
   departments = [],
   approvals = [],
   budgets = [],
+  budgetsError = null,
+  orphanEnvelopes = [],
   staleRepos = [],
   totalWarnings,
   fetchedAt,
@@ -83,6 +117,10 @@ export function VentureBoard({
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
   budgets?: EnvelopeStatus[];
+  /** Non-null when the venture's budgets file exists but could not be read (FB-054). */
+  budgetsError?: string | null;
+  /** Envelopes keyed to departments this venture does not declare — configured but enforcing nothing. */
+  orphanEnvelopes?: string[];
   staleRepos?: string[];
   totalWarnings: number;
   fetchedAt: number;
@@ -167,7 +205,9 @@ export function VentureBoard({
         <div data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-            {departments.map((d) => (
+            {departments.map((d) => {
+              const budget = budgetFor(budgets, d.id);
+              return (
               <div key={d.id} className="card" data-testid={`dept-${d.id}`} style={{ opacity: d.provisioned ? 1 : 0.7 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
                   <strong style={{ fontSize: '15px' }}>{d.name}</strong>
@@ -180,23 +220,43 @@ export function VentureBoard({
                     ? <>Work here is <span className="mono">{GATE_LABEL[d.gate] ?? d.gate}</span>.</>
                     : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
                 </p>
-                {/* FB-054: where this department stands against the spend envelope the founder set.
-                    Only rendered when an envelope exists — a venture with no budgets configured must
-                    read as "no budgets", not as a department sitting at 0% of nothing. */}
-                {budgetFor(budgets, d.id) ? (
+                {budget ? (
                   <p
-                    className="muted mono"
+                    className="muted"
                     data-testid={`dept-${d.id}-budget`}
-                    data-budget-state={budgetFor(budgets, d.id)!.state}
-                    style={{ fontSize: '13px', margin: '0.3rem 0 0' }}
+                    data-budget-state={budget.state}
+                    style={{
+                      fontSize: 'var(--fs-body-sm)',
+                      margin: '0.35rem 0 0',
+                      // The one line on this card whose job is to catch the eye must not be the
+                      // least visible thing on it. The first cut rendered 108% in the same muted
+                      // grey as 4%, with the state carried only by a data attribute that had no CSS
+                      // behind it — a test hook, not a signal.
+                      color: BUDGET_TONE[worstState(budget)],
+                      fontWeight: worstState(budget) === 'over' ? 600 : undefined,
+                    }}
                   >
-                    {budgetFor(budgets, d.id)!.state === 'over' ? '⚠ ' : ''}
-                    Budget {budgetFor(budgets, d.id)!.detail}
+                    {BUDGET_GLYPH[worstState(budget)]} Budget{' '}
+                    <span className="mono">{budget.detail}</span>
                   </p>
                 ) : null}
               </div>
-            ))}
+              );
+            })}
           </div>
+          {budgetsError ? (
+            <p className="card" data-testid="budgets-error" style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
+              ⚠ Your budgets file couldn&rsquo;t be read, so no spend is being checked against it: {budgetsError}.
+              Until it&rsquo;s fixed, treat every budget figure above as unset.
+            </p>
+          ) : null}
+          {orphanEnvelopes.length > 0 ? (
+            <p className="card muted" data-testid="budgets-orphans" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
+              ⚠ Budget{orphanEnvelopes.length === 1 ? '' : 's'} set for{' '}
+              <span className="mono">{orphanEnvelopes.join(', ')}</span>, which {orphanEnvelopes.length === 1 ? 'is not a department' : 'are not departments'} of this
+              venture — so {orphanEnvelopes.length === 1 ? 'it is' : 'they are'} enforcing nothing. Check the spelling against your surfaces above.
+            </p>
+          ) : null}
         </div>
       ) : null}
       <hr className="hr" />

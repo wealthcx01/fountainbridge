@@ -65,53 +65,48 @@ else in the loop works without it — FB-042 just can't render typed run history
 Sell/Scale operational half. See `docs/founder-to-lane-execution.md` for the loop and the memory files
 for the full FB-041…057 roadmap.
 
-## 4. Department budget envelopes (FB-054) — NOT READY, do not rely on this
-
-> **⚠ A 10-specialist review on 2026-07-31 found this feature's gate is not trustworthy.** The
-> arithmetic is correct; every input to it is writable by the agent being gated. Do not configure a
-> venture expecting it to constrain spend. Specifically: `budgets.json` sits on the same ref the lane
-> writes proposals to (it can raise its own limit); an omitted or malformed `amount_minor` produces
-> no check at all; `department` is unvalidated; spend is read from the wrong repo for the only
-> department that spends money; and `period` is a label — spend is summed over all time, so the
-> percentage grows without bound. See `docs/tickets/FB-054-department-budget-envelopes.md`.
->
-> The setup below is the intended shape, kept so the fix has a target.
+## 4. Department budget envelopes (FB-054) — one file in THIS repo, no deploy
 
 Each department (Build / Sell / Scale) can carry a spend envelope. When a lane proposes an external
 action that costs money, the studio computes what approving it would do to that department's budget
 and shows it as a check on the approval card — so the founder sees the impact at the moment they
 decide, not in a bill afterwards.
 
-Turning it on is a single file on the venture repo's `foundry-approvals` ref — no deploy, no env var:
+**The file lives in the studio repo, deliberately:** `ventures/budgets/<venture-id>.yaml`, beside the
+manifests. It is *not* on the venture's `foundry-approvals` ref, because that is the ref the
+venture's own lane can write — an agent must not be able to edit the limits that police its
+spending. Changing a budget therefore goes through this repo's PR + CI gate.
 
-```jsonc
-// budgets.json, at the root of the foundry-approvals ref
-{
-  "currency": "GBP",
-  "period": "per month",
-  "departments": {
-    "sell": 480000,     // £4,800 — keys are department ids from the manifest
-    "scale": 100000     // £1,000
-  }
-}
+```yaml
+# ventures/budgets/arca.yaml
+currency: GBP
+period: monthly        # monthly | quarterly | yearly | all-time — ENFORCED, not a label
+departments:
+  sell: 480000         # £4,800/month. Integer MINOR units: pence, not pounds.
+  scale: 100000        # £1,000/month
 ```
 
-**Amounts are integer minor units (pence), never pounds.** `4800.5` is rejected and that department
-reads "no budget set" — accepting a float would silently misprice the gate by 100×, and a budget
-check that is wrong is worse than one that is absent. A department with no entry simply has no
-envelope; nothing is flagged for it.
+A limit written in pounds (`4800.5`) is rejected **and reported** — the department says so rather
+than looking identical to having no budget. A file that exists but cannot be parsed raises a
+board-level warning saying no spend is being checked, rather than silently switching the gate off.
 
-For a proposal to count against an envelope it needs a price, which the proposing lane writes into
-`proposal.json`:
+For a proposal to count against an envelope the lane gives it a price:
 
 ```jsonc
 { "department": "sell", "amount_minor": 520000, "currency": "GBP", "summary": "…" }
 ```
 
-Two behaviours worth knowing before you rely on it:
+Behaviour worth knowing before you rely on it:
 
-- **The check informs, it does not block.** An over-envelope action still shows an Approve button —
-  the founder may well decide the over-budget send is the right call. What they must not be able to
-  do is make that call unaware. Hard-blocking belongs to the executor's own checks.
-- **Only granted/executing/executed spend counts.** A proposal that has not been approved does not
-  consume the envelope, so a queue of unapproved asks can never make each other look unaffordable.
+- **The check informs, it does not block.** An over-envelope action still shows Approve — you may
+  decide the over-budget send is right. What you must not be able to do is make that call unaware.
+- **It fails closed.** A price the studio cannot read, a department the manifest does not declare, a
+  missing envelope, or an unstated/foreign currency all produce a check that does **not** pass and
+  says why. Only a genuinely free action produces no check.
+- **Only granted/executing/executed spend counts**, windowed to the period — so an unapproved queue
+  cannot squeeze out real work, and the percentage does not grow forever.
+- **The queue is shown too:** "83% of £4,800 this month; 192% if everything queued is approved."
+
+**Known gap:** spend is currently read from the venture's first repo, so a department with its own
+repo (Sell → `arca-marketing`) will read `0%` until per-department loading lands. See
+`docs/tickets/FB-054-department-budget-envelopes.md`.

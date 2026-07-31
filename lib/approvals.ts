@@ -14,7 +14,24 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
-import { envelopeCheck, parseEnvelopes, type Envelope } from './budgets';
+import { envelopeCheck, normalizeCurrency, type Envelope, type Spend } from './budgets';
+
+/** Read a proposal's stated price, keeping "no price" and "unreadable price" distinct. */
+function readPrice(raw: unknown): { amountMinor: number | null; unreadable: boolean } {
+  if (raw === undefined || raw === null) return { amountMinor: null, unreadable: false };
+  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 0) return { amountMinor: raw, unreadable: false };
+  return { amountMinor: null, unreadable: true };
+}
+
+/** When the spend became committed, for period windowing. Absent in v0 records. */
+function committedAtOf(grant: unknown, execution: unknown): string | null {
+  const g = grant as { granted_at?: unknown } | null;
+  const e = execution as { executed_at?: unknown; started_at?: unknown } | null;
+  for (const v of [e?.executed_at, e?.started_at, g?.granted_at]) {
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
 
 export const APPROVALS_REF = 'foundry-approvals';
 
@@ -56,9 +73,20 @@ export interface ActiveGraphApproval {
   actionType: string | null;
   summary: string;
   checks: PolicyCheck[];
-  /** Cost in integer minor units; 0 when the action states no price (FB-054). */
-  amountMinor: number;
+  /**
+   * Cost in integer minor units, or null when the action states no readable price (FB-054).
+   * Null is NOT zero: `priceUnreadable` distinguishes "free" from "we could not read the price",
+   * and the latter must fail the envelope check rather than vanish from it.
+   */
+  amountMinor: number | null;
+  /** True when a price WAS stated but could not be read (float, string, negative). */
+  priceUnreadable: boolean;
+  /** Normalised ISO-4217 currency, or null when unstated/unusable. */
   currency: string | null;
+  /** When this approval was committed (grant/execution timestamp), for period windowing. */
+  committedAt: string | null;
+  /** Checks the STUDIO computed. Kept apart from the proposer's own `checks` claims. */
+  studioChecks: PolicyCheck[];
   /** result/reason from execution.json when past the gate. */
   outcome: string | null;
 }
@@ -68,12 +96,9 @@ export interface ApprovalSource {
   /** approval ids under `approvals/` on the ref. */
   listIds(repo: string): Promise<string[]>;
   read(repo: string, id: string, file: 'proposal' | 'grant' | 'execution'): Promise<{ json: unknown; sha: string } | null>;
-  /**
-   * The department budget envelopes state file, `budgets.json` on the ref (FB-054). Optional: a
-   * source that cannot supply it (an older stub, a fixture without one) means "no envelopes
-   * configured", which is the normal case for a venture that has not set any.
-   */
-  readBudgets?(repo: string): Promise<unknown>;
+  // NOTE: budget envelopes are deliberately NOT read through this source. They live in the STUDIO
+  // repo (`ventures/budgets/<id>.yaml`), because this source reads the venture ref that the
+  // proposing lane can write — an agent must not be able to edit the limits that police it.
 }
 
 /** A GitHub-backed source over the `foundry-approvals` ref. */
@@ -90,11 +115,6 @@ export function githubApprovalSource(client: GitHubClient): ApprovalSource {
       try { json = JSON.parse(r.text); } catch { json = null; }
       return { json, sha: r.sha };
     },
-    async readBudgets(repo) {
-      const r = await client.getFileWithSha(repo, 'budgets.json', APPROVALS_REF);
-      if (r == null) return null;
-      try { return JSON.parse(r.text); } catch { return null; }
-    },
   };
 }
 
@@ -107,11 +127,6 @@ export function fixtureApprovalSource(dir: string): ApprovalSource {
         const idsRaw = readFileSync(join(dir, key(repo), '_ids.json'), 'utf8');
         return JSON.parse(idsRaw) as string[];
       } catch { return []; }
-    },
-    async readBudgets(repo) {
-      try {
-        return JSON.parse(readFileSync(join(dir, key(repo), 'budgets.json'), 'utf8'));
-      } catch { return null; }
     },
     async read(repo, id, file) {
       try {
@@ -148,6 +163,7 @@ export async function loadApprovals(
     ]);
     if (!proposalR || !proposalR.json) continue; // an approval is defined by its proposal
     const p = proposalR.json as ApprovalProposal;
+    const priced = readPrice(p.amount_minor);
     out.push({
       id,
       kind: 'activegraph',
@@ -160,14 +176,14 @@ export async function loadApprovals(
       actionType: p.action_type ?? null,
       summary: p.summary ?? '(no summary)',
       checks: Array.isArray(p.checks) ? p.checks : [],
-      // Only a non-negative integer counts. A float, a string or a negative is treated as "no
-      // price stated" rather than coerced — a mispriced action is worse than an unpriced one,
-      // because it silently moves a department's envelope by the wrong amount.
-      amountMinor:
-        typeof p.amount_minor === 'number' && Number.isInteger(p.amount_minor) && p.amount_minor >= 0
-          ? p.amount_minor
-          : 0,
-      currency: typeof p.currency === 'string' && p.currency ? p.currency : null,
+      // A float, string or negative is NOT coerced to zero — that made a £5,200 send with a
+      // malformed price render as a free action with no check at all. `null` + `priceUnreadable`
+      // carries the difference through to a failing check.
+      amountMinor: priced.amountMinor,
+      priceUnreadable: priced.unreadable,
+      currency: normalizeCurrency(p.currency),
+      committedAt: committedAtOf(grantR?.json ?? null, execR?.json ?? null),
+      studioChecks: [],
       outcome: (execR?.json as { reason?: string; result?: { note?: string } } | null)?.reason
         ?? (execR?.json as { result?: { note?: string } } | null)?.result?.note
         ?? null,
@@ -177,54 +193,62 @@ export async function loadApprovals(
   const rank: Record<ApprovalStatus, number> = { proposed: 0, granted: 1, executing: 2, executed: 3, rejected: 4 };
   out.sort((a, b) => rank[a.status] - rank[b.status] || a.id.localeCompare(b.id));
 
-  // FB-054: attach the budget-envelope check. Deliberately AFTER the full list is built — the check
-  // for one proposal depends on every other approval's spend, so it cannot be computed per-file as
-  // they stream in, and it must never be taken from the proposal (the proposer would be grading its
-  // own budget, from a snapshot that may be an hour stale).
-  const envelopes = await loadEnvelopes(venture, source, repo);
-  return attachEnvelopeChecks(out, envelopes);
-}
-
-/** Read the venture's envelopes from state. A source without budgets support means "none set". */
-export async function loadEnvelopes(
-  venture: VentureSummary,
-  source: ApprovalSource,
-  repo = venture.repos[0],
-): Promise<Envelope[]> {
-  if (!repo || !source.readBudgets) return [];
-  try {
-    return parseEnvelopes(await source.readBudgets(repo));
-  } catch {
-    // A budgets file that cannot be read must never blank the approvals queue — the founder's gate
-    // matters more than the budget annotation on it (non-negotiable 10 is about surfacing, and an
-    // approval that never renders surfaces nothing).
-    return [];
-  }
+  return out;
 }
 
 /**
- * Add each priced approval's envelope check to its `checks[]`.
+ * Attach the budget-envelope check to every priced proposal awaiting the gate.
  *
- * Only `proposed` approvals get one: past the gate the decision is made, and re-annotating an
- * executed action with today's budget picture would be telling the founder something about a choice
- * they can no longer change.
+ * Runs AFTER the full list is built: a proposal's check depends on every other approval's spend, so
+ * it cannot be computed per-file as they stream in — and it must never be taken from the proposal,
+ * where the proposer would be grading its own budget from a snapshot that may be an hour stale.
+ *
+ * @param knownDepartments the venture's declared department ids. A proposal naming anything else is
+ *   reported as uncheckable rather than silently exempted — choosing an unrecognised string was how
+ *   an agent could opt its own spend out of the gate entirely.
  */
 export function attachEnvelopeChecks(
   approvals: ActiveGraphApproval[],
   envelopes: Envelope[],
+  knownDepartments: Set<string>,
+  now: Date,
 ): ActiveGraphApproval[] {
-  if (!envelopes.length) return approvals;
   const byDept = new Map(envelopes.map((e) => [e.department, e]));
-  const spends = approvals.map((a) => ({
-    department: a.department,
-    amountMinor: a.amountMinor,
-    currency: a.currency,
-    status: a.status,
-  }));
+  const spends = toSpends(approvals);
 
   return approvals.map((a) => {
-    if (a.status !== 'proposed' || !a.department || a.amountMinor <= 0) return a;
-    const check = envelopeCheck(byDept.get(a.department), spends, a.department, a.amountMinor, a.currency);
-    return check ? { ...a, checks: [...a.checks, check] } : a;
+    if (a.status !== 'proposed') return a;
+    const department = a.department ?? '';
+    // Everything else queued in the same department and awaiting the same human — what approving
+    // the lot would do. Excludes this proposal, which is counted as `pending`.
+    const queuedMinor = approvals
+      .filter((o) => o.id !== a.id && o.status === 'proposed' && o.department === a.department)
+      .reduce((sum, o) => sum + (o.amountMinor ?? 0), 0);
+
+    const check = envelopeCheck(
+      byDept.get(department),
+      spends,
+      department,
+      { amountMinor: a.amountMinor, currency: a.currency, priceUnreadable: a.priceUnreadable },
+      now,
+      Boolean(department) && knownDepartments.has(department),
+      queuedMinor,
+    );
+    if (!check) return a;
+    // Studio-computed checks are kept apart from the lane's own claims: rendering them in one
+    // undifferentiated list let a proposal write its own "sell budget envelope — passed" entry that
+    // the founder could not tell from this one.
+    return { ...a, studioChecks: [...a.studioChecks, check] };
   });
+}
+
+/** One derivation of approval → spend, so the board and the cards cannot drift apart. */
+export function toSpends(approvals: ActiveGraphApproval[]): Spend[] {
+  return approvals.map((a) => ({
+    department: a.department,
+    amountMinor: a.amountMinor ?? 0,
+    currency: a.currency,
+    status: a.status,
+    at: a.committedAt,
+  }));
 }

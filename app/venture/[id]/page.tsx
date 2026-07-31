@@ -5,8 +5,8 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth } from '@/lib/health';
-import { loadApprovals, loadEnvelopes, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
-import { envelopeStatus, type EnvelopeStatus } from '@/lib/budgets';
+import { loadApprovals, attachEnvelopeChecks, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { loadEnvelopes, envelopeStatus, type EnvelopeStatus } from '@/lib/budgets';
 import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
@@ -51,29 +51,44 @@ export default async function VenturePage({
   // FB-046: external-action approvals (the ActiveGraph gate). Most ventures have no foundry-approvals
   // ref yet — a read failure must never blank the board, so degrade to none.
   let approvals: ActiveGraphApproval[] = [];
-  let budgets: EnvelopeStatus[] = [];
   try {
-    // Fixture source for the UI gate + offline dev, matching the tickets/PRs/health pattern. FB-046
-    // shipped the read model without this, so the approval card had no deterministic coverage; the
-    // envelope check (FB-054) is a claim about what a founder SEES, so it needs a real render.
-    const source = process.env.APPROVALS_FIXTURE_DIR
-      ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
-      : githubApprovalSource(new GitHubClient());
+    // Fixture source for the UI gate + offline dev. Gated on E2E_TEST_LOGIN, not on the presence of
+    // the directory alone: this is the external-action gate, and a stray env var must not be able to
+    // swap a founder's real approval queue for files on disk. Keying off the same switch that
+    // already enables test login means there is ONE well-known flag that turns the studio into a
+    // test rig, rather than several — and a deployment with it set has bigger problems than this.
+    // (NODE_ENV is not usable here: `next start` sets it to production for the UI gate too.)
+    const source =
+      process.env.APPROVALS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1'
+        ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
+        : githubApprovalSource(new GitHubClient());
     approvals = await loadApprovals(venture, source);
-    // FB-054: where each department stands against its envelope, from the same committed spend the
-    // approval checks are computed from — so the card and the board can never disagree.
-    const envelopes = await loadEnvelopes(venture, source);
-    const spends = approvals.map((a) => ({
-      department: a.department,
-      amountMinor: a.amountMinor,
-      currency: a.currency,
-      status: a.status,
-    }));
-    budgets = envelopes.map((e) => envelopeStatus(e, spends, e.department));
   } catch {
     approvals = [];
-    budgets = [];
   }
+
+  // FB-054: envelopes come from the STUDIO repo (ventures/budgets/<id>.yaml), never from the venture
+  // ref the proposing lane can write. Read ONCE here and threaded through, so the board and the
+  // cards are computed from the same bytes rather than from two reads that can disagree.
+  const { envelopes, error: budgetsError } = loadEnvelopes(venture.id);
+  const knownDepartments = new Set(venture.departments.map((d) => d.id));
+  const now = new Date();
+  approvals = attachEnvelopeChecks(approvals, envelopes, knownDepartments, now);
+
+  const spends = toSpends(approvals);
+  // A status for every DECLARED department, not only those with an envelope — a department with no
+  // budget must read "none set" rather than silently rendering nothing, which was indistinguishable
+  // from a budget that had been removed or failed to parse.
+  const budgets: EnvelopeStatus[] = venture.departments.map((d) => {
+    const envelope = envelopes.find((e) => e.department === d.id);
+    const queued = approvals
+      .filter((a) => a.status === 'proposed' && a.department === d.id)
+      .reduce((sum, a) => sum + (a.amountMinor ?? 0), 0);
+    return envelopeStatus(envelope, spends, d.id, now, 0, queued);
+  });
+  // An envelope keyed to a department the manifest does not declare is a founder typo that would
+  // otherwise enforce nothing while looking configured.
+  const orphanEnvelopes = envelopes.filter((e) => !knownDepartments.has(e.department)).map((e) => e.department);
 
   return (
     <VentureBoard
@@ -82,6 +97,8 @@ export default async function VenturePage({
       departments={venture.departments}
       approvals={approvals}
       budgets={budgets}
+      budgetsError={budgetsError}
+      orphanEnvelopes={orphanEnvelopes}
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
       fetchedAt={data.fetchedAt}

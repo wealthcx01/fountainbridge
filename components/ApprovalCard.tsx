@@ -19,16 +19,40 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
         <strong style={{ fontSize: '15px' }}>{approval.summary}</strong>
         <span className="tag" data-testid={`approval-${approval.id}-dept`}>{approval.department ?? 'general'}</span>
       </div>
+      {/* The STUDIO's own checks, kept visually apart from the proposer's. Rendering both in one
+          undifferentiated list let a proposal write its own "sell budget envelope — passed" entry
+          that the founder could not tell from the one the studio computed. Each check is its own
+          element, so a delimiter inside a lane-authored string cannot fabricate extra entries. */}
+      {approval.studioChecks.length > 0 ? (
+        <ul
+          data-testid={`approval-${approval.id}-studio-checks`}
+          style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0', fontSize: 'var(--fs-body-sm)' }}
+        >
+          {approval.studioChecks.map((c, i) => (
+            <li key={i} style={{ color: c.passed ? undefined : 'var(--color-warn)' }}>
+              {c.passed ? '✓' : '✗'} {c.name}
+              {c.detail ? <> — <span className="mono">{c.detail}</span></> : null}
+              <span className="muted"> · checked by the studio</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {approval.checks.length > 0 ? (
-        <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: '13px', margin: '0.35rem 0 0' }}>
-          {failing === 0 ? '✓ policy checks clear' : `⚠ ${failing} policy check${failing === 1 ? '' : 's'} need a look`} ·{' '}
-          {/* A check's `detail` is the part a founder can act on — "over — 108% of £4,800" tells them
-              by how much, where the name alone only says something is wrong. FB-054 made this
-              load-bearing: the budget check exists to show the impact, so hiding it would defeat it. */}
-          {approval.checks
-            .map((c) => `${c.passed ? '✓' : '✗'} ${c.name}${c.detail ? ` — ${c.detail}` : ''}`)
-            .join(' · ')}
-        </p>
+        <ul
+          className="muted"
+          data-testid={`approval-${approval.id}-checks`}
+          style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-meta-lg)' }}
+        >
+          <li>
+            {failing === 0 ? '✓ stated by the proposer' : `⚠ ${failing} check${failing === 1 ? '' : 's'} the proposer flagged`}
+          </li>
+          {approval.checks.map((c, i) => (
+            <li key={i}>
+              {c.passed ? '✓' : '✗'} {c.name}
+              {c.detail ? <> — {c.detail}</> : null}
+            </li>
+          ))}
+        </ul>
       ) : null}
       <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
         {done ? (
