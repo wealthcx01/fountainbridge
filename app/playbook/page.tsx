@@ -22,9 +22,9 @@ export default async function PlaybookIndex() {
         {sections.map((s) => (
           <Link key={s.slug} href={`/playbook/${s.slug}`} className="card card-link" data-testid={`pb-${s.slug}`}>
             <div className="stack">
-              <span className="eyebrow-id mono" style={{ fontSize: '12px' }}>{String(s.order).padStart(2, '0')}</span>
+              <span className="eyebrow-id mono" style={{ fontSize: 'var(--fs-meta)' }}>{String(s.order).padStart(2, '0')}</span>
               <h3 style={{ margin: '0.1rem 0 0' }}>{s.title}</h3>
-              <span className="muted" style={{ fontSize: '14px' }}>{s.summary}</span>
+              <span className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>{s.summary}</span>
             </div>
           </Link>
         ))}

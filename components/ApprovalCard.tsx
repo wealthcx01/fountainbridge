@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import { describe as describeBudget } from '@/lib/budgets';
+import { toneColor } from '@/lib/status';
 import { approveExternalAction } from '@/app/actions/approvals';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
@@ -17,7 +18,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
   return (
     <div className="card" data-testid={`approval-${approval.id}`} style={{ marginBottom: '0.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
-        <strong style={{ fontSize: '15px' }}>{approval.summary}</strong>
+        <strong style={{ fontSize: 'var(--fs-subhead)' }}>{approval.summary}</strong>
         <span className="tag" data-testid={`approval-${approval.id}-dept`}>{approval.department ?? 'general'}</span>
       </div>
       {/* What the STUDIO can say about the budget: the founder's own limit, and the spend the
@@ -31,12 +32,18 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           style={{
             fontSize: 'var(--fs-body-sm)',
             margin: '0.5rem 0 0',
-            color: approval.budget.overLimit ? 'var(--color-error)' : undefined,
+            color: approval.budget.overLimit ? toneColor('blocked') : undefined,
             fontWeight: approval.budget.overLimit ? 600 : undefined,
           }}
         >
           {describeBudget(approval.budget, approval.department ?? 'this surface')}{' '}
           <span className="muted">Limit set in the studio; spend as reported by the venture.</span>
+        </p>
+      ) : null}
+      {approval.checks.length > 0 ? (
+        <p className="muted" data-testid={`approval-${approval.id}-checks`} style={{ fontSize: 'var(--fs-meta)', margin: '0.35rem 0 0' }}>
+          {failing === 0 ? '✓ policy checks clear' : `⚠ ${failing} policy check${failing === 1 ? '' : 's'} need a look`} ·{' '}
+          {approval.checks.map((c) => `${c.passed ? '✓' : '✗'} ${c.name}`).join(' · ')}
         </p>
       ) : null}
       {approval.checks.length > 0 ? (
@@ -79,7 +86,7 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           </button>
         )}
         {result ? (
-          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${approval.id}-msg`} style={{ fontSize: '13px', color: result.ok ? undefined : 'var(--color-warn)' }}>
+          <span className={result.ok ? 'muted' : ''} data-testid={`approval-${approval.id}-msg`} style={{ fontSize: 'var(--fs-meta-lg)', color: result.ok ? undefined : toneColor('attention') }}>
             {result.message}
           </span>
         ) : null}

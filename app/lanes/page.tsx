@@ -31,9 +31,9 @@ export default async function LanesPage() {
         {visible.map((v) => (
           <Link key={v.id} href={`/venture/${v.id}`} className="card card-link" data-testid={`lanes-venture-${v.id}`}>
             <div className="stack">
-              <span className="eyebrow-id mono" style={{ fontSize: '12px' }}>{v.id}</span>
+              <span className="eyebrow-id mono" style={{ fontSize: 'var(--fs-meta)' }}>{v.id}</span>
               <h3 style={{ margin: '0.1rem 0 0' }}>{v.name}</h3>
-              <span className="muted mono" style={{ fontSize: '12px' }}>
+              <span className="muted mono" style={{ fontSize: 'var(--fs-meta)' }}>
                 {v.repos.length} repo{v.repos.length === 1 ? '' : 's'}: {v.repos.join(', ') || '—'}
               </span>
             </div>
