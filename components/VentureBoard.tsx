@@ -19,10 +19,15 @@ import type { RunReport } from '@/lib/runreports';
 
 // FB-048: the founder's three owned surfaces. Plain-language gate labels (FB-024) — the founder sees
 // "how work here is approved", never the contract enum.
+//
+// WHOLE SENTENCES, not fragments slotted into "Work here is ___." (FB-063). The fragment form read
+// "Work here is approval coming." for the gate that has not been specified yet — a template can only
+// be as grammatical as its worst case, and the worst case is the one a founder meets on a surface
+// nobody has finished designing.
 const GATE_LABEL: Record<string, string> = {
-  pr: 'approved by review',
-  activegraph: 'approved before it goes out',
-  'tbd-fb012': 'approval coming',
+  pr: 'Work here is approved by review.',
+  activegraph: 'Work here is approved before it goes out.',
+  'tbd-fb012': 'How work here gets approved is still being decided. Nothing goes out meanwhile.',
 };
 
 // Column keys stay technical (col-<key> test ids, contract statuses); the visible label is the
@@ -182,11 +187,11 @@ export function VentureBoard({
           data-testid="venture-chat-link"
           style={{ marginTop: '0.25rem' }}
         >
-          💬 Chat — describe what you want
+          Chat — describe what you want
         </a>
       ) : (
         <p className="card muted" data-testid="venture-chat-pending" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.25rem' }}>
-          💬 Your conversational composer — describe what you want in plain English and it becomes a
+          Your conversational composer — describe what you want in plain English and it becomes a
           workstream — will appear here once this venture’s box is set up.
         </p>
       )}
@@ -243,7 +248,9 @@ export function VentureBoard({
                 </div>
                 <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
                   {d.provisioned
-                    ? <>Work here is <span className="mono">{GATE_LABEL[d.gate] ?? d.gate}</span>.</>
+                    // Not `mono`: this is an explanation, and the code face made it read as a
+                    // value the founder was supposed to recognise rather than as a sentence.
+                    ? <>{GATE_LABEL[d.gate] ?? `How work here gets approved is still being decided.`}</>
                     : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
                 </p>
                 {/* One string owner: `describe` returns a whole sentence, so the view adds no

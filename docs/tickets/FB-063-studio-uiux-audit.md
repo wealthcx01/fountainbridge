@@ -1,6 +1,6 @@
 # FB-063 — What the studio actually looks like to a founder
 
-**Status:** Planned · **Phase:** 3 · **Depends on:** FB-042 (the brief + activity strip), FB-045
+**Status:** In review · **Phase:** 3 · **Depends on:** FB-042 (the brief + activity strip), FB-045
 (surfaces), FB-057 (the design contract) · **Repo:** fountainbridge ·
 **Branch:** `fb-063-studio-uiux-audit` · One ticket = one branch = one PR.
 
@@ -74,14 +74,36 @@ act on is noise that trains them to ignore badges.
 - The composer faults found the same day — FB-061 and FB-062.
 
 ## Acceptance criteria
-- [ ] No missing glyph anywhere in the founder-facing UI, on the platforms we support.
+- [x] **No missing glyph.** `💬` was the only colour emoji in the product — everything else uses
+      monochrome dingbats (`⚠ ✓ ✗ ✕`) that every font we ship carries. Removed from both places; the
+      words carry it.
+- [x] **No sentence appears twice on the same screen.** The brief no longer prints the engine line
+      when the engine is healthy AND there is something else to report — the activity strip directly
+      below says it anyway. A stalled or absent lane still always appears, and so does a healthy one
+      when there is nothing else to say, so a quiet venture never gets an empty brief.
+- [x] **The copy defects in §6.** Gate descriptions are whole sentences rather than fragments slotted
+      into `Work here is ___.` (a template can only be as grammatical as its worst case, and the worst
+      case was the surface nobody has finished designing); they no longer render in the code face.
+      The ventures eyebrow counts rather than assumes. The duplicated `03 — Foundry Studio` is gone
+      from the login page.
 - [ ] A venture with nothing in it yet offers one clear next action rather than four empty panels.
-- [ ] No sentence appears twice on the same screen.
 - [ ] The budget position appears once per department, not once per approval, and the alarm colour is
       reserved for what is actually alarming.
 - [ ] One founder-facing date format, from one helper.
 - [ ] Every `⚠` badge either explains itself on hover/click or is removed.
-- [ ] The copy defects in §6 are fixed.
+
+## What is deliberately not done here
+The four unticked items are design decisions, not defects with an obvious right answer:
+
+- **The empty first screen** needs someone to decide what a founder's first action actually is. It is
+  the most valuable item on this list and it deserves more than a paragraph written at the end of a
+  long session.
+- **The repeated budget line** is FB-054's feature — the founder seeing the cost at approve-time —
+  and that ticket took three review passes to get right. Condensing it is a judgement about that
+  feature, not a typo, and unpicking it unilaterally would be the wrong way to treat carefully
+  reviewed work.
+- **Dates and badges** are small but want one owner each (a formatting helper, a badge component)
+  rather than four call sites edited in place.
 
 ## Verification
 `/review` + CI, and a repeat of this walk — signed in as a founder, not as the admin — at 1280 and

@@ -11,7 +11,6 @@ export default async function LoginPage() {
 
   return (
     <section style={{ maxWidth: '28rem', margin: '4rem auto', textAlign: 'center' }}>
-      <p className="eyebrow"><span className="eyebrow-id">03</span> — Foundry Studio</p>
       <h1>Sign in</h1>
       <p className="muted">Foundry Studio is invite-scoped. Sign in with your venture Google account.</p>
       <form

@@ -23,7 +23,11 @@ export default async function Home() {
   return (
     <section>
       <p className="eyebrow">
-        <span className="eyebrow-id">Ventures</span> — {access.isAdmin ? 'All ventures (Bruntsfield)' : 'Your venture'}
+        {/* Counted, not assumed (FB-063). A founder who founds two ventures was told "Your venture". */}
+        <span className="eyebrow-id">Ventures</span> —{' '}
+        {access.isAdmin
+          ? 'All ventures (Bruntsfield)'
+          : ventures.length === 1 ? 'Your venture' : 'Your ventures'}
       </p>
       <h1>Foundry Studio</h1>
       <p className="muted" style={{ maxWidth: '46rem' }}>

@@ -67,15 +67,16 @@ describe('what the brief refuses to do', () => {
     expect(text).toContain('Claude auth expired.');
   });
 
-  it('always reports the engine, even when everything else is silent', () => {
-    // "Nothing happened" and "nothing could happen" are the two states most worth telling apart.
+  it('still reports a healthy engine when there is nothing else to say', () => {
+    // "Nothing happened" and "nothing could happen" are the two states most worth telling apart, so
+    // a quiet venture must not produce a brief with no lines at all.
     const b = composeBrief(input());
     expect(b.lines.some((l) => l.text.includes('checked in'))).toBe(true);
   });
 });
 
 describe('ordering and tone', () => {
-  it('orders by who is needed: approvals, then stops, then budget, then progress, then the engine', () => {
+  it('orders by who is needed: approvals, then stops, then budget, then progress', () => {
     const b = composeBrief(input({
       awaitingApproval: 1,
       blocked: [run({ outcome: 'blocked', errorDetail: 'r' })],
@@ -87,7 +88,23 @@ describe('ordering and tone', () => {
     expect(kinds[1]).toContain('Stopped');
     expect(kinds[2]).toContain('over the spend limit');
     expect(kinds[3]).toContain('moved');
-    expect(kinds[4]).toContain('checked in');
+  });
+
+  it('does not repeat a healthy engine line the activity strip prints anyway', () => {
+    // The strip directly below the brief renders the same sentence. Saying it twice on one screen
+    // is padding, not a summary (FB-063).
+    const b = composeBrief(input({ progressed: [run({ outcome: 'opened-pr' })] }));
+    expect(b.lines.some((l) => l.text.includes('checked in'))).toBe(false);
+  });
+
+  it('still says it when the engine is the news, however busy the rest is', () => {
+    for (const engine of [
+      { state: 'stalled' as const, text: 'not checked in for 3 hours' },
+      { state: 'unknown' as const, text: 'No sign of an agent lane yet' },
+    ]) {
+      const b = composeBrief(input({ awaitingApproval: 2, progressed: [run({})], engine }));
+      expect(b.lines.some((l) => l.text === engine.text), engine.state).toBe(true);
+    }
   });
 
   it('gives a stalled engine a blocked tone, not a working one', () => {
