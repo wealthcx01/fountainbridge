@@ -82,7 +82,9 @@ work_department() {
 
 refresh_repo() {
   cd "$REPO_DIR"
-  git fetch --quiet origin "$BASE_BRANCH"
+  # Token supplied per-fetch (origin is tokenless by design — see origin_url in foundry-lib.sh),
+  # and written into the remote-tracking ref the checkout below expects.
+  git fetch --quiet "$(origin_url)" "+refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
   git checkout --quiet "$BASE_BRANCH" 2>/dev/null || git checkout --quiet -B "$BASE_BRANCH" "origin/$BASE_BRANCH"
   git reset --quiet --hard "origin/$BASE_BRANCH"
   git clean -fd --quiet   # drop untracked leftovers from a prior aborted run (code review P1-1)
@@ -116,9 +118,17 @@ PICK="" PICK_SLUG="" PICK_DEPT="" PICK_GATE="" PICK_REPO="" PICK_DIR="" PICK_BAS
 shopt -s nullglob
 scan_department() {
 for f in docs/tickets/*.md; do
+  # Not every .md in a queue directory is a ticket, and a status grep alone cannot tell the
+  # difference. Caught live on the first Sell wake: the queue's own README explains the format —
+  # "`**Status:** Todo` means the lane may pick it up" — so the grep matched the documentation and
+  # the lane claimed `foundry/README` and worked it. The studio's parser skips non-tickets the same
+  # way; a queue must be able to hold a note about itself.
+  case "$(basename "$f")" in README.md|readme.md|_*) continue ;; esac
+  # A ticket has a title line (`# ID — Title`). A file without one is a note, not work.
+  grep -qE '^#[[:space:]]+\S' "$f" || continue
   case "$(ticket_status "$f")" in todo|ready) ;; *) continue ;; esac
   slug=$(basename "$f" .md)
-  if git ls-remote --exit-code --heads origin "foundry/$slug" >/dev/null 2>&1; then
+  if git ls-remote --exit-code --heads "$(origin_url)" "foundry/$slug" >/dev/null 2>&1; then
     if has_open_pr "$slug"; then continue; fi   # in-flight (open PR) → leave it
     flog "reclaiming stale orphan claim foundry/$slug (branch exists, no open PR)"
     gh_api -X DELETE "$API/repos/$REPO/git/refs/heads/foundry/$slug" >/dev/null || true

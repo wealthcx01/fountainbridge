@@ -105,18 +105,24 @@ if [ "$CLAIM_CODE" = "422" ]; then log "ticket already claimed ($BRANCH exists) 
 log "claimed $BRANCH"
 write_runreport "$SLUG" "working" "Lane claimed the ticket and started work." "" "$STARTED"
 
-# --- 2. ROUTE: work only this box's department (FB-041 slice; FB-045 provisions Sell/Scale) ---------
-DEPT="$(ticket_department "$TICKET_FILE")"
-if [ "$DEPT" != "$LANE_DEPARTMENT" ]; then
-  # Release the claim so the right department's lane can pick it up once provisioned.
-  gh_api -X DELETE "$API/repos/$REPO/git/refs/heads/$BRANCH" >/dev/null || true
-  blocked "This ticket belongs to the '$DEPT' surface, whose repo isn't set up yet (arrives with FB-045). Parked."
+# --- 2. ROUTE: the department is the QUEUE the ticket was claimed from (FB-045) ---------------------
+# Before FB-045 a box served one department and the department was read out of a `**Department:**`
+# field in the ticket, defaulting to `build`; a mismatch parked the ticket. Now each department has
+# its own repo and its own queue, so the queue IS the answer and cannot disagree with itself — a
+# ticket in arca-marketing/docs/tickets is a Sell ticket whatever its text claims.
+#
+# That field survives only as a cross-check. A Sell ticket that says `**Department:** build` is a
+# founder or a composer mislabelling something, and saying so beats silently believing either one.
+DEPT="$LANE_DEPARTMENT"
+DECLARED="$(ticket_department "$TICKET_FILE")"
+if [ "$DECLARED" != "build" ] && [ "$DECLARED" != "$DEPT" ]; then
+  log "note: this ticket declares department '$DECLARED' but sits in the '$DEPT' queue — going with the queue"
 fi
-log "routed to department '$DEPT'"
+log "routed to department '$DEPT' (gate ${LANE_GATE:-pr})"
 
 # --- 3. check out the claimed branch; flip the ticket Status Todo → In progress ---------------------
 cd "$REPO_DIR"
-git fetch --quiet origin "$BRANCH"
+git fetch --quiet "$(origin_url)" "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 git checkout --quiet -B "$BRANCH" "origin/$BRANCH"
 # Remove any untracked files a PRIOR aborted run left behind (a reset --hard doesn't) so `git add -A`
 # below can never sweep another ticket's stray file into this PR. -fd only; -x is omitted so gitignored
@@ -548,7 +554,7 @@ VALIDATION_NOTE="passed on round $ROUND of $MAX_VALIDATION_ROUNDS"
 
 
 # --- 9. GATE PASSED → push the branch + open the PR (a human still merges) --------------------------
-git push --quiet "https://x-access-token:${TICKET_GITHUB_TOKEN}@github.com/${REPO}.git" "$BRANCH"
+git push --quiet "$(origin_url)" "$BRANCH"
 log "pushed $BRANCH"
 PR_BODY="Worked by the Foundry lane through the full RPIV loop (research → plan → implement → validate).
 
