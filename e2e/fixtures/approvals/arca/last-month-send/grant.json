@@ -1,1 +1,8 @@
-{ "id": "last-month-send", "decision": "granted", "approver": "john.gallagher@wealthcx.com", "granted_at": "2026-06-20T09:00:00Z" }
+{
+  "id": "last-month-send",
+  "decision": "granted",
+  "approver": "john.gallagher@wealthcx.com",
+  "granted_at": "2026-06-20T09:00:00Z",
+  "proposal_sha": "sha-last-month-send-proposal",
+  "attestation": "2487467b3f70fe3675534028e223bc005974bf659952bd8e6c7a2e0408ded360"
+}

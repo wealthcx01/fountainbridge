@@ -11,8 +11,12 @@
 #
 # design-lint: enforce the studio design contract (FB-057, docs/studio-design-contract.md) — tokens
 # only, one status vocabulary, no dead controls. Needs no install; it reads app/ and components/.
+#
+# sign-approval-fixtures: re-sign the e2e approval fixtures after adding or renaming one. Since
+# FB-051 an unsigned grant reads `unattested` and stays `proposed`, so a fixture that means
+# "granted" has to be signed like the real thing.
 
-.PHONY: validate-manifests parse-tickets provision-lint design-lint
+.PHONY: validate-manifests parse-tickets provision-lint design-lint sign-approval-fixtures
 
 validate-manifests:
 	cd tools/manifest-validate && npm ci && npm test
@@ -22,6 +26,9 @@ parse-tickets:
 
 design-lint:
 	node scripts/design-lint.mjs
+
+sign-approval-fixtures:
+	node scripts/sign-approval-fixtures.mjs
 
 provision-lint:
 	bash -n scripts/provision-venture.sh

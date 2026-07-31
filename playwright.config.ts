@@ -35,6 +35,11 @@ export default defineConfig({
       PRS_FIXTURE_DIR: 'e2e/fixtures/prs',
       HEALTH_FIXTURE_DIR: 'e2e/fixtures/health',
       APPROVALS_FIXTURE_DIR: 'e2e/fixtures/approvals',
+      // The gate's shared secret. Without it every fixture grant reads `unattested` and a granted
+      // spend silently reverts to "awaiting your OK" — which is the correct product behaviour
+      // (FB-051) but means the e2e would never exercise the attested path at all. The fixture
+      // grants are signed with THIS value; regenerate them with `make sign-approval-fixtures`.
+      FOUNDRY_APPROVAL_SECRET: 'e2e-approval-secret-not-for-production',
       // Pin "now" so staleness is deterministic against the fixed-date health fixtures (FB-032).
       // arca's last activity is 2026-07-21 → active; thereset-platform's is 2026-01-10 → stale.
       E2E_NOW: '2026-07-22T00:00:00Z',
