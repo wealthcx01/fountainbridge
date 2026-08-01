@@ -35,3 +35,5 @@ provision-lint:
 	shellcheck scripts/provision-venture.sh
 	for f in deploy/lane/*.sh; do bash -n "$$f"; done
 	shellcheck deploy/lane/*.sh
+	for f in deploy/librechat/*.sh; do bash -n "$$f"; done
+	shellcheck deploy/librechat/*.sh
