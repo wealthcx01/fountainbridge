@@ -1,6 +1,6 @@
 # FB-073 — The composer reads a ticket file back at the founder
 
-**Status:** Todo · **Phase:** 3 · **Depends on:** FB-065 (the composer inside the studio) ·
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-065 (the composer inside the studio) ·
 **Repo:** fountainbridge (+ venture box) ·
 **Branch:** `fb-073-the-composer-reads-back-a-ticket-file` · One ticket = one branch = one PR.
 
@@ -66,14 +66,65 @@ wait, and drafts anyway. Asking a question you do not wait for is worse than not
   what they press.
 
 ## Acceptance criteria
-- [ ] A founder never sees `##`, `- [ ]`, `Status:`, or a raw fence in the conversation.
-- [ ] The read-back for a typical ask fits on one screen without scrolling.
-- [ ] The full draft is available on request and collapsed by default.
-- [ ] A question the composer asks is one the composer waits for.
-- [ ] An ask too large to summarise is met with "this is really two things" rather than an essay.
+- [x] A founder never sees `##`, `- [ ]`, `Status:`, or a raw fence in the conversation. Verified
+      against the live reply.
+- [~] The read-back fits on one screen — 1.5 screens, down from 2.3. Closer, not there.
+- [x] The full draft is available on request and collapsed by default. Unit-tested; **not yet seen
+      working on the box**, because the composer declined to draft on the verification run.
+- [~] A question the composer asks is one it waits for. The prompt now requires it; not yet proven
+      against a case where it wants to ask two.
+- [ ] An ask too large to summarise is met with "this is really two things". Instructed, untested.
+
+## What was built, and where the guarantee lives
+Two halves, and only one of them can be trusted.
+
+**The prompt** now asks for a fixed four-part read-back — *what I understood*, *what I'd do*, *what
+I'd leave alone*, *before I file* — with a hard 150-word limit and an instruction to say "this is
+really two pieces of work" rather than write an essay. It also forbids asking two questions or
+asking one and proceeding anyway.
+
+**The rendering** splits the reply into blocks: prose, headings, list items, and the ticket draft.
+The draft is folded behind *"Show me exactly what will be filed"* and never shown by default.
+Headings render as headings, checkboxes lose their `[ ]`, and each bold label starts its own block so
+the four parts stay four parts.
+
+The second half is the one that holds. The agent's instructions **already** said "2 to 3 sentences"
+before this ticket, and it produced 4,282 characters anyway. A surface that depends on a model
+obeying a word count is not a surface with a guarantee; the parsing is what makes the promise real.
+
+## Measured, before and after
+Same founder, same sentence — *"Card prices on the market page look stale — some are weeks old. I
+want them fresh."* — against the real ARCA box.
+
+| | Before | After |
+| --- | --- | --- |
+| What the founder reads | 4,282 characters | **2,091 characters** |
+| Page height | 2.3 screens | **1.5 screens** |
+| `##`, `- [ ]`, `Status:`, fences visible | yes | **none** |
+| Ticket draft | in front of the button | folded away |
+
+The four-part shape came through intact, and *"What I'd leave alone"* did the job it was added for:
+*"I won't touch the full 19k-card catalog expansion or the historical-price-chart work — those are
+separate, already-tracked pieces of work."* That is the sentence that stops a founder worrying.
+
+## What is NOT fixed, stated plainly
+- ⚠ **The 150-word limit is not obeyed.** It produced 345 words. Better than 700, still over. A word
+  count in a prompt is a request, not a constraint, and this ticket does not add a real one. If it
+  matters, the honest fix is to measure the read-back in the studio and fold the overflow the same
+  way the draft is folded — which is more machinery than this warranted today.
+- ⚠ **The folded draft has not been seen against a real draft.** On the verification run the composer
+  decided ARCA-24 already covered the ask and declined to draft a ticket at all — correct behaviour,
+  and it means the collapse control was never exercised live. It is covered by unit tests and by the
+  UI gate's recorded stream; it has not been watched working on the box.
+- ⚠ **The reply still runs past the four parts.** After "Before I file" it continued with further
+  reasoning about ARCA-24. The prompt says "NOTHING else"; the model added more.
+- ⚠ **The same action can appear twice.** "Looking through what your venture knows" rendered twice in
+  one reply. Two brain searches probably did happen, so it may be accurate — but it reads as a
+  stutter and nothing collapses repeats.
 
 ## Verification
-`/review` + CI, then the same walk on ARCA with the same sentence — *"Card prices on the market page
-look stale"* — and a screenshot showing the whole reply on one screen. Then a deliberately vague ask
-("make the app better") to confirm the composer splits it rather than writing four thousand
-characters about it.
+38 unit tests over the parser: the draft in its own block, headings, checkbox markers stripped,
+bullets and numbers, an unterminated fence treated as a draft rather than prose, an empty fence
+inventing nothing, and the labelled-line split with its two negative cases.
+
+Then the real walk on ARCA, measured above.

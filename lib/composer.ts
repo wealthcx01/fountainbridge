@@ -218,6 +218,105 @@ export function formatInline(text: string): Span[] {
   return spans.length > 0 ? spans : [{ text }];
 }
 
+/**
+ * The composer's reply, split into things that are read and things that are inspected (FB-073).
+ *
+ * ## Why this exists
+ *
+ * A founder asked "card prices look stale — I want them fresh" and got back 4,282 characters, most
+ * of it a complete markdown ticket: `# ARCA-NEW`, `## Scope`, `## Acceptance criteria`, unticked
+ * `- [ ]` boxes, and a header reading `Status: Todo · Area: Pricing/ETL`.
+ *
+ * That document is how the LANE receives work. It is a contract with a machine. A founder needs it
+ * about as much as they need the JSON that goes to GitHub — which is to say, available on request
+ * and never in their way.
+ *
+ * The agent's own instructions already said "2 to 3 sentences". It wrote four thousand characters
+ * anyway, which is why this lives here and not only in the prompt: **the surface has to hold the
+ * line even when the model does not.**
+ *
+ * ## Why blocks rather than a markdown library
+ *
+ * Everything here renders as React nodes, never as HTML. A composer that could emit markup into a
+ * founder's browser would be a model with an injection route, and no amount of sanitising is worth
+ * owning that when the alternative is a hundred lines of parsing.
+ */
+export type ReplyBlock =
+  /** Ordinary prose — rendered, and what the founder actually reads. */
+  | { kind: 'text'; text: string }
+  /** A heading the model wrote (`## Scope`). Rendered as a small heading, not as literal hashes. */
+  | { kind: 'heading'; text: string }
+  /** A bullet or numbered item. Rendered as a list item with its marker stripped. */
+  | { kind: 'item'; text: string }
+  /** A fenced block — the ticket draft. Collapsed behind a control; never shown by default. */
+  | { kind: 'draft'; text: string };
+
+const FENCE = /^\s*```/;
+const HEADING = /^\s{0,3}#{1,6}\s+(.*)$/;
+const BULLET = /^\s{0,3}[-*+]\s+(.*)$/;
+const NUMBERED = /^\s{0,3}\d+[.)]\s+(.*)$/;
+/** `- [ ] a criterion` — a checkbox from the ticket format, which a founder should never meet. */
+const CHECKBOX = /^\s{0,3}[-*+]\s+\[[ xX]?\]\s*(.*)$/;
+/**
+ * A line opening with a bold label — `**What I understood** — …`.
+ *
+ * The composer's read-back is four of these, and it writes them on consecutive lines with no blank
+ * line between. Joining consecutive lines into one paragraph is right for prose and wrong here: it
+ * turned the four labelled sections a founder is meant to scan into a single 345-word wall, which
+ * is most of what FB-073 was trying to stop.
+ */
+const LABELLED = /^\s{0,3}\*\*[^*\n]+\*\*/;
+
+export function parseReply(reply: string): ReplyBlock[] {
+  const blocks: ReplyBlock[] = [];
+  let paragraph: string[] = [];
+  let fence: string[] | null = null;
+
+  const flushParagraph = () => {
+    const text = paragraph.join('\n').trim();
+    if (text) blocks.push({ kind: 'text', text });
+    paragraph = [];
+  };
+
+  for (const line of reply.split('\n')) {
+    if (FENCE.test(line)) {
+      if (fence === null) { flushParagraph(); fence = []; } else {
+        // A draft with nothing in it is not worth a control the founder can press.
+        const text = fence.join('\n').trim();
+        if (text) blocks.push({ kind: 'draft', text });
+        fence = null;
+      }
+      continue;
+    }
+    if (fence !== null) { fence.push(line); continue; }
+
+    const heading = line.match(HEADING);
+    if (heading) { flushParagraph(); blocks.push({ kind: 'heading', text: heading[1].trim() }); continue; }
+
+    // Checkbox before bullet: `- [ ] x` matches both, and the checkbox form must win or the
+    // founder reads a literal "[ ]".
+    const item = line.match(CHECKBOX) ?? line.match(BULLET) ?? line.match(NUMBERED);
+    if (item) { flushParagraph(); blocks.push({ kind: 'item', text: item[1].trim() }); continue; }
+
+    if (line.trim() === '') { flushParagraph(); continue; }
+    // A labelled line begins its own block, so the read-back's four parts stay four parts.
+    if (LABELLED.test(line) && paragraph.length > 0) flushParagraph();
+    paragraph.push(line);
+  }
+
+  // An unterminated fence is a truncated reply, not prose. Showing its contents as if they were the
+  // answer is how a founder ends up reading half a ticket and thinking it was addressed to them.
+  if (fence !== null) {
+    const text = fence.join('\n').trim();
+    if (text) blocks.push({ kind: 'draft', text });
+  }
+  flushParagraph();
+  return blocks;
+}
+
+/** Is there a ticket draft in this reply — i.e. something the founder could be shown on request? */
+export const hasDraft = (blocks: ReplyBlock[]): boolean => blocks.some((b) => b.kind === 'draft');
+
 /** The largest document the studio will carry into a conversation, in characters. */
 export const MAX_DOCUMENT_CHARS = 60_000;
 
