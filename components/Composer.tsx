@@ -274,7 +274,7 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
             ref={fileInput}
             type="file"
             data-testid="composer-file"
-            accept=".md,.markdown,.txt,.csv,.tsv,.json,.yaml,.yml,.log,.pdf"
+            accept=".md,.markdown,.txt,.csv,.tsv,.json,.yaml,.yml,.log,.pdf,.docx,.pptx,.xlsx"
             style={{ display: 'none' }}
             onChange={(e) => { void attach(e.target.files?.[0]); e.target.value = ''; }}
           />

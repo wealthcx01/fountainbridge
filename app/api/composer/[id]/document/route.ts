@@ -3,8 +3,8 @@ import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import {
-  describeExtraction, documentKind, emptyRefusal, looksEmpty, refusalFor, tooLargeRefusal,
-  MAX_DOCUMENT_BYTES,
+  describeExtraction, documentKind, emptyRefusal, looksEmpty, officeParts, refusalFor, slideNumber,
+  textFromOfficeXml, tooLargeRefusal, MAX_DOCUMENT_BYTES,
 } from '@/lib/documents';
 
 /**
@@ -68,7 +68,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   let text: string;
   let pages: number | undefined;
   try {
-    if (documentKind(file.name) === 'pdf') {
+    const kind = documentKind(file.name);
+    if (kind === 'office') {
+      // FB-084: .docx / .pptx / .xlsx are ZIP archives of XML. One tiny dependency, no service.
+      const { unzipSync, strFromU8 } = await import('fflate');
+      const zip = unzipSync(new Uint8Array(await file.arrayBuffer()));
+      const { match, ordered } = officeParts(file.name);
+      let names = Object.keys(zip).filter(match);
+      // A ZIP's entry order is not a deck's order: slide10 can precede slide2. Reading a deck out of
+      // sequence would hand the venture a market story with its argument shuffled.
+      if (ordered) names = names.sort((a, b) => slideNumber(a) - slideNumber(b));
+      const parts = names.map((n) => textFromOfficeXml(strFromU8(zip[n]))).filter(Boolean);
+      // Slide boundaries survive, so a deck still reads as a deck.
+      text = ordered ? parts.map((t, i) => `## Slide ${i + 1}\n\n${t}`).join('\n\n') : parts.join('\n\n');
+      pages = ordered ? parts.length : undefined;
+    } else if (kind === 'pdf') {
       // Imported here rather than at module scope: it is a large dependency, and every other route
       // in the studio would otherwise pay to load it.
       const { extractText, getDocumentProxy } = await import('unpdf');
@@ -91,7 +105,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // The refusal that matters most: a scan has no text layer, and depositing it empty would teach the
   // venture that a 60-page report is blank.
   if (looksEmpty(text)) {
-    return NextResponse.json({ error: emptyRefusal(file.name) }, { status: 422 });
+    // The text is passed so the refusal can tell "nothing at all" (a scan) from "very little"
+    // (a short document that came through) rather than guessing at the cause.
+    return NextResponse.json({ error: emptyRefusal(file.name, text) }, { status: 422 });
   }
 
   return NextResponse.json({
