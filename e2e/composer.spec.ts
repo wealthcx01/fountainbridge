@@ -54,6 +54,42 @@ test.describe('describing what you want, without leaving the studio', () => {
     await expect(page.getByTestId('composer-turn-1')).toContainText('Here is what I found, and what I would file.');
   });
 
+  test('the ticket draft is folded away, and opens when asked', async ({ page }) => {
+    // FB-073. The draft is a contract with the lane. A founder met 4,282 characters of `## Scope`
+    // and `- [ ]` boxes in front of the button; now they meet a control.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('composer-turn-1')).toBeVisible();
+
+    await expect(page.getByTestId('composer-draft')).toBeVisible();
+    await expect(page.getByTestId('composer-draft-body')).toHaveCount(0);
+    // None of the ticket format reaches the founder unasked.
+    const shown = (await page.getByTestId('composer-turn-1').textContent()) ?? '';
+    for (const marker of ['##', '- [ ]', '```']) expect(shown).not.toContain(marker);
+
+    await page.getByTestId('composer-draft-toggle').click();
+    await expect(page.getByTestId('composer-draft-body')).toContainText('# ARCA-NEW');
+  });
+
+  test('there is a button for yes, and it names what it is agreeing to', async ({ page }) => {
+    // FB-075. The composer asks "want me to file this?" and used to offer only a text box — so the
+    // one moment this surface exists for was a guess. It already went wrong once: a founder's yes
+    // arrived in a different session and the composer said it had no draft.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('composer-decision')).toBeVisible();
+    await expect(page.getByTestId('composer-file-this')).toHaveText('File this');
+    await expect(page.getByTestId('composer-change')).toBeVisible();
+  });
+
+  test('there is nothing to agree to until there is a draft', async ({ page }) => {
+    // A button that sometimes means nothing teaches a founder to distrust it.
+    await page.goto('/venture/arca/composer');
+    await expect(page.getByTestId('composer-decision')).toHaveCount(0);
+  });
+
   test('the thread is still there when the founder comes back', async ({ page }) => {
     await page.goto('/venture/arca/composer');
     await page.getByTestId('composer-input').fill('Remember this one');
