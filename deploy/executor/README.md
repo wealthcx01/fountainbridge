@@ -33,6 +33,25 @@ closed**:
 - **Robust:** a transient read error skips-and-retries (never a wrong terminal rejection); "executing"
   is recorded before the action so a crash can't cause a silent re-run.
 
+### The ActiveGraph record (FB-071)
+After it acts, the executor appends what it did — `action.executing`, then `action.executed` or
+`action.failed` — to the **studio's** `foundry-activegraph` ref, signed with the same
+`FOUNDRY_APPROVAL_SECRET` it already verifies grants against. Set two more variables or it will run,
+gate correctly, and say in its log that the execution was **not** recorded:
+
+```bash
+ACTIVEGRAPH_REPO=wealthcx01/fountainbridge   # the STUDIO's repo, never the venture's
+VENTURE_ID=arca                              # which venture's history this belongs to
+# ACTIVEGRAPH_REF defaults to foundry-activegraph
+```
+
+`EXECUTOR_GITHUB_TOKEN` needs `Contents: write` on `ACTIVEGRAPH_REPO` as well as on `REPO`.
+
+It writes **only what it did**. It never writes a grant: a grant is a human agreeing, and the studio's
+projection refuses `approval.granted` from any non-human actor precisely so that a compromised
+executor cannot manufacture consent. `eventsForExecution` has no path from an execution record to a
+grant, and there is a test that tries.
+
 Run it: `node executor.mjs` (env: `REPO`, `EXECUTOR_GITHUB_TOKEN`, `FOUNDRY_APPROVAL_SECRET`,
 `APPROVER_IDENTITIES`).
 

@@ -20,7 +20,19 @@ const STATE_LABEL: Record<string, string> = {
   'unverified-action': 'went out without a verified approval',
 };
 
-export function ApprovalCard({ ventureId, approval }: { ventureId: string; approval: ActiveGraphApproval }) {
+/**
+ * The story of this approval, already turned into sentences server-side (FB-071).
+ *
+ * Narrated on the server, not here, because verifying an event needs the signing secret and that
+ * must never reach a browser. What crosses the boundary is prose a founder can read.
+ */
+export interface ApprovalHistory {
+  lines: string[];
+  faults: string[];
+  refused: number;
+}
+
+export function ApprovalCard({ ventureId, approval, history }: { ventureId: string; approval: ActiveGraphApproval; history?: ApprovalHistory }) {
   // Test ids are repo-qualified (FB-058). Since FB-045 an approval id is unique only WITHIN its
   // department's repo, so two departments with an identically-named ticket produced duplicate ids —
   // which Playwright's strict mode treats as an error and which made the UI gate's coverage of this
@@ -146,6 +158,30 @@ export function ApprovalCard({ ventureId, approval }: { ventureId: string; appro
           </span>
         ) : null}
       </div>
+
+      {/* FB-071: the whole story, in order. Not an event dump — sentences. This is the thing a
+          founder can point at and say "a person agreed to this, and here is what followed". */}
+      {history && (history.lines.length > 0 || history.faults.length > 0) ? (
+        <div data-testid={`approval-${tid}-history`} style={{ marginTop: '0.75rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.3rem' }}>What happened</p>
+          <ol style={{ margin: 0, paddingLeft: '1.1rem', fontSize: 'var(--fs-meta-lg)' }}>
+            {history.lines.map((line, i) => (
+              <li key={i} data-testid={`approval-${tid}-history-line`}>{line}</li>
+            ))}
+          </ol>
+          {history.faults.map((fault, i) => (
+            <p
+              key={i}
+              data-testid={`approval-${tid}-history-fault`}
+              style={{ fontSize: 'var(--fs-meta-lg)', color: toneColor('attention'), margin: '0.4rem 0 0' }}
+            >
+              <span aria-hidden="true">⚠ </span>
+              <span className="sr-only">Warning: </span>
+              {fault}
+            </p>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
