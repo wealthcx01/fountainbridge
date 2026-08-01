@@ -193,3 +193,100 @@ describe('depositing a document', () => {
     expect(documentRefusal('data.csv')).toBeNull();
   });
 });
+
+describe('splitting a reply into what is read and what is inspected', () => {
+  it('puts the ticket draft in its own block, out of the founder’s way', async () => {
+    // The 4,282-character reply. The founder needs the two paragraphs; the ticket underneath them is
+    // a contract with the lane and belongs behind a control.
+    const { parseReply, hasDraft } = await import('../composer');
+    const blocks = parseReply([
+      'Here is the situation in plain English.',
+      '',
+      '```markdown',
+      '# ARCA-NEW — Market page price freshness',
+      '## Scope',
+      '- [ ] Every card price has a refresh interval',
+      '```',
+      '',
+      'Want me to file this?',
+    ].join('\n'));
+
+    expect(blocks.map((b) => b.kind)).toEqual(['text', 'draft', 'text']);
+    expect(blocks[1].text).toContain('# ARCA-NEW');
+    expect(hasDraft(blocks)).toBe(true);
+  });
+
+  it('renders a heading as a heading, not as literal hashes', async () => {
+    const { parseReply } = await import('../composer');
+    expect(parseReply('## Why this matters')).toEqual([{ kind: 'heading', text: 'Why this matters' }]);
+  });
+
+  it('strips a checkbox marker, which a founder should never meet', async () => {
+    // `- [ ]` matches the bullet pattern too, so the checkbox form has to win or the founder reads a
+    // literal "[ ]" in the middle of a sentence.
+    const { parseReply } = await import('../composer');
+    expect(parseReply('- [ ] Prices are refreshed daily')).toEqual([
+      { kind: 'item', text: 'Prices are refreshed daily' },
+    ]);
+    expect(parseReply('- [x] Already done')).toEqual([{ kind: 'item', text: 'Already done' }]);
+  });
+
+  it('handles bullets and numbers alike', async () => {
+    const { parseReply } = await import('../composer');
+    expect(parseReply('- one\n* two\n1. three\n2) four').map((b) => b.text))
+      .toEqual(['one', 'two', 'three', 'four']);
+  });
+
+  it('keeps a paragraph together and splits on a blank line', async () => {
+    const { parseReply } = await import('../composer');
+    const blocks = parseReply('line one\nline two\n\nsecond paragraph');
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0].text).toBe('line one\nline two');
+  });
+
+  it('treats an unterminated fence as a draft, not as prose', async () => {
+    // A truncated reply. Showing its contents as the answer is how a founder ends up reading half a
+    // ticket and thinking it was addressed to them.
+    const { parseReply } = await import('../composer');
+    const blocks = parseReply('Here is what I would file:\n```\n# ARCA-NEW\n## Scope');
+    expect(blocks.map((b) => b.kind)).toEqual(['text', 'draft']);
+  });
+
+  it('says there is no draft when the reply is only prose', async () => {
+    const { parseReply, hasDraft } = await import('../composer');
+    expect(hasDraft(parseReply('Just a question for you.'))).toBe(false);
+  });
+
+  it('does not invent a draft out of an empty fence', async () => {
+    const { parseReply, hasDraft } = await import('../composer');
+    expect(hasDraft(parseReply('text\n```\n```\nmore'))).toBe(false);
+  });
+});
+
+describe('keeping the read-back’s four parts apart', () => {
+  it('starts a new block at each bold label, even with no blank line between', async () => {
+    // The composer writes its four sections on consecutive lines. Joining them — which is right for
+    // ordinary prose — turned the read-back into a single 345-word wall, which is most of what this
+    // ticket set out to stop.
+    const { parseReply } = await import('../composer');
+    const blocks = parseReply([
+      '**What I understood** — prices are stale.',
+      '**What I’d do** — fix the refresh.',
+      '**What I’d leave alone** — the catalog work.',
+      '**Before I file** — whole market, or just held cards?',
+    ].join('\n'));
+    expect(blocks).toHaveLength(4);
+    expect(blocks[0].text).toContain('What I understood');
+    expect(blocks[3].text).toContain('Before I file');
+  });
+
+  it('still keeps ordinary wrapped prose together', async () => {
+    const { parseReply } = await import('../composer');
+    expect(parseReply('a sentence that wraps\nonto a second line')).toHaveLength(1);
+  });
+
+  it('does not split on bold that is not at the start of a line', async () => {
+    const { parseReply } = await import('../composer');
+    expect(parseReply('this is **important** and continues\nhere')).toHaveLength(1);
+  });
+});

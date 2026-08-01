@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  documentRefusal, drainSse, emptyStream, formatInline, reduceChunk, withDocument,
+  documentRefusal, drainSse, emptyStream, formatInline, parseReply, reduceChunk, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
 import { toneColor } from '@/lib/status';
@@ -232,6 +232,79 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
   );
 }
 
+/**
+ * The composer's words, as a founder reads them (FB-073).
+ *
+ * Prose is prose. A heading is a heading rather than literal hashes. A ticket draft is folded away
+ * behind a control, because it is a contract with the lane and not something a founder was ever
+ * meant to read — the version before this put four thousand characters of `## Scope` and `- [ ]` in
+ * front of the button.
+ *
+ * Everything is a React node. Nothing the model writes can become markup.
+ */
+function Reply({ text, mine }: { text: string; mine: boolean }) {
+  const [showDraft, setShowDraft] = useState(false);
+  // The founder's own message is what they typed. Parsing it would turn a line starting with "-"
+  // into a bullet and a "#" into a heading, which is editing someone's words back at them.
+  const blocks = mine ? [{ kind: 'text' as const, text }] : parseReply(text);
+
+  const inline = (t: string) => formatInline(t).map((s, i) =>
+    s.strong ? <strong key={i}>{s.text}</strong>
+    : s.code ? <code key={i} className="mono">{s.text}</code>
+    : <span key={i}>{s.text}</span>);
+
+  return (
+    <div style={{ margin: '0.4rem 0 0' }}>
+      {blocks.map((b, i) => {
+        if (b.kind === 'draft') {
+          return (
+            <div key={i} data-testid="composer-draft" style={{ margin: '0.6rem 0' }}>
+              <button
+                type="button"
+                className="btn"
+                data-testid="composer-draft-toggle"
+                aria-expanded={showDraft}
+                onClick={() => setShowDraft((v) => !v)}
+              >
+                {showDraft ? 'Hide the details' : 'Show me exactly what will be filed'}
+              </button>
+              {showDraft ? (
+                <pre
+                  data-testid="composer-draft-body"
+                  style={{
+                    fontSize: 'var(--fs-meta-lg)', whiteSpace: 'pre-wrap', overflowX: 'auto',
+                    background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
+                    borderRadius: 'var(--radius-sm)', padding: '0.7rem', margin: '0.5rem 0 0',
+                  }}
+                >
+                  {b.text}
+                </pre>
+              ) : null}
+            </div>
+          );
+        }
+        if (b.kind === 'heading') {
+          return (
+            <p key={i} className="eyebrow" style={{ margin: '0.7rem 0 0.2rem' }}>{b.text}</p>
+          );
+        }
+        if (b.kind === 'item') {
+          return (
+            <p key={i} style={{ fontSize: 'var(--fs-body-sm)', margin: '0.15rem 0 0 0.9rem', textIndent: '-0.9rem' }}>
+              <span aria-hidden="true">· </span>{inline(b.text)}
+            </p>
+          );
+        }
+        return (
+          <p key={i} style={{ fontSize: 'var(--fs-body-sm)', whiteSpace: 'pre-wrap', margin: '0.5rem 0 0' }}>
+            {inline(b.text)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function Turn({ message, index, streaming }: { message: ComposerMessage; index: number; streaming?: boolean }) {
   const mine = message.role === 'user';
   return (
@@ -255,13 +328,7 @@ function Turn({ message, index, streaming }: { message: ComposerMessage; index: 
       ))}
 
       {message.content ? (
-        <p style={{ fontSize: 'var(--fs-body-sm)', whiteSpace: 'pre-wrap', margin: '0.4rem 0 0' }}>
-          {/* Rendered as nodes, never as markup — see formatInline. */}
-          {formatInline(message.content).map((s, i) =>
-            s.strong ? <strong key={i}>{s.text}</strong>
-            : s.code ? <code key={i} className="mono">{s.text}</code>
-            : <span key={i}>{s.text}</span>)}
-        </p>
+        <Reply text={message.content} mine={mine} />
       ) : streaming && (message.actions ?? []).length === 0 ? (
         <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>Thinking…</p>
       ) : null}

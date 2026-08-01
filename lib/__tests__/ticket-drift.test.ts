@@ -67,6 +67,20 @@ describe('reporting the disagreement', () => {
     }
   });
 
+  it('accepts a concluded status that carries a qualifier', () => {
+    // FB-074 was withdrawn with the status "Closed — not a defect", which is more honest than
+    // flattening it to one word. Demanding an exact match would make the check punish precision.
+    for (const status of ['Closed — not a defect', 'Withdrawn — superseded by FB-072', 'Done (partly reverted)']) {
+      expect(findDrift([ticket({ status })], evidence(['FB-064'])), status).toHaveLength(0);
+    }
+  });
+
+  it('still flags a status that merely starts with a word like "in"', () => {
+    for (const status of ['In review', 'In progress (design)', 'Not done yet']) {
+      expect(findDrift([ticket({ status })], evidence(['FB-064'])), status).toHaveLength(1);
+    }
+  });
+
   it('says nothing about a ticket with no shipping evidence', () => {
     expect(findDrift([ticket()], evidence([]))).toHaveLength(0);
   });
