@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "venture": "arca",
+  "repo": "wealthcx01/arca-marketing",
+  "id": "live-proof-fb071",
+  "at": "2026-08-01T00:00:00Z",
+  "seq": 4,
+  "type": "approval.granted",
+  "actor": {
+    "kind": "agent",
+    "id": "foundry-lane"
+  },
+  "attestation": "b4561968ac1ee3acd3ca93537a6df23973dab932bef81f8a10ed0a53c849a52f"
+}
