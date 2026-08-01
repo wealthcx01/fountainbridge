@@ -6,6 +6,9 @@ import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { loadApprovals, attachBudgetDisclosure, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { historyFor } from '@/lib/activegraph-log';
+import { narrate, narrateFault } from '@/lib/activegraph';
+import type { ApprovalHistory } from '@/components/ApprovalCard';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
 import { loadRunReports, engineState, type RunReport } from '@/lib/runreports';
 import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
@@ -71,6 +74,32 @@ export default async function VenturePage({
     approvals = [];
   }
 
+  // FB-071: the ActiveGraph record — who asked, who agreed, what happened next, in order, on ground
+  // the proposing lane cannot author. Read here rather than in the card because the card is a client
+  // component and the verifying secret must never reach a browser. A venture with no history yet
+  // reads as none, never as an error, so an un-provisioned ref cannot blank the board.
+  const histories: Record<string, ApprovalHistory> = {};
+  {
+    const secret = process.env.FOUNDRY_APPROVAL_SECRET ?? '';
+    if (secret && !(process.env.APPROVALS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1')) {
+      const client = new GitHubClient();
+      for (const a of approvals) {
+        try {
+          const h = await historyFor(client, venture.id, a.repo, a.id, secret);
+          if (h.applied.length > 0 || h.refused > 0) {
+            histories[`${a.repo}/${a.id}`] = {
+              lines: h.applied.map(narrate),
+              faults: h.faults.map(narrateFault),
+              refused: h.refused,
+            };
+          }
+        } catch {
+          // One unreadable history must not take the board with it.
+        }
+      }
+    }
+  }
+
   // FB-054: limits come from the STUDIO repo (ventures/budgets/<id>.yaml), never from the venture ref
   // the proposing lane can write. Read once and threaded through, so the board and the cards are
   // computed from the same bytes.
@@ -128,6 +157,7 @@ export default async function VenturePage({
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}
+      histories={histories}
       budgets={budgets}
       budgetsError={budgetsError}
       orphanEnvelopes={orphanEnvelopes}

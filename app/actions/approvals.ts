@@ -8,7 +8,9 @@
  *   2. verify the signed-in user is the D7 approver for this department's change class,
  *   3. read the proposal, pin its blob sha, refuse if it's already granted/executed,
  *   4. sign the grant (HMAC attestation the executor verifies) and write grant.json to the
- *      `foundry-approvals` ref with a WRITE-scoped credential (never the read App, never the lane).
+ *      `foundry-approvals` ref with a WRITE-scoped credential (never the read App, never the lane),
+ *   5. record it in the ActiveGraph (FB-071): two signed events on the STUDIO's own ref, so the
+ *      story of who asked and who agreed exists somewhere the proposing lane cannot author.
  * A recorded human act; the separate gated executor performs the action (never the studio, never the
  * lane). Fails graceful + explicit when approvals aren't configured.
  */
@@ -20,6 +22,7 @@ import { GitHubClient } from '@/lib/github';
 import { APPROVALS_REF, approvalRepos, type ApprovalProposal } from '@/lib/approvals';
 import { attestationFor, approverRoleForDepartment, canApprove } from '@/lib/approval-attestation';
 import { verifyGrant } from '@/lib/provenance';
+import { appendEvent } from '@/lib/activegraph-log';
 
 export interface ApproveResult {
   ok: boolean;
@@ -139,9 +142,44 @@ export async function approveExternalAction(
     return { ok: false, message: 'Could not record the approval on GitHub — please try again.' };
   }
 
-  // FB-051 (narrowed): no event is appended here. grant.json plus its attestation IS the record —
-  // it is what the executor verifies and what the studio can later re-verify. An append-only file
-  // beside it on a ref the lane can write proves nothing, and the previous version swallowed its own
-  // write failure, so a founder was told "Approved" while the audit write silently did not happen.
+  // FB-071: the record. Two events, both signed with the same secret the executor verifies and no
+  // lane holds, on a ref in the STUDIO's repository rather than the venture's — the ref a lane could
+  // write was exactly what made FB-051's version prove nothing.
+  //
+  // The proposed event is written HERE rather than by the lane, because a lane cannot sign. It is
+  // not a fabrication: it records what the studio itself just read and verified — this proposal, at
+  // this exact blob sha, written by this lane — which is a true statement the studio can attest to.
+  // The proposal carries no author or time of its own — it is a file a lane wrote — so the studio
+  // attributes it to the lane and stamps it with the moment it verified it. The blob sha in `data`
+  // is what actually pins WHICH proposal this is, and that is content-addressed.
+  const proposer = 'foundry-lane';
+  const recorded = await appendEvent(writeToken, {
+    v: 1, seq: 1, venture: ventureId, repo, id: approvalId,
+    type: 'approval.proposed', at: grant.granted_at,
+    actor: { kind: 'agent', id: proposer },
+    data: { proposal_sha: proposalR.sha, ...(proposal.summary ? { summary: proposal.summary } : {}) },
+  }, secret);
+
+  const grantRecorded = recorded.ok
+    ? await appendEvent(writeToken, {
+        v: 1, seq: 2, venture: ventureId, repo, id: approvalId,
+        type: 'approval.granted', at: grant.granted_at,
+        actor: { kind: 'human', id: email },
+        data: { proposal_sha: proposalR.sha },
+      }, secret)
+    : recorded;
+
+  if (!grantRecorded.ok) {
+    // Said out loud, not swallowed. The approval itself is real — grant.json is written and the
+    // executor will verify it — but the history is incomplete, and the last version of this told a
+    // founder everything was fine while its audit write had quietly failed.
+    console.error('[approve] activegraph append failed', { ventureId, approvalId, reason: grantRecorded.reason });
+    return {
+      ok: true,
+      message: 'Approved, and the action will run shortly. The studio could not write it to the history, '
+        + 'so this approval will show fewer details than usual — nothing else is affected.',
+    };
+  }
+
   return { ok: true, message: 'Approved. The action will run shortly, and you\'ll see it recorded here.' };
 }

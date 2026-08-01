@@ -28,16 +28,25 @@
 //   approvals/<id>/execution.json ← this executor writes the outcome: executing | executed | failed
 //                                   | rejected
 //
-// There is no event log. FB-051 removed it: it lived on a ref the lane can write, so it could prove
-// nothing, and nothing read it. The attestation on grant.json is the only anchor here.
+// FB-071 restored the event log, on ground the lane cannot author. FB-051 had removed it because it
+// lived on the VENTURE ref — a ref the proposing lane holds a write token for, so a lane could write
+// `approval.granted` and the projection believed it. It now lives on a `foundry-activegraph` ref in
+// the STUDIO's own repository, and every event is signed with the same secret this executor already
+// verifies grants against. A lane can append bytes there; it cannot make them count.
+//
+// This executor writes ONLY what it did — action.executing / executed / failed. It never writes a
+// grant. A grant is a human agreeing, and the studio's projection refuses `approval.granted` from
+// any non-human actor precisely so that a compromised executor cannot manufacture consent.
 //
 // Usage:  node executor.mjs        # one pass over pending grants
 // Env: REPO, APPROVALS_REF (default foundry-approvals), EXECUTOR_GITHUB_TOKEN (REQUIRED, its own),
 //      FOUNDRY_APPROVAL_SECRET (REQUIRED, shared studio↔executor, never on the lane box),
-//      APPROVER_IDENTITIES (REQUIRED, comma-sep approver ids allowed to grant).
+//      APPROVER_IDENTITIES (REQUIRED, comma-sep approver ids allowed to grant),
+//      ACTIVEGRAPH_REPO + VENTURE_ID (FB-071; the studio's repo + this venture's id). Without them
+//      the executor still runs and still gates — it just cannot record the history, and says so.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { expectedAttestation as sharedAttestation, decideExecution } from './executor-lib.mjs';
+import { expectedAttestation as sharedAttestation, decideExecution, eventsForExecution, signEvent } from './executor-lib.mjs';
 
 const REPO = process.env.REPO || 'wealthcx01/arca';
 const REF = process.env.APPROVALS_REF || 'foundry-approvals';
@@ -45,6 +54,9 @@ const TOKEN = process.env.EXECUTOR_GITHUB_TOKEN || '';   // NO fallback to the l
 const SECRET = process.env.FOUNDRY_APPROVAL_SECRET || '';
 const API = 'https://api.github.com';
 const toSet = (v) => new Set((v || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
+const AG_REPO = process.env.ACTIVEGRAPH_REPO || '';
+const AG_REF = process.env.ACTIVEGRAPH_REF || 'foundry-activegraph';
+const VENTURE_ID = process.env.VENTURE_ID || '';
 const APPROVER_IDS = toSet(process.env.APPROVER_IDENTITIES);
 const ID_RE = /^[A-Za-z0-9._-]+$/;
 
@@ -148,7 +160,66 @@ async function handleApproval(id) {
   for (const record of records) {
     await writeJson(`approvals/${id}/execution.json`, record, `executor: ${record.status} ${id}`);
   }
+  await recordHistory(id, records);
   return 1;
+}
+
+/**
+ * Append what this executor just did to the ActiveGraph record (FB-071).
+ *
+ * Written to the STUDIO's repository, not this venture's — the point of the whole exercise. Never
+ * fatal: the action already happened and the execution record is already written, so failing here
+ * must not stop the pass or, worse, cause a retry that re-sends. It is logged loudly instead, which
+ * is the honest reading of "the history is incomplete" versus "the send did not happen".
+ */
+async function recordHistory(id, records) {
+  if (!AG_REPO || !VENTURE_ID) {
+    log('activegraph: not configured (ACTIVEGRAPH_REPO / VENTURE_ID) — execution NOT recorded in the history for', id);
+    return;
+  }
+  // Positions continue after the studio's proposed (1) and granted (2). Read what is there rather
+  // than assuming: a re-run over the same approval must not collide with its own earlier events.
+  let startSeq = 3;
+  const dirPath = `activegraph/${VENTURE_ID}/${REPO.split('/').pop()}/${id}`;
+  const listed = await ghRepo(AG_REPO, `/repos/${AG_REPO}/contents/${encodeURI(dirPath)}?ref=${encodeURIComponent(AG_REF)}`);
+  if (Array.isArray(listed)) {
+    const highest = listed.reduce((max, f) => {
+      const m = String(f.name || '').match(/^(\d{4})-/);
+      return m ? Math.max(max, Number(m[1])) : max;
+    }, 0);
+    startSeq = highest + 1;
+  }
+
+  const events = eventsForExecution({
+    records, venture: VENTURE_ID, repo: REPO, id, startSeq, now: new Date().toISOString(),
+  });
+  for (const event of events) {
+    const signed = { ...event, attestation: signEvent(createHmac, SECRET, event) };
+    const path = `${dirPath}/${String(event.seq).padStart(4, '0')}-${event.type}.json`;
+    try {
+      await ghRepo(AG_REPO, `/repos/${AG_REPO}/contents/${encodeURI(path)}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          message: `${event.type} ${VENTURE_ID}/${id} (executor)`,
+          branch: AG_REF,
+          content: Buffer.from(JSON.stringify(signed, null, 2)).toString('base64'),
+        }),
+      });
+    } catch (err) {
+      log('activegraph: could not record', event.type, 'for', id, '-', err?.message ?? err);
+    }
+  }
+}
+
+/** Same request shape as `gh`, against an explicitly-named repo (the studio's, for the history). */
+async function ghRepo(repo, path, init = {}) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json', ...(init.headers || {}) },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub ${res.status} on ${repo}${path}: ${(await res.text()).slice(0, 200)}`);
+  return res.status === 204 ? {} : res.json();
 }
 
 async function main() {

@@ -18,6 +18,9 @@ const loadVentures = vi.fn();
 const getFileWithSha = vi.fn();
 const getFileContent = vi.fn();
 const putFile = vi.fn();
+// FB-071: the ActiveGraph append checks the record's ref exists before writing. Answering it here
+// lets the happy path be tested; the test below asserts what happens when it does NOT answer.
+const request = vi.fn();
 
 vi.mock('@/auth', () => ({ auth: () => auth() }));
 vi.mock('@/lib/ventures', () => ({ loadVentures: () => loadVentures() }));
@@ -26,6 +29,7 @@ vi.mock('@/lib/github', () => ({
     getFileWithSha = getFileWithSha;
     getFileContent = getFileContent;
     putFile = putFile;
+    request = request;
   },
 }));
 
@@ -55,6 +59,7 @@ beforeEach(() => {
   getFileWithSha.mockResolvedValue({ text: JSON.stringify(PROPOSAL), sha: 'sha-current' });
   getFileContent.mockResolvedValue(null);
   putFile.mockResolvedValue(undefined);
+  request.mockResolvedValue({ ref: 'refs/heads/foundry-activegraph' });
 });
 
 afterEach(() => {
@@ -72,15 +77,44 @@ describe('the proposal the founder saw is the proposal that gets signed', () => 
     expect(putFile).not.toHaveBeenCalled();
   });
 
-  it('proceeds when the sha still matches', async () => {
+  it('proceeds when the sha still matches, and records the story as it goes', async () => {
     const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current');
     expect(r.ok).toBe(true);
-    expect(putFile).toHaveBeenCalledOnce();
+
+    // Three writes since FB-071: the grant the executor verifies, then the two signed events that
+    // make up the history — who asked, and who agreed. The history goes to the STUDIO's repository,
+    // never the venture's; the venture ref is the one the proposing lane can write, which is exactly
+    // what made the first version of this record prove nothing.
+    const paths = putFile.mock.calls.map((c) => `${c[0]} ${c[1]}`);
+    expect(paths).toHaveLength(3);
+    expect(paths[0]).toContain('approvals/send-1/grant.json');
+    expect(paths[1]).toContain('activegraph/the-reset/thereset-marketing/send-1/0001-approval.proposed.json');
+    expect(paths[2]).toContain('activegraph/the-reset/thereset-marketing/send-1/0002-approval.granted.json');
+    // The claim this whole ticket rests on: the history is NOT in the venture's repository.
+    const [grantRepo, proposedRepo, grantedRepo] = putFile.mock.calls.map((c) => c[0]);
+    expect(grantRepo).toBe('thereset-marketing');
+    expect(proposedRepo).toBe('wealthcx01/fountainbridge');
+    expect(grantedRepo).toBe('wealthcx01/fountainbridge');
   });
 
   it('still works for a card rendered before this shipped, which has no sha to send', async () => {
     const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing');
     expect(r.ok).toBe(true);
+  });
+
+  it('approves anyway when the history cannot be written, and says so', async () => {
+    // The approval is real — the grant is written and the executor verifies it — but the record is
+    // incomplete, and the founder is told. FB-051's version reported success while its audit write
+    // had silently failed, which is the same class of lie as the composer saying it filed a ticket
+    // it had not filed.
+    request.mockRejectedValue(new Error('403 Resource not accessible by personal access token'));
+    const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current');
+    expect(r.ok).toBe(true);
+    expect(r.message).toContain('could not write it to the history');
+    // The grant still landed, and nothing was written to the VENTURE's ref as a fallback — that ref
+    // is the one the lane can write, which is exactly what made the first version worthless.
+    expect(putFile).toHaveBeenCalledOnce();
+    expect(putFile.mock.calls[0][1]).toContain('approvals/send-1/grant.json');
   });
 });
 

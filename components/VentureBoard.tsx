@@ -11,7 +11,7 @@ import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets
 import { STATUS_LABEL } from '@/lib/glossary';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { TicketDrawer } from './TicketDrawer';
-import { ApprovalCard } from './ApprovalCard';
+import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
 import { LaneActivity } from './LaneActivity';
 import type { Brief } from '@/lib/brief';
@@ -85,6 +85,7 @@ export function VentureBoard({
   lanes,
   departments = [],
   approvals = [],
+  histories = {},
   budgets = [],
   budgetsError = null,
   brief = null,
@@ -101,6 +102,8 @@ export function VentureBoard({
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
+  /** The ActiveGraph story per approval, keyed `repo/id` (FB-071). Narrated server-side. */
+  histories?: Record<string, ApprovalHistory>;
   budgets?: (BudgetDisclosure | null)[];
   /** The venture in a paragraph (FB-042) — composed server-side so the ordering has one owner. */
   brief?: Brief | null;
@@ -202,7 +205,7 @@ export function VentureBoard({
         <div data-testid="approvals-queue" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Needs your OK — before anything goes out</p>
           {pendingApprovals.map((a) => (
-            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} />
+            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} history={histories[`${a.repo}/${a.id}`]} />
           ))}
         </div>
       ) : null}
@@ -211,7 +214,7 @@ export function VentureBoard({
         <div data-testid="approvals-decided" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Decided — what happened next</p>
           {decided.map((a) => (
-            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} />
+            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} history={histories[`${a.repo}/${a.id}`]} />
           ))}
         </div>
       ) : null}
@@ -220,7 +223,7 @@ export function VentureBoard({
         <div data-testid="approvals-attention" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Went out, or tried to — needs your eye</p>
           {needsAttention.map((a) => (
-            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} />
+            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} history={histories[`${a.repo}/${a.id}`]} />
           ))}
         </div>
       ) : null}
