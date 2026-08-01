@@ -112,6 +112,11 @@ a { color: inherit; text-decoration: none; }
 
 * { box-sizing: border-box; }
 
+/* Insurance, not a fix (FB-074). There is no in-page anchor in the studio today, so nothing can
+   currently land under the sticky bar — the only scrollIntoView targets the page bottom. The first
+   time someone adds an anchor or a "jump to" link, this is what stops the target arriving hidden. */
+h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
+
 /* Top bar */
 .topbar {
   position: sticky;

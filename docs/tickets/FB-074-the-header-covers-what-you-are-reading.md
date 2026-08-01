@@ -1,78 +1,63 @@
-# FB-074 — The header covers the words you are reading
+# FB-074 — The header covers the words you are reading — **it does not**
 
-**Status:** Todo · **Phase:** 3 · **Depends on:** — · **Repo:** fountainbridge ·
+**Status:** Closed — not a defect · **Phase:** 3 · **Repo:** fountainbridge ·
 **Branch:** `fb-074-the-header-covers-what-you-are-reading` · One ticket = one branch = one PR.
 
-## Why this matters (for the founder)
-On a long page, the bar at the top of the studio sits **on top of the text**. A line of the answer
-you are reading disappears behind it. Not dimmed, not pushed down — covered.
+## What this ticket claimed
+That on a long page the studio header is drawn over the text, and that the line it covered was the
+most useful sentence in a composer reply — the one saying the founder's problem was already known.
 
-A founder who loses a sentence out of an explanation does not think "that is a CSS bug". They think
-they misread it, scroll back, lose their place, and trust the page a little less.
+## It is not true, and here is the measurement
+Checked before changing anything, by asking the browser rather than by looking at a picture. A real
+viewport, scrolled to the middle of the longest page in the studio, comparing every text element's
+box against the header's:
 
-## What was found
-Walked on 2026-08-01, on the composer, on ARCA. The composer's reply ran to 4,282 characters. Partway
-down, the studio header — `Bruntsfield Foundry · Ventures · Workstreams · Attention 4 · Activity ·
-Foundry · Handbook · Sign out` — is drawn over the middle of a paragraph. The covered line reads:
+```json
+{ "position": "sticky", "barTop": 0, "barBottom": 60,
+  "background": "rgb(247, 246, 242)", "zIndex": "50",
+  "covered": [] }
+```
 
-> *"…already known and there's an existing, closely-related ticket (ARCA-24) still marked 'In
-> progress' that…"*
+`covered: []`. Nothing is behind the header. It is `position: sticky` with an opaque background, so
+it occupies its space in the document and content scrolls underneath it — which is what every sticky
+header on the web does, and is not a defect.
 
-and then vanishes behind the nav.
+## What I actually saw
+A **full-page screenshot artifact**. Playwright's `fullPage: true` stitches a tall image out of a
+scrolling page, and it renders a sticky element at the position it occupied while scrolling — so the
+header appears *in the middle of the image*, drawn over text that is perfectly readable in a real
+browser.
 
-That sentence is not decoration. It is the composer telling the founder their problem is already
-known and already being worked on — arguably the single most useful line in the reply, because it is
-the one that stops them asking for something that already exists.
+I read the artifact as a defect and wrote 800 words about it, including a paragraph on how it proved
+the test suite was structurally blind. The suite was fine. I was looking at a picture of something
+that does not happen.
 
-The header is fixed or sticky, and the content below it is not offset by its height, so on any page
-long enough to scroll the two occupy the same space. It will be worst exactly where it matters most:
-the longest, most information-dense answers.
+## The one thing here that is real
+**The screenshot gallery misleads every reviewer, on every long page.** That matters more than it
+sounds, because this ticket's own argument was that someone should *look* at the screenshots — and if
+the screenshots show phantom overlaps, a reviewer either learns to ignore them or files tickets like
+this one.
 
-## Why it has not been noticed before
-Every page in the studio until now was short, or was a board of cards where a covered row was
-obvious and a founder would simply scroll. The composer is the first surface that produces a single
-continuous block of prose long enough to scroll *through* the header, and it arrived yesterday
-(FB-065).
+Two small things are worth doing, and neither is what this ticket asked for:
 
-It is also invisible to the tests. The Playwright suite asserts on text content and test ids, and a
-covered element is still present, still visible to the DOM, and still returns its text. This is a
-class of defect that automated checks structurally cannot see — which is an argument for the
-screenshot gallery being read by a person, not just produced.
-
-## Scope
-- **Offset the content by the header's height** so nothing is ever drawn underneath it. The header's
-  height is a known quantity; the page should reserve it rather than the two competing.
-- **Check every scrolling surface**, not just the composer: the venture board with many lanes, the
-  activity feed, the handbook and playbook pages, a long ticket in the drawer.
-- **Check it at phone width too.** The mobile gate runs at 393px, where the header may wrap to two
-  lines and cover twice as much.
-- **Add a check that can actually see it.** The design contract (FB-057) is enforced by a script that
-  reads source; this is a rendered-geometry problem. The cheapest honest check is a Playwright
-  assertion that the first block of page content sits below the header's bottom edge on a scrolled
-  page — a real geometric comparison, not a text assertion.
-
-## Out of scope
-- Reducing the number of things in the header. That is FB-067, and it is a separate argument: even a
-  four-item header would still cover the text.
-- Any redesign of the header's appearance.
+- Note the artifact where reviewers will meet it, so the next person does not spend an afternoon on
+  it. (Done here, and in the design contract.)
+- Add `scroll-margin-top` to headings equal to the header's height. There is no in-page anchor in the
+  studio today — the only `scrollIntoView` targets the page bottom, which cannot land under a top bar
+  — so this fixes nothing now. It is cheap insurance for the first time someone adds an anchor, and
+  it is honest to say it is insurance rather than a fix.
 
 ## Acceptance criteria
-- [ ] On a page long enough to scroll, no page content is ever drawn underneath the header.
-- [ ] True at desktop and at 393px.
-- [ ] A test compares real geometry — the top of the content against the bottom of the header — and
-      fails if they overlap.
-- [ ] The composer reply that exposed this renders with every line readable.
+- [x] Measured, with the result recorded, rather than judged from an image.
+- [x] The claim is withdrawn in the ticket rather than quietly dropped.
+- [x] The screenshot artifact is documented where a reviewer will meet it.
+- [x] `scroll-margin-top` added as insurance, described as insurance.
 
-## Verification
-`/review` + CI, plus the exact reproduction: the composer on ARCA, asked *"Card prices on the market
-page look stale — some are weeks old. I want them fresh."*, scrolled to the middle of the reply, with
-a screenshot showing the sentence about ARCA-24 fully legible. Then the same at 393px.
+## The lesson, corrected
+The original lesson was "the UI gate cannot see whether a person can read the page, so look at the
+screenshots". That still holds.
 
-## A note on how this was found
-This did not come from a test failing. It came from opening the screenshot and reading it. The suite
-was green — 70 Playwright tests, including seven on this exact page — while a founder's most useful
-sentence was being covered up.
-
-Worth recording as a lesson rather than a one-off: the UI gate proves that the right *things* are on
-the page. It says nothing about whether a person can read them. Anything that produces screenshots
-should have someone look at the screenshots.
+The lesson it needs alongside it is the one this ticket got wrong: **a screenshot is evidence about a
+screenshot.** Before treating it as evidence about the product, ask the browser. It took one probe
+and forty seconds to find out that nothing was covered, after eight hundred words asserting that
+something was.
