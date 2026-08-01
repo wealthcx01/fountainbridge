@@ -64,6 +64,130 @@ function resolveAppConfig(opts: GitHubClientOptions): GitHubAppConfig | null {
   return { appId, privateKey: normalisedKey, installationId };
 }
 
+/**
+ * How the studio pays for what it reads (FB-077).
+ *
+ * One founder walking their own studio once — sign in, venture, composer, one question, attention
+ * queue — exhausted the budget for three of five repositories. Not under load. Not in a loop.
+ *
+ * Two mechanisms, both of which cost nothing when they do not apply:
+ *
+ *  1. **Conditional requests.** GitHub does not count a `304 Not Modified` against the rate limit.
+ *     Almost everything the studio reads — a ticket file, a repository's default branch, a closed
+ *     pull request — changes rarely, so sending the ETag back turns most page views into requests
+ *     that are free.
+ *  2. **Coalescing.** The same URL asked for twice while the first is still in flight is one
+ *     request. A venture page reads the same repository from several read models, and FB-064 asks
+ *     for `/commits/:sha/status` twice by itself — once for the checks, once for the preview.
+ *
+ * Both are per-process, which is the honest scope: Railway runs one long-lived server, so the cache
+ * survives between page views, and a restart merely costs what today costs.
+ */
+export const githubStats = { requests: 0, notModified: 0, coalesced: 0, rateLimited: 0 };
+
+/**
+ * Requests per endpoint SHAPE, when `GITHUB_STATS_BY_PATH` is set.
+ *
+ * Off by default — it is a measuring tool, not a feature. Ids are collapsed, so the shape of the
+ * cost is visible rather than a thousand distinct URLs. Kept because the first measurement of this
+ * contradicted the guess in the ticket, and the next person to change a read model should be able
+ * to see the bill they are adding to.
+ */
+export const githubByPath = new Map<string, number>();
+
+function recordPath(url: string): void {
+  if (!process.env.GITHUB_STATS_BY_PATH) return;
+  const shape = url
+    .replace(/^https:\/\/api\.github\.com/, '')
+    .replace(/\?.*$/, '')
+    .replace(/\/repos\/[^/]+\/[^/]+/, '/repos/*')
+    .replace(/\/(pulls|commits|contents|issues)\/[^/]+/, '/$1/*');
+  githubByPath.set(shape, (githubByPath.get(shape) ?? 0) + 1);
+}
+
+/** Reset the counters — for a measurement run, and for tests. */
+export function resetGithubStats(): void {
+  githubStats.requests = 0;
+  githubStats.notModified = 0;
+  githubStats.coalesced = 0;
+  githubStats.rateLimited = 0;
+  githubByPath.clear();
+}
+
+/**
+ * ETag → last body, so a 304 can be answered without a re-fetch.
+ *
+ * Bounded and insertion-ordered: at the cap the oldest entry goes, and a re-read re-inserts so the
+ * things a founder actually looks at stay. Unbounded would be a slow leak on a server that runs for
+ * weeks.
+ */
+const ETAG_CACHE_MAX = 2_000;
+const etagCache = new Map<string, { etag: string; body: unknown }>();
+
+/** In-flight GETs by URL, so concurrent duplicates become one request. */
+const requestsInFlight = new Map<string, Promise<unknown>>();
+
+/**
+ * How many requests may be in the air at once.
+ *
+ * This is the one aimed at the failure actually observed. A venture board fires **87** requests, and
+ * the studio fanned them out with `Promise.all`, so they left more or less simultaneously. GitHub
+ * applies a *secondary* rate limit to concurrent bursts, separate from the hourly budget — which is
+ * why the walk saw "rate limit hit" on three repositories while the hourly budget was barely
+ * touched (485 of 5,000 used, and zero primary rate limits in three consecutive measured renders).
+ *
+ * GitHub's own guidance is to avoid concurrent requests and to make them serially where possible.
+ * Eight is a compromise: a cold render still completes quickly, and the burst is no longer a burst.
+ */
+const MAX_CONCURRENT = Number(process.env.GITHUB_MAX_CONCURRENT ?? 8);
+
+/** The most requests the studio has had in the air at once — for the measurement runs. */
+export const githubPeakConcurrency = { peak: 0 };
+
+/**
+ * When the primary budget is exhausted, stop asking until it resets.
+ *
+ * Retrying into a rate limit is what deepens it: every refused request still counts as a request
+ * against the secondary limits, and the studio fans out dozens per page. So the first refusal shuts
+ * the door, and every read after it fails immediately with the same honest answer — which is also
+ * far faster for the founder than watching a page hang through a retry ladder.
+ *
+ * Deliberately only the PRIMARY limit (the hourly budget, which reports a reset time). A secondary
+ * limit is a burst problem, and the fix for that is the concurrency cap above, not a closed door.
+ */
+let blockedUntilMs = 0;
+
+/** When the studio expects to be able to read GitHub again, or null when it is not blocked. */
+export function githubBlockedUntil(now = Date.now()): Date | null {
+  return blockedUntilMs > now ? new Date(blockedUntilMs) : null;
+}
+
+export function clearGithubBlock(): void {
+  blockedUntilMs = 0;
+}
+
+let active = 0;
+const waiting: Array<() => void> = [];
+
+async function acquire(): Promise<void> {
+  if (active < MAX_CONCURRENT) { active += 1; githubPeakConcurrency.peak = Math.max(githubPeakConcurrency.peak, active); return; }
+  await new Promise<void>((resolve) => waiting.push(resolve));
+  active += 1;
+  githubPeakConcurrency.peak = Math.max(githubPeakConcurrency.peak, active);
+}
+
+function release(): void {
+  active -= 1;
+  waiting.shift()?.();
+}
+
+/** Drop everything cached — used by the studio's own refresh path and by tests. */
+export function clearGithubCache(): void {
+  etagCache.clear();
+  requestsInFlight.clear();
+}
+
+
 export class GitHubClient {
   /** Static PAT, if configured. Takes precedence over App auth. */
   private readonly staticToken?: string;
@@ -157,22 +281,78 @@ export class GitHubClient {
 
   async request<T>(path: string, init?: RequestInit): Promise<T> {
     const url = path.startsWith('http') ? path : `${this.baseUrl}${path}`;
+    const method = (init?.method ?? 'GET').toUpperCase();
+
+    // Only GETs are cacheable and coalescable. A PUT that got folded into another PUT would be a
+    // write that silently did not happen.
+    if (method !== 'GET') return this.send<T>(url, path, init);
+
+    // Coalesce: the same URL asked for twice while the first is still in flight is one request.
+    // A venture page reads the same repository from several read models — tickets, health,
+    // approvals — and FB-064 asks for `/commits/:sha/status` twice on its own, once for the checks
+    // and once for the preview.
+    const inFlight = requestsInFlight.get(url);
+    if (inFlight) { githubStats.coalesced += 1; return inFlight as Promise<T>; }
+
+    const promise = this.send<T>(url, path, init).finally(() => requestsInFlight.delete(url));
+    requestsInFlight.set(url, promise);
+    return promise;
+  }
+
+  private async send<T>(url: string, path: string, init?: RequestInit): Promise<T> {
+    await acquire();
+    try {
+      return await this.sendNow<T>(url, path, init);
+    } finally {
+      release();
+    }
+  }
+
+  private async sendNow<T>(url: string, path: string, init?: RequestInit): Promise<T> {
+    if (blockedUntilMs > this.now()) {
+      throw new GitHubError(
+        `GitHub rate limit — not asking again until ${new Date(blockedUntilMs).toISOString()}`,
+        429,
+        true,
+      );
+    }
     const token = await this.resolveToken();
+    const method = (init?.method ?? 'GET').toUpperCase();
     let attempt = 0;
     for (;;) {
+      const cached = method === 'GET' ? etagCache.get(url) : undefined;
+      githubStats.requests += 1;
+      recordPath(url);
       const res = await this.fetchImpl(url, {
         ...init,
         headers: {
           Accept: 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          // A 304 does NOT count against the rate limit. Most of what the studio reads changes
+          // rarely, so this is the difference between paying for every page view and paying only
+          // when something actually moved.
+          ...(cached ? { 'If-None-Match': cached.etag } : {}),
           ...(init?.headers ?? {}),
         },
       });
 
+      if (res.status === 304 && cached) {
+        githubStats.notModified += 1;
+        return cached.body as T;
+      }
+
       const rateLimited =
         res.status === 429 ||
         (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0');
+
+      if (rateLimited) {
+        githubStats.rateLimited += 1;
+        // Only a primary limit carries a reset. Without one this is a burst problem, and closing the
+        // door for an unknown period would turn a two-second hiccup into a blank page.
+        const reset = Number(res.headers.get('x-ratelimit-reset'));
+        if (Number.isFinite(reset) && reset > 0) blockedUntilMs = Math.max(blockedUntilMs, reset * 1000);
+      }
 
       if ((rateLimited || res.status >= 500) && attempt < this.maxRetries) {
         await this.sleepImpl(this.waitMs(res.headers, attempt));
@@ -183,7 +363,19 @@ export class GitHubClient {
       if (!res.ok) {
         throw new GitHubError(`GitHub ${res.status} for ${path}`, res.status, rateLimited);
       }
-      return (await res.json()) as T;
+
+      const body = (await res.json()) as T;
+      const etag = res.headers.get('etag');
+      if (method === 'GET' && etag) {
+        // Bounded, so a long-running server cannot grow this without limit. Oldest out first.
+        if (etagCache.size >= ETAG_CACHE_MAX) {
+          const oldest = etagCache.keys().next().value;
+          if (oldest !== undefined) etagCache.delete(oldest);
+        }
+        etagCache.delete(url);           // re-insert so recency is insertion order
+        etagCache.set(url, { etag, body });
+      }
+      return body;
     }
   }
 
