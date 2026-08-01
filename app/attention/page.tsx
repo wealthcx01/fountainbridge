@@ -6,6 +6,7 @@ import { APPROVAL_REASSURANCE } from '@/lib/glossary';
 import { prCiTone, toneColor } from '@/lib/status';
 import { groupFailures, needsAction } from '@/lib/read-failures';
 import { CHECK_LABEL } from '@/lib/glossary';
+import { howLong } from '@/lib/when';
 
 // The attention queue (FB-007): open PRs across every accessible venture, awaiting the human gate.
 // Scoping runs server-side in loadAccessibleAttention.
@@ -79,7 +80,7 @@ function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureN
       <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
         <span>{ventureName}</span>
         {approval.linkedTicketId ? <span>· {approval.linkedTicketId}</span> : null}
-        <span>· {formatAge(approval.ageMs)} old</span>
+        <span>· waiting {howLong(approval.createdAt) ?? 'a while'}</span>
         <Link href={here} data-testid={`approval-open-${approval.id}`}>· Read it and decide</Link>
       </div>
     </article>
@@ -128,11 +129,3 @@ function ReadFailures({ messages }: { messages: string[] }) {
   );
 }
 
-function formatAge(ms: number): string {
-  const days = Math.floor(ms / 86_400_000);
-  if (days >= 1) return `${days}d`;
-  const hours = Math.floor(ms / 3_600_000);
-  if (hours >= 1) return `${hours}h`;
-  const mins = Math.floor(ms / 60_000);
-  return `${mins}m`;
-}

@@ -5,7 +5,8 @@ import type { WorkItem } from '@/lib/work';
 import { acceptability, describeChange, isReadable, summariseChanges } from '@/lib/work';
 import { toneColor } from '@/lib/status';
 import { CHECK_LABEL } from '@/lib/glossary';
-import { readEvidence, waitingFor } from '@/lib/work-evidence';
+import { readEvidence } from '@/lib/work-evidence';
+import { howLong } from '@/lib/when';
 import { acceptWork } from '@/app/actions/work';
 
 /**
@@ -101,7 +102,7 @@ export function WorkDetail({ ventureId, work }: { ventureId: string; work: WorkI
   // Decided here from what was rendered, and decided AGAIN server-side against what is current —
   // this one gives the founder a reason, the server one makes a stale accept impossible.
   const verdict = acceptability(work, { seenHeadSha: work.headSha, configured: true });
-  const waiting = waitingFor(work.createdAt, Date.now());
+  const waiting = howLong(work.createdAt);
   const done = result?.ok || work.merged;
   const checkTone = work.checks === 'failure' || work.checks === 'unavailable' ? 'blocked'
     : work.checks === 'success' ? 'ok' : 'working';

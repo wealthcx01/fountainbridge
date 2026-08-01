@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
-import { describe as describeBudget } from '@/lib/budgets';
+import { formatMoney } from '@/lib/budgets';
 import { toneColor } from '@/lib/status';
 import { approveExternalAction } from '@/app/actions/approvals';
 
@@ -77,23 +77,22 @@ export function ApprovalCard({ ventureId, approval, history }: { ventureId: stri
           ) : null}
         </p>
       ) : null}
-      {/* What the STUDIO can say about the budget: the founder's own limit, and the spend the
-          VENTURE reports. Deliberately not a pass/fail check — the studio owns the limit and does
-          not own the total, and dressing an unverifiable figure as a verdict is what three review
-          passes kept punishing. Rendered above the proposer's claims and attributed. */}
-      {approval.budget ? (
+      {/* FB-068: what THIS action costs — not the department's whole budget position.
+          Four approval cards each carried the identical budget paragraph in red: one fact about a
+          department, repeated as though it were four facts about four actions. It flattened the
+          hierarchy, so a grant the studio could not verify read no louder than a routine spend.
+          The department states its position once (VentureBoard); a card states only its own cost,
+          and red is kept for what is genuinely alarming.
+          FB-054's reasoning stands and is unchanged — the studio owns the limit, does not own the
+          spend, and says so where the position is stated. */}
+      {approval.amountMinor !== null && approval.currency ? (
         <p
           data-testid={`approval-${tid}-budget`}
-          data-budget-over={approval.budget.overLimit ? 'true' : 'false'}
-          style={{
-            fontSize: 'var(--fs-body-sm)',
-            margin: '0.5rem 0 0',
-            color: approval.budget.overLimit ? toneColor('blocked') : undefined,
-            fontWeight: approval.budget.overLimit ? 600 : undefined,
-          }}
+          data-budget-over={approval.budget?.overLimit ? 'true' : 'false'}
+          className="muted"
+          style={{ fontSize: 'var(--fs-body-sm)', margin: '0.5rem 0 0' }}
         >
-          {describeBudget(approval.budget, approval.department ?? 'this surface')}{' '}
-          <span className="muted">Limit set in the studio; spend as reported by the venture.</span>
+          This one costs {formatMoney(approval.amountMinor, approval.currency)}.
         </p>
       ) : null}
       {approval.checks.length > 0 ? (

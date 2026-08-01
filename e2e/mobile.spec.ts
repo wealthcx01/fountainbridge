@@ -17,7 +17,7 @@ test('mobile: shell + ventures render, nav is thumb-reachable, no horizontal scr
   const nav = page.getByTestId('topnav');
   await expect(nav).toBeVisible();
   // Nav pill is a ≥44px thumb target.
-  const box = await page.getByRole('link', { name: /Attention/ }).boundingBox();
+  const box = await page.getByRole('link', { name: /Needs you/ }).boundingBox();
   expect(box).not.toBeNull();
   expect(box!.height).toBeGreaterThanOrEqual(40);
 
@@ -27,7 +27,7 @@ test('mobile: shell + ventures render, nav is thumb-reachable, no horizontal scr
 
 test('mobile: attention queue reachable from nav', async ({ page }) => {
   await testLogin(page, JOHN);
-  await page.getByRole('link', { name: /Attention/ }).click();
+  await page.getByRole('link', { name: /Needs you/ }).click();
   await page.waitForURL(/\/attention/);
   await expect(page.getByTestId('attention-queue').or(page.getByTestId('attention-empty'))).toBeVisible();
   expect(await noHorizontalScroll(page)).toBe(true);

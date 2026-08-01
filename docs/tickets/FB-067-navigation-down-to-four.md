@@ -1,6 +1,6 @@
 # FB-067 — Four destinations, named for what the founder is doing
 
-**Status:** Planned · **Phase:** 3 · **Depends on:** FB-064, FB-065 (both change what a destination
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-064, FB-065 (both change what a destination
 is) · **Repo:** fountainbridge · **Branch:** `fb-067-navigation-down-to-four`
 One ticket = one branch = one PR.
 
@@ -27,10 +27,31 @@ marketing site. The names describe how we organised the software, not what the f
 - Deleting the content behind the moved pages — it moves, it does not disappear.
 
 ## Acceptance criteria
-- [ ] Four founder-facing destinations, each named for what the founder is doing there.
-- [ ] Nothing in the header requires our vocabulary to understand.
-- [ ] The admin's all-ventures view is still reachable and reads as an admin view.
-- [ ] No route 404s; moved pages redirect.
+- [x] Four destinations: **Your venture · Needs you · What happened · Handbook**.
+- [x] Nothing in the header requires our vocabulary. "Workstreams" and "Foundry" are gone; `03` — a
+      section number from the Bruntsfield marketing site, meaningless here — is gone with them.
+- [x] The admin's view reads as one: the first item says **All ventures** for an admin and
+      **Your venture** for a founder.
+- [x] No route 404s. Nothing redirects, because nothing needed to: the pages were unlinked, not
+      moved, and both are now reachable from the handbook.
+
+## The names match the pages they lead to
+"Needs you" and "What happened" are the headings on those pages (FB-076, FB-080). A founder who
+clicks a word arrives somewhere that uses the same word. That was not true before: **Attention** led
+to *Awaiting review*, and **Activity** led to *CI & activity*.
+
+The composer is deliberately absent. After FB-065 it is something you do from your venture, not a
+place you visit.
+
+## Where the two removed pages went
+Neither is deleted — the ticket was explicit that they move rather than disappear.
+
+- **Workstreams** (`/lanes`) was a cross-venture view of lanes the venture board already shows. It is
+  reachable and unlinked.
+- **Foundry** (`/foundry`) is the story of how the studio works. The ticket says it belongs on the
+  public site, where people are deciding whether to join. **There is no public site yet**, so it
+  moved to the handbook rather than to nowhere — alongside the playbook, which had the same problem
+  and was not in the header either. Stated as a compromise rather than the plan.
 
 ## Verification
 `/review` + CI, and the walkthrough repeated as a founder to confirm every remaining destination
