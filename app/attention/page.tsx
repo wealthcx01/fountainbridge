@@ -4,6 +4,8 @@ import { auth } from '@/auth';
 import { loadAccessibleAttention, type PrApproval } from '@/lib/attention';
 import { APPROVAL_REASSURANCE } from '@/lib/glossary';
 import { prCiTone, toneColor } from '@/lib/status';
+import { groupFailures, needsAction } from '@/lib/read-failures';
+import { CHECK_LABEL } from '@/lib/glossary';
 
 // The attention queue (FB-007): open PRs across every accessible venture, awaiting the human gate.
 // Scoping runs server-side in loadAccessibleAttention.
@@ -23,7 +25,10 @@ export default async function AttentionPage({
     <section>
       <p className="eyebrow"><span className="eyebrow-id">Attention</span> — Foundry Studio</p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem' }}>
-        <h1 style={{ margin: 0 }}>Awaiting review</h1>
+        {/* FB-076: one name for one thing. The nav said "Attention", the heading said "Awaiting
+            review" and the introduction said "waiting on your OK" — three phrasings, and "review"
+            in particular means something specific and different in engineering. */}
+        <h1 style={{ margin: 0 }}>Needs you</h1>
         <span className="tag" data-testid="attention-count">{approvals.length}</span>
       </div>
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
@@ -32,14 +37,8 @@ export default async function AttentionPage({
       </p>
       <hr className="hr" />
 
-      {errors.length > 0 ? (
-        <p className="card muted" data-testid="attention-errors" style={{ borderColor: toneColor('attention'), fontSize: 'var(--fs-meta-lg)' }}>
-          Some repos couldn’t be read: {errors.join(' · ')}
-        </p>
-      ) : null}
-
       {approvals.length === 0 ? (
-        <p className="card muted" data-testid="attention-empty">Nothing awaiting review. Inbox zero.</p>
+        <p className="card muted" data-testid="attention-empty">Nothing is waiting for you.</p>
       ) : (
         <div className="stack" data-testid="attention-queue" style={{ gap: '0.75rem' }}>
           {approvals.map((a) => (
@@ -47,6 +46,12 @@ export default async function AttentionPage({
           ))}
         </div>
       )}
+
+      {/* FB-076: BELOW the work, not above it. A founder came here to answer something; a degraded
+          read is context for what they are seeing, not the headline. Grouped by cause, because the
+          cause is what decides whether they should do anything — and the version this replaced ran
+          five failures and two causes into one sentence with `·` separators. */}
+      <ReadFailures messages={errors} />
     </section>
   );
 }
@@ -81,12 +86,45 @@ function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureN
   );
 }
 
+/**
+ * FB-076: what the automatic checks say, in the same words the work view uses.
+ *
+ * This said `CI UNKNOWN` beside every item — small capitals, monospace — which means "this
+ * repository has no automatic checks". That is true of ARCA and completely fine, and it read to a
+ * founder as something being wrong. The work view learned to say it plainly in FB-064; the queue
+ * had not, so the same fact was reassuring on one screen and alarming on another.
+ */
 function CiDot({ status }: { status: PrApproval['ciStatus'] }) {
   const color = toneColor(prCiTone(status));
   return (
-    <span className="tag mono" title={`CI: ${status}`} style={{ color }} data-testid="approval-ci">
-      CI {status}
+    <span className="tag" style={{ color }} data-testid="approval-ci" data-checks={status}>
+      {CHECK_LABEL[status] ?? CHECK_LABEL.unknown}
     </span>
+  );
+}
+
+function ReadFailures({ messages }: { messages: string[] }) {
+  const groups = groupFailures(messages);
+  if (groups.length === 0) return null;
+  return (
+    <div data-testid="attention-errors" style={{ marginTop: '1.5rem' }}>
+      <p className="eyebrow" style={{ marginBottom: '0.4rem' }}>
+        {needsAction(groups) ? 'Some of your work is not showing' : 'One workstream is catching up'}
+      </p>
+      {groups.map((g) => (
+        <p
+          key={g.cause}
+          className="card"
+          data-testid={`read-failure-${g.cause}`}
+          data-transient={g.transient}
+          style={{ fontSize: 'var(--fs-meta-lg)', marginBottom: '0.5rem',
+                   borderColor: g.transient ? undefined : toneColor('attention') }}
+        >
+          {g.text}{' '}
+          <span className="muted">{g.nextStep}</span>
+        </p>
+      ))}
+    </div>
   );
 }
 

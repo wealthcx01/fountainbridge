@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import type { WorkItem } from '@/lib/work';
 import { acceptability, describeChange, isReadable, summariseChanges } from '@/lib/work';
 import { toneColor } from '@/lib/status';
+import { CHECK_LABEL } from '@/lib/glossary';
 import { acceptWork } from '@/app/actions/work';
 
 /**
@@ -24,13 +25,8 @@ const KIND_LABEL: Record<string, string> = {
   settings: 'Settings',
 };
 
-const CHECK_LABEL: Record<string, string> = {
-  success: 'All automatic checks passed',
-  failure: 'The automatic checks did not pass',
-  pending: 'The automatic checks are still running',
-  unknown: 'This work has no automatic checks',
-  unavailable: 'The studio could not read the automatic checks',
-};
+// FB-076 moved this to lib/glossary: the attention queue shows the same fact, and while each
+// surface owned its own copy they drifted — one said "no automatic checks", the other `CI UNKNOWN`.
 
 export function WorkDetail({ ventureId, work }: { ventureId: string; work: WorkItem }) {
   const [pending, startTransition] = useTransition();

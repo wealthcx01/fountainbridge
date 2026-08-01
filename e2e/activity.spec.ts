@@ -47,3 +47,28 @@ test('an active venture shows no staleness flag', async ({ page }) => {
   await expect(page.getByTestId('lane-arca')).toBeVisible();
   await expect(page.getByTestId('lane-stale-arca')).toHaveCount(0);
 });
+
+test('Activity is what happened, not repository administration (FB-080)', async ({ page }) => {
+  // The page was called "CI & activity" and opened, per repository, with "no CI runs · unprotected ·
+  // active". Branch-protection state labelled as Activity, 3.3 screens of it.
+  await testLogin(page, 'ross@bruntsfield.capital');
+  await page.goto('/activity');
+  const body = (await page.locator('body').textContent()) ?? '';
+
+  expect(body).not.toContain('CI & activity');
+  expect(body).not.toContain('unprotected');
+  expect(body).not.toContain('no CI runs');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('What has been happening');
+});
+
+test('the administration is not deleted, it is shown to Bruntsfield (FB-080)', async ({ page }) => {
+  // It is real and John needs it. A founder should not have to learn what branch protection is to
+  // read their own company's news.
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/activity');
+  await expect(page.getByText('Repository health')).toBeVisible();
+  // And still below the news, not in front of it.
+  const news = await page.getByRole('heading', { name: 'Last 14 days' }).boundingBox();
+  const admin = await page.getByText('Repository health').boundingBox();
+  expect(admin!.y).toBeGreaterThan(news!.y);
+});

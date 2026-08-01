@@ -28,3 +28,24 @@ export const WORKSTREAMS = 'Workstreams';
  * Keeps the meaning — a human approves before anything goes live — without the git vocabulary.
  */
 export const APPROVAL_REASSURANCE = 'Nothing goes live until you approve it.';
+
+
+/**
+ * What the automatic checks say, in the founder's words (FB-064, shared by FB-076).
+ *
+ * Here rather than in a component because two surfaces show the same fact and they drifted: the
+ * work view said "This work has no automatic checks" while the attention queue said `CI UNKNOWN`
+ * in monospace small-caps beside every item. Same underlying state, reassuring on one screen and
+ * alarming on the other.
+ *
+ * `unknown` is the one that matters most: it means the repository has no automatic checks at all,
+ * which is true of a young venture and completely fine. `unavailable` means the studio could not
+ * find out — a different thing, and never presentable as a pass.
+ */
+export const CHECK_LABEL: Record<string, string> = {
+  success: 'All automatic checks passed',
+  failure: 'The automatic checks did not pass',
+  pending: 'The automatic checks are still running',
+  unknown: 'This work has no automatic checks',
+  unavailable: 'The studio could not read the automatic checks',
+};
