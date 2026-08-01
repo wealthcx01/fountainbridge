@@ -56,3 +56,31 @@ test('a founder sees only their own ventures in the queue', async ({ page }) => 
   // arca's PRs (John's fixture) must NOT leak into Ross's queue.
   await expect(page.getByTestId('approval-arca#10')).toHaveCount(0);
 });
+
+test('the queue says what the checks mean, not CI UNKNOWN', async ({ page }) => {
+  // FB-076. `CI UNKNOWN` in monospace small-caps beside every item means "this repository has no
+  // automatic checks" — true of a young venture and completely fine, and it read as something being
+  // wrong. The work view already said it plainly; the queue did not, so the same fact was
+  // reassuring on one screen and alarming on the other.
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/attention');
+  const body = (await page.locator('body').textContent()) ?? '';
+  expect(body).not.toContain('CI unknown');
+  expect(body).not.toContain('CI UNKNOWN');
+  await expect(page.getByTestId('approval-ci').first()).not.toHaveText(/^CI /);
+});
+
+test('read failures sit below the work and are grouped by cause', async ({ page }) => {
+  // The version this replaced opened the page with five failures and two causes run into one
+  // sentence, above the work the founder came for.
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/attention');
+  const failures = page.getByTestId('attention-errors');
+  if (await failures.count()) {
+    const queueBox = await page.getByTestId('attention-queue').boundingBox();
+    const failBox = await failures.boundingBox();
+    expect(failBox!.y).toBeGreaterThan(queueBox!.y);   // below, not above
+    // Never a repository owner in front of a founder.
+    expect((await failures.textContent()) ?? '').not.toContain('wealthcx01/');
+  }
+});

@@ -3,8 +3,24 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadAccessibleHealth, type RepoHealth, type ActivityEvent } from '@/lib/health';
 import { ciRunTone, toneColor } from '@/lib/status';
+import { loadVentures } from '@/lib/ventures';
+import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
+import { groupFailures, needsAction } from '@/lib/read-failures';
 
-// CI/lane health + activity feed (FB-008). Scoped server-side. Filterable by repo via ?repo=.
+/**
+ * What has been happening (FB-008, rewritten by FB-080).
+ *
+ * This page was called "CI & activity" and opened, per repository, with *"no CI runs · unprotected ·
+ * active"*. `unprotected` is a GitHub branch-protection setting. `no CI runs` means nobody has
+ * configured automated tests. Neither is a thing that happened, neither is a thing a founder can act
+ * on, and together they filled 3.3 screens and 55,846 characters of a page called **Activity**.
+ *
+ * It is now what its name says: things that happened, newest first.
+ *
+ * The repository administration is not deleted — it is real, and Bruntsfield genuinely needs it. It
+ * is shown to **admins only**, which is the honest home for it: a founder should not have to learn
+ * what branch protection is to read their own company's news.
+ */
 export default async function ActivityPage({
   searchParams,
 }: {
@@ -14,6 +30,15 @@ export default async function ActivityPage({
   if (!session?.user?.email) redirect('/login');
   const { refresh, repo: repoFilter } = await searchParams;
   const { ventures, activity } = await loadAccessibleHealth(session.user.email, { refresh: refresh === '1' });
+  const isAdmin = authorizeVentures(
+    session.user.email,
+    loadVentures(),
+    parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS),
+  ).isAdmin;
+
+  // One place, one wording. The same missing repository was previously reported here, on the
+  // attention queue and on the venture board, in three slightly different sentences.
+  const failures = ventures.flatMap((v) => v.health.repos.filter((r) => r.error).map((r) => r.error as string));
 
   const allRepos = ventures.flatMap((v) => v.health.repos.map((r) => r.repo));
   const events = repoFilter ? activity.filter((e) => e.repo === repoFilter) : activity;
@@ -22,27 +47,16 @@ export default async function ActivityPage({
     <section>
       <p className="eyebrow"><span className="eyebrow-id">Activity</span> — Foundry Studio</p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0 }}>CI &amp; activity</h1>
+        <h1 style={{ margin: 0 }}>What has been happening</h1>
         <Link href="/activity?refresh=1" className="mono muted" data-testid="activity-refresh" style={{ fontSize: 'var(--fs-meta-lg)' }}>refresh</Link>
       </div>
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
+        Everything your ventures have done lately, newest first.
+      </p>
 
       <hr className="hr" />
 
-      {/* Per-repo health strips */}
-      {ventures.map((v) => (
-        <div key={v.id} style={{ marginBottom: '2rem' }} data-testid={`health-venture-${v.id}`}>
-          <h3 className="mono" style={{ fontSize: 'var(--fs-subhead)' }}>{v.name} <span className="muted">· {v.id}</span></h3>
-          <div className="stack" style={{ gap: '0.5rem' }}>
-            {v.health.repos.map((r) => (
-              <HealthStrip key={r.repo} health={r} />
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <hr className="hr" />
-
-      {/* Activity feed */}
+      {/* Activity feed — the thing the page is named after, and now the first thing on it. */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
         <h2 style={{ margin: 0 }}>Last 14 days</h2>
         <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>filter:</span>
@@ -55,12 +69,52 @@ export default async function ActivityPage({
       </div>
 
       {events.length === 0 ? (
-        <p className="card muted" data-testid="activity-empty">No activity in the last 14 days.</p>
+        <p className="card muted" data-testid="activity-empty">
+          Nothing has happened in the last 14 days. When your team builds something, or a check
+          fails, it appears here.
+        </p>
       ) : (
         <div className="stack" data-testid="activity-feed" style={{ gap: '0.4rem' }}>
           {events.map((e, i) => <ActivityRow key={`${e.url}-${i}`} event={e} />)}
         </div>
       )}
+
+      {/* One wording, one place (FB-076's grouping). Below the news, not in front of it. */}
+      {failures.length > 0 ? (
+        <div data-testid="activity-errors" style={{ marginTop: '1.5rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.4rem' }}>
+            {needsAction(groupFailures(failures)) ? 'Some of your work is not showing' : 'One workstream is catching up'}
+          </p>
+          {groupFailures(failures).map((g) => (
+            <p key={g.cause} className="card" data-testid={`read-failure-${g.cause}`}
+               style={{ fontSize: 'var(--fs-meta-lg)', marginBottom: '0.5rem',
+                        borderColor: g.transient ? undefined : toneColor('attention') }}>
+              {g.text} <span className="muted">{g.nextStep}</span>
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      {/* FB-080: repository administration — branch protection, whether tests are configured — is
+          real and Bruntsfield needs it. It is not a founder's business, and it used to be the first
+          thing on their Activity page. Admins only. */}
+      {isAdmin ? (
+        <>
+          <hr className="hr" />
+          <h2 style={{ marginBottom: '0.25rem' }}>Repository health</h2>
+          <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
+            Bruntsfield only — branch protection and whether automatic checks are set up.
+          </p>
+          {ventures.map((v) => (
+            <div key={v.id} style={{ marginBottom: '1.25rem' }} data-testid={`health-venture-${v.id}`}>
+              <h3 className="mono" style={{ fontSize: 'var(--fs-subhead)' }}>{v.name} <span className="muted">· {v.id}</span></h3>
+              <div className="stack" style={{ gap: '0.5rem' }}>
+                {v.health.repos.map((r) => <HealthStrip key={r.repo} health={r} />)}
+              </div>
+            </div>
+          ))}
+        </>
+      ) : null}
     </section>
   );
 }

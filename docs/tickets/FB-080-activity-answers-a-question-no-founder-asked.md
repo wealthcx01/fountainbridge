@@ -1,6 +1,6 @@
 # FB-080 — "Activity" answers a question no founder has ever asked
 
-**Status:** Todo · **Phase:** 3 · **Depends on:** FB-008 (CI status and activity), FB-042 (run
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-008 (CI status and activity), FB-042 (run
 reports) · **Repo:** fountainbridge ·
 **Branch:** `fb-080-activity-answers-a-question-no-founder-asked` · One ticket = one branch = one PR.
 
@@ -80,12 +80,32 @@ belongs somewhere a founder is not.
 - Run report content itself (FB-060).
 
 ## Acceptance criteria
-- [ ] The page answers "what has been happening", in order, in the founder's language.
-- [ ] No branch-protection or CI-configuration state appears on a founder surface.
-- [ ] A young venture with no tests configured reads as normal, not as broken.
-- [ ] A missing repository is reported once across the studio, where it can be acted on.
-- [ ] The ticket records a decision, with reasons, on whether this page survives as its own
-      destination.
+- [x] The page answers "what has been happening", in order, in the founder's language. The heading is
+      now **"What has been happening"** and the events are the first thing on it.
+- [x] No branch-protection or CI-configuration state appears on a founder surface.
+- [x] A young venture with no tests configured reads as normal — the phrase that made it read as
+      broken is simply not on a founder's page any more.
+- [x] A missing repository is reported through FB-076's grouping, in the same words, below the news.
+- [x] A decision is recorded, below.
+
+## The decision: the administration is not deleted, it is moved
+The obvious move was to delete the health strips. That would have been wrong. Branch protection and
+whether automatic checks are configured are **real** and Bruntsfield genuinely needs to see them —
+they are how you know a venture's repositories are safe to merge into.
+
+They are just not a founder's business. So they are shown to **admins only**, below the news, under a
+heading that says who they are for: *"Bruntsfield only — branch protection and whether automatic
+checks are set up."*
+
+That answers the "should this page exist" question too. It should: it is the only cross-venture view
+of what happened, and the venture board's own activity strip is per-venture. What should not exist is
+a founder being shown `unprotected` on a page called Activity.
+
+## Verification
+Two Playwright, one per audience. As **Ross**: the page contains no `CI & activity`, no
+`unprotected`, no `no CI runs`, and its heading is "What has been happening". As **John**: the
+repository health section is present, and geometrically **below** the news rather than in front of
+it.
 
 ## Verification
 `/review` + CI, then the same walk: open Activity as a founder and record the page height, the
