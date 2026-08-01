@@ -101,21 +101,49 @@ test.describe('describing what you want, without leaving the studio', () => {
     await expect(page.getByTestId('composer-turn-0')).toContainText('Remember this one');
   });
 
-  test('a file it cannot read is refused with somewhere to put it, not dropped', async ({ page }) => {
+  test('a format it cannot read is refused by name, with a way forward (FB-078)', async ({ page }) => {
+    // "Unsupported file type" reads as a shrug; naming the format reads as a decision.
     await page.goto('/venture/arca/composer');
     await page.getByTestId('composer-file').setInputFiles({
-      name: 'deck.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4'),
+      name: 'deck.pptx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      buffer: Buffer.from('PK'),
     });
-    await expect(page.getByTestId('composer-error')).toContainText('deck.pdf');
-    await expect(page.getByTestId('composer-error')).toContainText('own box');
+    await expect(page.getByTestId('composer-error')).toContainText('a slide deck');
+    await expect(page.getByTestId('composer-error')).toContainText('Export it as a PDF');
   });
 
-  test('a readable document is attached and named before it is sent', async ({ page }) => {
+  test('a PDF with no text layer is refused rather than deposited empty (FB-078)', async ({ page }) => {
+    // The refusal that matters most. Filing an empty file under a confident name would teach the
+    // venture brain that a 60-page market report contains nothing.
     await page.goto('/venture/arca/composer');
     await page.getByTestId('composer-file').setInputFiles({
-      name: 'positioning.md', mimeType: 'text/markdown', buffer: Buffer.from('We win on trust.'),
+      name: 'scan.pdf', mimeType: 'application/pdf',
+      // A one-page PDF whose only content is a filled rectangle — no text operators at all.
+      buffer: Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'
+        + '2 0 obj\n<< /Type /Pages /Kids [4 0 R] /Count 1 >>\nendobj\n'
+        + '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n'
+        + '4 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>\nendobj\n'
+        + '5 0 obj\n<< /Length 24 >>\nstream\n0.5 g 60 60 500 700 re f\nendstream\nendobj\n'
+        + 'trailer\n<< /Size 6 /Root 1 0 R >>\n%%EOF',
+      ),
     });
-    await expect(page.getByTestId('composer-doc')).toContainText('positioning.md');
+    await expect(page.getByTestId('composer-error')).toContainText('no readable text');
+    await expect(page.getByTestId('composer-error')).toContainText('Nothing was saved');
+    await expect(page.getByTestId('composer-doc')).toHaveCount(0);
+  });
+
+  test('a readable document says what was understood, not just that it attached (FB-078)', async ({ page }) => {
+    // A silent "attached" on a 60-page report is indistinguishable from a failed extraction. Saying
+    // the size back is how a founder catches the studio having read one page of sixty.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-file').setInputFiles({
+      name: 'positioning.md', mimeType: 'text/markdown',
+      buffer: Buffer.from('We win on trust because the numbers are ours and every one of them can be traced back to a source a collector already believes.'),
+    });
+    await expect(page.getByTestId('composer-doc')).toContainText('I read positioning.md');
+    await expect(page.getByTestId('composer-doc')).toContainText('words');
   });
 
   test('nothing on the composer sends the founder to another product', async ({ page }) => {

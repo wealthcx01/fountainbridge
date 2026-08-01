@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  composerEndpoint, composerKeyEnvName, describeTool, documentRefusal, drainSse,
+  composerEndpoint, composerKeyEnvName, describeTool, drainSse,
   emptyStream, formatInline, reduceChunk, withDocument, MAX_DOCUMENT_CHARS,
 } from '../composer';
 
@@ -183,15 +183,6 @@ describe('depositing a document', () => {
     expect(withDocument('Just a message', null)).toBe('Just a message');
   });
 
-  it('refuses a file it cannot read, and says where to put it instead', () => {
-    // The Agents API has no upload; uploads are a JWT-only route the studio deliberately has no
-    // credential for. Pretending to accept a PDF and dropping it would be worse than refusing it.
-    const refusal = documentRefusal('deck.pdf');
-    expect(refusal).toContain('deck.pdf');
-    expect(refusal).toContain('own box');
-    expect(documentRefusal('research.md')).toBeNull();
-    expect(documentRefusal('data.csv')).toBeNull();
-  });
 });
 
 describe('splitting a reply into what is read and what is inspected', () => {

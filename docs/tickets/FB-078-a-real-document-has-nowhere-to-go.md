@@ -1,6 +1,6 @@
 # FB-078 — A real document has nowhere to go
 
-**Status:** Todo · **Phase:** 3 · **Depends on:** FB-034 (the knowledge base), FB-043 (deposit),
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-034 (the knowledge base), FB-043 (deposit),
 FB-050 (the venture brain), FB-065 (the composer inside the studio) · **Repo:** fountainbridge (+
 venture box) · **Branch:** `fb-078-a-real-document-has-nowhere-to-go` ·
 One ticket = one branch = one PR.
@@ -68,19 +68,74 @@ The ticket should weigh these rather than assume.
 - Retrieval quality, ranking, or chunking strategy — a separate concern once documents can get in.
 - Moving off LibreChat's RAG for files already uploaded there.
 
+## What shipped, and the one place it differs from the plan
+A founder attaches a PDF in the studio composer. The studio reads it, says what it understood, and
+the composer's existing deposit tool files the text into the venture's own repository as a pull
+request a human merges.
+
+**The extraction happens on the studio, not on the venture's box — and the ticket asked for the
+opposite.** That difference is the compromise, stated rather than buried.
+
+The ticket's reasoning was right: every byte should stay on the venture's own machine (D1). Doing it
+there needs a new endpoint beside the brain bridge, a credential the studio would have to hold, and
+`pdftotext` installed on every box — none of which shipped today. What shipped keeps the weaker
+promise it can actually make: **the bytes pass through the studio's memory and are never written to
+its disk**, and the extracted text goes to the venture's own repository, which is where it belongs.
+Box-side extraction remains the better answer and is not done.
+
+## Proven end to end on ARCA
+A real PDF, a scan with no text layer, and a slide deck — all three through the running studio:
+
+| | What the founder saw |
+| --- | --- |
+| `real.pdf` | *"I read real.pdf — 1 page, about 66 words."* |
+| `scan.pdf` | *"…has no readable text in it — it is most likely a scan… **Nothing was saved**, because saving an empty file under that name would teach your venture that the document is blank."* |
+| `deck.pptx` | *"…is **a slide deck**, and the studio can only read text documents and PDFs so far. Export it as a PDF and try again."* |
+
+Then the deposit, for real. Attached `real.pdf`, asked to save it under Sell, and the composer:
+
+1. searched the venture's knowledge first, to avoid a duplicate,
+2. found nothing on beachhead or competitor pricing under Sell,
+3. filed **`arca#32`** → `context/sell/market-note-terminal-wedge.md`.
+
+The reply quoted *"$150/yr Card Ladder vs $10/mo Market Movers"* — figures that existed **only inside
+the PDF**. That is the proof the text was genuinely read rather than the filename being paraphrased.
+
+## The refusal that mattered most
+`looksEmpty` counts words of two or more letters and refuses below twenty. A scanned PDF extracts to
+page numbers and whitespace; depositing that under a confident name would teach the venture brain
+that a sixty-page market report contains nothing, and every later question about it would be answered
+from an empty file. Failing loudly here is worth more than accepting a document that will quietly
+mislead.
+
+## One vocabulary, learned from CHECK_LABEL
+`documentRefusal` and `READABLE_DOCUMENT` are **deleted** from `lib/composer.ts`. The document route
+owns every refusal now, because it is the only place that knows what actually happened — a format it
+cannot read, a scan, a file too large, a PDF that would not open. Two refusal vocabularies is exactly
+the drift that bit `CHECK_LABEL` (FB-076): the same fact, reassuring on one surface and alarming on
+another.
+
 ## Acceptance criteria
-- [ ] A founder can attach a PDF in the studio composer and have it become venture knowledge.
-- [ ] The original is retrievable, not just the extracted text.
-- [ ] A deposited document is answerable by the composer in the same conversation.
-- [ ] A lane planning work can find it through the venture brain.
-- [ ] A document that cannot be read is refused by name, with the reason, and nothing is written.
-- [ ] No document byte is stored on the studio's host.
+- [x] A founder can attach a PDF in the studio composer and have it become venture knowledge —
+      `arca#32`, proven above.
+- [ ] **The original is NOT retrievable.** Only the extracted text is kept. D8 says heavy binaries
+      belong in object storage with a pointer from the deposited markdown, and no object storage is
+      wired up. Text extraction loses tables, charts and layout, so a founder who deposits a deck
+      keeps its words and loses its figures. This is the largest gap and it is not started.
+- [x] A deposited document is answerable by the composer in the same conversation — the text is in
+      the conversation as well as in git.
+- [~] A lane planning work can find it through the venture brain — **once the deposit PR is merged**
+      and gbrain re-indexes. The path is the one gbrain already indexes (`context/`), so this follows
+      from work that already exists rather than from anything new here; it was not watched happening.
+- [x] A document that cannot be read is refused by name, with the reason, and nothing is written.
+- [x] No document byte is stored on the studio's host — they pass through memory and are never
+      written to disk. Weaker than the ticket's "never transits the studio", and said as such.
 
 ## Verification
-`/review` + CI, then the real thing on ARCA: deposit a genuine multi-page PDF through the studio
-composer, ask a question in the next message that can only be answered from inside it, and confirm the
-answer is right. Then confirm a lane can find the same document through the venture brain, and that
-the pull request into `context/` names the original.
+11 unit tests over the rules — every format named individually, every refusal offering a way forward,
+the scan detected from its word count, a short-but-real note *not* mistaken for a scan, the size
+readback, and the size limit. Plus 11 Playwright including the two that matter: a slide deck refused
+by name, and a PDF with no text layer refused rather than deposited, with **no attachment left
+behind**.
 
-Then the negative case: a scanned image-only PDF, which must be refused with an explanation rather
-than deposited empty.
+Then the live walk on ARCA recorded above, ending in `arca#32`.

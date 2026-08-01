@@ -395,11 +395,8 @@ export function withDocument(message: string, doc: { name: string; text: string 
   return `${ask}\n\n--- ${doc.name} ---\n${text}\n--- end of ${doc.name} ---`;
 }
 
-/** Files a founder can deposit as text. Anything else is refused with a reason, never silently. */
-export const READABLE_DOCUMENT = /\.(md|markdown|txt|csv|tsv|json|ya?ml|log)$/i;
-
-export function documentRefusal(name: string): string | null {
-  if (READABLE_DOCUMENT.test(name)) return null;
-  return 'The studio can read text documents (.md, .txt, .csv, .json, .yaml). ' +
-    `“${name}” is not one, so it was not sent — paste what matters, or drop it in the chat on your venture’s own box.`;
-}
+// FB-078: `documentRefusal` and `READABLE_DOCUMENT` lived here and are gone. The document route
+// (app/api/composer/[id]/document) owns every refusal now, because it is the only place that knows
+// what actually happened — a format it cannot read, a scan with no text layer, a file too large, a
+// PDF that would not open. Two refusal vocabularies is the drift that bit CHECK_LABEL: the same
+// fact, worded reassuringly on one surface and alarmingly on another.
