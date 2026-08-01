@@ -19,10 +19,20 @@
  */
 
 /** What a founder handed over, from the studio's point of view. */
-export type DocumentKind = 'text' | 'pdf' | 'unsupported';
+export type DocumentKind = 'text' | 'pdf' | 'office' | 'unsupported';
 
 const TEXT = /\.(md|markdown|txt|csv|tsv|json|ya?ml|log)$/i;
 const PDF = /\.pdf$/i;
+/**
+ * The formats founders actually hand over after PDF (FB-084).
+ *
+ * All three are ZIP archives of XML, which is why they can be read here with one tiny dependency and
+ * no service: the words live in `word/document.xml`, `ppt/slides/slideN.xml`, and
+ * `xl/sharedStrings.xml`. The older binary `.doc`/`.ppt`/`.xls` are NOT these and are deliberately
+ * excluded — they are a different, far uglier format, and claiming to read one and returning nothing
+ * would be worse than refusing it.
+ */
+const OFFICE = /\.(docx|pptx|xlsx)$/i;
 
 /**
  * Known-but-unsupported formats, named individually.
@@ -32,9 +42,13 @@ const PDF = /\.pdf$/i;
  * never.
  */
 const NAMED: Array<[RegExp, string]> = [
-  [/\.(docx?|odt|rtf)$/i, 'a Word document'],
-  [/\.(xlsx?|ods)$/i, 'a spreadsheet'],
-  [/\.(pptx?|odp|key)$/i, 'a slide deck'],
+  // The OLD binary formats and the OpenDocument ones. `.docx`/`.pptx`/`.xlsx` are read (FB-084);
+  // these are a different format and are refused rather than silently returning nothing.
+  [/\.(doc|odt|rtf|pages)$/i, 'an older Word document'],
+  [/\.(xls|ods|numbers)$/i, 'an older spreadsheet'],
+  [/\.(ppt|odp|key)$/i, 'an older slide deck'],
+  [/\.(mp4|mov|avi|mkv|webm|m4v)$/i, 'a video'],
+  [/\.(mp3|wav|m4a|aac|flac|ogg)$/i, 'an audio recording'],
   [/\.(png|jpe?g|gif|webp|heic)$/i, 'an image'],
   [/\.(zip|tar|gz|7z|rar)$/i, 'an archive'],
 ];
@@ -42,18 +56,60 @@ const NAMED: Array<[RegExp, string]> = [
 export function documentKind(filename: string): DocumentKind {
   if (TEXT.test(filename)) return 'text';
   if (PDF.test(filename)) return 'pdf';
+  if (OFFICE.test(filename)) return 'office';
   return 'unsupported';
+}
+
+/** Which parts of an office archive hold the words, in the order a reader would meet them. */
+export function officeParts(filename: string): { match: (path: string) => boolean; ordered: boolean } {
+  if (/\.docx$/i.test(filename)) return { match: (p) => p === 'word/document.xml', ordered: false };
+  if (/\.pptx$/i.test(filename)) {
+    // Slides are `slide1.xml`, `slide2.xml`… and a ZIP's order is not the deck's order.
+    return { match: (p) => /^ppt\/slides\/slide\d+\.xml$/.test(p), ordered: true };
+  }
+  return {
+    // A spreadsheet's words are in the shared string table; the sheets hold references to it.
+    match: (p) => p === 'xl/sharedStrings.xml',
+    ordered: false,
+  };
+}
+
+/** The slide number in `ppt/slides/slide12.xml`, for putting a deck back in its own order. */
+export const slideNumber = (path: string): number => Number(path.match(/slide(\d+)\.xml$/)?.[1] ?? 0);
+
+/**
+ * The readable text inside one office XML part.
+ *
+ * Office XML wraps every run of text in `<a:t>` (slides) or `<w:t>` (documents). Stripping all tags
+ * indiscriminately welds words together — `<w:t>Market</w:t><w:t>Movers</w:t>` becomes
+ * `MarketMovers` — so the runs are extracted and joined with a space instead.
+ */
+export function textFromOfficeXml(xml: string): string {
+  const runs = [...xml.matchAll(/<(?:[aw]:)?t(?:\s[^>]*)?>([\s\S]*?)<\/(?:[aw]:)?t>/g)].map((m) => m[1]);
+  const joined = runs.join(' ');
+  return joined
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
 }
 
 /** Why this file was not taken, in a sentence a founder can act on. Null when it can be read. */
 export function refusalFor(filename: string): string | null {
   if (documentKind(filename) !== 'unsupported') return null;
   const named = NAMED.find(([pattern]) => pattern.test(filename))?.[1];
+  // Video and audio are their own answer: "export it as a PDF" is nonsense advice for a recording,
+  // and a founder told that learns the studio is not listening. The studio cannot transcribe yet —
+  // there is no ffmpeg and no transcription model on a venture box (FB-084) — and says so.
+  if (/\.(mp4|mov|avi|mkv|webm|m4v|mp3|wav|m4a|aac|flac|ogg)$/i.test(filename)) {
+    return `The studio cannot listen to “${filename}” yet — it has no way to turn a recording into `
+      + 'words. If you have a transcript or notes, those it can read.';
+  }
   return named
-    ? `“${filename}” is ${named}, and the studio can only read text documents and PDFs so far. `
-      + 'Export it as a PDF and try again, or paste the part that matters.'
-    : `The studio does not know how to read “${filename}”. It can read text documents and PDFs — `
-      + 'export it as one of those, or paste the part that matters.';
+    ? `“${filename}” is ${named}, and the studio reads text documents, PDFs, and Word, PowerPoint `
+      + 'and Excel files saved in the modern format. Re-save it as one of those, or export a PDF.'
+    : `The studio does not know how to read “${filename}”. It reads text documents, PDFs, and Word, `
+      + 'PowerPoint and Excel files — export it as one of those, or paste the part that matters.';
 }
 
 /**
@@ -94,11 +150,27 @@ export function describeExtraction(e: Extraction): string {
   return `I read ${e.name} — ${pages}about ${rounded} words.`;
 }
 
-/** What a founder is told when a document had nothing readable in it. */
-export function emptyRefusal(name: string): string {
-  return `“${name}” has no readable text in it — it is most likely a scan or photographs of pages `
-    + 'rather than a document. Nothing was saved, because saving an empty file under that name would '
-    + 'teach your venture that the document is blank. A version with selectable text would work.';
+/**
+ * What a founder is told when a document had (almost) nothing readable in it.
+ *
+ * The cause is NOT assumed. The first version said "it is most likely a scan or photographs of
+ * pages" for everything under the threshold — and a `.docx` that extracted perfectly but happened to
+ * contain thirteen words got told it was a photograph. Being confidently wrong about the cause is
+ * how a founder starts distrusting the parts that are right: they can see the document is not a scan,
+ * so what else is the studio guessing at?
+ *
+ * Nothing at all is a scan. A little is a short document, and worth saying differently.
+ */
+export function emptyRefusal(name: string, text = ''): string {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words === 0) {
+    return `“${name}” has no readable text in it — most likely a scan or photographs of pages rather `
+      + 'than a document. Nothing was saved, because saving an empty file under that name would teach '
+      + 'your venture that the document is blank. A version with selectable text would work.';
+  }
+  return `“${name}” only has ${words} words of readable text in it. Nothing was saved, because that `
+    + 'is usually a sign the document did not come through properly rather than that it is genuinely '
+    + 'that short. If it really is that short, paste it into the chat instead.';
 }
 
 /**

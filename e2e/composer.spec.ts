@@ -104,13 +104,23 @@ test.describe('describing what you want, without leaving the studio', () => {
   test('a format it cannot read is refused by name, with a way forward (FB-078)', async ({ page }) => {
     // "Unsupported file type" reads as a shrug; naming the format reads as a decision.
     await page.goto('/venture/arca/composer');
+    // FB-084 reads .pptx now; `.ppt` is the OLD binary format and genuinely is not supported.
     await page.getByTestId('composer-file').setInputFiles({
-      name: 'deck.pptx',
-      mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      buffer: Buffer.from('PK'),
+      name: 'deck.ppt', mimeType: 'application/vnd.ms-powerpoint', buffer: Buffer.from('older'),
     });
-    await expect(page.getByTestId('composer-error')).toContainText('a slide deck');
-    await expect(page.getByTestId('composer-error')).toContainText('Export it as a PDF');
+    await expect(page.getByTestId('composer-error')).toContainText('an older slide deck');
+    await expect(page.getByTestId('composer-error')).toContainText('Re-save it');
+  });
+
+  test('a recording is not told to export itself as a PDF (FB-084)', async ({ page }) => {
+    // Nonsense advice for a video, and a founder given it learns the studio is not listening. There
+    // is no ffmpeg and no transcription on a venture box, and the refusal says so.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-file').setInputFiles({
+      name: 'customer-call.mp4', mimeType: 'video/mp4', buffer: Buffer.from('not really a video'),
+    });
+    await expect(page.getByTestId('composer-error')).toContainText('cannot listen');
+    await expect(page.getByTestId('composer-error')).toContainText('transcript');
   });
 
   test('a PDF with no text layer is refused rather than deposited empty (FB-078)', async ({ page }) => {
