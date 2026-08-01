@@ -9,6 +9,7 @@ import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { STATUS_LABEL } from '@/lib/glossary';
+import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
@@ -229,7 +230,7 @@ export function VentureBoard({
         </div>
       ) : null}
 
-      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} /> : null}
+      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} /> : null}
 
       {/* The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately. */}
@@ -330,10 +331,18 @@ export function VentureBoard({
               ) : null}
             </div>
           ) : lane.total === 0 ? (
-            <p className="card muted" data-testid="lane-empty">
-              No tickets on the default branch (<span className="mono">{lane.ref}</span>) yet. If this
-              venture&rsquo;s backlog lives on another branch, it needs to be on the default branch to show here.
-            </p>
+            /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
+               useless — a founder cannot tell from it whether they are waiting, whether something
+               broke, or whether they were meant to do something first. */
+            <div className="card" data-testid="lane-empty">
+              <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('tickets', venture.hasComposer).what}</p>
+              <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
+                {emptyPanel('tickets', venture.hasComposer).how}
+              </p>
+              <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.4rem 0 0' }}>
+                Reading <span className="mono">{lane.ref}</span> — a backlog on another branch will not show here.
+              </p>
+            </div>
           ) : (
             <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(14rem, 1fr))' }}>
               {GROUPS.map((g) => (

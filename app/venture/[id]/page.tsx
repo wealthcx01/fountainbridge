@@ -7,6 +7,8 @@ import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { loadApprovals, attachBudgetDisclosure, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
 import { historyFor } from '@/lib/activegraph-log';
+import { boardState } from '@/lib/firstrun';
+import { FirstRun, BoardUnreadable } from '@/components/FirstRun';
 import { narrate, narrateFault } from '@/lib/activegraph';
 import type { ApprovalHistory } from '@/components/ApprovalCard';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
@@ -151,9 +153,47 @@ export default async function VenturePage({
     degraded: runsDegraded || attention.errors.length > 0 || !!budgetsError,
   });
 
+  // FB-066: day one. A founder whose venture has produced nothing meets a welcome and ONE action,
+  // not four well-written empty boxes that between them argue the product does nothing.
+  //
+  // Every read failure is collected first, because a welcome shown over an unreadable venture states
+  // a fact we do not have: it tells the founder their venture is a blank page when the truth is that
+  // the studio could not see it.
+  const readFailures = [
+    ...lanes.filter((l) => l.error).map((l) => l.error as string),
+    ...health.repos.filter((r) => r.error).map((r) => r.error as string),
+    ...attention.errors,
+    ...(runsDegraded ? ['The studio could not read what your team has been doing.'] : []),
+    ...(budgetsError ? [budgetsError] : []),
+  ];
+  const state = boardState({
+    ticketCount: lanes.reduce((n, l) => n + l.total, 0),
+    runCount: runs.total,
+    approvalCount: approvals.length,
+    // Anything a repo has already done — a commit, a merged PR, a build. A venture with a failing
+    // build and nothing else is not brand new, and must not be greeted as though it were.
+    historyCount: health.repos.reduce((n, r) => n + r.activity.length + (r.latestRun ? 1 : 0), 0),
+    readFailures,
+  });
+  const hasComposer = ventureChatUrl(venture.vpsHost) !== null;
+
+  if (state.kind === 'first-run') {
+    return (
+      <FirstRun
+        ventureId={venture.id}
+        ventureName={venture.name}
+        founderName={venture.founderName}
+        hasComposer={hasComposer}
+      />
+    );
+  }
+  if (state.kind === 'unreadable') {
+    return <BoardUnreadable ventureId={venture.id} ventureName={venture.name} reasons={state.reasons} />;
+  }
+
   return (
     <VentureBoard
-      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer: ventureChatUrl(venture.vpsHost) !== null }}
+      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer }}
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}

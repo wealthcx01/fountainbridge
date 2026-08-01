@@ -20,6 +20,11 @@ export default async function Home() {
 
   const visible = ventures.filter((v) => access.isAdmin || access.ventureIds.includes(v.id));
 
+  // FB-066: a founder with one venture never sees a picker. Choosing between one thing is not a
+  // choice — it is a page in the way of the thing they came for. The list stays for admins, who
+  // genuinely are choosing.
+  if (!access.isAdmin && visible.length === 1) redirect(`/venture/${visible[0].id}`);
+
   return (
     <section>
       <p className="eyebrow">
