@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "venture": "arca",
+  "repo": "wealthcx01/arca-marketing",
+  "id": "live-proof-fb071",
+  "at": "2026-08-01T00:00:00Z",
+  "seq": 3,
+  "type": "approval.granted",
+  "actor": {
+    "kind": "human",
+    "id": "john@bruntsfield.capital"
+  },
+  "attestation": "bd12eaf4b2314fb1ada2168db9d220541536eaabc519d7d3f821bcacc07c6144"
+}
