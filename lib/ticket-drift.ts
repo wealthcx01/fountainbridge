@@ -57,8 +57,18 @@
  * switch off protects nothing.
  */
 
-/** Statuses that mean the work is finished. Anything else, with shipping evidence, is drift. */
-const FINISHED = new Set(['done', 'shipped', 'merged', 'closed']);
+/**
+ * Words that mean the work is concluded, matched on the status's FIRST word.
+ *
+ * First-word matching rather than whole-string equality, because a status carries a qualifier as
+ * often as not — "Closed — not a defect", "Done (partly reverted)". Requiring an exact match makes
+ * the check demand that a perfectly honest status be flattened into one word, which is the opposite
+ * of what it is for. "In review" and "In progress (design)" both start with "in" and stay flagged.
+ */
+const FINISHED = new Set(['done', 'shipped', 'merged', 'closed', 'withdrawn', 'superseded']);
+
+const firstWord = (status: string): string =>
+  status.trim().toLowerCase().split(/[\s—–-]+/)[0] ?? '';
 
 /** Statuses that mean nobody has started, so shipping evidence is even more clearly wrong. */
 const NOT_STARTED = new Set(['todo', 'planned', 'open', 'backlog']);
@@ -118,12 +128,12 @@ export function findDrift(tickets: TicketRecord[], evidence: ShippingEvidence): 
   for (const t of tickets) {
     if (!evidence.shipped.has(t.id)) continue;
     const status = t.status.trim().toLowerCase();
-    if (FINISHED.has(status)) continue;
+    if (FINISHED.has(firstWord(status))) continue;
     // The ticket has already answered this, in writing, where a reader will see it.
     if (t.partShipped) continue;
 
     const commit = evidence.commitFor.get(t.id) ?? '(unknown commit)';
-    const verb = NOT_STARTED.has(status)
+    const verb = NOT_STARTED.has(firstWord(status))
       ? `says "${t.status}" but its work has already shipped`
       : `says "${t.status}" but its work has shipped`;
     drift.push({
