@@ -26,11 +26,19 @@ test('admin (John) sees every venture', async ({ page }) => {
 });
 
 test('founder (Ross) sees only the-reset', async ({ page }) => {
+  // FB-066 changed the surface but not the property: a founder with one venture is taken straight
+  // into it instead of being shown a list of one. Isolation is asserted on what he can REACH, which
+  // is the thing that actually matters and is enforced server-side (CLAUDE.md #6) — a picker he
+  // cannot see was never the guarantee.
   await testLogin(page, 'ross@bruntsfield.capital');
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByTestId('venture-the-reset')).toBeVisible();
-  await expect(page.getByTestId('venture-arca')).toHaveCount(0);
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/venture\/the-reset$/);
   await page.screenshot({ path: `${SHOTS}/02-founder-scoped.png`, fullPage: true });
+
+  // And ARCA is still refused when asked for by name, not merely absent from a list.
+  await page.goto('/venture/arca');
+  await expect(page.getByTestId('venture-forbidden')).toBeVisible();
+  await expect(page.getByTestId('col-todo')).toHaveCount(0);
 });
 
 test('an unlisted account is refused', async ({ page }) => {

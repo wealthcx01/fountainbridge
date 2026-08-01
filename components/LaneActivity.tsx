@@ -1,3 +1,4 @@
+import { emptyPanel } from '@/lib/firstrun';
 import type { RunReport } from '@/lib/runreports';
 import { describeRun } from '@/lib/runreports';
 import { toneColor, type Tone } from '@/lib/status';
@@ -16,10 +17,13 @@ export function LaneActivity({
   reports,
   total,
   engine,
+  hasComposer = true,
 }: {
   reports: RunReport[];
   total: number;
   engine: { state: string; text: string };
+  /** FB-066: a venture with no box has no composer to be told, so the empty state offers no action. */
+  hasComposer?: boolean;
 }) {
   const engineTone: Tone = engine.state === 'stalled' ? 'blocked' : engine.state === 'unknown' ? 'idle' : 'working';
 
@@ -47,10 +51,13 @@ export function LaneActivity({
       </p>
 
       {reports.length === 0 ? (
-        <p className="card muted" data-testid="lane-activity-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
-          No runs recorded yet. When a lane picks up a ticket, what it did — and why it stopped, if it
-          did — appears here.
-        </p>
+        /* FB-066: name what would fill it, then say what starts it. */
+        <div className="card" data-testid="lane-activity-empty">
+          <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('runs', hasComposer).what}</p>
+          <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
+            {emptyPanel('runs', hasComposer).how}
+          </p>
+        </div>
       ) : (
         <ol data-testid="lane-activity-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {reports.map((r, i) => {
