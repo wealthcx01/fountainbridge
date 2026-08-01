@@ -267,7 +267,28 @@ const CHECKBOX = /^\s{0,3}[-*+]\s+\[[ xX]?\]\s*(.*)$/;
  */
 const LABELLED = /^\s{0,3}\*\*[^*\n]+\*\*/;
 
-export function parseReply(reply: string): ReplyBlock[] {
+/**
+ * Characters from Unicode's Private Use Area — no meaning outside the system that wrote them.
+ *
+ * The web-search tool marks its citations with them: a real reply came back reading
+ * `…GemRate owns population data\ue200\ue202turn1search1\ue202turn1search2\ue201 ARCA's own
+ * backlog…`. In a founder's browser those render as blank boxes or vanish, taking the space between
+ * two sentences with them, so the prose reads as though it were corrupted.
+ *
+ * Stripped rather than translated: they point at search results the studio does not render, so
+ * there is nothing to turn them into. Found by reading a live reply, not by any check — the machine
+ * scan looked for English words like "CI" and these are not words.
+ */
+const PRIVATE_USE = /[\uE000-\uF8FF\uFFF9-\uFFFB]/g;
+
+export function stripPrivateMarkers(text: string): string {
+  // The join is deliberate: removing the markers can leave a sentence welded to the next one, and
+  // "…population data ARCA's own backlog…" reads worse than the markers did.
+  return text.replace(PRIVATE_USE, '').replace(/([.!?])(\p{Lu})/gu, '$1 $2');
+}
+
+export function parseReply(rawReply: string): ReplyBlock[] {
+  const reply = stripPrivateMarkers(rawReply);
   const blocks: ReplyBlock[] = [];
   let paragraph: string[] = [];
   let fence: string[] | null = null;

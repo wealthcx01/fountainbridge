@@ -1,6 +1,6 @@
 # FB-079 — The composer does not use our own guides
 
-**Status:** Todo · **Phase:** 3 · **Depends on:** FB-013 (the playbook), FB-018 (the frameworks),
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-013 (the playbook), FB-018 (the frameworks),
 FB-065 (the composer inside the studio) · **Repo:** fountainbridge (+ venture box) ·
 **Branch:** `fb-079-the-composer-does-not-use-our-own-guides` · One ticket = one branch = one PR.
 
@@ -72,12 +72,96 @@ instead of writing a better acceptance criterion.
   needs John's wording. This ticket is about the everyday composer.
 - Writing new guide content. What exists is enough to start.
 
+## The decision the ticket asked for: embed, and test against drift
+The guides live in `content/playbook/` in the **studio** repository. The composer's prompt lives in
+`deploy/librechat/seed-agent.js` and runs on a **venture box**, which has no access to that
+repository at all — the venture brain indexes the venture's own repo, not ours.
+
+So referencing the guides was never available. The prompt has to carry a distilled copy, which is two
+copies of the same claim and therefore drift waiting to happen: someone rewrites the playbook, and the
+composer carries on asking founders questions from a version of the method we no longer believe,
+linking a page that now says something else.
+
+The mechanism, rather than a promise: **`lib/__tests__/method-drift.test.ts` reads both** and fails if
+they stop agreeing. It asserts the distilled claims are still supported by the source — *benefit
+without a barrier*, *can't or won't copy*, counter-positioning, cornered resource, beachhead, *one
+specific group* — and that **every `/playbook/...` page the prompt cites still exists**. A link to a
+page that does not exist is worse than no link: it teaches a founder the studio's own references are
+unreliable.
+
+It deliberately does not compare wording. The prompt is a distillation and should read differently.
+What must not change is what it claims.
+
+## The three asks, run live on ARCA
+| Ask | Words | Cites | Framework question? |
+| --- | --- | --- | --- |
+| *"Card prices look stale"* | 216 | none | **none** — "Before I file — nothing, say the word." |
+| *"I want to add a paid tier for serious collectors"* | 252 | `/playbook/moats` | yes, and a good one |
+| *"Who should we be selling ARCA to first?"* | 309 | none | yes, on substance |
+
+The gate works: the maintenance ask drew nothing. That mattered more than the other two, because a
+founder who gets a strategy question about a broken image stops telling you about broken images.
+
+**The pricing ask produced the question the method exists for**, and grounded it in their actual
+competitor rather than in the abstract:
+
+> *Before I file — a paid tier is easy for a rival like Market Movers to copy in a fortnight since
+> they already have one. What would make a serious collector choose ARCA's paid tier specifically —
+> is it the depth of analytics (ARCA Score, real history), or something else only ARCA can offer?
+> (This is the "barrier" question — /playbook/moats.)*
+
+**The beachhead ask reached for the idea but abandoned the four-part shape.** It researched the market
+unprompted — Card Ladder at ~$150/yr for institutional analytics, Market Movers at ~$9.99/mo for
+hobbyists, GemRate owning grading data — read ARCA's own backlog, observed that a screener-and-scores
+product matches the investor end rather than the collector end, and asked one sharp question:
+investor/flipper, or collector managing their own holdings.
+
+That is the right answer and the wrong format. It is defensible — the ask was a *question*, not a
+request for work, so "What I'd do / What I'd leave alone / Before I file" does not fit — but it means
+the shape FB-073 established is not universal, and nothing decides when it applies.
+
+## The honest judgement the ticket asked for
+> *"Did the question make the resulting work better, or did it just make the conversation longer?"*
+
+**Better, on the pricing ask.** Without it the composer would have filed a competent ticket for a paid
+tier and nobody would have asked what stops a competitor shipping one next month. That is the
+difference between a feature and a decision.
+
+**Longer, not better, on the beachhead ask** — though only because it was already a strategy question.
+The research was genuinely useful; the composer would have done most of it anyway.
+
+**Correctly absent on the maintenance ask.**
+
+## A defect found by reading a live reply
+The beachhead answer came back containing this, verbatim, in front of a founder:
+
+```
+…GemRate owns population and grading-trend data.\ue200\ue202turn1search1\ue202turn1search2\ue201 ARCA's own backlog…
+```
+
+Private Use Area characters — the web-search tool's citation markers, meaningless outside the tool
+that wrote them, and rendering in a browser as blank boxes or nothing at all, taking the sentence
+break with them.
+
+**No check caught this.** The machine-word scan looks for English like `CI` and `PRP`; these are not
+words. It was found by reading a reply. They are now stripped before the reply is parsed, and the
+sentence boundary they were sitting on is restored — because removing them silently leaves
+*"…population data ARCA's own backlog…"*, which reads worse than the markers did.
+
 ## Acceptance criteria
-- [ ] A venture-shaping ask draws one relevant question from the method.
-- [ ] A small maintenance ask draws none.
-- [ ] Where a framework is used, the founder can reach the studio's own page for it.
-- [ ] The method exists in one place, and the ticket says how drift is prevented.
-- [ ] The composer never lectures: no request produces an unasked-for summary of a framework.
+- [x] A venture-shaping ask draws one relevant question from the method.
+- [x] A small maintenance ask draws none.
+- [x] Where a framework is used, the founder can reach the studio's own page for it — and a test
+      proves the page exists.
+- [x] The method exists in one place, and the ticket says how drift is prevented, with a mechanism.
+- [x] The composer never lectures — no framework summary appeared in any of the three replies.
+- [~] **The four-part read-back is not universal.** A question rather than a request produced a good
+      answer in a different shape. Nothing currently decides which shape applies, and this ticket did
+      not attempt it.
+
+## Verification
+8 unit tests over the drift seam and 4 over the citation markers, plus the three live asks recorded
+above.
 
 ## Verification
 `/review` + CI, then three real asks on ARCA, with the replies recorded in the ticket:
