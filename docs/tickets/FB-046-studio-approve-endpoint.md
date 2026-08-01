@@ -1,6 +1,6 @@
 # FB-046 — In-studio approvals: the founder-facing end of the gate
 
-**Status:** In review · **Phase:** 3 · **Depends on:** FB-044 (gated executor + attestation), FB-007
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-044 (gated executor + attestation), FB-007
 (attention queue) · **Repo:** fountainbridge · **Branch:** `fb-046-studio-approve-endpoint`
 One ticket = one branch = one PR.
 

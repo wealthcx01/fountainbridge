@@ -1,6 +1,6 @@
 # FB-033 — Composer write path via stdio MCP + the Foundry Composer agent
 
-**Status:** In progress · **Phase:** 3 · **Depends on:** FB-025 (composer surface live),
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-025 (composer surface live),
 FB-030 (arca tickets render) · **Repo:** fountainbridge (+ ARCA Hetzner VM)
 **Branch:** `fb-033-stdio-write-tool` · One ticket = one branch = one PR.
 

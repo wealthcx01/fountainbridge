@@ -1,6 +1,6 @@
 # FB-039 — Venture lane runtime + the founder→lane spike
 
-**Status:** In review · **Phase:** 2 · **Depends on:** FB-037 (design) · **Repo:** fountainbridge
+**Status:** Done · **Phase:** 2 · **Depends on:** FB-037 (design) · **Repo:** fountainbridge
 (+ ARCA Hetzner VM) · **Branch:** `fb-039-venture-lane-runtime` · One ticket = one branch = one PR.
 
 ## Why this matters (for the founder)

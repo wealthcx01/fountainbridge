@@ -1,6 +1,6 @@
 # FB-034 — Persistent venture knowledge base for the composer (RAG)
 
-**Status:** In progress · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
 **Repo:** fountainbridge (+ ARCA Hetzner VM)
 **Branch:** `fb-034-composer-rag-knowledge-base` · One ticket = one branch = one PR.
 

@@ -1,6 +1,6 @@
 # FB-056 — Venture "founding run" (apply meridian's founding run — venture-in-a-day)
 
-**Status:** In review · **Phase:** 5 · **Depends on:** FB-041 (lane loop), FB-050 (gbrain), FB-003
+**Status:** Done · **Phase:** 5 · **Depends on:** FB-041 (lane loop), FB-050 (gbrain), FB-003
 (manifest) · **Repo:** fountainbridge · **Branch:** `fb-056-venture-founding-run` · One ticket = one branch = one PR.
 
 ## Why this matters (for the founder)

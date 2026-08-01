@@ -1,6 +1,6 @@
 # FB-052 — PRP + validation loops (fully apply Cole Medin / Rasmus's PRP)
 
-**Status:** In review · **Phase:** 3 · **Depends on:** FB-041 (the lane loop), FB-050 (gbrain) · **Repo:**
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-041 (the lane loop), FB-050 (gbrain) · **Repo:**
 fountainbridge · **Branch:** `fb-052-prp-validation-loops` · One ticket = one branch = one PR.
 
 **Design:** `docs/lane-rpiv-loop.md` §"The PRP and its validation loop".

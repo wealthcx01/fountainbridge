@@ -1,6 +1,6 @@
 # FB-048 — Build / Sell / Scale as three founder-owned surfaces
 
-**Status:** In review · **Phase:** 2 · **Depends on:** FB-006 (venture board), FB-037 (dept-generic
+**Status:** Done · **Phase:** 2 · **Depends on:** FB-006 (venture board), FB-037 (dept-generic
 loop) · **Repo:** fountainbridge · **Branch:** `fb-048-build-sell-scale-surfaces` · One ticket = one
 branch = one PR.
 

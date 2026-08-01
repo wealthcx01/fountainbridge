@@ -1,6 +1,6 @@
 # FB-037 — Founder→lane execution mechanism (design + spike)
 
-**Status:** In progress (design) · **Phase:** 2 · **Depends on:** FB-033 (a ticket can be filed from
+**Status:** Done · **Phase:** 2 · **Depends on:** FB-033 (a ticket can be filed from
 the composer) · **Repo:** fountainbridge (+ per-venture Hetzner VM)
 **Branch:** `fb-037-founder-to-lane-execution` · One ticket = one branch = one PR.
 

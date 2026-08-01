@@ -1,6 +1,6 @@
 # FB-043 — Second-brain bridge: composer deposits → git context/library → the lanes
 
-**Status:** In review · **Phase:** 2/3 · **Depends on:** FB-033 (composer write-path), FB-039/040
+**Status:** Done · **Phase:** 2/3 · **Depends on:** FB-033 (composer write-path), FB-039/040
 (lane runtime) · **Repo:** fountainbridge (+ ARCA Hetzner VM)
 **Branch:** `fb-043-second-brain-bridge` · One ticket = one branch = one PR.
 

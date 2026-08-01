@@ -149,6 +149,19 @@ jobs:
       - name: Enforce the studio design contract
         run: make design-lint
 
+  ticket-drift:
+    name: Tickets match the history
+    runs-on: ubuntu-latest
+    # FB-070: needs the full history — the check reads every commit on main to see what shipped, and
+    # a shallow clone would silently find nothing and pass.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - name: Check tickets against what shipped
+        run: make ticket-drift
+
   provision:
     name: Provision scripts
     runs-on: ubuntu-latest
