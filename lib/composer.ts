@@ -317,6 +317,43 @@ export function parseReply(reply: string): ReplyBlock[] {
 /** Is there a ticket draft in this reply — i.e. something the founder could be shown on request? */
 export const hasDraft = (blocks: ReplyBlock[]): boolean => blocks.some((b) => b.kind === 'draft');
 
+/**
+ * The title of the draft on the table, so agreeing to it can name it (FB-075).
+ *
+ * The composer's ticket format opens with `# ARCA-NEW — Market page price freshness`. Taking that
+ * line means the founder's yes can say *which* thing it is agreeing to, instead of the word "yes"
+ * floating in a conversation and the composer deciding for itself what was meant.
+ *
+ * That matters because it already went wrong: asked to file, the composer once answered *"I don't
+ * have a drafted ticket from earlier in this conversation"* — the agreement and the draft had come
+ * apart. Naming the draft is what stops a yes attaching to the wrong thing.
+ */
+export function draftTitle(blocks: ReplyBlock[]): string | null {
+  const draft = blocks.find((b) => b.kind === 'draft');
+  if (!draft) return null;
+  for (const line of draft.text.split('\n')) {
+    const heading = line.match(/^\s{0,3}#{1,6}\s+(.*\S)/);
+    if (heading) return heading[1].trim();
+    if (line.trim()) return line.trim().slice(0, 120);   // no heading: the first real line will do
+  }
+  return null;
+}
+
+/**
+ * What pressing "File this" sends.
+ *
+ * Deliberately not the bare word "yes". The whole conversation is sent on every turn, so the draft
+ * is in front of the composer either way — but naming it means a reply that has moved on can notice
+ * the mismatch instead of filing whatever it last thought of.
+ */
+export function fileThisMessage(title: string | null): string {
+  return title
+    ? `Yes — file exactly the ticket you just drafted, titled “${title}”, with no changes. `
+      + 'If that is not the draft you have in front of you, stop and tell me rather than filing something else.'
+    : 'Yes — file exactly the ticket you just drafted, with no changes. '
+      + 'If you do not have a draft in front of you, stop and tell me rather than filing something else.';
+}
+
 /** The largest document the studio will carry into a conversation, in characters. */
 export const MAX_DOCUMENT_CHARS = 60_000;
 

@@ -290,3 +290,33 @@ describe('keeping the read-back’s four parts apart', () => {
     expect(parseReply('this is **important** and continues\nhere')).toHaveLength(1);
   });
 });
+
+describe('agreeing to a specific draft', () => {
+  it('names the draft, so a yes cannot attach to the wrong thing', async () => {
+    // It already went wrong once: asked to file, the composer answered "I don't have a drafted
+    // ticket from earlier in this conversation" — the agreement and the draft had come apart.
+    const { parseReply, draftTitle, fileThisMessage } = await import('../composer');
+    const blocks = parseReply('Here it is.\n```\n# ARCA-NEW — Market page price freshness\n## Scope\n- x\n```');
+    const title = draftTitle(blocks);
+    expect(title).toBe('ARCA-NEW — Market page price freshness');
+    const msg = fileThisMessage(title);
+    expect(msg).toContain('Market page price freshness');
+    expect(msg).toContain('stop and tell me rather than filing something else');
+  });
+
+  it('falls back to the first real line when the draft has no heading', async () => {
+    const { parseReply, draftTitle } = await import('../composer');
+    expect(draftTitle(parseReply('x\n```\nsome ticket without a heading\nmore\n```'))).toBe('some ticket without a heading');
+  });
+
+  it('offers nothing to agree to when there is no draft', async () => {
+    // The button must never appear meaninglessly, or a founder learns it sometimes does nothing.
+    const { parseReply, draftTitle } = await import('../composer');
+    expect(draftTitle(parseReply('Just a question — whole market, or held cards only?'))).toBeNull();
+  });
+
+  it('still guards against filing the wrong thing when it has no title to name', async () => {
+    const { fileThisMessage } = await import('../composer');
+    expect(fileThisMessage(null)).toContain('stop and tell me');
+  });
+});

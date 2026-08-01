@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  documentRefusal, drainSse, emptyStream, formatInline, parseReply, reduceChunk, withDocument,
+  documentRefusal, draftTitle, drainSse, emptyStream, fileThisMessage, formatInline, hasDraft,
+  parseReply, reduceChunk, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
 import { toneColor } from '@/lib/status';
@@ -40,6 +41,7 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
   const [restored, setRestored] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Restore before first paint of the list, so a returning founder never sees their thread flash empty.
   useEffect(() => {
@@ -63,8 +65,13 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
 
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, live]);
 
-  const send = useCallback(async () => {
-    const text = withDocument(draft, doc);
+  // What, if anything, is on the table right now — the title of the draft in the newest reply. Null
+  // when the composer has not drafted anything, which is most turns.
+  const last = messages[messages.length - 1];
+  const decision = last?.role === 'assistant' ? draftTitle(parseReply(last.content)) : null;
+
+  const send = useCallback(async (override?: string) => {
+    const text = override ?? withDocument(draft, doc);
     if (!text.trim() || sending) return;
 
     // Trimmed here, not only on the way to storage: otherwise a long session sends an ever-growing
@@ -180,8 +187,36 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
         </p>
       ) : null}
 
+      {/* FB-075: the decision the whole surface exists for, as a control rather than a sentence the
+          founder has to guess. Shown only when there is a real draft on the table, so it is never a
+          button that means nothing. */}
+      {decision && !sending ? (
+        <div data-testid="composer-decision" style={{ marginTop: '1rem', display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-testid="composer-file-this"
+            onClick={() => void send(fileThisMessage(decision))}
+          >
+            File this
+          </button>
+          <button
+            type="button"
+            className="btn"
+            data-testid="composer-change"
+            onClick={() => inputRef.current?.focus()}
+          >
+            Change something
+          </button>
+          <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>
+            Nothing is built until you press it.
+          </span>
+        </div>
+      ) : null}
+
       <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', maxWidth: 'var(--content-narrow)' }}>
         <textarea
+          ref={inputRef}
           data-testid="composer-input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -215,18 +250,28 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
           <button type="button" className="btn" data-testid="composer-attach" disabled={sending} onClick={() => fileInput.current?.click()}>
             Add a document
           </button>
-          {messages.length > 0 ? (
+        </div>
+
+        {/* FB-075: away from Send, and it asks first. A founder deliberately writing at length
+            should not be one mis-click from losing all of it. */}
+        {messages.length > 0 ? (
+          <p style={{ margin: '0.6rem 0 0' }}>
             <button
               type="button"
               className="btn"
               data-testid="composer-clear"
               disabled={sending}
-              onClick={() => { setMessages([]); setError(null); }}
+              onClick={() => {
+                // Two turns is a greeting; more than that is a conversation worth confirming.
+                if (messages.length > 2 && !window.confirm('Start again? This clears the whole conversation.')) return;
+                setMessages([]);
+                setError(null);
+              }}
             >
               Start again
             </button>
-          ) : null}
-        </div>
+          </p>
+        ) : null}
       </div>
     </section>
   );
