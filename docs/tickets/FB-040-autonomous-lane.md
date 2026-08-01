@@ -1,6 +1,6 @@
 # FB-040 — Autonomous lane: scan + budget + circuit-breaker + gate routing
 
-**Status:** In review · **Phase:** 2 · **Depends on:** FB-039 (lane runtime + supervisor) · **Repo:**
+**Status:** Done · **Phase:** 2 · **Depends on:** FB-039 (lane runtime + supervisor) · **Repo:**
 fountainbridge (+ ARCA Hetzner VM) · **Branch:** `fb-040-autonomous-lane` · One ticket = one branch =
 one PR.
 

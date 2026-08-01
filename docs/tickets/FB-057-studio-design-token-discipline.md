@@ -1,6 +1,6 @@
 # FB-057 — Studio design-token discipline (apply meridian's ARCHITECTURE rubric)
 
-**Status:** In review · **Phase:** 3/5 · **Depends on:** the studio UI (FB-005+) · **Repo:** fountainbridge
+**Status:** Done · **Phase:** 3/5 · **Depends on:** the studio UI (FB-005+) · **Repo:** fountainbridge
 **Branch:** `fb-057-studio-design-token-discipline` · One ticket = one branch = one PR.
 
 **Design:** `docs/studio-design-contract.md` — written by this ticket, and the thing CI now enforces.

@@ -4,6 +4,8 @@
 **Repo:** fountainbridge (+ a control host) · **Branch:** `fb-044-gated-executor-activegraph`
 One ticket = one branch = one PR.
 
+**Shipped in part:** the executor is built, tested and gated, and it runs nothing yet — it has never been deployed to a machine. Nothing external can execute until it is, which is the point: the gate is real because the thing behind it does not exist yet.
+
 ## Why this matters (for the founder)
 This is what makes an autonomous agent *safe* to run your company: it can *propose* something that
 goes outside the building (an email, a deploy) but it can never *do* it. Only you (or the right

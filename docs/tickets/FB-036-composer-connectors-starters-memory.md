@@ -1,6 +1,6 @@
 # FB-036 — Composer connectors, conversation starters, and memory
 
-**Status:** In progress · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
 **Repo:** fountainbridge (+ ARCA Hetzner VM)
 **Branch:** `fb-036-composer-connectors-starters-memory` · One ticket = one branch = one PR.
 

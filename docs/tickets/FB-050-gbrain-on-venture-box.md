@@ -1,6 +1,6 @@
 # FB-050 — gbrain semantic brain on the venture box (fully apply gbrain + Cole's Archon RAG)
 
-**Status:** In review · **Phase:** 2/3 · **Depends on:** FB-043 (context/library in git) · **Repo:**
+**Status:** Done · **Phase:** 2/3 · **Depends on:** FB-043 (context/library in git) · **Repo:**
 fountainbridge (+ venture VM) · **Branch:** `fb-050-gbrain-on-venture-box` · One ticket = one branch = one PR.
 
 **Design:** `docs/venture-brain.md`.

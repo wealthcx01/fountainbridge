@@ -1,6 +1,6 @@
 # FB-064 — Read and accept work without leaving the studio
 
-**Status:** In review · **Phase:** 3 · **Depends on:** FB-007 (the attention queue), FB-020 (GitHub App),
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-007 (the attention queue), FB-020 (GitHub App),
 FB-046 (the approve pattern) · **Repo:** fountainbridge ·
 **Branch:** `fb-064-read-and-accept-work-in-the-studio` · One ticket = one branch = one PR.
 

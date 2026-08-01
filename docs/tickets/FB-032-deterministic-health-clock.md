@@ -1,6 +1,6 @@
 # FB-032 — Deterministic health-staleness clock for the e2e (E2E_NOW)
 
-**Status:** In review · **Phase:** 1 · **Depends on:** FB-008 (health strips) · **Repo:** fountainbridge
+**Status:** Done · **Phase:** 1 · **Depends on:** FB-008 (health strips) · **Repo:** fountainbridge
 **Branch:** `fb-032-deterministic-health-clock` · One ticket = one branch = one PR.
 
 ## Why this matters (for the founder)

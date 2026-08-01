@@ -1,6 +1,6 @@
 # FB-031 — Onboard the Modernisation Engine (Archon) as its own venture
 
-**Status:** In review · **Phase:** 1 · **Depends on:** FB-003 (manifest format), FB-021 (repo access)
+**Status:** Done · **Phase:** 1 · **Depends on:** FB-003 (manifest format), FB-021 (repo access)
 **Repo:** fountainbridge · **Branch:** `fb-031-modernisation-engine-venture` · One ticket = one branch = one PR.
 
 ## Why this matters (for the founder)

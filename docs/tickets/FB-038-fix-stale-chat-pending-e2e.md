@@ -1,6 +1,6 @@
 # FB-038 — Fix stale `venture-chat-pending` e2e assertion (main CI red)
 
-**Status:** In review · **Phase:** 1 · **Depends on:** FB-025 (ARCA chat link went live)
+**Status:** Done · **Phase:** 1 · **Depends on:** FB-025 (ARCA chat link went live)
 **Repo:** fountainbridge · **Branch:** `fb-038-fix-stale-chat-pending-e2e` · One ticket = one branch = one PR.
 
 ## Why this matters (for the founder)

@@ -1,6 +1,6 @@
 # FB-035 — Web search + research agent(s) for ticket context
 
-**Status:** In progress · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-033 (composer agent + tool wired)
 **Repo:** fountainbridge (+ ARCA Hetzner VM)
 **Branch:** `fb-035-composer-web-search-research-agent` · One ticket = one branch = one PR.
 
