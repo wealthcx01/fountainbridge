@@ -102,3 +102,26 @@ node scripts/design-lint.mjs --list  # the rules, with the reason for each
 What the linter deliberately does **not** check: spacing rhythm, hierarchy, whether a screen is
 *good*. Those need an eye — `/design-review` and `/review`. The linter's job is to stop the
 mechanical decay so review can spend its attention on the things only a person can see.
+
+
+## Reading the screenshot gallery (FB-074)
+
+The gallery is produced with Playwright's `fullPage: true`, which **stitches** a tall image out of a
+scrolling page. A `position: sticky` element — the studio header — is rendered at the position it
+occupied during that scroll, so on any page long enough to scroll it appears **in the middle of the
+image, drawn over the text.**
+
+That is an artifact of the screenshot. It does not happen in a browser.
+
+This cost an afternoon and an 800-word ticket once. Before treating a gallery image as evidence about
+the product, ask the browser:
+
+```js
+// scrolled to the middle of a real viewport, compare boxes
+const bar = document.querySelector('.topbar').getBoundingClientRect();
+[...document.querySelectorAll('p, li, h1, h2, h3')]
+  .filter((el) => { const b = el.getBoundingClientRect();
+                    return b.height > 0 && b.top < bar.bottom && b.bottom > bar.top; });
+```
+
+An empty result means nothing is covered. **A screenshot is evidence about a screenshot.**
