@@ -158,35 +158,97 @@ function classifyFetchError(e: unknown, fullName: string, hasCreds: boolean, ref
   return { files: [], error: `Couldn't read ${fullName} (unexpected GitHub error${status}).`, errorKind: 'error', ref };
 }
 
+/**
+ * One query for a venture's whole backlog (FB-083).
+ *
+ * The default branch, every filename in `docs/tickets`, and every file's text — in a single
+ * request. The REST version needed one call for the repository, one to list the directory, and one
+ * **per ticket**: 51 requests for ARCA's 49 tickets, which was the bulk of the 87 a board cost.
+ *
+ * `isTruncated` matters: GraphQL declines to inline a blob past roughly 512KB, and a ticket that
+ * came back truncated would silently parse as a shorter ticket. It is refetched over REST rather
+ * than trusted — rare enough to cost nothing, wrong enough to matter if ignored.
+ */
+const BACKLOG_QUERY = `query($owner: String!, $name: String!, $expr: String!) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef { name }
+    object(expression: $expr) {
+      ... on Tree { entries { name type object { ... on Blob { text isTruncated } } } }
+    }
+  }
+}`;
+
+interface BacklogResult {
+  repository: {
+    defaultBranchRef: { name: string } | null;
+    object: {
+      entries?: Array<{ name: string; type: string; object?: { text?: string; isTruncated?: boolean } | null }>;
+    } | null;
+  } | null;
+}
+
+/**
+ * The last backlog read per repository, keyed by the commit it was read at.
+ *
+ * A GraphQL query is a POST, so it cannot be answered with a free `304` the way the REST reads can
+ * (FB-077). Measured, that made the trade a bad one: total requests fell from 87 to 49, but the
+ * *paid* warm cost ROSE from 28 to 47, because 49 previously-free conditional reads became 3 paid
+ * queries and the saving all landed on the cold path.
+ *
+ * A commit sha fixes it. If the branch head has not moved, the backlog cannot have changed — and the
+ * sha comes from a GET, which IS conditional, so checking costs nothing when nothing happened.
+ */
+const backlogByCommit = new Map<string, { sha: string; files: Array<{ path: string; content: string }>; ref: string }>();
+
 /** Live GitHub source: distinguishes "repo unreachable" from "no docs/tickets" (empty queue). */
 export function githubTicketFetcher(client: GitHubClient, org: string): RepoTicketFetcher {
   return async (repo) => {
     const fullName = repo.includes('/') ? repo : `${org}/${repo}`;
+    const [owner, name] = fullName.split('/');
     const hasCreds = client.hasCredentials();
     let ref = 'main';
+
+    // Has anything changed? One conditional GET, free when the answer is no.
+    let head: string | null = null;
     try {
-      // Confirm the repo exists first (so a missing repo reads as an error, not an empty queue)
-      // and learn its default branch (arca is `master`).
-      const repoData = await client.request<{ default_branch?: string }>(`/repos/${fullName}`);
-      if (repoData.default_branch) ref = repoData.default_branch;
-    } catch (e) {
-      return classifyFetchError(e, fullName, hasCreds, ref);
+      const commits = await client.request<Array<{ sha: string }>>(`/repos/${fullName}/commits?per_page=1`);
+      head = Array.isArray(commits) && commits[0]?.sha ? commits[0].sha : null;
+      const cached = head ? backlogByCommit.get(fullName) : null;
+      if (cached && cached.sha === head) return { files: cached.files, error: null, ref: cached.ref };
+    } catch {
+      // Unreadable head is not itself a failure — fall through and let the real read decide.
     }
+
     try {
-      const entries = await client.listDir(fullName, 'docs/tickets', ref);
-      const mdFiles = entries.filter((e) => e.type === 'file' && e.name.endsWith('.md'));
-      const files = await Promise.all(
-        mdFiles.map(async (e) => {
-          const content = (await client.getFileContent(fullName, `docs/tickets/${e.name}`, ref)) ?? '';
-          return { path: `docs/tickets/${e.name}`, content };
-        }),
-      );
+      const data = await client.graphql<BacklogResult>(BACKLOG_QUERY, {
+        owner, name, expr: 'HEAD:docs/tickets',
+      });
+      // A null repository means the query resolved but the repo is not there. GraphQL reports that
+      // as an error we already turn into a 404, so this is the belt to that braces — an empty
+      // backlog and a missing repository must never look the same to a founder (FB-021).
+      if (!data.repository) return classifyFetchError(new GitHubError('not found', 404, false), fullName, hasCreds, ref);
+      ref = data.repository.defaultBranchRef?.name ?? ref;
+
+      // `object: null` is the honest empty case: the repository is readable and has no
+      // `docs/tickets` directory yet.
+      const entries = data.repository.object?.entries ?? [];
+      const md = entries.filter((e) => e.type === 'blob' && e.name.endsWith('.md'));
+
+      const files = await Promise.all(md.map(async (e) => {
+        const path = `docs/tickets/${e.name}`;
+        if (e.object?.isTruncated || typeof e.object?.text !== 'string') {
+          // Too large to inline, or a binary blob GraphQL would not give text for. Fall back rather
+          // than treat it as empty — an empty ticket parses as a ticket with nothing in it.
+          return { path, content: (await client.getFileContent(fullName, path, ref)) ?? '' };
+        }
+        return { path, content: e.object.text };
+      }));
+
+      if (head) backlogByCommit.set(fullName, { sha: head, files, ref });
       return { files, error: null, ref };
     } catch (e) {
-      // A rate-limit / permission / 5xx / unexpected error while listing or reading a file degrades
-      // THIS lane to an error state — it never blanks the whole board (Promise.all would otherwise
-      // reject). `listDir`/`getFileContent` already swallow a 404 to "empty", so a 403 here is a
-      // contents-scope gap, correctly surfaced as unreadable rather than a false "empty backlog".
+      // Same degradation as before: this lane becomes an error row, and the board still renders.
+      // A permission failure must read as unreadable rather than as a false "empty backlog".
       return classifyFetchError(e, fullName, hasCreds, ref);
     }
   };

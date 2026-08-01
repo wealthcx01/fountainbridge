@@ -279,6 +279,51 @@ export class GitHubClient {
     return Math.min(60_000, 1000 * 2 ** attempt);
   }
 
+  /**
+   * One GraphQL query, on GitHub's SEPARATE budget (FB-083).
+   *
+   * REST charges one request per file. A venture board read 87 of them, most one-per-ticket, which
+   * capped the studio at roughly 58 cold board views an hour — a number a founder and a colleague
+   * can reach between them on the morning after a deploy.
+   *
+   * One GraphQL query returns a whole directory's filenames AND their contents AND the default
+   * branch. Measured against the live ARCA repository: **49 ticket files, one request, one point.**
+   * And the points come from a 5,000-an-hour allowance the studio does not otherwise touch, so this
+   * does not compete with the REST reads that still handle pull requests and checks.
+   *
+   * Errors are deliberately normalised to `GitHubError` so callers keep one error vocabulary. A
+   * second API surface is the real cost of this change; a second way of failing would be worse.
+   */
+  async graphql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+    const token = await this.resolveToken();
+    githubStats.requests += 1;
+    const res = await this.fetchImpl('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    const rateLimited = res.status === 429
+      || (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0');
+    if (rateLimited) githubStats.rateLimited += 1;
+    if (!res.ok) throw new GitHubError(`GitHub GraphQL ${res.status}`, res.status, rateLimited);
+
+    const body = (await res.json()) as { data?: T; errors?: Array<{ type?: string; message?: string }> };
+    if (body.errors?.length) {
+      // GraphQL answers 200 with an errors array, so a failure here would otherwise read as success
+      // and return undefined — a repository the studio cannot see would look like an empty backlog.
+      const first = body.errors[0];
+      const status = first?.type === 'NOT_FOUND' ? 404 : first?.type === 'FORBIDDEN' ? 403 : 502;
+      throw new GitHubError(`GitHub GraphQL: ${first?.message ?? 'unknown error'}`, status, false);
+    }
+    if (!body.data) throw new GitHubError('GitHub GraphQL returned no data', 502, false);
+    return body.data;
+  }
+
   async request<T>(path: string, init?: RequestInit): Promise<T> {
     const url = path.startsWith('http') ? path : `${this.baseUrl}${path}`;
     const method = (init?.method ?? 'GET').toUpperCase();

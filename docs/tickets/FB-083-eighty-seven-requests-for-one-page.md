@@ -1,6 +1,6 @@
 # FB-083 — Eighty-seven requests to draw one page
 
-**Status:** Todo · **Phase:** 2 · **Depends on:** FB-077 (which measured this and did not fix it) ·
+**Status:** Done — with a measured regression, see below · **Phase:** 2 · **Depends on:** FB-077 (which measured this and did not fix it) ·
 **Repo:** fountainbridge · **Branch:** `fb-083-eighty-seven-requests-for-one-page` ·
 One ticket = one branch = one PR.
 
@@ -88,18 +88,73 @@ the last render. That stays on REST, needs no second client, and turns "one requ
 - Caching venture data in a database. That is a different design with different failure modes, and
   it deserves its own argument rather than arriving as a performance fix.
 
+## Both candidates, measured against the live ARCA repository
+As the ticket demanded, before writing anything:
+
+| | Result |
+| --- | --- |
+| **Git trees** | 1 request → 49 ticket paths **with blob shas**, `truncated: false`, 603ms. Blob shas are content-addressed, so a cached blob never needs revalidating. But the blobs themselves are still one request each on first sight. |
+| **GraphQL** | 1 request → the default branch, all 49 filenames **and all 49 file texts**, 1134ms, **cost: 1 point of 5,000** — from a budget the studio was not touching at all (`used: 0`). |
+
+GraphQL won on the measurement that mattered: one query replaces the repository call, the directory
+listing and 49 file reads — 51 REST requests for one.
+
+## And then the numbers said something I did not expect
+| | Before | After |
+| --- | --- | --- |
+| Total requests, cold | 86 | **53** |
+| Total requests, warm | 87 | **50** |
+| **Paid** (counting against the budget), cold | 86 | **53** |
+| **Paid, warm** | 28 | **48 — worse** |
+
+Total round trips fell by more than a third, which is real: the page is doing less work and returns
+sooner. But the **paid warm cost nearly doubled**, and that is the number that decides how many times
+a founder can open their board in an hour.
+
+The cause is structural and I should have seen it before building: **a GraphQL query is a POST, and a
+POST cannot be answered with a free `304`.** FB-077's whole saving came from conditional requests, and
+49 ticket reads that had been *free* on every warm render became 3 queries that are never free.
+
+A commit-sha check was added to claw that back — if the branch head has not moved, the backlog cannot
+have changed, and the head comes from a conditional GET. It works: the three GraphQL queries are
+skipped on a warm render. It did not recover the difference.
+
 ## Acceptance criteria
-- [ ] A cold venture board costs materially fewer than 86 requests, with the number recorded.
-- [ ] The choice between GraphQL and the trees API is decided on measurements, and both are written
-      down — including the one that lost.
-- [ ] Warm cost does not regress.
-- [ ] The read models still take an injectable source, and the UI gate still runs offline.
-- [ ] An operator can see how much of the budget is left.
+- [x] A cold venture board costs materially fewer than 86 requests: **53**, recorded above.
+- [x] Both candidates decided on measurements, with the loser written down.
+- [ ] **Warm cost does not regress. It did — 28 to 48.** This is the criterion this ticket set for
+      itself and did not meet.
+- [x] The read models still take an injectable source; the UI gate still runs offline on fixtures.
+- [ ] An operator can see how much of the budget is left. `githubBlockedUntil` exists from FB-077 and
+      still nothing renders it. Not done, again.
+
+## The judgement, left to a person
+This is not a clean win and it should not be merged as though it were.
+
+**For keeping it:** a third fewer round trips means a faster page; the cold path — every deploy, every
+restart — improved by a third; and the GraphQL points come from an allowance nothing else uses, so
+5,000 REST requests an hour now buy more.
+
+**Against:** the warm path is what a founder actually lives in, and it got more expensive. Roughly 104
+board views an hour instead of 178.
+
+**What would settle it properly** is the thing neither the ticket nor I costed: the remaining ~48
+requests are pull-request lists, commit statuses, check runs and actions runs — one set per repository
+per render. Those are now the whole bill, and GraphQL can fetch them in the same single query as the
+tickets. That is where the next third goes, and it would take the warm path below where it started.
+
+I have not done it, and I would rather say so than let a mixed result read as a finished one.
 
 ## Verification
-The same method FB-077 used, because it is the one that worked: instrument, render the real ARCA
-board three times from cold, and record the numbers in the ticket. Then the founder walk end to end
-with no read failures.
+23 unit tests over the ticket fetcher, 8 new: a whole backlog from one query; the default branch read
+from the same query (arca is `master`, and a wrong ref makes every file link 404); directories and
+non-markdown ignored; **a truncated blob refetched rather than parsed as a shorter ticket** — GraphQL
+declines to inline past ~512KB, and that is the kind of wrong that never announces itself; a missing
+`text` refetched rather than becoming an empty ticket; no `docs/tickets` reading as empty and not
+broken; a repository the studio cannot see never reading as an empty backlog (FB-021's distinction);
+and a throwing query degrading one lane rather than blanking the board.
 
-And the check FB-082 taught: **after the change, walk it again and look at what the founder sees.** A
-fix that does not change the screen has not been verified, it has only been deployed.
+Two existing FB-021 tests were updated, not deleted — they stubbed the three REST calls this
+replaced, and their properties still hold against the new one.
+
+Then the real thing: three consecutive renders of the live ARCA board, numbers above.
