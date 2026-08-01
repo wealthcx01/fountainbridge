@@ -320,3 +320,37 @@ describe('agreeing to a specific draft', () => {
     expect(fileThisMessage(null)).toContain('stop and tell me');
   });
 });
+
+describe('what the search tool leaves behind', () => {
+  it('strips the citation markers a founder was being shown', async () => {
+    // A real reply: "…GemRate owns population dataturn1search1turn1search2
+    // ARCA's own backlog…". Private Use Area characters, meaningless outside the tool that wrote
+    // them, rendering in a browser as blank boxes. Found by reading a live reply — the machine-word
+    // scan missed them because they are not words.
+    const { stripPrivateMarkers } = await import('../composer');
+    const raw = 'GemRate owns population data.turn1search1turn1search2ARCA’s own backlog is different.';
+    const clean = stripPrivateMarkers(raw);
+    expect(clean).not.toMatch(/[-]/);
+    expect(clean).toContain('population data.');
+    expect(clean).toContain('ARCA’s own backlog');
+  });
+
+  it('does not weld two sentences together when the markers sat between them', async () => {
+    // Removing them can leave "…population data ARCA's own backlog…", which reads worse than the
+    // markers did.
+    const { stripPrivateMarkers } = await import('../composer');
+    expect(stripPrivateMarkers('One thing.Another thing.')).toBe('One thing. Another thing.');
+  });
+
+  it('leaves ordinary prose exactly alone', async () => {
+    const { stripPrivateMarkers } = await import('../composer');
+    const plain = 'A normal sentence. Another one. With a — dash and “quotes”.';
+    expect(stripPrivateMarkers(plain)).toBe(plain);
+  });
+
+  it('cleans them before the reply is split into blocks', async () => {
+    const { parseReply } = await import('../composer');
+    const blocks = parseReply('Some finding.turn1search1More detail here.');
+    expect(blocks.map((b) => b.text).join(' ')).not.toMatch(/[-]/);
+  });
+});
