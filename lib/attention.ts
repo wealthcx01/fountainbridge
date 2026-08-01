@@ -169,7 +169,20 @@ export function githubPrFetcher(client: GitHubClient, org: string): RepoPrFetche
     } catch (e) {
       if (e instanceof GitHubError) {
         if (e.status === 404) return { prs: [], error: `Repository ${fullName} not found.` };
-        if (e.status === 403 || e.status === 429) return { prs: [], error: 'GitHub rate limit hit — try refresh shortly.' };
+        // `rateLimited` — 429, or a 403 whose remaining budget is genuinely zero — is the ONLY
+        // transient case. The previous version called every 403 a rate limit, so a permissions
+        // problem was reported to the founder as "try refresh shortly": advice that could never
+        // work, offered forever. Measured on 2026-08-01: three repositories showed that message
+        // while GitHub was answering `Resource not accessible by integration` with 4,896 requests
+        // still in the budget.
+        if (e.rateLimited) return { prs: [], error: 'GitHub rate limit hit — try refresh shortly.' };
+        if (e.status === 403) {
+          return {
+            prs: [],
+            error: `The studio does not have permission to read ${fullName}. This will not clear on `
+              + 'its own — an admin needs to give the Foundry GitHub App access to that repository.',
+          };
+        }
         return { prs: [], error: `GitHub error ${e.status} listing PRs for ${fullName}.` };
       }
       // A non-HTTP failure (DNS/connection) must NOT propagate — it would 500 every page via the

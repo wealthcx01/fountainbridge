@@ -149,3 +149,36 @@ describe('loadVentureAttention caching', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('telling a permissions problem from a rate limit (FB-082)', () => {
+  const fetcherThrowing = (err: unknown) => async () => { throw err; };
+
+  it('does not call a permissions error a rate limit', async () => {
+    // Measured on 2026-08-01: three repositories showed "GitHub rate limit hit — try refresh
+    // shortly" while GitHub was answering "Resource not accessible by integration" with 4,896
+    // requests still in the budget. The founder was given advice that could never work, forever.
+    const { githubPrFetcher } = await import('../attention');
+    const { GitHubError } = await import('../github');
+    const client = { request: fetcherThrowing(new GitHubError('403', 403, false)) } as never;
+    const { error } = await githubPrFetcher(client, 'wealthcx01')('arca-marketing');
+    expect(error).not.toContain('rate limit');
+    expect(error).toContain('does not have permission');
+    expect(error).toContain('will not clear on its own');
+  });
+
+  it('still calls a real rate limit a rate limit', async () => {
+    const { githubPrFetcher } = await import('../attention');
+    const { GitHubError } = await import('../github');
+    const client = { request: fetcherThrowing(new GitHubError('429', 429, true)) } as never;
+    const { error } = await githubPrFetcher(client, 'wealthcx01')('arca');
+    expect(error).toContain('rate limit');
+  });
+
+  it('still says plainly when a repository is missing', async () => {
+    const { githubPrFetcher } = await import('../attention');
+    const { GitHubError } = await import('../github');
+    const client = { request: fetcherThrowing(new GitHubError('404', 404, false)) } as never;
+    const { error } = await githubPrFetcher(client, 'wealthcx01')('thereset-platform');
+    expect(error).toContain('not found');
+  });
+});
