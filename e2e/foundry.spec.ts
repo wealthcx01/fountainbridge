@@ -19,10 +19,12 @@ test('a signed-in user sees the Foundry story', async ({ page }) => {
   await page.screenshot({ path: `${SHOTS}/11-foundry-story.png`, fullPage: true });
 });
 
-test('Foundry is reachable from the studio nav', async ({ page }) => {
-  await testLogin(page, JOHN);
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Foundry', exact: true }).click();
-  await page.waitForURL(/\/foundry$/);
-  await expect(page.getByTestId('foundry-story')).toBeVisible();
+test('Foundry is reachable — from the handbook, not the header (FB-067)', async ({ page }) => {
+  // It is the story of how the studio works: something you read once, not a place you work. It
+  // moved out of a founder's header and into the handbook. Moved, not deleted.
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/handbook');
+  await page.getByTestId('handbook-foundry').click();
+  await expect(page).toHaveURL(/\/foundry$/);
+  await expect(page.getByTestId('topnav')).not.toContainText('Foundry —');
 });

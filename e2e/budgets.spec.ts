@@ -18,19 +18,16 @@ test.describe('department budget disclosure', () => {
     await page.goto('/venture/arca');
   });
 
-  test('the approval card states the limit, the reported spend, and whose figure it is', async ({ page }) => {
+  test('the card states what THIS action costs, and nothing else (FB-068)', async ({ page }) => {
+    // Moved by FB-068, not weakened. Four cards each carried the identical department paragraph in
+    // red — one fact about a department repeated as though it were four facts about four actions —
+    // which flattened the hierarchy so an unverifiable grant read no louder than a routine spend.
+    // The department states its position once (asserted below); a card states only its own cost.
     const budget = page.getByTestId('approval-arca/over-budget-send-budget');
     await expect(budget).toBeVisible();
-    await expect(budget).toContainText('Limit £4,800 this month');
-    // £4,000 reported + £5,200 this proposal = £9,200. If last month's £4,500 leaked in this is
-    // £13,700 and the assertion fails — which is the point of the previous-window fixture.
-    await expect(budget).toContainText('£9,200 spent');
-    await expect(budget).toContainText('192% of the limit');
-    await expect(budget).toHaveAttribute('data-budget-over', 'true');
-    // Provenance, stated rather than implied.
-    await expect(budget).toContainText('Limit set in the studio; spend as reported by the venture');
-    // A free action must NOT show up as spend the studio could not count.
-    await expect(budget).not.toContainText('Not counted');
+    await expect(budget).toContainText('This one costs £5,200');
+    await expect(budget).not.toContainText('Limit £4,800');
+    await expect(budget).not.toContainText('192%');
   });
 
   test('the board reports the same figure, and marks the department over its limit', async ({ page }) => {
@@ -40,11 +37,14 @@ test.describe('department budget disclosure', () => {
     await expect(budget).toContainText('The venture reports £4,000 spent, £5,200 more awaiting your OK');
     await expect(budget).toContainText('192% of the limit');
     await expect(budget).toHaveCSS('color', 'rgb(138, 32, 32)'); // --color-error
+    // FB-068: the provenance moved here with the position. FB-054's reasoning is unchanged — the
+    // studio owns the limit and does not own the spend, and it says so where the figure is stated.
+    await expect(budget).toContainText('Limit set in the studio; spend as reported by the venture');
   });
 
   test('a department with no limit says so in a whole sentence', async ({ page }) => {
     const build = page.getByTestId('dept-build-budget');
-    await expect(build).toHaveText('No budget set for Build — Product.');
+    await expect(build).toContainText('No budget set for Build — Product.');
     await expect(build).toHaveAttribute('data-budget-over', 'false');
   });
 });

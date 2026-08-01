@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { plainWords, readEvidence, waitingFor } from '../work-evidence';
+import { plainWords, readEvidence } from '../work-evidence';
 
 /**
  * Pinned to a REAL lane body — `wealthcx01/arca#23`, 4,273 characters, captured 2026-08-01. If the
@@ -93,25 +93,6 @@ describe('speaking plainly', () => {
   });
 });
 
-describe('how long it has been waiting', () => {
-  const now = Date.parse('2026-08-01T12:00:00Z');
-  it('reads as a sentence at every scale', () => {
-    expect(waitingFor('2026-07-29T12:00:00Z', now)).toBe('3 days');
-    expect(waitingFor('2026-07-31T12:00:00Z', now)).toBe('1 day');
-    expect(waitingFor('2026-08-01T09:00:00Z', now)).toBe('3 hours');
-    expect(waitingFor('2026-08-01T11:00:00Z', now)).toBe('1 hour');
-    expect(waitingFor('2026-08-01T11:58:00Z', now)).toBe('2 minutes');
-    expect(waitingFor('2026-08-01T11:59:59Z', now)).toBe('less than a minute');
-  });
-
-  it('never reads as negative when a clock disagrees', () => {
-    expect(waitingFor('2026-08-02T12:00:00Z', now)).toBe('less than a minute');
-  });
-
-  it('says nothing rather than something wrong about an unreadable date', () => {
-    expect(waitingFor('not a date', now)).toBeNull();
-  });
-});
 
 describe('the nested-bracket trap', () => {
   it('finds the critical count inside nested brackets', () => {

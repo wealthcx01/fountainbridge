@@ -17,6 +17,13 @@ export default async function HandbookIndex() {
         Your plain-English guidebook — how to start, build, sell, and scale your venture, and how
         Bruntsfield works alongside you. Read it in order, or dip into the chapter you need.
       </p>
+      {/* FB-067: the Foundry story and the playbook left the header — they are things you read
+          once, not places you work. They live here, where a founder already comes to read. */}
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: '46rem' }}>
+        Also here: <Link href="/playbook" data-testid="handbook-playbook">the playbook</Link> — the
+        methods behind how work gets shaped — and{' '}
+        <Link href="/foundry" data-testid="handbook-foundry">how the Foundry works</Link>.
+      </p>
       <hr className="hr" />
       <div className="stack" style={{ gap: '0.75rem' }}>
         {chapters.map((c) => (

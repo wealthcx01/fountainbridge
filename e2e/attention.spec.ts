@@ -84,3 +84,48 @@ test('read failures sit below the work and are grouped by cause', async ({ page 
     expect((await failures.textContent()) ?? '').not.toContain('wealthcx01/');
   }
 });
+
+test('four destinations, each named for the job (FB-067)', async ({ page }) => {
+  // Eight, three of which — Ventures, Workstreams, Foundry — sat next to each other and could not be
+  // told apart from the words. They described how the software is organised, not what a founder came
+  // to do.
+  await testLogin(page, 'ross@bruntsfield.capital');
+  await page.goto('/attention');
+  const nav = (await page.getByTestId('topnav').locator('a').allTextContents())
+    .map((t) => t.replace(/\d+$/, '').trim());
+  expect(nav).toEqual(['Your venture', 'Needs you', 'What happened', 'Handbook']);
+
+  // The `03` was a section number from the Bruntsfield marketing site.
+  await expect(page.locator('header')).not.toContainText('03');
+});
+
+test('an admin is told it is an admin view (FB-067)', async ({ page }) => {
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/attention');
+  await expect(page.getByTestId('topnav')).toContainText('All ventures');
+});
+
+test('the moved pages still exist and are findable (FB-067)', async ({ page }) => {
+  // They move, they do not disappear. A 404 would be deleting content the ticket said to keep.
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  for (const path of ['/foundry', '/playbook', '/lanes']) {
+    const res = await page.goto(path);
+    expect(res?.status(), path).toBeLessThan(400);
+  }
+  await page.goto('/handbook');
+  await expect(page.getByTestId('handbook-foundry')).toBeVisible();
+  await expect(page.getByTestId('handbook-playbook')).toBeVisible();
+});
+
+test('badges say what they mean and can be reached by keyboard (FB-068)', async ({ page }) => {
+  // A badge that cannot be interrogated trains people to ignore badges.
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/venture/the-reset');
+  const stale = page.getByTestId('lane-stale-thereset-platform');
+  if (await stale.count()) {
+    await expect(stale).toHaveAttribute('tabindex', '0');
+    const title = await stale.getAttribute('title');
+    expect(title?.length ?? 0).toBeGreaterThan(30);   // an explanation, not a restatement
+    await expect(stale).not.toHaveText(/^⚠ stale$/);
+  }
+});

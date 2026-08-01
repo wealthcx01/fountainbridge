@@ -173,15 +173,3 @@ export function readEvidence(body: string | null): Evidence {
   return { did: opening(body), verdict, exceptions, summarised: true };
 }
 
-/** How long this has been waiting, in the same words the queue uses. */
-export function waitingFor(createdAt: string, now: number): string | null {
-  const started = Date.parse(createdAt);
-  if (!Number.isFinite(started)) return null;
-  const ms = Math.max(0, now - started);
-  const days = Math.floor(ms / 86_400_000);
-  if (days >= 1) return `${days} day${days === 1 ? '' : 's'}`;
-  const hours = Math.floor(ms / 3_600_000);
-  if (hours >= 1) return `${hours} hour${hours === 1 ? '' : 's'}`;
-  const mins = Math.floor(ms / 60_000);
-  return mins >= 1 ? `${mins} minute${mins === 1 ? '' : 's'}` : 'less than a minute';
-}

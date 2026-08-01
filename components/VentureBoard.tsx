@@ -9,6 +9,7 @@ import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { STATUS_LABEL } from '@/lib/glossary';
+import { ago } from '@/lib/when';
 import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { TicketDrawer } from './TicketDrawer';
@@ -162,15 +163,24 @@ export function VentureBoard({
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0 }}>{venture.name}</h1>
         <span className={`tag ${venture.status === 'active' ? 'tag-accent' : ''}`}>{venture.status}</span>
+        {/* FB-068: a badge that cannot be interrogated trains people to ignore badges. It says what
+            it means, in words, and is reachable by keyboard rather than by hover alone. */}
         {totalWarnings > 0 ? (
-          <span className="tag" data-testid="warnings-badge" title="Tickets parsed with warnings">
-            ⚠ {totalWarnings} warning{totalWarnings === 1 ? '' : 's'}
+          <span
+            className="tag"
+            data-testid="warnings-badge"
+            tabIndex={0}
+            title={`${totalWarnings} ticket${totalWarnings === 1 ? '' : 's'} could not be read completely — some detail is missing from the board, and nothing is lost in git.`}
+          >
+            <span aria-hidden="true">⚠ </span>
+            {totalWarnings} ticket{totalWarnings === 1 ? '' : 's'} not fully read
           </span>
         ) : null}
       </div>
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
         {venture.founderName ? <>Founder: {venture.founderName} · </> : null}
-        <span className="mono">updated {new Date(fetchedAt).toLocaleTimeString()}</span> ·{' '}
+        {/* FB-068: "3:05:32 PM" was a clock reading, not an answer to "is this current?". */}
+        <span>updated {ago(new Date(fetchedAt).toISOString()) ?? 'just now'}</span> ·{' '}
         <Link href={`/venture/${venture.id}?refresh=1`} className="mono" data-testid="refresh">
           refresh
         </Link>
@@ -273,7 +283,12 @@ export function VentureBoard({
                     fontWeight: budgetTone(budget).weight,
                   }}
                 >
-                  {describeBudget(budget, d.name)}
+                  {describeBudget(budget, d.name)}{' '}
+                  {/* FB-068: the provenance moves here with the position. FB-054's reasoning is
+                      unchanged — the studio owns the limit and does NOT own the spend, and dressing
+                      an unverifiable figure as a verdict is what three review passes punished. It
+                      belongs where the figure is stated, once, not on every card. */}
+                  <span className="muted">Limit set in the studio; spend as reported by the venture.</span>
                 </p>
               </div>
               );
@@ -302,12 +317,18 @@ export function VentureBoard({
           <h3 className="mono" style={{ fontSize: 'var(--fs-subhead)' }}>
             {lane.repo} <span className="muted">· {lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
             {stale.has(lane.repo) ? (
-              <span className="tag" data-testid={`lane-stale-${lane.repo}`} title="No repo activity in the staleness window" style={{ marginLeft: '0.4rem', color: toneColor('attention') }}>
-                ⚠ stale
+              <span
+                className="tag"
+                data-testid={`lane-stale-${lane.repo}`}
+                tabIndex={0}
+                title="Nothing has been built or changed here for over two weeks. That may be fine — it is only worth a look if you expected something to be happening."
+                style={{ marginLeft: '0.4rem', color: toneColor('attention') }}
+              >
+                <span aria-hidden="true">⚠ </span>nothing here lately
               </span>
             ) : null}
             {lane.skipped > 0 ? (
-              <span className="muted" data-testid={`lane-skipped-${lane.repo}`} title="Non-ticket .md files in docs/tickets">
+              <span className="muted" data-testid={`lane-skipped-${lane.repo}`} tabIndex={0} title="Files in the tickets folder that are not tickets — a README, for example. They are ignored rather than shown as work.">
                 {' '}· {lane.skipped} non-ticket file{lane.skipped === 1 ? '' : 's'} skipped
               </span>
             ) : null}
