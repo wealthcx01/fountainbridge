@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  documentRefusal, draftTitle, drainSse, emptyStream, fileThisMessage, formatInline, hasDraft,
+  draftTitle, drainSse, emptyStream, fileThisMessage, formatInline,
   parseReply, reduceChunk, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
@@ -34,7 +34,8 @@ const MAX_KEPT = 40;
 export function Composer({ ventureId, ventureName }: { ventureId: string; ventureName: string }) {
   const [messages, setMessages] = useState<ComposerMessage[]>([]);
   const [draft, setDraft] = useState('');
-  const [doc, setDoc] = useState<{ name: string; text: string } | null>(null);
+  const [doc, setDoc] = useState<{ name: string; text: string; understood?: string } | null>(null);
+  const [reading, setReading] = useState<string | null>(null);
   const [live, setLive] = useState<{ content: string; actions: ComposerAction[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -134,13 +135,36 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
     }
   }, [draft, doc, messages, sending, ventureId]);
 
+  /**
+   * FB-078: a real document, not only a text one.
+   *
+   * The studio reads it — a PDF included — and hands back the text plus what it understood. The
+   * founder sees the size before they send it, which is how they catch the studio having read one
+   * page of sixty; a silent "attached" on a 60-page report is indistinguishable from a failed
+   * extraction.
+   */
   const attach = useCallback(async (file: File | undefined) => {
     if (!file) return;
-    const refusal = documentRefusal(file.name);
-    if (refusal) { setError(refusal); return; }
     setError(null);
-    setDoc({ name: file.name, text: await file.text() });
-  }, []);
+    setReading(file.name);
+    try {
+      const form = new FormData();
+      form.append('document', file);
+      const res = await fetch(`/api/composer/${ventureId}/document`, { method: 'POST', body: form });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        // Every refusal from that route is already written for a founder — the format it cannot
+        // read, the scan with no text layer, the file that is too big. Passed through as-is.
+        setError(body?.error ?? 'That document could not be read.');
+        return;
+      }
+      setDoc({ name: body.name, text: body.text, understood: body.understood });
+    } catch {
+      setError('That document could not be sent. Try again.');
+    } finally {
+      setReading(null);
+    }
+  }, [ventureId]);
 
   return (
     <section data-testid="composer">
@@ -180,9 +204,16 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
         </p>
       ) : null}
 
+      {reading ? (
+        <p data-testid="composer-reading" className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
+          Reading {reading}…
+        </p>
+      ) : null}
+
       {doc ? (
         <p data-testid="composer-doc" style={{ fontSize: 'var(--fs-body-sm)' }}>
-          Attached: <strong>{doc.name}</strong>{' '}
+          {/* What was understood, not just that something was attached. */}
+          {doc.understood ?? `Attached: ${doc.name}`}{' '}
           <button type="button" className="btn" onClick={() => setDoc(null)}>Remove</button>
         </p>
       ) : null}
@@ -243,11 +274,11 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
             ref={fileInput}
             type="file"
             data-testid="composer-file"
-            accept=".md,.markdown,.txt,.csv,.tsv,.json,.yaml,.yml,.log"
+            accept=".md,.markdown,.txt,.csv,.tsv,.json,.yaml,.yml,.log,.pdf"
             style={{ display: 'none' }}
             onChange={(e) => { void attach(e.target.files?.[0]); e.target.value = ''; }}
           />
-          <button type="button" className="btn" data-testid="composer-attach" disabled={sending} onClick={() => fileInput.current?.click()}>
+          <button type="button" className="btn" data-testid="composer-attach" disabled={sending || reading !== null} onClick={() => fileInput.current?.click()}>
             Add a document
           </button>
         </div>
