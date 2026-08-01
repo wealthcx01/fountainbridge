@@ -1,6 +1,6 @@
 # FB-081 — The work page is the team's notes, not a decision
 
-**Status:** Todo · **Phase:** 3 · **Depends on:** FB-064 (read and accept work in the studio) ·
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-064 (read and accept work in the studio) ·
 **Repo:** fountainbridge ·
 **Branch:** `fb-081-the-work-page-is-the-teams-notes-not-a-decision` · One ticket = one branch = one PR.
 
@@ -77,7 +77,17 @@ want — but behind a control, not in front of the button.
 - [ ] The page says how long this has been waiting, agreeing with the queue.
 
 ## Verification
-`/review` + CI, then the same walk on the same piece of work — `ARCA-43` — recording the character
-count and a screenshot showing the accept control on the first screen. Then a piece of lane-built work
-whose gates did *not* all pass first time, to confirm the exception is what stands out rather than
-being one line among forty.
+17 unit tests, pinned to a **real** 4,332-character lane body captured from `arca#23` and committed
+as a fixture — so if the lane changes what it writes, these fail, which is the point.
+
+They cover: the verdict sentence; the retries surfaced; the browser check that did not happen; the
+hand-verification; the boilerplate every body opens with dropped rather than rewritten (substituting
+jargon into it produced *"the full its usual research, plan, build, check routine"*); the size drop;
+a failed gate reported as one; serious review findings counted through nested brackets; and the three
+refusals — never claiming to have understood an unrecognised body, never inventing a retry that did
+not happen, and saying nothing at all about an empty one.
+
+Three Playwright: the full record one press away and not shown by default; the decision
+geometrically above the file list; and the waiting time on the page.
+
+Then the real thing, on the live ARCA board, with the numbers above.

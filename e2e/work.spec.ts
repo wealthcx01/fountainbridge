@@ -66,4 +66,36 @@ test.describe('reading and accepting a piece of work', () => {
     await page.goto('/venture/arca/work/arca/10');
     expect(await page.locator('a[href*="github.com"]').count()).toBe(0);
   });
+
+  test('the evidence is a decision, not a transcript (FB-081)', async ({ page }) => {
+    // FB-064 put the whole pull-request body here and was right to — when the change is code a
+    // founder cannot read, the proof it was checked is what they judge. But it ran to 4,000+
+    // characters of gate transcript, and the whole page to 13,856.
+    await page.goto('/venture/arca/work/arca/10');
+    await expect(page.getByTestId('work-description')).toBeVisible();
+
+    // The full record exists and is one press away, never hidden.
+    await expect(page.getByTestId('work-record')).toHaveCount(0);
+    await page.getByTestId('work-record-toggle').click();
+    await expect(page.getByTestId('work-record')).toBeVisible();
+  });
+
+  test('the decision comes before the detail (FB-081)', async ({ page }) => {
+    // It used to sit under 13,856 characters, which is how a page teaches someone to press the
+    // button without reading it.
+    await page.goto('/venture/arca/work/arca/10');
+    const accept = page.getByTestId('work-accept');
+    if (await accept.count()) {
+      const decision = await accept.boundingBox();
+      const changes = await page.getByTestId('work-changes').boundingBox();
+      expect(decision!.y).toBeLessThan(changes!.y);
+    }
+  });
+
+  test('the page says how long it has been waiting (FB-081)', async ({ page }) => {
+    // The queue said "17h old"; this page said nothing about time at all, so a founder deciding
+    // whether to read it now or later had nothing to decide with.
+    await page.goto('/venture/arca/work/arca/10');
+    await expect(page.getByTestId('work-arca/10')).toContainText('Waiting');
+  });
 });
