@@ -124,7 +124,7 @@ export default async function VenturePage({
 
   return (
     <VentureBoard
-      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, chatUrl: ventureChatUrl(venture.vpsHost) }}
+      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer: ventureChatUrl(venture.vpsHost) !== null }}
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}
