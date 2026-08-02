@@ -18,7 +18,7 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from './authz';
 import { GitHubClient, GitHubError } from './github';
 // The type lives here, the combining logic lives with the founder-facing gate that depends on it
 // being right. `import type` above means there is no runtime cycle.
-import { combineChecks } from './work';
+import { previewUrlFrom } from './work';
 
 /** A raw PR as our source yields it — the minimum the queue and inference need. */
 export interface RawPr {
@@ -139,33 +139,96 @@ export function buildAttention(
 
 // --- fetchers -------------------------------------------------------------------------------
 
-interface RawGhPr {
-  number: number;
-  title: string;
-  html_url: string;
-  user: { login: string } | null;
-  created_at: string;
-  head: { ref: string; sha: string };
+
+/**
+ * Every pull request a venture cares about, and their checks, in ONE query (FB-083 extended).
+ *
+ * The REST version cost two list calls plus **two calls per open pull request** — one for the
+ * combined status, one for check runs. On ARCA that is 2 + 28 = 30 requests for one repository.
+ * This is one query for 2 points, and it carries the head commit and the check rollup with it.
+ *
+ * `statusCheckRollup: null` is the honest "no checks at all" case, which is true of a young venture
+ * and must not read as a failure — the same distinction FB-064 drew between `unknown` and
+ * `unavailable`, kept here rather than re-derived.
+ */
+const PRS_QUERY = `query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    open: pullRequests(states: [OPEN], first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
+      nodes { number title url createdAt state merged headRefName author { login }
+        commits(last: 1) { nodes { commit { oid
+          statusCheckRollup { state
+            contexts(first: 100) { nodes {
+              __typename
+              ... on StatusContext { state description targetUrl }
+              ... on CheckRun { conclusion status } } } } } } } }
+    }
+    recent: pullRequests(states: [MERGED, CLOSED], first: 30, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes { number title url createdAt state merged headRefName author { login } }
+    }
+  }
+}`;
+
+interface GqlPr {
+  number: number; title: string; url: string; createdAt: string;
+  state: string; merged: boolean; headRefName: string; author: { login: string } | null;
+  commits?: { nodes: Array<{ commit: { oid: string; statusCheckRollup: GqlRollup | null } }> };
+}
+interface GqlRollup {
   state: string;
-  merged_at: string | null;
-  draft?: boolean;
+  contexts?: { nodes: Array<{ __typename: string; state?: string; description?: string | null; targetUrl?: string | null; conclusion?: string | null; status?: string | null }> };
 }
 
-/** Live GitHub source: one pulls-list per repo (state=all), plus a combined-status call per OPEN PR. */
+/** GitHub's own roll-up, in the studio's vocabulary. Null means no checks exist — not a failure. */
+export function rollupToStatus(rollup: GqlRollup | null | undefined): PrCiStatus {
+  if (!rollup) return 'unknown';
+  switch (rollup.state) {
+    case 'SUCCESS': return 'success';
+    case 'FAILURE': case 'ERROR': return 'failure';
+    case 'PENDING': case 'EXPECTED': return 'pending';
+    default: return 'unknown';
+  }
+}
+
+function toRawPr(p: GqlPr, ciStatus?: PrCiStatus, previewUrl?: string | null): RawPr {
+  return {
+    number: p.number,
+    title: p.title,
+    url: p.url,
+    author: p.author?.login ?? null,
+    createdAt: p.createdAt,
+    branch: p.headRefName ?? '',
+    state: p.state === 'OPEN' ? 'open' : 'closed',
+    merged: Boolean(p.merged),
+    ...(ciStatus ? { ciStatus } : {}),
+    previewUrl: previewUrl ?? null,
+  };
+}
+
+/** Live GitHub source: ONE query per repo for every pull request and every check (FB-083). */
 export function githubPrFetcher(client: GitHubClient, org: string): RepoPrFetcher {
   return async (repo) => {
     const fullName = repo.includes('/') ? repo : `${org}/${repo}`;
     try {
-      // Two bounded queries: ALL currently-open PRs (the queue + pr-open inference), and the most
-      // recently-updated closed PRs (merged→done inference). Never a `created&asc` window that
-      // silently drops current open PRs once a repo has >50 lifetime PRs.
-      const [open, closed] = await Promise.all([
-        client.request<RawGhPr[]>(`/repos/${fullName}/pulls?state=open&per_page=100`),
-        client.request<RawGhPr[]>(`/repos/${fullName}/pulls?state=closed&sort=updated&direction=desc&per_page=30`),
-      ]);
-      const merged = closed.filter((p) => p.merged_at);
-      const prs = await Promise.all([...open, ...merged].map((p) => mapGhPr(client, fullName, p)));
-      return { prs, error: null };
+      const [owner, name] = fullName.split('/');
+      const data = await client.graphql<{ repository: { open: { nodes: GqlPr[] }; recent: { nodes: GqlPr[] } } | null }>(
+        PRS_QUERY, { owner, name },
+      );
+      if (!data.repository) return { prs: [], error: `Repository ${fullName} not found.` };
+
+      const open = data.repository.open.nodes.map((p) => {
+        const rollup = p.commits?.nodes?.[0]?.commit?.statusCheckRollup ?? null;
+        // The preview link is read from the SAME contexts the rollup carries, so it costs nothing
+        // extra — the REST version needed its own `/commits/:sha/status` call for this.
+        const preview = previewUrlFrom(
+          (rollup?.contexts?.nodes ?? [])
+            .filter((c) => c.__typename === 'StatusContext')
+            .map((c) => ({ state: c.state?.toLowerCase(), description: c.description, target_url: c.targetUrl })),
+        );
+        return toRawPr(p, rollupToStatus(rollup), preview);
+      });
+      // Merged only: a closed-unmerged PR must not move its ticket to `done`.
+      const merged = data.repository.recent.nodes.filter((p) => p.merged).map((p) => toRawPr(p));
+      return { prs: [...open, ...merged], error: null };
     } catch (e) {
       if (e instanceof GitHubError) {
         if (e.status === 404) return { prs: [], error: `Repository ${fullName} not found.` };
@@ -192,42 +255,6 @@ export function githubPrFetcher(client: GitHubClient, org: string): RepoPrFetche
   };
 }
 
-async function mapGhPr(client: GitHubClient, fullName: string, p: RawGhPr): Promise<RawPr> {
-  const base: RawPr = {
-    number: p.number,
-    title: p.title,
-    url: p.html_url,
-    author: p.user?.login ?? null,
-    createdAt: p.created_at,
-    branch: p.head?.ref ?? '',
-    state: p.state === 'open' ? 'open' : 'closed',
-    merged: Boolean(p.merged_at),
-    previewUrl: null,
-  };
-  // CI status only for open PRs (the queue items) to bound quota; failure → 'unknown', never a throw.
-  if (base.state === 'open' && p.head?.sha) {
-    try {
-      // Both check systems — the same read the work view uses (lib/work.ts combineChecks). Reading
-      // only the commit statuses made a repo with no deploy bot look permanently "pending" and a
-      // repo whose Actions failed look green off its deploy alone.
-      const [combined, runs] = await Promise.all([
-        client.request<{ state: string; total_count?: number }>(`/repos/${fullName}/commits/${p.head.sha}/status`),
-        client.request<{ total_count?: number; check_runs?: Array<{ status: string; conclusion: string | null }> }>(
-          `/repos/${fullName}/commits/${p.head.sha}/check-runs?per_page=100`,
-        ),
-      ]);
-      const checkRuns = runs.check_runs ?? [];
-      base.ciStatus = combineChecks({
-        combined: { state: combined.state, total: combined.total_count ?? 0 },
-        checkRuns,
-        checkRunsTruncated: (runs.total_count ?? checkRuns.length) > checkRuns.length,
-      });
-    } catch {
-      base.ciStatus = 'unavailable';
-    }
-  }
-  return base;
-}
 
 
 /** Offline fixture source (dev / Playwright): reads `<dir>/<repo>.json` as RawPr[]. */

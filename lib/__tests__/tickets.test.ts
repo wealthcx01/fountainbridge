@@ -202,9 +202,18 @@ describe('githubTicketFetcher — failure states are distinct (FB-021)', () => {
   });
 
   it('reachable repo with tickets → reads them on the default branch, no error', async () => {
+    // FB-083: one GraphQL query now carries the branch, the listing and every file's text. The
+    // property under test is unchanged — this stubs the new call rather than the old three.
     const client = new GitHubClient({
       token: 'pat',
-      fetchImpl: routing(200, { default_branch: 'master' }, [{ name: 'ARCA-1.md', type: 'file' }], ticketMd('ARCA-1', 'Planned')) as unknown as typeof fetch,
+      fetchImpl: (async () => res(200, {
+        data: {
+          repository: {
+            defaultBranchRef: { name: 'master' },
+            object: { entries: [{ name: 'ARCA-1.md', type: 'blob', object: { text: ticketMd('ARCA-1', 'Planned'), isTruncated: false } }] },
+          },
+        },
+      })) as unknown as typeof fetch,
     });
     const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
     expect(out.error).toBeNull();
@@ -215,12 +224,11 @@ describe('githubTicketFetcher — failure states are distinct (FB-021)', () => {
   });
 
   it('reachable repo with NO docs/tickets → empty backlog (error null, total 0), not an error state', async () => {
-    // listDir 404 → [] (no tickets dir yet).
-    const fetchImpl = vi.fn(async (url: string) => {
-      const u = String(url);
-      if (u.includes('/contents/docs/tickets')) return res(404, { message: 'Not Found' });
-      return res(200, { default_branch: 'master' });
-    });
+    // FB-083: GraphQL answers `object: null` for a repository with no docs/tickets directory —
+    // readable, and genuinely empty. That must never read as an error (FB-021).
+    const fetchImpl = vi.fn(async () => res(200, {
+      data: { repository: { defaultBranchRef: { name: 'master' }, object: null } },
+    }));
     const client = new GitHubClient({ token: 'pat', fetchImpl: fetchImpl as unknown as typeof fetch });
     const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
     expect(out.error).toBeNull();
@@ -240,5 +248,92 @@ describe('githubTicketFetcher — failure states are distinct (FB-021)', () => {
     });
     const out = await githubTicketFetcher(client, 'wealthcx01')('arca');
     expect(out.errorKind).toBe('rate-limit');
+  });
+});
+
+describe('one query for a whole backlog (FB-083)', () => {
+  const reply = (entries: unknown[], branch = 'master') => ({
+    repository: { defaultBranchRef: { name: branch }, object: { entries } },
+  });
+  const client = (graphql: unknown, rest?: unknown) => ({
+    graphql: async () => graphql,
+    getFileContent: rest ?? (async () => null),
+    hasCredentials: () => true,
+  } as never);
+
+  it('reads every ticket from a single request', async () => {
+    // REST cost one call per file: 51 requests for ARCA's 49 tickets, which was the bulk of the 87
+    // a board cost. Measured against the live repository, this is one request and one point.
+    const { githubTicketFetcher } = await import('../tickets');
+    const files = await githubTicketFetcher(client(reply([
+      { name: 'A-1.md', type: 'blob', object: { text: '# A-1', isTruncated: false } },
+      { name: 'A-2.md', type: 'blob', object: { text: '# A-2', isTruncated: false } },
+    ])), 'wealthcx01')('arca');
+    expect(files.error).toBeNull();
+    expect(files.files.map((f) => f.path)).toEqual(['docs/tickets/A-1.md', 'docs/tickets/A-2.md']);
+    expect(files.files[0].content).toBe('# A-1');
+  });
+
+  it('learns the default branch from the same query', async () => {
+    // arca is `master`, not `main`, and a wrong ref makes every GitHub file link 404.
+    const { githubTicketFetcher } = await import('../tickets');
+    expect((await githubTicketFetcher(client(reply([])), 'wealthcx01')('arca')).ref).toBe('master');
+  });
+
+  it('ignores directories and non-markdown', async () => {
+    const { githubTicketFetcher } = await import('../tickets');
+    const r = await githubTicketFetcher(client(reply([
+      { name: 'archive', type: 'tree' },
+      { name: 'diagram.png', type: 'blob', object: {} },
+      { name: 'A-1.md', type: 'blob', object: { text: '# A-1', isTruncated: false } },
+    ])), 'wealthcx01')('arca');
+    expect(r.files).toHaveLength(1);
+  });
+
+  it('refetches a truncated blob instead of treating it as short', async () => {
+    // GraphQL declines to inline a blob past ~512KB. A ticket that came back truncated would
+    // silently parse as a shorter ticket — the kind of wrong that never announces itself.
+    const { githubTicketFetcher } = await import('../tickets');
+    const r = await githubTicketFetcher(
+      client(reply([{ name: 'big.md', type: 'blob', object: { text: '# cut off', isTruncated: true } }]),
+             async () => '# the whole thing'),
+      'wealthcx01',
+    )('arca');
+    expect(r.files[0].content).toBe('# the whole thing');
+  });
+
+  it('refetches rather than inventing an empty ticket when text is missing', async () => {
+    const { githubTicketFetcher } = await import('../tickets');
+    const r = await githubTicketFetcher(
+      client(reply([{ name: 'x.md', type: 'blob', object: null }]), async () => '# recovered'),
+      'wealthcx01',
+    )('arca');
+    expect(r.files[0].content).toBe('# recovered');
+  });
+
+  it('reads a repo with no docs/tickets as empty, not as broken', async () => {
+    const { githubTicketFetcher } = await import('../tickets');
+    const r = await githubTicketFetcher(
+      client({ repository: { defaultBranchRef: { name: 'main' }, object: null } }), 'wealthcx01',
+    )('arca');
+    expect(r.error).toBeNull();
+    expect(r.files).toEqual([]);
+  });
+
+  it('never reads a repo it cannot see as an empty backlog', async () => {
+    // The distinction FB-021 exists for. An empty backlog and a repository the studio has no access
+    // to must never look the same to a founder.
+    const { githubTicketFetcher } = await import('../tickets');
+    const r = await githubTicketFetcher(client({ repository: null }), 'wealthcx01')('arca');
+    expect(r.error).toContain("Can't read");
+    expect(r.errorKind).toBe('unreadable');
+  });
+
+  it('degrades this lane rather than blanking the board when the query throws', async () => {
+    const { githubTicketFetcher } = await import('../tickets');
+    const { GitHubError } = await import('../github');
+    const throwing = { graphql: async () => { throw new GitHubError('429', 429, true); }, hasCredentials: () => true } as never;
+    const r = await githubTicketFetcher(throwing, 'wealthcx01')('arca');
+    expect(r.errorKind).toBe('rate-limit');
   });
 });

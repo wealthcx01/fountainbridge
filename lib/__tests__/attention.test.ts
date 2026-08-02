@@ -151,6 +151,8 @@ describe('loadVentureAttention caching', () => {
 });
 
 describe('telling a permissions problem from a rate limit (FB-082)', () => {
+  // FB-083: the fetcher asks GraphQL now. The properties under test are unchanged — a permissions
+  // failure must never wear a rate limit's words — so only the stubbed method moves.
   const fetcherThrowing = (err: unknown) => async () => { throw err; };
 
   it('does not call a permissions error a rate limit', async () => {
@@ -159,7 +161,7 @@ describe('telling a permissions problem from a rate limit (FB-082)', () => {
     // requests still in the budget. The founder was given advice that could never work, forever.
     const { githubPrFetcher } = await import('../attention');
     const { GitHubError } = await import('../github');
-    const client = { request: fetcherThrowing(new GitHubError('403', 403, false)) } as never;
+    const client = { graphql: fetcherThrowing(new GitHubError('403', 403, false)) } as never;
     const { error } = await githubPrFetcher(client, 'wealthcx01')('arca-marketing');
     expect(error).not.toContain('rate limit');
     expect(error).toContain('does not have permission');
@@ -169,7 +171,7 @@ describe('telling a permissions problem from a rate limit (FB-082)', () => {
   it('still calls a real rate limit a rate limit', async () => {
     const { githubPrFetcher } = await import('../attention');
     const { GitHubError } = await import('../github');
-    const client = { request: fetcherThrowing(new GitHubError('429', 429, true)) } as never;
+    const client = { graphql: fetcherThrowing(new GitHubError('429', 429, true)) } as never;
     const { error } = await githubPrFetcher(client, 'wealthcx01')('arca');
     expect(error).toContain('rate limit');
   });
@@ -177,8 +179,28 @@ describe('telling a permissions problem from a rate limit (FB-082)', () => {
   it('still says plainly when a repository is missing', async () => {
     const { githubPrFetcher } = await import('../attention');
     const { GitHubError } = await import('../github');
-    const client = { request: fetcherThrowing(new GitHubError('404', 404, false)) } as never;
+    const client = { graphql: fetcherThrowing(new GitHubError('404', 404, false)) } as never;
     const { error } = await githubPrFetcher(client, 'wealthcx01')('thereset-platform');
     expect(error).toContain('not found');
+  });
+});
+
+
+describe('reading GitHub\u2019s own check roll-up (FB-083)', () => {
+  it('maps the roll-up into the studio\u2019s vocabulary', async () => {
+    const { rollupToStatus } = await import('../attention');
+    expect(rollupToStatus({ state: 'SUCCESS' })).toBe('success');
+    expect(rollupToStatus({ state: 'FAILURE' })).toBe('failure');
+    expect(rollupToStatus({ state: 'ERROR' })).toBe('failure');
+    expect(rollupToStatus({ state: 'PENDING' })).toBe('pending');
+  });
+
+  it('reads "no checks at all" as unknown, never as a failure', async () => {
+    // ARCA has no CI, and its roll-up comes back null. That is the normal state of a young venture
+    // and must not read as something being wrong — the same distinction FB-064 drew.
+    const { rollupToStatus } = await import('../attention');
+    expect(rollupToStatus(null)).toBe('unknown');
+    expect(rollupToStatus(undefined)).toBe('unknown');
+    expect(rollupToStatus({ state: 'SOMETHING_NEW' })).toBe('unknown');
   });
 });
