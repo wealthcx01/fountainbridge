@@ -81,8 +81,20 @@ write_runreport() {
   local body="{\"message\":\"runreport: $slug ($status)\",\"content\":\"$b64\",\"branch\":\"$STATE_REF\""
   [ -n "$existing_sha" ] && body="$body,\"sha\":\"$existing_sha\""
   body="$body}"
-  gh_api -X PUT "$API/repos/$REPO/contents/$path" -d "$body" >/dev/null
-  flog "runreport → $STATE_REF:$path ($status)"
+  # The write is CHECKED, and this is not theoretical caution. Until now the PUT sent its response to
+  # /dev/null and the success line below printed unconditionally — so a rejected write (bad branch,
+  # revoked token, protected ref) logged exactly like a good one. The lane's own liveness beacon could
+  # have been dead for days while `journalctl` said "runreport →" every five minutes, and the founder
+  # brief would simply have shown nothing with no way to tell "quiet" from "broken". That is the
+  # failure mode CLAUDE.md #10 exists to forbid: a founder blocked at 22:00 must be able to see why.
+  local resp; resp=$(gh_api -X PUT "$API/repos/$REPO/contents/$path" -d "$body")
+  if printf '%s' "$resp" | grep -q '"content"'; then
+    flog "runreport → $STATE_REF:$path ($status)"
+  else
+    # Loud, and specific enough to act on: which report, which ref, and what GitHub actually said.
+    flog "RUNREPORT WRITE FAILED — $STATE_REF:$path ($status) — $(printf '%s' "$resp" | jval '.message')"
+    return 1
+  fi
 }
 
 # ---------------------------------------------------------------------------------------------------

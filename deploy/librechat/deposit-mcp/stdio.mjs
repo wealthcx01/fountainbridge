@@ -20,7 +20,16 @@ function envVal(name) {
 }
 
 const REPO = envVal('VENTURE_REPO') || 'wealthcx01/arca';
+// The fallback is deliberate and it is also a trap: with DEPOSIT_GITHUB_TOKEN unset, deposits work
+// using the ticket-filer's token, so nobody notices the dedicated one was never provisioned. Audited
+// on ARCA 2026-08-02 — unset there, and working, which is exactly how it stayed unnoticed for weeks.
+// Kept (a venture that deposits is better than one that cannot) but no longer silent: the fallback
+// is announced once at startup so a box audit can see it in `docker logs librechat-api`.
 const TOKEN = envVal('DEPOSIT_GITHUB_TOKEN') || envVal('TICKET_GITHUB_TOKEN');
+if (!envVal('DEPOSIT_GITHUB_TOKEN') && envVal('TICKET_GITHUB_TOKEN')) {
+  console.error('[deposit] DEPOSIT_GITHUB_TOKEN is not set — falling back to TICKET_GITHUB_TOKEN. '
+    + 'Deposits will work, with wider access than they need. Set a deposit-scoped token (FB-072).');
+}
 const API = 'https://api.github.com';
 const log = (...a) => console.error('[deposit]', ...a);
 
