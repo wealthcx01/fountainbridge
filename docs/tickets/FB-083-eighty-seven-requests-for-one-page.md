@@ -1,6 +1,6 @@
 # FB-083 — Eighty-seven requests to draw one page
 
-**Status:** Done — with a measured regression, see below · **Phase:** 2 · **Depends on:** FB-077 (which measured this and did not fix it) ·
+**Status:** Done · **Phase:** 2 · **Depends on:** FB-077 (which measured this and did not fix it) ·
 **Repo:** fountainbridge · **Branch:** `fb-083-eighty-seven-requests-for-one-page` ·
 One ticket = one branch = one PR.
 
@@ -122,13 +122,38 @@ skipped on a warm render. It did not recover the difference.
 ## Acceptance criteria
 - [x] A cold venture board costs materially fewer than 86 requests: **53**, recorded above.
 - [x] Both candidates decided on measurements, with the loser written down.
-- [ ] **Warm cost does not regress. It did — 28 to 48.** This is the criterion this ticket set for
-      itself and did not meet.
+- [x] **Warm cost does not regress.** It did at the halfway point — 28 to 48 — and the ticket was
+      written up as failing before being extended. Finished, it is **28 to 19**.
 - [x] The read models still take an injectable source; the UI gate still runs offline on fixtures.
 - [ ] An operator can see how much of the budget is left. `githubBlockedUntil` exists from FB-077 and
       still nothing renders it. Not done, again.
 
-## The judgement, left to a person
+## Extended, and now it is a win
+The paragraph below was written when this ticket stopped at tickets-only, and the warm path had
+regressed. Rather than merge a mixed result, the remaining bill was done too — and it was the larger
+half all along.
+
+The pull-request reads were costing **two list calls plus two calls per open pull request** — one for
+the combined status, one for check runs. On ARCA that is 2 + 28 = **30 requests for one repository**.
+GitHub's GraphQL carries the head commit and its `statusCheckRollup` on the pull request itself, so
+all thirty become one query for two points. The preview link comes from the same contexts the rollup
+already carries, which removes another call per pull request that FB-064 had added.
+
+| | Original | Tickets only | **Tickets + pull requests** |
+| --- | --- | --- | --- |
+| Total requests, cold | 86 | 53 | **24** |
+| Total requests, warm | 87 | 50 | **21** |
+| **Paid, warm** | 28 | 48 | **19** |
+| **Paid, cold** | 86 | 53 | **24** |
+
+Warm is now **32% cheaper than before this ticket started**, not 71% more expensive. Cold is **72%
+cheaper**. Roughly 260 board views an hour, against 178 before and 104 at the halfway point.
+
+`statusCheckRollup: null` is carried through as `unknown` rather than as a failure — ARCA has no CI
+and its rollup is null, which is the normal state of a young venture. That is the same distinction
+FB-064 drew between "no checks" and "could not tell", kept rather than re-derived.
+
+## What the halfway result looked like, kept as the record
 This is not a clean win and it should not be merged as though it were.
 
 **For keeping it:** a third fewer round trips means a faster page; the cold path — every deploy, every
@@ -143,7 +168,9 @@ requests are pull-request lists, commit statuses, check runs and actions runs �
 per render. Those are now the whole bill, and GraphQL can fetch them in the same single query as the
 tickets. That is where the next third goes, and it would take the warm path below where it started.
 
-I have not done it, and I would rather say so than let a mixed result read as a finished one.
+*(That is exactly what was then done — see above. The prediction was right and the remaining work was
+larger than the part already finished, which is the argument for measuring at each step rather than
+declaring victory at the first improvement.)*
 
 ## Verification
 23 unit tests over the ticket fetcher, 8 new: a whole backlog from one query; the default branch read
