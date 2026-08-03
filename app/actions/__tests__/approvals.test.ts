@@ -92,7 +92,10 @@ describe('the proposal the founder saw is the proposal that gets signed', () => 
     expect(paths[2]).toContain('activegraph/the-reset/thereset-marketing/send-1/0002-approval.granted.json');
     // The claim this whole ticket rests on: the history is NOT in the venture's repository.
     const [grantRepo, proposedRepo, grantedRepo] = putFile.mock.calls.map((c) => c[0]);
-    expect(grantRepo).toBe('thereset-marketing');
+    // FB-094: the grant write is addressed by the FULL GitHub name — the bare manifest slug 404ed
+    // on the real API, and the attestation it carried could never verify against the executor's
+    // `owner/slug` REPO.
+    expect(grantRepo).toBe('wealthcx01/thereset-marketing');
     expect(proposedRepo).toBe('wealthcx01/fountainbridge');
     expect(grantedRepo).toBe('wealthcx01/fountainbridge');
   });
@@ -160,7 +163,7 @@ describe('the repo the approval lives in', () => {
 
   it('accepts a department repo, not only the first one', async () => {
     expect((await approveExternalAction('the-reset', 'send-1', 'thereset-marketing')).ok).toBe(true);
-    expect(putFile.mock.calls[0][0]).toBe('thereset-marketing');
+    expect(putFile.mock.calls[0][0]).toBe('wealthcx01/thereset-marketing'); // FB-094: GitHub-addressable
   });
 });
 

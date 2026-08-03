@@ -10,23 +10,29 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
+import { fullRepoName } from './venture-repos';
 import { STATE_REF, type RunReportSource } from './runreports';
 
-/** A GitHub-backed source over the `foundry-state` ref. */
-export function githubRunReportSource(client: GitHubClient): RunReportSource {
+/**
+ * A GitHub-backed source over the `foundry-state` ref.
+ *
+ * Repos arrive as manifest slugs (`arca`); GitHub needs `owner/slug` (FB-094). Before the prefix,
+ * every listing here hit `/repos/arca/...`, 404ed, and rendered as "no sign of an agent lane" on a
+ * venture whose lane had written a heartbeat minutes earlier.
+ */
+export function githubRunReportSource(client: GitHubClient, org?: string): RunReportSource {
   return {
     async list(repo) {
-      try {
-        const entries = await client.listDir(repo, 'runreports', STATE_REF);
-        return entries.filter((e) => e.type === 'file' && e.name.endsWith('.json')).map((e) => e.name);
-      } catch {
-        // A venture with no lane has no state ref, which is the normal case and not an error.
-        return [];
-      }
+      // No catch here (FB-094): a venture with no lane has no state ref, and `listDir` already
+      // reads that 404 as []. Anything ELSE — rate limit, bad credential — must propagate, so the
+      // page renders "could not be read" instead of "no sign of an agent lane". The two states
+      // looked identical for weeks, and the difference is the whole point of CLAUDE.md #10.
+      const entries = await client.listDir(fullRepoName(repo, org), 'runreports', STATE_REF);
+      return entries.filter((e) => e.type === 'file' && e.name.endsWith('.json')).map((e) => e.name);
     },
     async read(repo, name) {
       try {
-        const text = await client.getFileContent(repo, `runreports/${name}`, STATE_REF);
+        const text = await client.getFileContent(fullRepoName(repo, org), `runreports/${name}`, STATE_REF);
         return text ? JSON.parse(text) : null;
       } catch {
         return null;

@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
-import { approvalRepos } from './venture-repos';
+import { approvalRepos, fullRepoName } from './venture-repos';
 import { disclose, normalizeCurrency, type BudgetDisclosure, type Envelope, type Spend } from './budgets';
 
 /** Read a proposal's stated price, keeping "no price" and "unreadable price" distinct. */
@@ -136,15 +136,22 @@ export interface ApprovalSource {
   // The attestation is the anchor; see lib/provenance.ts.
 }
 
-/** A GitHub-backed source over the `foundry-approvals` ref. */
-export function githubApprovalSource(client: GitHubClient): ApprovalSource {
+/**
+ * A GitHub-backed source over the `foundry-approvals` ref.
+ *
+ * Repos arrive as manifest slugs; GitHub needs `owner/slug` (FB-094). Before the prefix, every
+ * listing here 404ed and the founder's approval queue read empty in any real deployment — a gate
+ * nobody can see is not a gate. The e2e fixtures key on the bare slug, which is exactly why the
+ * suite never caught it.
+ */
+export function githubApprovalSource(client: GitHubClient, org?: string): ApprovalSource {
   return {
     async listIds(repo) {
-      const entries = await client.listDir(repo, 'approvals', APPROVALS_REF);
+      const entries = await client.listDir(fullRepoName(repo, org), 'approvals', APPROVALS_REF);
       return entries.filter((e) => e.type === 'dir').map((e) => e.name);
     },
     async read(repo, id, file) {
-      const r = await client.getFileWithSha(repo, `approvals/${id}/${file}.json`, APPROVALS_REF);
+      const r = await client.getFileWithSha(fullRepoName(repo, org), `approvals/${id}/${file}.json`, APPROVALS_REF);
       if (r == null) return null;
       let json: unknown = null;
       try { json = JSON.parse(r.text); } catch { json = null; }
@@ -242,7 +249,10 @@ async function loadApprovalsForRepo(
     const p = proposalR.json as ApprovalProposal;
     const priced = readPrice(p.amount_minor);
     // The ONE thing the studio can prove. Everything else on this card is a report.
-    const grant = verifyGrant(repo, id, proposalR.sha || null, grantR?.json as never, secret);
+    // Verified over the FULL repo name — the string the studio signs and the box's executor
+    // expects (its REPO env is `owner/slug`). Signing and verifying over the bare slug would
+    // produce grants the executor refuses as forged (FB-094).
+    const grant = verifyGrant(fullRepoName(repo), id, proposalR.sha || null, grantR?.json as never, secret);
 
     out.push({
       id,
