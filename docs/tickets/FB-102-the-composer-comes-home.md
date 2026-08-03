@@ -1,6 +1,6 @@
 # FB-102 — The composer comes home
 
-**Status:** Todo · **Phase:** 3 · **Amends:** FB-086 (which moved it out) · **Asked for by:** John,
+**Status:** Done · **Phase:** 3 · **Amends:** FB-086 (which moved it out) · **Asked for by:** John,
 2026-08-04 — *"I then click 'Tell the studio what you want' and I can't login into LibreChat with
 the demo account."* · **Repo:** fountainbridge ·
 **Branch:** `fb-102-the-composer-comes-home` · One ticket = one branch = one PR.
@@ -40,7 +40,7 @@ one line away from pointing back at it."* It has proved itself. This ticket is t
 
 ## Acceptance criteria
 
-- [ ] A founder clicks the board's composer button and is composing within the studio, in one
+- [x] A founder clicks the board's composer button and is composing within the studio, in one
       click, with no second sign-in.
-- [ ] The box chat remains reachable and labelled as the secondary surface.
-- [ ] The e2e suite drives the button to the in-studio composer and records the reversal's reason.
+- [x] The box chat remains reachable and labelled as the secondary surface.
+- [x] The e2e suite drives the button to the in-studio composer and records the reversal's reason.

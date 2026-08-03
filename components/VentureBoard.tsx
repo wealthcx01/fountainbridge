@@ -207,38 +207,37 @@ export function VentureBoard({
         </p>
       ) : null}
 
-      {/* Conversational composer entry (FB-025 → in-studio in FB-065 → back out in FB-086).
-          FB-065 pulled the composer into a studio page so a founder never had to leave for a
-          different-looking product with no way back. The reasoning was sound and the surface is
-          still there at /venture/<id>/composer — but John tested it and it did not work, and a
-          working screen beats a well-argued broken one. So the board sends founders to the box's
-          own chat again, on its own screen, which is what they used before and what they know works.
-
-          The in-studio one failed for a dull reason worth recording: the route needs
-          COMPOSER_API_KEY_<VENTURE> on the studio, and that variable was never set on Railway. It
-          only ever ran against a local .env, so every production press returned an error. The key is
-          set now, which is why this is a preference about surfaces rather than a workaround.
-
-          Opens in a new tab deliberately: it is a different application on a different host, and
-          replacing the board with it is exactly the "no way back" problem FB-065 named. A new tab
-          leaves the studio where the founder left it. */}
+      {/* Conversational composer entry (FB-025 → in-studio FB-065 → out to the box FB-086 → home
+          again FB-102). The full story, because this button has now moved three times and the next
+          person deserves the dates: FB-065 put it in-studio (no founder should leave for a
+          different-looking product with no way back). FB-086 sent it back out because the in-studio
+          route had never worked in production — the key was never set (FB-087) — and a working
+          screen beats a well-argued broken one. FB-095 fixed the engine and proved the in-studio
+          surface end to end against the live box, at which point the external door's own cost was
+          exposed: a second application with a second login guarding the most important button in
+          the product (John hit exactly that). FB-086 said "the board is one line away from
+          pointing back"; FB-102 is that line. The box's chat stays available below as the
+          secondary surface, for whoever wants the full LibreChat screen. */}
+      <Link
+        className="btn btn-primary"
+        href={`/venture/${venture.id}/composer`}
+        data-testid="venture-composer-link"
+        style={{ marginTop: '0.25rem' }}
+      >
+        Tell the studio what you want
+      </Link>
       {venture.chatUrl ? (
-        <a
-          className="btn btn-primary"
-          href={venture.chatUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="venture-chat-link"
-          style={{ marginTop: '0.25rem' }}
-        >
-          Tell the studio what you want
-        </a>
-      ) : (
-        <p className="card muted" data-testid="venture-chat-pending" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.25rem' }}>
-          Your conversational composer — describe what you want in plain English and it becomes a
-          workstream — will appear here once this venture’s box is set up.
+        <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
+          <a
+            href={venture.chatUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="venture-chat-external"
+          >
+            Or open your venture’s full chat in its own tab
+          </a>
         </p>
-      )}
+      ) : null}
 
       {/* FB-046: external actions awaiting the founder's OK (the ActiveGraph gate). The founder
           approves here — never on github.com; Approve signs the grant the executor verifies. */}
