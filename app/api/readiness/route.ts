@@ -54,8 +54,13 @@ export async function GET(req: Request) {
   const access = email
     ? authorizeVentures(email, ventures, parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS))
     : null;
-  // Unauthenticated and non-admin get the SAME 403. A 401-vs-403 split would let an anonymous caller
-  // discover whether an address is a studio admin.
+  // Non-admins get 403. Signed-out callers never reach this line at all — the auth middleware
+  // redirects them to /login first, so an anonymous request gets the sign-in page rather than JSON.
+  // Verified against a production build, after an earlier version of this comment claimed a 403 that
+  // the middleware makes unreachable. Both paths refuse; only one of them is this one.
+  //
+  // The `email` branch is still not dead code: it is the guarantee this route holds on its own, so a
+  // future middleware change cannot silently turn it into an open endpoint.
   if (!access?.isAdmin) {
     return Response.json({ error: 'admin only' }, { status: 403 });
   }
