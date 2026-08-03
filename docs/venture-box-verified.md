@@ -6,7 +6,7 @@ from the repo alone, or does it inherit a week of fixes made by hand?**
 
 The answer is better than expected, and the exceptions are listed rather than summarised.
 
-## Every file matches
+## Every file matches — with one exception, found later
 Every configuration and script on the box is byte-identical to this repository:
 
 | | Result |
@@ -15,7 +15,19 @@ Every configuration and script on the box is byte-identical to this repository:
 | All 17 lane scripts (`supervisor.sh`, `run-once.sh`, `foundry-lib.sh`, the brain bridge, the PRP and proposal libraries…) | **identical** |
 | All 5 systemd units | present on the box, all 5 referenced in the repo |
 
-Nothing was fixed on the box and left there. The manual steps taken during the week — the
+**This claim was originally stated without that qualifier, and it was too broad for its evidence.**
+The comparison above covers the files listed and no others. A day later, a full sweep of `deploy/`
+found `enable-agents-api.sh` on the box was **stale** — it derived the studio's key name from the
+install directory (`/opt/foundry`, identical on every box) instead of `VENTURE_REPO`, so it printed
+`COMPOSER_API_KEY_FOUNDRY` where the studio reads `COMPOSER_API_KEY_ARCA`. Anyone following the
+script's own instructions set a variable nothing reads, which is how the studio's composer came to be
+broken in production for weeks (FB-086, FB-087).
+
+The lesson is not "check harder". It is that **"every file" must mean every file, mechanically
+enumerated** — a spot-check of the files you happen to think of will always miss the one that broke.
+That is why the drift sweep now walks `deploy/` rather than a remembered list.
+
+Nothing else was fixed on the box and left there. The manual steps taken during the week — the
 `remoteAgents` config, the Agents API key, the per-agent ACL grant — all landed back in the repo, the
 last two as `deploy/librechat/enable-agents-api.sh`, which does all three and proves the result rather
 than assuming it.

@@ -32,7 +32,14 @@ watched through a real firing.
 
 ## What it found
 
-**The box is reproducible.** Every file matches: `librechat.yaml`, `docker-compose.yml`,
+**The box is reproducible — with one exception found the next day.** A later, mechanical sweep of all
+of `deploy/` caught `enable-agents-api.sh` as stale on the box (it printed the wrong variable name,
+which is how the production composer came to be broken — FB-086/FB-087). That file was not in this
+audit's comparison set, and the "every file matches" claim below was broader than its evidence. It is
+left standing, corrected, rather than quietly rewritten: the failure here was **a remembered list
+instead of an enumerated one**, and that is worth more to the next person than a clean record.
+
+With that exception, every file matches: `librechat.yaml`, `docker-compose.yml`,
 `seed-agent.js` and all seventeen lane scripts are identical to the repository. All five systemd
 units are present in the repository. Every key in the box's `.env` is documented. Nothing was fixed
 on the box and left there — the manual steps all came home, the last of them as
