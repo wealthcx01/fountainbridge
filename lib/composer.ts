@@ -113,6 +113,24 @@ export interface StreamState {
 
 export const emptyStream = (): StreamState => ({ content: '', actions: [], done: false });
 
+/**
+ * The activity lines a founder should actually read (FB-088).
+ *
+ * The agent often calls the same tool twice in one turn — two searches of the venture brain with
+ * different queries, say. Both are real, and both are honestly labelled, so the founder is told
+ * "Looking through what your venture knows" twice in a row. Observed on a live walk: the answer that
+ * followed was excellent, and it opened by stuttering.
+ *
+ * Consecutive identical labels collapse to one. NOT all duplicates — searching the brain, reading a
+ * ticket, then searching the brain again is a real sequence and flattening it would misrepresent
+ * what happened. Only the immediate repeat, which carries no information.
+ *
+ * The underlying actions are untouched; this is a display rule.
+ */
+export function visibleActions(actions: ComposerAction[]): ComposerAction[] {
+  return actions.filter((a, i) => i === 0 || a.label !== actions[i - 1].label);
+}
+
 interface RawChunk {
   choices?: Array<{
     delta?: {

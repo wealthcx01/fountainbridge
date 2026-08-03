@@ -19,6 +19,7 @@ import { loadEnvelopes } from '@/lib/budgets-load';
 import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
+import { readiness } from '@/lib/readiness';
 
 // Venture lanes & tickets (FB-006). Scoping is enforced HERE, server-side: a session that can't
 // access this venture never triggers a ticket fetch (CLAUDE.md #6 — isolation is not UI-only).
@@ -175,7 +176,15 @@ export default async function VenturePage({
     historyCount: health.repos.reduce((n, r) => n + r.activity.length + (r.latestRun ? 1 : 0), 0),
     readFailures,
   });
-  const hasComposer = ventureChatUrl(venture.vpsHost) !== null;
+  const chatUrl = ventureChatUrl(venture.vpsHost);
+  const hasComposer = chatUrl !== null;
+  // FB-087: the composer key lives only in the environment, so only the running process can tell
+  // whether it is there. Shown to Bruntsfield, never to the founder — it names a variable and a
+  // script, which is a fix for an admin and noise for anyone else. Computed here because
+  // `process.env` must not cross into a client component.
+  const wiringWarning = access.isAdmin && !readiness([venture], process.env).ok
+    ? readiness([venture], process.env).ventures[0].problem
+    : null;
 
   if (state.kind === 'first-run') {
     return (
@@ -193,7 +202,8 @@ export default async function VenturePage({
 
   return (
     <VentureBoard
-      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer }}
+      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer, chatUrl }}
+      wiringWarning={wiringWarning}
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}

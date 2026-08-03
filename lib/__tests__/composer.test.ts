@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   composerEndpoint, composerKeyEnvName, describeTool, drainSse,
-  emptyStream, formatInline, reduceChunk, withDocument, MAX_DOCUMENT_CHARS,
+  emptyStream, formatInline, reduceChunk, withDocument, visibleActions, MAX_DOCUMENT_CHARS,
 } from '../composer';
 
 describe('finding a venture’s composer', () => {
@@ -343,5 +343,27 @@ describe('what the search tool leaves behind', () => {
     const { parseReply } = await import('../composer');
     const blocks = parseReply('Some finding.turn1search1More detail here.');
     expect(blocks.map((b) => b.text).join(' ')).not.toMatch(/[-]/);
+  });
+});
+
+describe('activity lines a founder actually reads (FB-088)', () => {
+  const act = (label: string, i: number) => ({ id: `c${i}`, tool: 't', label, args: '' });
+
+  it('collapses an immediate repeat — the stutter seen on a live walk', () => {
+    // Observed against the real ARCA box: the composer searched the venture brain twice and told the
+    // founder "Looking through what your venture knows" twice before an otherwise excellent answer.
+    const a = [act('Looking through what your venture knows', 1), act('Looking through what your venture knows', 2)];
+    expect(visibleActions(a).map((x) => x.label)).toEqual(['Looking through what your venture knows']);
+  });
+
+  it('keeps a genuine sequence that returns to the same tool', () => {
+    // search → read → search is a real sequence; flattening it would misrepresent what happened.
+    const a = [act('search', 1), act('read', 2), act('search', 3)];
+    expect(visibleActions(a).map((x) => x.label)).toEqual(['search', 'read', 'search']);
+  });
+
+  it('leaves one action and none alone', () => {
+    expect(visibleActions([])).toEqual([]);
+    expect(visibleActions([act('one', 1)])).toHaveLength(1);
   });
 });
