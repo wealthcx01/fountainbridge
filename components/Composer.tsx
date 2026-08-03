@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   draftTitle, drainSse, emptyStream, fileThisMessage, formatInline,
-  parseReply, reduceChunk, withDocument,
+  parseReply, reduceChunk, visibleActions, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
 import { toneColor } from '@/lib/status';
@@ -392,7 +392,7 @@ function Turn({ message, index, streaming }: { message: ComposerMessage; index: 
     >
       <p className="eyebrow" style={{ margin: 0 }}>{mine ? 'You' : 'The composer'}</p>
 
-      {(message.actions ?? []).map((a) => (
+      {visibleActions(message.actions ?? []).map((a) => (
         <p
           key={a.id}
           data-testid="composer-action"

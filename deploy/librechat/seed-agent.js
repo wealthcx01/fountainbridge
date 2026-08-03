@@ -16,7 +16,7 @@
 // agent_id), so there is one source of truth and no drift.
 //
 // Run on the box (the founder must have signed in at least once so a users doc exists):
-//   docker exec -i librechat-mongodb mongosh LibreChat < seed-agent.js
+//   ./seed.sh            (reads .env and injects the venture's identity — use this)
 // Idempotent — safe to re-run (upserts on the agent id + the grant identity). Then:
 //   docker compose restart api
 
@@ -32,9 +32,49 @@ const BRAIN_TOOL = 'search_venture_brain_mcp_venture-brain';
 // Optional override; if unset, pick the earliest-created user (the founder on a one-venture box).
 const AUTHOR_EMAIL = (typeof SEED_AUTHOR_EMAIL !== 'undefined' && SEED_AUTHOR_EMAIL) || null;
 
-const COMPOSER_INSTRUCTIONS = `You are the **Bruntsfield Foundry composer** for the ARCA venture — a
-calm, plain-spoken chief-of-staff for a non-technical founder. ARCA is a graded trading-card
-market-analytics terminal. Your job: turn what the founder says into ONE well-formed piece of work
+// ---------------------------------------------------------------------------------------------------
+// The venture, from the box's own configuration (FB-088).
+//
+// Every one of these used to be the literal string "ARCA", nine times over — in the composer's
+// instructions, in the ticket template's id prefix, in the research assistant's brief, and in all
+// eight suggestion prompts. That made this file un-copyable: standing up THE RESET meant hand-editing
+// prose in a seeding script, and the first ticket its founder filed would have been titled
+// "ARCA-NEW — ..." on a venture with no connection to ARCA.
+//
+// That is a venture-as-config violation (CLAUDE.md #5): nothing venture-specific belongs in the
+// studio or its deployment scripts. A venture is a manifest, and a second venture is a second
+// manifest — not a fork of a script.
+//
+// VENTURE_REPO already lives in the box's .env (`wealthcx01/arca`), which is where the ticket prefix
+// comes from. The name and the one-line description are set alongside it; both fall back to something
+// derived rather than to ARCA, so a box that forgets them is generic, never wrong-venture.
+//
+// HOW THE VALUES ARRIVE. This file is fed to **mongosh**, not node:
+//   docker exec -i librechat-mongodb mongosh LibreChat < seed-agent.js
+// so `process.env` here is the *mongo container's* environment and has never heard of the box's
+// LibreChat .env. Reading process.env alone would silently produce a generically-named composer on a
+// correctly-configured box — the exact class of quiet wrongness this change exists to remove.
+//
+// So values are injected as globals by `seed.sh`, which reads the .env and passes them with
+// `mongosh --eval`. That is the pattern SEED_AUTHOR_EMAIL already used. process.env is kept as a
+// second source purely so the file still behaves if it is ever run under plain node.
+const cfg = (name) => {
+  if (typeof globalThis[name] === 'string' && globalThis[name].trim()) return globalThis[name].trim();
+  if (typeof process !== 'undefined' && typeof process.env?.[name] === 'string' && process.env[name].trim()) {
+    return process.env[name].trim();
+  }
+  return '';
+};
+
+const VENTURE_ID = cfg('VENTURE_REPO').split('/').pop() || 'venture';
+const VENTURE_NAME = cfg('VENTURE_NAME') || VENTURE_ID.toUpperCase();
+const TICKET_PREFIX = (cfg('VENTURE_TICKET_PREFIX') || VENTURE_ID).toUpperCase();
+// One clause, e.g. "a graded trading-card market-analytics terminal". Used mid-sentence, so it is
+// deliberately lower-case and article-led.
+const VENTURE_IS = cfg('VENTURE_DESCRIPTION') || 'this venture';
+
+const COMPOSER_INSTRUCTIONS = `You are the **Bruntsfield Foundry composer** for ${VENTURE_NAME} — a calm, plain-spoken chief-of-staff for a non-technical founder. ${VENTURE_NAME} is
+${VENTURE_IS}. Your job: turn what the founder says into ONE well-formed piece of work
 (a "ticket"), and get their explicit OK before anything is filed.
 
 How to work:
@@ -97,7 +137,7 @@ How to work:
    not about the framework. Name the idea only if it helps, and link the page so they can go deeper:
 
      Before I file — a paid tier is the kind of thing a competitor can copy in a fortnight. What
-     would ARCA have that they couldn't just add? (This is the "barrier" idea — /playbook/moats.)
+     would ${VENTURE_NAME} have that they couldn't just add? (This is the "barrier" idea — /playbook/moats.)
 
    Never write a summary of a framework. Never ask more than one. Never make a founder answer a
    strategy question before you will do simple work for them — if they say "just do it", do it.
@@ -124,7 +164,7 @@ How to work:
 
 House format (fill every section, keep it tight):
 
-# ARCA-NEW — <short title>
+# ${TICKET_PREFIX}-NEW — <short title>
 
 **Status:** Todo · **Area:** <area> · **Depends on:** <ids or —>
 
@@ -143,8 +183,8 @@ House format (fill every section, keep it tight):
 ## Acceptance criteria
 - [ ] <observable, checkable outcome>`;
 
-const RESEARCH_INSTRUCTIONS = `You are the **Bruntsfield Foundry research assistant** for the ARCA
-venture (a graded trading-card market-analytics terminal), helping a non-technical founder gather
+const RESEARCH_INSTRUCTIONS = `You are the **Bruntsfield Foundry research assistant** for ${VENTURE_NAME}
+(${VENTURE_IS}), helping a non-technical founder gather
 the market, competitor, and pricing context that makes a decision or a piece of work well-informed.
 
 How to work:
@@ -156,17 +196,17 @@ How to work:
 - No jargon. You are a briefing, not a term paper.`;
 
 const COMPOSER_STARTERS = [
-  'I want to add something to ARCA — help me shape it into a piece of work.',
+  `I want to add something to ${VENTURE_NAME} — help me shape it into a piece of work.`,
   "What's in review right now?",
-  'Founders keep asking for a price-history chart on the card page. Can we scope that?',
-  "Something's confusing on the terminal — help me describe the fix.",
+  'Something my users keep asking for — help me scope it.',
+  "Something's confusing in the product — help me describe the fix.",
 ];
 
 const RESEARCH_STARTERS = [
-  'Who are ARCA’s main competitors and what do they charge?',
-  'What are graded-card collectors paying for market-data tools right now?',
-  'What’s the current state of the PSA / graded Pokémon market?',
-  'Find recent news that could affect ARCA’s pricing or positioning.',
+  `Who are ${VENTURE_NAME}’s main competitors and what do they charge?`,
+  `What are ${VENTURE_NAME}’s customers paying for alternatives right now?`,
+  `What’s the current state of the market ${VENTURE_NAME} sells into?`,
+  `Find recent news that could affect ${VENTURE_NAME}’s pricing or positioning.`,
 ];
 
 const AGENTS = [
