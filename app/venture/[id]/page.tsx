@@ -175,7 +175,8 @@ export default async function VenturePage({
     historyCount: health.repos.reduce((n, r) => n + r.activity.length + (r.latestRun ? 1 : 0), 0),
     readFailures,
   });
-  const hasComposer = ventureChatUrl(venture.vpsHost) !== null;
+  const chatUrl = ventureChatUrl(venture.vpsHost);
+  const hasComposer = chatUrl !== null;
 
   if (state.kind === 'first-run') {
     return (
@@ -193,7 +194,7 @@ export default async function VenturePage({
 
   return (
     <VentureBoard
-      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer }}
+      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer, chatUrl }}
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}

@@ -2,29 +2,44 @@ import { test, expect } from '@playwright/test';
 import { testLogin } from './helpers';
 
 /**
- * The composer, inside the studio (FB-065).
+ * The composer (FB-065, amended by FB-086).
  *
- * The regression this file exists to stop is the one the ticket was written about: the founder being
- * sent to a different product at a different address to do the most important thing they do. The
- * assertion that matters most is the last one — no link to the box's own chat host.
+ * This file used to assert the exact opposite of what it asserts now, and the inversion is worth
+ * recording rather than quietly rewriting.
+ *
+ * FB-065 pulled the composer into the studio so a founder was not sent to a different product at a
+ * different address to do the most important thing they do. That reasoning still holds. But the
+ * in-studio surface did not work in production: the route needs `COMPOSER_API_KEY_<VENTURE>` on the
+ * studio, and the variable was never set on Railway. It was only ever exercised against a local
+ * `.env`, so every press a founder made returned an error — for weeks, while this suite stayed
+ * green, because Playwright drives a local server that had the key.
+ *
+ * That is the real lesson here: an end-to-end test that runs only against localhost proves the code
+ * works, not that the deployment does. It cannot see a missing production variable.
+ *
+ * John tested the real thing, it failed, and he asked for the box's own chat back on its own screen.
+ * A working screen beats a well-argued broken one. The in-studio page is still built and still
+ * tested below — the tests from here down drive `/venture/arca/composer` directly — so the surface
+ * is a preference now, not a rebuild.
  */
 
 const JOHN = 'john.gallagher@wealthcx.com';
 
-test.describe('describing what you want, without leaving the studio', () => {
+test.describe('describing what you want', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page, JOHN);
   });
 
-  test('the board opens the composer inside the studio, not on another host', async ({ page }) => {
+  test('the board sends the founder to the box’s own chat, on its own screen', async ({ page }) => {
     await page.goto('/venture/arca');
     const link = page.getByTestId('venture-chat-link');
     await expect(link).toBeVisible();
-    // The regression: this used to be an <a href="https://chat.arca…"> with target=_blank.
-    await expect(link).toHaveAttribute('href', '/venture/arca/composer');
-    await link.click();
-    await expect(page).toHaveURL(/\/venture\/arca\/composer$/);
-    await expect(page.getByTestId('composer')).toBeVisible();
+    await expect(link).toHaveAttribute('href', 'https://chat.arca.bruntsfield.capital');
+    // A new tab, deliberately: it is a different application on a different host, and replacing the
+    // board with it is the "no way back" problem FB-065 named. The studio stays where it was.
+    await expect(link).toHaveAttribute('target', '_blank');
+    // Never a bare target=_blank: without noopener the opened page gets a handle on window.opener.
+    await expect(link).toHaveAttribute('rel', /noopener/);
   });
 
   test('an empty thread says what to do rather than showing a blank box', async ({ page }) => {
