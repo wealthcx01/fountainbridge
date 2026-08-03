@@ -20,3 +20,21 @@ export function approvalRepos(venture: VentureSummary): string[] {
   const repos = [...(venture.repos ?? []), ...(venture.departments ?? []).map((d) => d.repo)];
   return [...new Set(repos.filter((r): r is string => typeof r === 'string' && r.length > 0))];
 }
+
+/**
+ * The GitHub-addressable name for a venture repo (FB-094).
+ *
+ * Manifests declare repos as bare slugs (`arca`), and everything internal — fixture directories,
+ * ActiveGraph paths, display — keys off that slug. GitHub's API and the FB-044 attestation need
+ * `owner/slug`. For weeks the studio passed the bare slug to both: every `/repos/arca/...` read
+ * 404ed and was swallowed into "no lane / no approvals", and a studio-signed grant could never have
+ * verified on the box, whose executor signs over its full `REPO`. The e2e fixtures are keyed by the
+ * bare slug, so the whole suite stayed green — a local fixture proving the code while the deployment
+ * read nothing (the FB-087 lesson, on the read side).
+ *
+ * One rule, applied at the GitHub/attestation boundary and nowhere else: prefix a bare slug with
+ * the org; pass an already-qualified name through untouched.
+ */
+export function fullRepoName(repo: string, org: string = process.env.GITHUB_ORG ?? 'wealthcx01'): string {
+  return repo.includes('/') ? repo : `${org}/${repo}`;
+}
