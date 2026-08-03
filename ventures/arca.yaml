@@ -61,9 +61,9 @@ departments:
     repo: arca                  # the real product repo
     queue_path: docs/tickets
     gate: pr                    # engineering changes gate on PR review
-    # launch: (FB-093) — the terminal runs on the box but has no public hostname yet (only
-    # chat.arca.bruntsfield.capital resolves). Add `launch: {url, label}` here the day it does;
-    # until then the board honestly shows "nowhere to open yet".
+    launch:                     # FB-093's door, opened 2026-08-04: the terminal is hosted on
+      url: https://arca-production-4e99.up.railway.app   # Railway (project arca, volume-backed
+      label: Open the terminal                           # SQLite; deploy fixes in arca#40)
   - id: sell
     venture_id: arca
     name: Sell — Go-to-market

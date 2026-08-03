@@ -20,11 +20,14 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   await expect(page.getByTestId('dept-build-state')).toHaveText('active');
   await expect(page.getByTestId('dept-sell-state')).toHaveText('active');
   await expect(page.getByTestId('dept-scale-state')).toHaveText('active');
-  // FB-093: a provisioned surface with no launch target says so honestly instead of hiding the
-  // affordance. ARCA's manifest defines none yet (its app has no public hostname) — the day one
-  // lands, this assertion flips to dept-build-launch with the real href.
-  await expect(page.getByTestId('dept-build-launch-pending')).toBeVisible();
-  await expect(page.getByTestId('dept-build-launch')).toHaveCount(0);
+  // FB-093: Build's door is real since 2026-08-04 (the terminal lives on Railway); Sell still has
+  // nothing running, so its honest pending state must survive Build going live — one surface with
+  // a door and one without is exactly the state this feature exists to render truthfully.
+  const buildLaunch = page.getByTestId('dept-build-launch');
+  await expect(buildLaunch).toBeVisible();
+  await expect(buildLaunch).toHaveAttribute('href', 'https://arca-production-4e99.up.railway.app');
+  await expect(buildLaunch).toHaveAttribute('rel', /noopener/);
+  await expect(page.getByTestId('dept-sell-launch-pending')).toBeVisible();
   // Graceful degradation, surfaced not hidden: the imperfect ticket (ARCA-4, odd status) drives the
   // warnings badge; the stray README is counted as a skipped non-ticket file, not shown as a card.
   await expect(page.getByTestId('warnings-badge')).toBeVisible();
