@@ -37,7 +37,7 @@ real venture should declare `approval_matrix`, `repos`, `lanes`, and `department
 | `approval_matrix` | D7 governance: rows mapping a `change_class` (`product-visible` \| `platform-infra` \| `high-blast-radius`) to an `approver` (`founder` \| `bruntsfield` \| `dual`). |
 | `repos` | Repo slugs owned by the venture. |
 | `lanes` | Workshop lanes (`id`, `venture_id`, `repo`, `tmux`, `standing_order`, optional `status`). |
-| `departments` | The three founder-owned surfaces (FB-048): **build** (product, `gate: pr`), **sell** (go-to-market, `gate: activegraph`), **scale** (growth/ops, `gate: tbd-fb012`). Each: `id`, `venture_id`, `name`, `repo`, `queue_path`, optional `connectors`, `gate` ∈ `pr` \| `activegraph` \| `tbd-fb012`. A department whose `repo` isn't in `repos` renders as "coming". |
+| `departments` | The three founder-owned surfaces (FB-048): **build** (product, `gate: pr`), **sell** (go-to-market, `gate: activegraph`), **scale** (growth/ops, `gate: tbd-fb012`). Each: `id`, `venture_id`, `name`, `repo`, `queue_path`, optional `connectors`, `gate` ∈ `pr` \| `activegraph` \| `tbd-fb012`, optional `launch` (FB-093: `url` — http(s) only — plus optional `label`; the studio renders it as this surface's launch button, e.g. Build → the app, Sell → the marketing site or email tool, Scale → an ops service). A department whose `repo` isn't in `repos` renders as "coming"; one without `launch` says "nowhere to open yet". |
 | `connectors` | Connector names available to the venture. |
 
 ### One founder field (product authority)

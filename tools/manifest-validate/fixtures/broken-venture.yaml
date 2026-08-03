@@ -27,4 +27,6 @@ departments:
     repo: some-repo
     queue_path: docs/tickets
     gate: not-a-real-gate                  # defect: invalid enum
+    launch:
+      url: "javascript:alert(1)"           # defect: launch.url must be http(s) — this is an href
 bogus_field: 123                           # defect: unknown key (additionalProperties: false)

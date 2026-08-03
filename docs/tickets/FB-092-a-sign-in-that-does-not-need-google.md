@@ -1,6 +1,6 @@
 # FB-092 — A sign-in that does not need Google
 
-**Status:** In review · **Phase:** 0/3 (auth) · **Asked for by:** John, 2026-08-03 — *"the dummy
+**Status:** Done · **Phase:** 0/3 (auth) · **Asked for by:** John, 2026-08-03 — *"the dummy
 account doesnt work because of the google OAuth. We should have a seperate login where you can
 choose either google login or nomal email to Foundry Studio."* · **Repo:** fountainbridge ·
 **Branch:** `fb-092-a-sign-in-that-does-not-need-google` · One ticket = one branch = one PR.

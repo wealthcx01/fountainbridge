@@ -42,7 +42,7 @@ if (broken.ok) {
   fail("expected broken-venture.yaml to FAIL validation, but it passed");
 } else {
   const joined = broken.errors.join(" | ").toLowerCase();
-  const expectedSignals = ["gmail", "venture_id", "bogus_field", "gate"];
+  const expectedSignals = ["gmail", "venture_id", "bogus_field", "gate", "launch"];
   const missing = expectedSignals.filter((s) => !joined.includes(s));
   if (missing.length) {
     fail(`broken fixture failed but missing expected error signal(s): ${missing.join(", ")}`);

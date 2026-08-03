@@ -25,6 +25,14 @@ export interface DepartmentSummary {
   queuePath: string;
   gate: string;
   provisioned: boolean;
+  /**
+   * Where this surface's running product/service opens from the studio (FB-093) — the manifest's
+   * `launch:` block. Null until the venture defines it; the board shows an honest "nowhere to open
+   * yet" state meanwhile. The URL is accepted only when it is http(s): the manifest is
+   * repo-controlled, but this string becomes an href, and a loader that would pass `javascript:`
+   * through is one copied manifest away from an XSS.
+   */
+  launch: { label: string | null; url: string } | null;
 }
 
 /** A D7 approval-matrix row: who approves a class of change (FB-046 routing). */
@@ -65,6 +73,15 @@ interface RawDepartment {
   repo?: unknown;
   queue_path?: unknown;
   gate?: unknown;
+  launch?: unknown;
+}
+
+function toLaunch(raw: unknown): DepartmentSummary['launch'] {
+  if (!raw || typeof raw !== 'object') return null;
+  const { url, label } = raw as { url?: unknown; label?: unknown };
+  // http(s) only — same rule as the schema's pattern, enforced again where the href is built.
+  if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return null;
+  return { url, label: typeof label === 'string' && label ? label : null };
 }
 
 interface RawManifest {
@@ -103,6 +120,7 @@ function toDepartments(raw: unknown, repos: string[]): DepartmentSummary[] {
       repo,
       queuePath: typeof d.queue_path === 'string' ? d.queue_path : 'docs/tickets',
       gate: typeof d.gate === 'string' ? d.gate : 'pr',
+      launch: toLaunch(d.launch),
       // Declared but not yet real until its repo is one the venture actually owns.
       provisioned: repo !== null && repos.includes(repo),
     });
