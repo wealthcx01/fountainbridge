@@ -79,11 +79,17 @@ describe('loadVentures (against the real ventures/ manifests)', () => {
     expect(v?.departments.find((d) => d.id === 'bad')?.launch).toBeNull();
   });
 
-  it('no real manifest carries a launch target yet — arca reads null (FB-093)', () => {
-    // When ARCA's app gets a public hostname and `launch:` lands in its manifest, this flips —
-    // update it to assert the real URL then, and move the e2e assertion from pending to button.
+  it('arca Build carries the real launch target; the other surfaces honestly do not (FB-093)', () => {
+    // Flipped 2026-08-04, exactly as the previous version of this test instructed, when the
+    // terminal went live on Railway. Sell and Scale still have nothing running — their pending
+    // state remains the truth, and this asserts it stays stated rather than faked.
     const arca = loadVentures(DIR).find((v) => v.id === 'arca');
-    for (const d of arca?.departments ?? []) expect(d.launch).toBeNull();
+    expect(arca?.departments.find((d) => d.id === 'build')?.launch).toEqual({
+      url: 'https://arca-production-4e99.up.railway.app',
+      label: 'Open the terminal',
+    });
+    expect(arca?.departments.find((d) => d.id === 'sell')?.launch).toBeNull();
+    expect(arca?.departments.find((d) => d.id === 'scale')?.launch).toBeNull();
   });
 
   it('exposes the box host and derives the chat URL (FB-025)', () => {
