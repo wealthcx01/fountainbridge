@@ -99,6 +99,7 @@ export function VentureBoard({
   totalWarnings,
   fetchedAt,
   org,
+  wiringWarning = null,
 }: {
   venture: {
     id: string; name: string; status: string; founderName: string | null; hasComposer: boolean;
@@ -125,6 +126,8 @@ export function VentureBoard({
   totalWarnings: number;
   fetchedAt: number;
   org: string;
+  /** FB-087: admin-only — this venture has a box the studio cannot reach. Null for founders. */
+  wiringWarning?: string | null;
 }) {
   const pendingApprovals = approvals.filter((a) => a.status === 'proposed');
   // Nothing that reached the executor may leave the founder's view without a visible outcome. The
@@ -193,6 +196,16 @@ export function VentureBoard({
       {/* FB-042: the brief goes FIRST. Everything below it is a dashboard, and a dashboard shows you
           what exists without telling you what to do about it. */}
       {brief ? <FounderBrief brief={brief} /> : null}
+
+      {/* FB-087. The composer was broken in production for weeks and the only way anyone could find
+          out was a founder pressing the button and getting an error. This is the same fact, told to
+          the person who can fix it, before that happens. */}
+      {wiringWarning ? (
+        <p className="card" data-testid="wiring-warning"
+           style={{ borderColor: toneColor('blocked'), color: toneColor('blocked'), fontSize: 'var(--fs-body-sm)' }}>
+          {wiringWarning}
+        </p>
+      ) : null}
 
       {/* Conversational composer entry (FB-025 → in-studio in FB-065 → back out in FB-086).
           FB-065 pulled the composer into a studio page so a founder never had to leave for a
