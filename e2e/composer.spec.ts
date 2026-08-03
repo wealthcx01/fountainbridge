@@ -30,16 +30,24 @@ test.describe('describing what you want', () => {
     await testLogin(page, JOHN);
   });
 
-  test('the board sends the founder to the box’s own chat, on its own screen', async ({ page }) => {
+  test('the board sends the founder to the studio’s own composer, one click, no second login', async ({ page }) => {
+    // Third inversion of this test, each with its reason on record: FB-065 asserted in-studio,
+    // FB-086 asserted the external chat (the in-studio route had never worked in production —
+    // the key was never set), FB-102 asserts in-studio again — FB-095 fixed the engine and proved
+    // the surface end to end, and the external door meant a second application with a second
+    // login guarding the most important button in the product.
     await page.goto('/venture/arca');
-    const link = page.getByTestId('venture-chat-link');
+    const link = page.getByTestId('venture-composer-link');
     await expect(link).toBeVisible();
-    await expect(link).toHaveAttribute('href', 'https://chat.arca.bruntsfield.capital');
-    // A new tab, deliberately: it is a different application on a different host, and replacing the
-    // board with it is the "no way back" problem FB-065 named. The studio stays where it was.
-    await expect(link).toHaveAttribute('target', '_blank');
-    // Never a bare target=_blank: without noopener the opened page gets a handle on window.opener.
-    await expect(link).toHaveAttribute('rel', /noopener/);
+    await expect(link).toHaveAttribute('href', '/venture/arca/composer');
+
+    // The box's full chat stays reachable — quiet, secondary, labelled for what it is, and still
+    // a new tab with noopener (a different application must never replace the board, and must
+    // never get a handle on window.opener).
+    const external = page.getByTestId('venture-chat-external');
+    await expect(external).toHaveAttribute('href', 'https://chat.arca.bruntsfield.capital');
+    await expect(external).toHaveAttribute('target', '_blank');
+    await expect(external).toHaveAttribute('rel', /noopener/);
   });
 
   test('an empty thread says what to do rather than showing a blank box', async ({ page }) => {

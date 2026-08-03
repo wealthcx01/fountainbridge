@@ -13,7 +13,7 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   await expect(page.getByTestId('lane-arca')).toBeVisible();
   // FB-025/FB-038: the conversational composer entry point. ARCA's box is provisioned
   // (ventures/arca.yaml has vps.host) → the live chat link, not the pending note.
-  await expect(page.getByTestId('venture-chat-link')).toBeVisible();
+  await expect(page.getByTestId('venture-composer-link')).toBeVisible();
   // FB-048: the three founder-owned surfaces. FB-045 provisioned Sell and Scale their own repos, so
   // all three now read active — selling and scaling are worked by the lane, not only declared.
   await expect(page.getByTestId('dept-build')).toBeVisible();
