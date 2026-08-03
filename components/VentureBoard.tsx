@@ -100,7 +100,11 @@ export function VentureBoard({
   fetchedAt,
   org,
 }: {
-  venture: { id: string; name: string; status: string; founderName: string | null; hasComposer: boolean };
+  venture: {
+    id: string; name: string; status: string; founderName: string | null; hasComposer: boolean;
+    /** The box's own chat, on its own screen (FB-086). Null until the venture has a box. */
+    chatUrl: string | null;
+  };
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
@@ -190,20 +194,32 @@ export function VentureBoard({
           what exists without telling you what to do about it. */}
       {brief ? <FounderBrief brief={brief} /> : null}
 
-      {/* Conversational composer entry (FB-025, moved inside the studio by FB-065). It used to be an
-          external link to the venture's own LibreChat — a different address, a different-looking
-          product, and no way back to the board. Same engine, same behaviour; the surface is now a
-          studio page. Still gated on the box existing: no box, no engine, and an honest note beats
-          a dead link. */}
-      {venture.hasComposer ? (
-        <Link
+      {/* Conversational composer entry (FB-025 → in-studio in FB-065 → back out in FB-086).
+          FB-065 pulled the composer into a studio page so a founder never had to leave for a
+          different-looking product with no way back. The reasoning was sound and the surface is
+          still there at /venture/<id>/composer — but John tested it and it did not work, and a
+          working screen beats a well-argued broken one. So the board sends founders to the box's
+          own chat again, on its own screen, which is what they used before and what they know works.
+
+          The in-studio one failed for a dull reason worth recording: the route needs
+          COMPOSER_API_KEY_<VENTURE> on the studio, and that variable was never set on Railway. It
+          only ever ran against a local .env, so every production press returned an error. The key is
+          set now, which is why this is a preference about surfaces rather than a workaround.
+
+          Opens in a new tab deliberately: it is a different application on a different host, and
+          replacing the board with it is exactly the "no way back" problem FB-065 named. A new tab
+          leaves the studio where the founder left it. */}
+      {venture.chatUrl ? (
+        <a
           className="btn btn-primary"
-          href={`/venture/${venture.id}/composer`}
+          href={venture.chatUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           data-testid="venture-chat-link"
           style={{ marginTop: '0.25rem' }}
         >
           Tell the studio what you want
-        </Link>
+        </a>
       ) : (
         <p className="card muted" data-testid="venture-chat-pending" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.25rem' }}>
           Your conversational composer — describe what you want in plain English and it becomes a
