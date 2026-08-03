@@ -1,7 +1,9 @@
 /**
  * Auth.js (NextAuth v5) configuration (FB-005). Google OAuth is the Holy Corner vertical-login
  * pattern (D4); venture scoping keys off the signed-in email against `founder.workspace_email` in
- * the manifests (see lib/authz). Google is the ONLY real provider.
+ * the manifests (see lib/authz). Google is the primary provider; FB-092 adds an env-configured
+ * email+password allowlist (lib/password-login) for accounts that cannot complete the Google flow.
+ * Scoping is identical for both — authorization never depends on which door was used.
  *
  * Test login: when `E2E_TEST_LOGIN=1` AND `E2E_TEST_LOGIN_SECRET` is set, a credentials provider
  * signs in as an arbitrary email — but ONLY if the request carries the matching secret. This lets
@@ -17,6 +19,8 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
+import { baseConfig } from '@/auth.config';
+import { authorizePassword, createThrottle, parsePasswordAccounts } from '@/lib/password-login';
 
 const providers: NextAuthConfig['providers'] = [
   Google({
@@ -24,6 +28,35 @@ const providers: NextAuthConfig['providers'] = [
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   }),
 ];
+
+// FB-092: email + password for the env-configured allowlist (see lib/password-login for the rules
+// and the reasoning). The provider only exists when at least one account is configured — an unset
+// or empty STUDIO_PASSWORD_LOGINS leaves Google as the only real door, exactly as before.
+const passwordConfig = parsePasswordAccounts(process.env.STUDIO_PASSWORD_LOGINS);
+for (const pos of passwordConfig.malformed) {
+  // Position only, never content — the likeliest malformation is a plaintext password pasted
+  // where a hash belongs, and it must not end up in logs.
+  console.warn(
+    `[auth] STUDIO_PASSWORD_LOGINS entry ${pos} is malformed (expected email=scrypt:...) — ignored. ` +
+      'Mint entries with scripts/mint-password-login.mjs.',
+  );
+}
+export const passwordLoginEnabled = passwordConfig.accounts.size > 0;
+if (passwordLoginEnabled) {
+  const throttle = createThrottle();
+  providers.push(
+    Credentials({
+      id: 'password',
+      name: 'Email and password',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      authorize: (creds) =>
+        authorizePassword(creds?.email, creds?.password, passwordConfig.accounts, throttle),
+    }),
+  );
+}
 
 const e2eSecret = process.env.E2E_TEST_LOGIN_SECRET;
 if (process.env.E2E_TEST_LOGIN === '1' && e2eSecret) {
@@ -43,30 +76,11 @@ if (process.env.E2E_TEST_LOGIN === '1' && e2eSecret) {
   );
 }
 
+// Gate behaviour and callbacks live in auth.config.ts (edge-safe, shared with the middleware);
+// this file adds the providers, which may use Node-only modules (lib/password-login → node:crypto).
 export const config: NextAuthConfig = {
-  // Deploys run off-Vercel (one VPS per venture, D1); trust the host so Auth.js doesn't 500.
-  trustHost: true,
+  ...baseConfig,
   providers,
-  pages: { signIn: '/login' },
-  callbacks: {
-    // Middleware gate (FB-005): matched routes require a signed-in user. Without this callback,
-    // next-auth v5 middleware defaults to "authorized" and lets everything through — the
-    // placeholder routes (and FB-006/007/008's real data pages) would be publicly reachable.
-    authorized({ auth }) {
-      // FB-015: no Foundry page is public. Every matched route requires a signed-in user; only
-      // `/login`, `/not-authorized`, `/api/auth`, and `/api/health` are excluded (middleware matcher).
-      return !!auth?.user;
-    },
-    // Persist the email on the JWT so `auth()` exposes it server-side for scoping.
-    jwt({ token, user }) {
-      if (user?.email) token.email = user.email;
-      return token;
-    },
-    session({ session, token }) {
-      if (session.user && token.email) session.user.email = token.email;
-      return session;
-    },
-  },
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(config);

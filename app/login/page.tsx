@@ -1,12 +1,20 @@
 import { redirect } from 'next/navigation';
-import { auth, signIn } from '@/auth';
+import { AuthError } from 'next-auth';
+import { auth, signIn, passwordLoginEnabled } from '@/auth';
+import { toneColor } from '@/lib/status';
 
-// Sign-in page. Google is the only real provider. When E2E_TEST_LOGIN=1 a test form is shown so
+// Sign-in page. Google is the primary provider; FB-092 adds an email+password form for the
+// env-configured allowlist (lib/password-login). When E2E_TEST_LOGIN=1 a test form is shown so
 // Playwright/CI can sign in as an arbitrary email to drive the three authorization cases.
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (session?.user?.email) redirect('/');
 
+  const { error } = await searchParams;
   const e2e = process.env.E2E_TEST_LOGIN === '1';
 
   return (
@@ -22,6 +30,56 @@ export default async function LoginPage() {
       >
         <button className="btn btn-primary" type="submit">Continue with Google</button>
       </form>
+
+      {passwordLoginEnabled ? (
+        <form
+          data-testid="password-login"
+          action={async (formData: FormData) => {
+            'use server';
+            try {
+              await signIn('password', {
+                email: String(formData.get('email') ?? ''),
+                password: String(formData.get('password') ?? ''),
+                redirectTo: '/',
+              });
+            } catch (err) {
+              // Auth.js signals both outcomes by throwing: success is a NEXT_REDIRECT (rethrown),
+              // failure an AuthError. One generic message on purpose — which check failed (unknown
+              // email, wrong password, throttled) is exactly what a guesser wants to know.
+              if (err instanceof AuthError) redirect('/login?error=password');
+              throw err;
+            }
+          }}
+          style={{ marginTop: '2rem', display: 'grid', gap: '0.5rem' }}
+        >
+          <p className="muted" style={{ marginBottom: 0 }}>Or with email and password:</p>
+          <input
+            name="email"
+            type="email"
+            required
+            autoComplete="username"
+            placeholder="email"
+            data-testid="password-email"
+            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius)' }}
+          />
+          <input
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder="password"
+            data-testid="password-password"
+            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius)' }}
+          />
+          <button className="btn" type="submit" data-testid="password-submit">Sign in</button>
+          {error === 'password' ? (
+            <p role="alert" data-testid="password-error" style={{ color: toneColor('blocked'), marginBottom: 0 }}>
+              That sign-in didn&rsquo;t work. Check the email and password; after several failed
+              tries an account is paused for 15 minutes.
+            </p>
+          ) : null}
+        </form>
+      ) : null}
 
       {e2e ? (
         <form
