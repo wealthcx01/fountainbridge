@@ -20,6 +20,7 @@ import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { GitHubClient } from '@/lib/github';
 import { APPROVALS_REF, approvalRepos, type ApprovalProposal } from '@/lib/approvals';
+import { fullRepoName } from '@/lib/venture-repos';
 import { attestationFor, approverRoleForDepartment, canApprove } from '@/lib/approval-attestation';
 import { verifyGrant } from '@/lib/provenance';
 import { appendEvent } from '@/lib/activegraph-log';
@@ -85,9 +86,11 @@ export async function approveExternalAction(
     return { ok: false, message: 'That approval is not in one of this venture’s repositories.' };
   }
 
-  // Read the proposal (read App) + guard against re-granting.
+  // Read the proposal (read App) + guard against re-granting. GitHub is addressed by the FULL
+  // `owner/slug` name; `repo` stays the manifest slug for events and messages (FB-094).
+  const ghRepo = fullRepoName(repo);
   const reader = new GitHubClient();
-  const proposalR = await reader.getFileWithSha(repo, `approvals/${approvalId}/proposal.json`, APPROVALS_REF);
+  const proposalR = await reader.getFileWithSha(ghRepo, `approvals/${approvalId}/proposal.json`, APPROVALS_REF);
   if (!proposalR) return { ok: false, message: 'That approval no longer exists.' };
   // VERIFY the existing grant rather than testing for the file. A lane can write grant.json, so
   // presence alone proved nothing — and refusing on presence dead-ended the founder: the card said
@@ -107,16 +110,16 @@ export async function approveExternalAction(
   let proposal: ApprovalProposal;
   try { proposal = JSON.parse(proposalR.text) as ApprovalProposal; } catch { return { ok: false, message: 'The proposal could not be read.' }; }
 
-  const existingGrant = await reader.getFileContent(repo, `approvals/${approvalId}/grant.json`, APPROVALS_REF);
+  const existingGrant = await reader.getFileContent(ghRepo, `approvals/${approvalId}/grant.json`, APPROVALS_REF);
   if (existingGrant) {
     let parsed: unknown = null;
     try { parsed = JSON.parse(existingGrant); } catch { parsed = null; }
-    const verified = verifyGrant(repo, approvalId, proposalR.sha, parsed as never, secret);
+    const verified = verifyGrant(ghRepo, approvalId, proposalR.sha, parsed as never, secret);
     if (verified.provenance === 'attested') {
       return { ok: false, message: `This was already approved by ${verified.approver}.` };
     }
   }
-  const alreadyDone = await reader.getFileContent(repo, `approvals/${approvalId}/execution.json`, APPROVALS_REF);
+  const alreadyDone = await reader.getFileContent(ghRepo, `approvals/${approvalId}/execution.json`, APPROVALS_REF);
   if (alreadyDone) return { ok: false, message: 'This approval has already been actioned — it cannot be approved again.' };
 
   // D7: is this user the approver for the department's change class?
@@ -126,11 +129,13 @@ export async function approveExternalAction(
   }
 
   // Sign + write the grant (the executor verifies the attestation; a lane can't forge it).
-  const attestation = attestationFor(repo, approvalId, proposalR.sha, email, secret);
-  const grant = { id: approvalId, repo, decision: 'granted', approver: email, proposal_sha: proposalR.sha, attestation, granted_at: new Date().toISOString() };
+  // The attestation is over the FULL name — the executor recomputes it with its REPO env, which is
+  // `owner/slug`; signing over the bare slug produced grants it refused as forged (FB-094).
+  const attestation = attestationFor(ghRepo, approvalId, proposalR.sha, email, secret);
+  const grant = { id: approvalId, repo: ghRepo, decision: 'granted', approver: email, proposal_sha: proposalR.sha, attestation, granted_at: new Date().toISOString() };
   const writer = new GitHubClient({ token: writeToken });
   try {
-    await writer.putFile(repo, `approvals/${approvalId}/grant.json`, {
+    await writer.putFile(ghRepo, `approvals/${approvalId}/grant.json`, {
       content: JSON.stringify(grant, null, 2),
       message: `grant ${approvalId} (approved by ${email})`,
       branch: APPROVALS_REF,

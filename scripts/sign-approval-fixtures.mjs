@@ -30,8 +30,11 @@ const attestationFor = (repo, id, proposalSha, approver) =>
 let signed = 0;
 let skipped = 0;
 for (const repoDir of readdirSync(ROOT, { withFileTypes: true }).filter((d) => d.isDirectory())) {
-  // The source keys the directory by repo with slashes doubled to underscores.
-  const repo = repoDir.name.replace(/__/g, '/');
+  // The source keys the directory by repo with slashes doubled to underscores. The signature is
+  // over the FULL `owner/slug` name (FB-094) — the same string the studio signs on Approve and the
+  // executor's REPO env recomputes; a fixture signed over the bare slug reads `unattested`.
+  const slug = repoDir.name.replace(/__/g, '/');
+  const repo = slug.includes('/') ? slug : `${process.env.GITHUB_ORG ?? 'wealthcx01'}/${slug}`;
   for (const idDir of readdirSync(join(ROOT, repoDir.name), { withFileTypes: true }).filter((d) => d.isDirectory())) {
     const grantPath = join(ROOT, repoDir.name, idDir.name, 'grant.json');
     if (!existsSync(grantPath)) continue;
