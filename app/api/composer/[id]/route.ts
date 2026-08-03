@@ -115,7 +115,32 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     );
   }
 
-  return new Response(upstream.body, {
+  // FB-095: the engine answers 200 and streams its own failures as message content, so the
+  // status-code guard above never sees them. Watch the first few KB for that shape and put the
+  // detail in the SERVER log — the founder-facing translation happens in the component, and an
+  // error only a browser console ever saw would be invisible to the person who can fix the box.
+  // Pass-through stays byte-identical and unbuffered; only a bounded sniff copy is kept.
+  let sniffed = '';
+  let reported = false;
+  const sniffDecoder = new TextDecoder();
+  const sniff = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(chunk);
+      if (!reported && sniffed.length < 8192) {
+        sniffed += sniffDecoder.decode(chunk, { stream: true });
+        // The content arrives JSON-encoded inside delta chunks, so the brace is escaped.
+        if (/Error:\s*\\?\{\\?"/.test(sniffed)) {
+          reported = true;
+          console.error('[composer] engine fault streamed as reply', {
+            ventureId: id,
+            detail: sniffed.slice(0, 2000),
+          });
+        }
+      }
+    },
+  });
+
+  return new Response(upstream.body.pipeThrough(sniff), {
     headers: {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',

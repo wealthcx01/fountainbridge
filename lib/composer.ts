@@ -104,6 +104,39 @@ export function describeTool(rawName: string): string {
   return 'Working…';
 }
 
+/**
+ * What a founder is told when the ENGINE is broken — as opposed to their request failing (FB-095).
+ *
+ * One sentence for every engine failure mode, deliberately: which internal check failed (context
+ * budget, pruning, tool overhead) is a fix for an admin and noise for a founder — the same split
+ * FB-087 drew for the wiring warning.
+ */
+export const ENGINE_FAULT_MESSAGE =
+  'Something is wrong with this venture’s composer engine — not with what you asked, and nothing '
+  + 'you typed was lost. Bruntsfield can see the details. Try again once it has been looked at.';
+
+/**
+ * Detect an engine error that arrived AS the reply (FB-095).
+ *
+ * The box's engine answers 200 and streams its own failures as message content. The founder
+ * walkthrough received, verbatim, in the composer's voice:
+ *
+ *     Error: {"type":"empty_messages","info":"Message pruning removed all messages as none fit in
+ *     the context window. Tool definitions consume 4322 tokens (65% of instructions) across 6
+ *     tools, exceeding maxContextTokens (1024). …"}
+ *
+ * — token accounting and raw JSON, shown to the one person this surface exists for. The shape is
+ * pinned tight (`Error:` then a JSON object) so a reply that merely *discusses* an error — "the
+ * error message on your sign-in page…" — can never be swallowed by this check.
+ *
+ * Returns the raw detail for the log when it matches, null otherwise. The caller shows
+ * ENGINE_FAULT_MESSAGE and keeps the detail out of the founder's view.
+ */
+export function engineFault(content: string): string | null {
+  const trimmed = content.trim();
+  return /^Error:\s*\{\s*"/.test(trimmed) ? trimmed : null;
+}
+
 /** Accumulated state of one streamed reply. The reducer below is the only thing that mutates it. */
 export interface StreamState {
   content: string;

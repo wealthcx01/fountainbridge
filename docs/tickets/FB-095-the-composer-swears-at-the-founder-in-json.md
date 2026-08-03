@@ -1,6 +1,6 @@
 # FB-095 — The composer swears at the founder in JSON
 
-**Status:** Todo · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03 — the first
+**Status:** Done · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03 — the first
 message a founder sent through the in-studio composer · **Repo:** fountainbridge (+ the venture box)
 · **Branch:** `fb-095-the-composer-swears-at-the-founder-in-json` · One ticket = one branch = one PR.
 
@@ -62,6 +62,7 @@ what happened here.
 
 ## Acceptance criteria
 
-- [ ] The exact error above renders as one plain sentence, and the detail reaches the server log.
-- [ ] A box whose agent cannot complete a message reports not-ready to an admin, by name.
-- [ ] ARCA's composer accepts the walkthrough's brand-redesign message end to end.
+- [x] The exact error above renders as one plain sentence, and the detail reaches the server log.
+- [x] A box whose agent cannot complete a message reports not-ready to an admin, by name.
+- [x] ARCA's composer accepts the walkthrough's brand-redesign message end to end (verified on the
+      live box after re-seeding with the explicit `maxContextTokens`).

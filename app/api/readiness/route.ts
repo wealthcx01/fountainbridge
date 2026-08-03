@@ -19,29 +19,62 @@ import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { readiness, keyEnvName } from '@/lib/readiness';
-import { composerEndpoint } from '@/lib/composer';
+import { composerEndpoint, engineFault } from '@/lib/composer';
 
 export const dynamic = 'force-dynamic';
 
-/** Does the box answer with this key? Never throws — a probe that crashes the report is useless. */
+// Mirrors the composer route's constant (same env, same default) — the probe must exercise the
+// agent the founder's messages actually go to, or it certifies a different door than the one in use.
+const PROBE_AGENT = process.env.COMPOSER_AGENT_ID ?? 'agent_foundry_composer';
+
+/**
+ * Does the box actually ANSWER A MESSAGE with this key? Never throws — a probe that crashes the
+ * report is useless.
+ *
+ * FB-095 turned this from `GET /models` into a real one-message completion. The composer failure it
+ * missed: the agent's effective context budget was smaller than its own tool definitions, so every
+ * founder message died with a raw engine error — while `/models` kept answering 200 and this probe
+ * kept certifying the venture ready. "Ready" has to mean "a message round-trips"; anything less
+ * re-opens the FB-087 gap one layer up.
+ */
 async function probeBox(host: string, key: string): Promise<{ reachable: boolean; detail: string }> {
   const endpoint = composerEndpoint(host);
   if (!endpoint) return { reachable: false, detail: 'no box' };
   try {
-    const res = await fetch(`${endpoint}/api/agents/v1/models`, {
-      headers: { Authorization: `Bearer ${key}` },
-      signal: AbortSignal.timeout(10_000),
+    const res = await fetch(`${endpoint}/api/agents/v1/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      // One tiny turn, no stream. The agent may still think/tool-call, hence the longer timeout —
+      // this only runs behind an explicit admin `?probe=1`, so the cost is deliberate.
+      body: JSON.stringify({
+        model: PROBE_AGENT,
+        messages: [{ role: 'user', content: 'Readiness probe: reply with the single word "ready".' }],
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(60_000),
       cache: 'no-store',
     });
-    if (res.ok) return { reachable: true, detail: 'answers' };
     // 401 is the interesting one: the box is up and rejecting the studio's key, which looks
     // identical to "working" from every check that does not actually authenticate.
-    return {
-      reachable: false,
-      detail: res.status === 401
-        ? 'the box rejected the studio’s key — it is set but wrong, or was revoked'
-        : `the box answered ${res.status}`,
-    };
+    if (res.status === 401) {
+      return { reachable: false, detail: 'the box rejected the studio’s key — it is set but wrong, or was revoked' };
+    }
+    if (!res.ok) return { reachable: false, detail: `the box answered ${res.status}` };
+    const body = (await res.json().catch(() => null)) as
+      | { choices?: Array<{ message?: { content?: string } }> }
+      | null;
+    const content = body?.choices?.[0]?.message?.content ?? '';
+    // The engine reports some failures as 200-with-an-error-reply (the FB-095 walkthrough failure).
+    const fault = engineFault(content);
+    if (fault) {
+      return {
+        reachable: false,
+        // First line only, and bounded: enough to name the fault for an admin, never a page of it.
+        detail: `the engine cannot accept a message: ${fault.slice(0, 200)}`,
+      };
+    }
+    if (!content.trim()) return { reachable: false, detail: 'the engine answered a completion with nothing' };
+    return { reachable: true, detail: 'a message round-trips' };
   } catch (e) {
     return { reachable: false, detail: e instanceof Error ? e.message : 'unreachable' };
   }
