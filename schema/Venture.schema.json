@@ -82,6 +82,29 @@
           "minLength": 1,
           "title": "Venture Id",
           "type": "string"
+        },
+        "launch": {
+          "description": "Where this surface's running product or service opens from the studio (FB-093). Optional — absent until the venture defines it; the studio shows an honest 'nowhere to open yet' state meanwhile.",
+          "title": "Launch",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "description": "The URL the launch button opens. http(s) only — never a script or file scheme.",
+              "title": "Url",
+              "type": "string",
+              "pattern": "^https?://"
+            },
+            "label": {
+              "description": "Button label (e.g. 'Open the app'). The studio defaults to 'Open' when unset.",
+              "title": "Label",
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       },
       "required": [

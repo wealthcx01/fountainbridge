@@ -319,6 +319,30 @@ export function VentureBoard({
                       belongs where the figure is stated, once, not on every card. */}
                   <span className="muted">Limit set in the studio; spend as reported by the venture.</span>
                 </p>
+                {/* FB-093: the door to the thing this surface is building. The target comes from the
+                    manifest (`launch:` — venture-as-config, never hard-coded here); a new tab for
+                    the same reason as the chat button: it is a different application, and replacing
+                    the board with it is the "no way back" problem FB-065 named. Only rendered for a
+                    provisioned surface — "coming" already explains an unprovisioned one. */}
+                {d.provisioned ? (
+                  d.launch ? (
+                    <a
+                      className="btn"
+                      href={d.launch.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-testid={`dept-${d.id}-launch`}
+                      style={{ marginTop: '0.6rem' }}
+                    >
+                      {d.launch.label ?? 'Open'}
+                    </a>
+                  ) : (
+                    <p className="muted" data-testid={`dept-${d.id}-launch-pending`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.6rem 0 0' }}>
+                      Nowhere to open yet — when this surface has something running (the app, the
+                      site, a service), its door appears here.
+                    </p>
+                  )
+                ) : null}
               </div>
               );
             })}

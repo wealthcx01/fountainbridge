@@ -62,6 +62,9 @@ departments:              # OPTIONAL. Each department's `venture_id` MUST equal 
     queue_path: docs/tickets  # REQUIRED. Path (in the repo) to the department's work queue.
     connectors: []        # OPTIONAL. Connector names this department uses.
     gate: pr              # REQUIRED. One of: pr | activegraph | tbd-fb012.
+    launch:               # OPTIONAL (FB-093). Where this surface's running product/service opens
+      url: https://app.example-venture.com   # REQUIRED within launch. http(s) only.
+      label: Open the app                    # OPTIONAL. Studio defaults to "Open".
   - id: gtm
     venture_id: example-venture
     name: GTM
