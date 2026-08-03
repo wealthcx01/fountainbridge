@@ -1,6 +1,6 @@
 # FB-101 — The handbook teaches the studio
 
-**Status:** Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"we are maybe needing
+**Status:** Done · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"we are maybe needing
 another section of the handbook to just understand the whole process of using the tool,
 understanding how to draft tickets and follow them"* · **Repo:** fountainbridge ·
 **Branch:** `fb-101-the-handbook-teaches-the-studio` · One ticket = one branch = one PR.
@@ -52,8 +52,10 @@ yet, so your read of the work is the only check), and what to do about each.
 
 ## Acceptance criteria
 
-- [ ] A founder who has never seen the studio can follow the chapter through ask → review →
+- [x] A founder who has never seen the studio can follow the chapter through ask → review →
       accept on their real venture without asking a human anything.
-- [ ] Every badge and warning a founder can meet is explained in plain words.
-- [ ] "The team" is introduced by name before any page refers to it.
-- [ ] The chapter renders in the Handbook nav and the e2e gallery includes it.
+- [x] Every badge and warning a founder can meet is explained in plain words ("no automatic
+      checks", "stuck — needs a human", the never-bending external gate).
+- [x] "The team" is introduced by name before any page refers to it (the chapter opens with it;
+      putting the same introduction on the board itself is FB-103).
+- [x] The chapter renders in the Handbook nav and the e2e gallery includes it.
