@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  draftTitle, drainSse, emptyStream, fileThisMessage, formatInline,
-  parseReply, reduceChunk, visibleActions, withDocument,
+  ENGINE_FAULT_MESSAGE, draftTitle, drainSse, emptyStream, engineFault, fileThisMessage,
+  formatInline, parseReply, reduceChunk, visibleActions, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
 import { toneColor } from '@/lib/status';
@@ -122,7 +122,14 @@ export function Composer({ ventureId, ventureName }: { ventureId: string; ventur
         setLive({ content: state.content, actions: state.actions });
       }
 
-      if (!state.content.trim() && state.actions.length === 0) {
+      const fault = engineFault(state.content);
+      if (fault) {
+        // FB-095: the engine streamed its own failure as the reply. The founder gets one plain
+        // sentence through the error surface, never the JSON; the detail goes where someone who
+        // can act on it will look (the server logs the same fault — this is the belt to that brace).
+        console.error('[composer] engine fault streamed as reply', fault);
+        setError(ENGINE_FAULT_MESSAGE);
+      } else if (!state.content.trim() && state.actions.length === 0) {
         setError('The composer answered with nothing. Try asking again.');
       } else {
         setMessages((m) => [...m, { role: 'assistant' as const, content: state.content, actions: state.actions }].slice(-MAX_KEPT));

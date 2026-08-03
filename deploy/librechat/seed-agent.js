@@ -267,7 +267,15 @@ function seedAgent(def) {
         // exact moment it matters, leaving the founder a turn with tool calls and no words. It is
         // the most likely mechanism behind the composer appearing to file a ticket on 2026-07-29
         // (FB-062) and it made the composer unusable for its entire purpose.
-        model_parameters: { thinking: false },
+        //
+        // maxContextTokens is EXPLICIT (FB-095). When LibreChat does not recognise a model name in
+        // its token map — and it does not know 'claude-sonnet-5' — it falls back to a context so
+        // small (1024) that the agent's own tool definitions (~4.3k tokens) exceed it, and every
+        // message dies before the model is reached with a raw `empty_messages` engine error. The
+        // founder walkthrough of 2026-08-03 met exactly that, in the composer's own voice. 200k is
+        // the Sonnet context window; stated here so a LibreChat upgrade or model rename can never
+        // silently shrink it again.
+        model_parameters: { thinking: false, maxContextTokens: 200000 },
         tools: def.tools,
         mcpServerNames: def.mcpServerNames,
         conversation_starters: def.conversation_starters,

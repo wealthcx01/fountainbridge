@@ -1,8 +1,38 @@
 import { describe, it, expect } from 'vitest';
 import {
-  composerEndpoint, composerKeyEnvName, describeTool, drainSse,
-  emptyStream, formatInline, reduceChunk, withDocument, visibleActions, MAX_DOCUMENT_CHARS,
+  ENGINE_FAULT_MESSAGE, composerEndpoint, composerKeyEnvName, describeTool, drainSse,
+  emptyStream, engineFault, formatInline, reduceChunk, withDocument, visibleActions,
+  MAX_DOCUMENT_CHARS,
 } from '../composer';
+
+describe('engineFault — an engine error streamed as the reply (FB-095)', () => {
+  // Byte-for-byte what the founder walkthrough received on 2026-08-03.
+  const WALKTHROUGH_FAULT =
+    'Error: {"type":"empty_messages","info":"Message pruning removed all messages as none fit in '
+    + 'the context window. Tool definitions consume 4322 tokens (65% of instructions) across 6 '
+    + 'tools, exceeding maxContextTokens (1024). Reduce the number of tools or increase '
+    + 'maxContextTokens."}';
+
+  it('recognises the walkthrough fault and returns the raw detail for the log', () => {
+    expect(engineFault(WALKTHROUGH_FAULT)).toBe(WALKTHROUGH_FAULT);
+    expect(engineFault(`  ${WALKTHROUGH_FAULT}`)).toBeTruthy(); // leading whitespace from the stream
+  });
+
+  it('never swallows a reply that merely discusses an error', () => {
+    // The shape is `Error:` followed by a JSON object. Prose about errors, code snippets in a
+    // ticket draft, or a reply that quotes an error mid-sentence must all pass through untouched.
+    expect(engineFault('The error message on your sign-in page says the wrong thing.')).toBeNull();
+    expect(engineFault('Error: the seed script exits 0 even when nothing was seeded.')).toBeNull();
+    expect(engineFault('I found this in the logs:\nError: {"type":"x"} — worth a ticket?')).toBeNull();
+    expect(engineFault('')).toBeNull();
+  });
+
+  it('the founder-facing sentence contains no machinery', () => {
+    for (const word of ['JSON', 'token', 'prune', 'context window', '{']) {
+      expect(ENGINE_FAULT_MESSAGE.toLowerCase()).not.toContain(word.toLowerCase());
+    }
+  });
+});
 
 describe('finding a venture’s composer', () => {
   it('points at the venture’s own box, the same one the old link used', () => {
