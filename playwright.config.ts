@@ -53,6 +53,11 @@ export default defineConfig({
       // arca's last activity is 2026-07-21 → active; thereset-platform's is 2026-01-10 → stale.
       E2E_NOW: '2026-07-22T00:00:00Z',
       STUDIO_ADMIN_EMAILS: 'john.gallagher@wealthcx.com',
+      // FB-092: the email+password door, driven end to end by password-login.spec.ts. The hash is
+      // for 'e2e-founder-password-not-for-production' — minted with scripts/mint-password-login.mjs
+      // and safe to commit precisely because it is a hash of a test-only password.
+      STUDIO_PASSWORD_LOGINS:
+        'arca.founder@bruntsfield.capital=scrypt:16384:8:1:WOJHurNFM0_Pg9TJPpclNA:9hY2bijcoZlJ0eYUaNDtoQg-KLQ9v7ZyWjuX21SPIB8',
       AUTH_SECRET: 'e2e-test-secret-not-for-production',
       AUTH_TRUST_HOST: 'true',
       GOOGLE_CLIENT_ID: 'e2e-dummy',
