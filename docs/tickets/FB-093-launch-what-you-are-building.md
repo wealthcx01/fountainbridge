@@ -1,6 +1,6 @@
 # FB-093 — Launch what you are building
 
-**Status:** In review · **Phase:** 3 (founder experience) · **Asked for by:** John, 2026-08-03 —
+**Status:** Done · **Phase:** 3 (founder experience) · **Asked for by:** John, 2026-08-03 —
 *"Can we add a button, so the founder can launch the product they are building? … for marketing and
 ops perhaps different services would be launched (email or whatever - we can define later)."* ·
 **Repo:** fountainbridge · **Branch:** `fb-093-launch-what-you-are-building` ·
