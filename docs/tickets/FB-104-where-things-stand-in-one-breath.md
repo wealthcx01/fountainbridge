@@ -1,6 +1,6 @@
 # FB-104 — Where things stand, in one breath
 
-**Status:** Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"the summary in 'Where
+**Status:** Done · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"the summary in 'Where
 Things Stand' has to be much clearer and better on an aggregate level across tickets."* ·
 **Repo:** fountainbridge · **Branch:** `fb-104-where-things-stand-in-one-breath` ·
 One ticket = one branch = one PR.
@@ -49,7 +49,39 @@ read — numbers may be low"), once, at the end — not as a competing bullet pe
 
 ## Acceptance criteria
 
-- [ ] The walk's real state renders as ≤4 sentences plus at most one honesty line.
-- [ ] Repeated attempts at one ticket appear as one fact.
-- [ ] Every sentence links to the page that expands on it.
-- [ ] No verbatim lane/validation prose appears in the brief.
+- [x] The walk's real state renders as ≤4 sentences plus at most one honesty line. — pinned by
+      `lib/__tests__/brief.test.ts` ("the walk that produced this ticket" feeds the exact state: five
+      stopped reports across two tickets, one in flight, work and a send waiting, over budget, and a
+      failed read) and by an e2e assertion that the board never renders more than four lines.
+- [x] Repeated attempts at one ticket appear as one fact. — `stuckTickets` dedupes by ticket; six
+      retries of one ticket read "1 ticket is stuck".
+- [x] Every sentence links to the page that expands on it. — `BriefLine.href`, rendered by
+      `<Expanded>`. The one exception is the honesty line, which has nowhere honest to point: a link
+      that goes nowhere useful teaches the founder that the brief's links are decoration.
+- [x] No verbatim lane/validation prose appears in the brief.
+
+## What shipped
+
+`lib/brief.ts` recomposed around the four questions, and the sentence count is the design: what needs
+you (aggregated across finished work AND external sends, with the oldest wait), what is stuck
+(deduplicated by ticket, named), what your team is doing and what it finished this week (one sentence
+— they share a subject), and the spend limit. Then one honesty line if anything could not be read.
+
+The board's screenshot before this: a disclaimer, then eight bullets, three of them the same ticket
+quoting the machine's own validation prose. After: four sentences.
+
+Three decisions worth naming, none of them in the ticket:
+
+- **"What is stuck" is second, not fourth.** The ticket lists the four *questions*; the order they
+  render in follows the doctrine `lib/brief.ts` already carried and CLAUDE.md #10 — burying two stuck
+  tickets under "3 tickets finished this week" would be a new way to fail quietly.
+- **The spend limit kept a line.** It is not one of the four questions and it is a decision sitting
+  with the founder, so questions 2 and 3 share one sentence to make room. Four sentences, four
+  answers, and the money still visible.
+- **"Nothing is waiting on you."** — the answer to question one when the answer is no, which is what
+  a founder opening the board at 22:00 most wants to read. Withheld when the picture is incomplete
+  (it would be a positive the brief invented) or while the team itself is silent (reassurance in
+  front of bad news).
+
+Also fixed here, because it was on the same screen: FB-103 introduced "your team" in the activity
+panel and then again in the board header, so the same sentence printed twice on one page.

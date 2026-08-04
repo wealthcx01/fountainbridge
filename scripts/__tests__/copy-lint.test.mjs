@@ -65,6 +65,18 @@ describe('copy-lint stays quiet about code', () => {
     expect(rules(`const [x, setX] = useState<Thing | null>(null);\nconst r = useRef<HTMLElement>(null);`)).toEqual([]);
   });
 
+  it('does not read a call between two comparisons as a sentence', () => {
+    // `(r) => now - Date.parse(r.endedAt as string) <= WEEK_MS` puts "text" between a `>` and a `<`.
+    expect(rules(`const recent = runs.filter((r) => now - Date.parse(r.endedAt) <= WEEK_MS);`)).toEqual([]);
+  });
+
+  it('reads a template’s words but not the identifiers inside its holes', () => {
+    // "it checked in … ago" is plain English; `engine.ageMinutes` is a field name no founder sees.
+    expect(rules('const t = `it checked in ${describeGap(input.engine.ageMinutes)} ago`;')).toEqual([]);
+    // …but the words around the hole are still copy.
+    expect(rules('const t = `the lane checked in ${gap} ago`;')).toContain('lane');
+  });
+
   it('leaves ordinary founder copy alone', () => {
     expect(rules(`<p>Your team checked in just now. Nothing goes live until you approve it.</p>`)).toEqual([]);
   });

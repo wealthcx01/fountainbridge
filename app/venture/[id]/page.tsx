@@ -140,18 +140,32 @@ export default async function VenturePage({
     now,
   );
 
+  // FB-104: a stuck ticket reads by its name, not its number. The titles are already on the board —
+  // this is the same parse the columns render from, so the brief cannot name a ticket differently
+  // from the card the founder then goes and opens.
+  const ticketTitles: Record<string, string> = {};
+  for (const lane of lanes) {
+    for (const group of Object.values(lane.groups)) {
+      for (const t of group) ticketTitles[t.ticket.id] = t.ticket.title;
+    }
+  }
+
   const brief: Brief = composeBrief({
     ventureName: venture.name,
     awaitingApproval: approvals.filter((a) => a.status === 'proposed').length,
-    openPrs: attention.approvals.length,
-    ...bucketRuns(runs.reports),
+    // The queue itself, not a count of it: the brief says how long the oldest has waited, and a
+    // number cannot be asked that.
+    openWork: attention.approvals.map((a) => ({ ticketId: a.linkedTicketId, ageMs: a.ageMs })),
+    runs: runs.reports,
     engine,
+    ticketTitles,
     overBudget: venture.departments
       .map((d, i) => (budgets[i]?.overLimit ? d.name : null))
       .filter((n): n is string => !!n),
     // Any read that failed leaves the brief working from an incomplete picture, and it says so
     // rather than reassuring the founder from a partial one.
     degraded: runsDegraded || attention.errors.length > 0 || !!budgetsError,
+    now: now.getTime(),
   });
 
   // FB-066: day one. A founder whose venture has produced nothing meets a welcome and ONE action,
