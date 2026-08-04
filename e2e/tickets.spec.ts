@@ -91,6 +91,13 @@ test.describe('the ticket carries its own decision (FB-105)', () => {
     await expect(page.getByTestId('drawer-note')).toBeVisible();
   });
 
+  test('the ticket does not print its own name twice', async ({ page }) => {
+    // The drawer shows the title above the body, and the body opened with the same title as an <h1>.
+    await page.getByTestId('ticket-ARCA-1').click();
+    await expect(page.getByTestId('drawer-title')).toHaveText('Terminal card renderer setup');
+    await expect(page.getByTestId('ticket-drawer').locator('h1')).toHaveCount(0);
+  });
+
   test('the drawer and the board agree about the status, and the body does not argue', async ({ page }) => {
     // The audit: "Needs your OK" in the banner and `Status: Todo` two lines below it — two answers
     // to one question, in one view, and the wrong one written larger.
@@ -114,5 +121,55 @@ test.describe('the ticket carries its own decision (FB-105)', () => {
   test('the code host is a reference here too, not the continuation of reading', async ({ page }) => {
     await page.getByTestId('ticket-ARCA-1').click();
     await expect(page.getByTestId('drawer-github-link')).not.toHaveClass(/btn/);
+  });
+});
+
+/**
+ * FB-098 — watching your ticket being worked.
+ *
+ * John: *"the ticket get's worked (we should have some sort of simulator or loading bar for this),
+ * and then a message or notification that the ticket has been worked."* Every piece of the loop
+ * existed; none of it was visible AS a loop. The rule these pin is that what became visible is
+ * EVIDENCE — real timestamps, real check-ins, real attempt counts — and never a bar counting to
+ * nothing.
+ */
+test.describe('the loop is visible on the board (FB-098)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/venture/arca');
+  });
+
+  test('a worked ticket says so on the board and links to the review', async ({ page }) => {
+    const line = page.getByTestId('ticket-progress-ARCA-1');
+    await expect(line).toHaveAttribute('data-state', 'worked');
+    await expect(line).toHaveAttribute('href', '/venture/arca/work/arca/10');
+    await expect(line).toContainText('read it and decide');
+  });
+
+  test('a ticket being worked shows when it was picked up and the real check-in', async ({ page }) => {
+    const line = page.getByTestId('ticket-progress-ARCA-3');
+    await expect(line).toHaveAttribute('data-state', 'working');
+    await expect(line).toContainText('picked this up');
+    await expect(line).toContainText('checked in');
+  });
+
+  test('nothing on a card counts to a finish it cannot know', async ({ page }) => {
+    // The honesty rule. A progress bar that lies is the composer-said-it-filed bug in a costume.
+    const line = page.getByTestId('ticket-progress-ARCA-3');
+    await expect(line).not.toContainText('%');
+    await expect(page.locator('progress')).toHaveCount(0);
+  });
+
+  test('a parked ticket names how many attempts it took', async ({ page }) => {
+    const line = page.getByTestId('ticket-progress-ARCA-4');
+    await expect(line).toHaveAttribute('data-state', 'parked');
+    await expect(line).toContainText('Tried 2 times and stopped');
+  });
+
+  test('a ticket nobody has touched says nothing, and the column says it once', async ({ page }) => {
+    // Twenty cards each saying "waiting to be picked up" is how a board teaches someone to stop
+    // reading it (FB-100's item 5), so the reassurance lives on the column.
+    await expect(page.getByTestId('ticket-progress-ARCA-2')).toHaveCount(0);
+    await expect(page.getByTestId('col-todo-note')).toContainText('Waiting for your team to pick up');
   });
 });

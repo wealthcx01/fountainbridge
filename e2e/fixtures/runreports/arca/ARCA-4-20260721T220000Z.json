@@ -1,0 +1,9 @@
+{
+  "ticket": "ARCA-4",
+  "lane": "arca",
+  "status": "blocked",
+  "summary": "Could not get the animation polish past its own checks.",
+  "started": "2026-07-21T22:00:00Z",
+  "finished": "2026-07-21T22:20:00Z",
+  "repo": "wealthcx01/arca"
+}

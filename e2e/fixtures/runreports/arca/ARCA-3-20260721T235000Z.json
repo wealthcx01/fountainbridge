@@ -1,0 +1,8 @@
+{
+  "ticket": "ARCA-3",
+  "lane": "arca",
+  "status": "working",
+  "summary": "Picked up the deck export.",
+  "started": "2026-07-21T23:50:00Z",
+  "repo": "wealthcx01/arca"
+}

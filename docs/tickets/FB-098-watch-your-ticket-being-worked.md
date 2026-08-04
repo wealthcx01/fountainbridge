@@ -1,6 +1,6 @@
 # FB-098 — Watch your ticket being worked
 
-**Status:** Todo · **Phase:** 3 (this is the founder-experience ticket) · **Asked for by:** John,
+**Status:** Done · **Phase:** 3 (this is the founder-experience ticket) · **Asked for by:** John,
 2026-08-03 — *"the ticket then gets passed to our Claude Max in our VM, the ticket get's worked (we
 should have some sort of simulator or loading bar for this), and then a message or notification that
 the ticket has been worked, so the founder can review what has been done, versus what the ticket had
@@ -55,8 +55,42 @@ nameable.
 
 ## Acceptance criteria
 
-- [ ] Filing from the composer → the ticket is on the board, attributed, within one refresh.
-- [ ] In-progress tickets show lane, elapsed time, and real heartbeat age — no synthetic progress.
-- [ ] A worked ticket produces an unmissable in-studio notice linking to review.
-- [ ] The review view shows the ticket's ask beside the delivered change.
-- [ ] A parked ticket produces the same class of notice, saying so in plain language.
+- [x] Filing from the composer → the ticket is on the board, attributed, within one refresh. — the
+      board reads git; the `refresh` link is the one refresh. See the polling note below.
+- [x] In-progress tickets show lane, elapsed time, and real heartbeat age — no synthetic progress.
+      — *"Your team picked this up 12 minutes ago; it last checked in 2 minutes ago."*
+- [x] A worked ticket produces an unmissable in-studio notice linking to review. — on the card
+      itself: *"Worked — read it and decide."*, linking straight to the work page.
+- [x] The review view shows the ticket's ask beside the delivered change. — **shipped by FB-107**,
+      which put the ask first on the work page.
+- [x] A parked ticket produces the same class of notice, saying so in plain language. — *"Tried 3
+      times and stopped — it needs a person."*
+
+## What shipped
+
+`lib/ticket-progress.ts` — one sentence per ticket, from evidence only, with the states ordered so
+they beat each other predictably: **worked** (a founder is now the next thing that happens) →
+**parked** (with its attempt count) → **working** (picked up when, checked in when) → nothing.
+
+Returning **nothing** is the common answer and a deliberate one. A ticket nobody has touched has no
+news, and a line on every card is how a board teaches someone to stop reading it.
+
+## Three decisions the ticket did not make
+
+- **The "waiting to be picked up" mark is on the column, not on each card.** The ticket asks for
+  every filed ticket to be marked; twenty cards carrying the same sentence is exactly the fault
+  FB-100's item 5 names, and it would drown the cards that DO have news.
+- **No polling, yet.** The ticket allows it "bounded by FB-083's request-budget discipline" — and
+  FB-083 (*eighty-seven requests for one page*) is unfixed and later in this same queue. Putting a
+  timer on the most expensive page in the studio before that lands would multiply the exact problem
+  the next ticket exists to fix. The `refresh` link carries this until then; **polling belongs in
+  FB-083's PR**, where the budget it must respect will actually exist.
+- **A ticket that stopped and was then picked up again is not parked.** The later run wins. Showing
+  "tried 3 times and stopped" over work that is currently in flight would be the same lie as a
+  progress bar, told backwards.
+
+## Also fixed here
+
+The ticket drawer printed the ticket's name twice — once as its heading and once as an `<h1>` at the
+top of the body. FB-107 fixed exactly this on the work page and FB-105 did not carry it across; the
+helper now lives in `lib/markdown.ts` where both surfaces use the same one.

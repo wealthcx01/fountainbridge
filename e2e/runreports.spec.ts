@@ -53,11 +53,14 @@ test.describe('run reports and the founder brief', () => {
     const activity = page.getByTestId('lane-activity');
     await expect(activity).toBeVisible();
     const list = page.getByTestId('lane-activity-list');
-    // Newest first across BOTH repos: the Sell run (18:00) precedes the arca ones (16:00, 14:00).
-    await expect(list.locator('li').nth(0)).toContainText('waiting for your approval');
-    await expect(list.locator('li').nth(0)).toContainText('SELL-002');
-    await expect(list.locator('li').nth(1)).toContainText('ARCA-31');
-    await expect(list.locator('li').nth(2)).toContainText('needs your OK');
+    // Newest first across BOTH repos. FB-098 added the in-flight ARCA-3 (23:50) and the twice-parked
+    // ARCA-4 (22:00, 21:00), so they now precede the Sell run (18:00) and the older arca ones.
+    await expect(list.locator('li').nth(0)).toContainText('ARCA-3');
+    await expect(list.locator('li').nth(0)).toContainText('Working');
+    await expect(list.locator('li').nth(1)).toContainText('ARCA-4');
+    await expect(list.locator('li').nth(3)).toContainText('SELL-002');
+    await expect(list.locator('li').nth(3)).toContainText('waiting for your approval');
+    await expect(list.locator('li').nth(4)).toContainText('ARCA-31');
     // The contract-shaped record parsed as well as the lane-shaped ones.
     await expect(list.locator('li[data-outcome="awaiting-approval"]')).toHaveCount(1);
   });
@@ -77,6 +80,8 @@ test.describe('run reports and the founder brief', () => {
     // It is a liveness beacon overwritten on every wake, not run history — showing it would fill the
     // strip with "woke up, did nothing" and bury the runs that matter.
     await expect(page.getByTestId('lane-activity-list')).not.toContainText('heartbeat');
-    await expect(page.getByTestId('lane-activity-list').locator('li')).toHaveCount(3);
+    // Six runs in the fixtures since FB-098 added the in-flight and twice-parked ones; the heartbeat
+    // is the seventh record on the ref and must not be one of them.
+    await expect(page.getByTestId('lane-activity-list').locator('li')).toHaveCount(6);
   });
 });

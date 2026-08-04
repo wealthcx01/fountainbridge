@@ -339,21 +339,3 @@ describe('resolving the repo before it reaches GitHub', () => {
     expect(seen).toEqual(['someone/else']);
   });
 });
-
-describe('the ask, as the founder reads it (FB-107)', () => {
-  it('drops the ticket’s own title heading, which the page already shows', async () => {
-    // Two <h1>s on one page is two answers to "what is this page about" — and the second one was
-    // the ask repeating its own name directly under it.
-    const { withoutTitleHeading } = await import('../work-load');
-    const body = '# ARCA-44 — Seed script must fail loudly\n\n**Status:** In progress\n\n## Why this matters\n\nBecause.';
-    const out = withoutTitleHeading(body);
-    expect(out.startsWith('**Status:**')).toBe(true);
-    expect(out).toContain('## Why this matters');
-  });
-
-  it('leaves a body that never had one alone', async () => {
-    const { withoutTitleHeading } = await import('../work-load');
-    const body = '## Why this matters\n\nBecause.';
-    expect(withoutTitleHeading(body)).toBe(body);
-  });
-});

@@ -7,7 +7,7 @@
  */
 
 import { parseTicket, looksLikeTicket } from '../tools/ticket-parser/src/index';
-import { showAngleBrackets, withoutStatusClaim } from './markdown';
+import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from './markdown';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
@@ -115,17 +115,6 @@ export function ticketIdFrom(title: string, branch?: string): string | null {
 }
 
 const RENDER_CAP = 12;
-
-/**
- * Drop the ticket's own `# ARCA-44 — Title` line.
- *
- * The body keeps the heading the file opens with, and the page shows the title above it — so the ask
- * rendered its own name twice, the second time as a page-level heading competing with the work's.
- * Two `<h1>`s on one page is also two answers to "what is this page about".
- */
-export function withoutTitleHeading(bodyMd: string): string {
-  return bodyMd.replace(/^\s*#\s+[^\n]*\n+/, '');
-}
 
 /**
  * The ticket this work came from, read whole (FB-107).
