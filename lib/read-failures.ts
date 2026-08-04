@@ -119,7 +119,7 @@ export function groupFailures(messages: string[]): FailureGroup[] {
       cause: 'busy',
       transient: true,
       repos: busy,
-      text: `${list(busy)} could not be read just now because the studio has been asking GitHub too often.`,
+      text: `${list(busy)} could not be read just now because the studio has been asking for it too often.`,
       nextStep: 'It clears on its own — give it a minute and refresh.',
     });
   }

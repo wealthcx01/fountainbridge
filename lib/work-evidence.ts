@@ -152,7 +152,7 @@ export function readEvidence(body: string | null): Evidence {
   // A hands-on check that did not happen is worth knowing, and the lane says so plainly when it
   // decides there is nothing to try in a browser.
   if (qa && /nothing to (qa|check|try)|no web ui|no frontend/i.test(qa[1])) {
-    exceptions.push('Nobody tried this in a browser — the lane judged there was nothing visible to try.');
+    exceptions.push('Nobody tried this in a browser — your team judged there was nothing visible to try.');
   }
   if (/in lieu of an automated test|manual verification|no existing automated test/i.test(body)) {
     exceptions.push('This was checked by hand rather than by an automated test.');

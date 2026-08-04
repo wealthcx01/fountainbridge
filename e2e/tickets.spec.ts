@@ -29,9 +29,12 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   await expect(buildLaunch).toHaveAttribute('rel', /noopener/);
   await expect(page.getByTestId('dept-sell-launch-pending')).toBeVisible();
   // Graceful degradation, surfaced not hidden: the imperfect ticket (ARCA-4, odd status) drives the
-  // warnings badge; the stray README is counted as a skipped non-ticket file, not shown as a card.
+  // warnings badge. The stray README is still counted as a skipped non-ticket file, but FB-103 took
+  // that count off the founder's header — it is a note the ticket reader wrote to itself, and it
+  // must not come back as "· 8 non-ticket files skipped" beside the ticket count.
   await expect(page.getByTestId('warnings-badge')).toBeVisible();
-  await expect(page.getByTestId('lane-skipped-arca')).toBeVisible();
+  await expect(page.getByTestId('lane-skipped-arca')).toHaveCount(0);
+  await expect(page.getByTestId('lane-arca')).not.toContainText('non-ticket');
 
   // Open a Done ticket that depends on another in view.
   await page.getByTestId('ticket-ARCA-2').click();

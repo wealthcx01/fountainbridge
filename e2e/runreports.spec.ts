@@ -43,7 +43,7 @@ test.describe('run reports and the founder brief', () => {
     await expect(list.locator('li').nth(0)).toContainText('waiting for your approval');
     await expect(list.locator('li').nth(0)).toContainText('SELL-002');
     await expect(list.locator('li').nth(1)).toContainText('ARCA-31');
-    await expect(list.locator('li').nth(2)).toContainText('opened a pull request');
+    await expect(list.locator('li').nth(2)).toContainText('needs your OK');
     // The contract-shaped record parsed as well as the lane-shaped ones.
     await expect(list.locator('li[data-outcome="awaiting-approval"]')).toHaveCount(1);
   });
@@ -54,7 +54,7 @@ test.describe('run reports and the founder brief', () => {
     await expect(engine).toContainText('checked in');
   });
 
-  test('a run that opened a pull request links to it', async ({ page }) => {
+  test('a run that finished something links to the work itself', async ({ page }) => {
     const link = page.getByTestId('lane-activity-list').locator('a').first();
     await expect(link).toHaveAttribute('href', /pull\/12/);
   });

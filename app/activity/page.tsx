@@ -102,8 +102,11 @@ export default async function ActivityPage({
       {isAdmin ? (
         <>
           <hr className="hr" />
+          {/* copy-lint-ok: admin-only (inside `isAdmin`) — this is repository administration, which is
+              what it is called, and a founder never reaches it */}
           <h2 style={{ marginBottom: '0.25rem' }}>Repository health</h2>
           <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
+            {/* copy-lint-ok: admin-only (inside `isAdmin`) — branch protection is the setting's name */}
             Bruntsfield only — branch protection and whether automatic checks are set up.
           </p>
           {ventures.map((v) => (
@@ -120,6 +123,10 @@ export default async function ActivityPage({
   );
 }
 
+// copy-lint-ok: admin-only strip — the git words are the precise ones for the person who acts on it
+const STALE_TITLE = 'No commits or merges in over two weeks.';
+
+/** Rendered only inside the `isAdmin` block above — Bruntsfield's own view of repository plumbing. */
 function HealthStrip({ health }: { health: RepoHealth }) {
   const runColor = toneColor(ciRunTone(health.latestRun?.conclusion));
   return (
@@ -134,6 +141,7 @@ function HealthStrip({ health }: { health: RepoHealth }) {
               CI {health.latestRun.conclusion}
             </a>
           ) : (
+            // copy-lint-ok: admin-only strip — Bruntsfield checks CI by name
             <span className="tag mono muted">no CI runs</span>
           )}
           <span className={`tag ${health.protected ? 'tag-accent' : ''}`} data-testid={`health-protection-${health.repo}`} style={health.protected ? undefined : { color: toneColor('attention') }}>
@@ -141,7 +149,7 @@ function HealthStrip({ health }: { health: RepoHealth }) {
           </span>
           {health.stale ? (
             <span className="tag" data-testid={`health-stale-${health.repo}`} tabIndex={0}
-                  title="No commits or merges in over two weeks."
+                  title={STALE_TITLE}
                   style={{ color: toneColor('attention') }}>
               <span aria-hidden="true">⚠ </span>nothing lately
             </span>
@@ -154,10 +162,14 @@ function HealthStrip({ health }: { health: RepoHealth }) {
   );
 }
 
+// FB-103: the badge on each row, in the founder's words. A straight swap of vocabulary — "merged"
+// for "accepted", "CI failed" for the checks failing — and nothing else. Whether these three kinds
+// are even the right distinction (a row cannot currently tell a ticket being FILED from work being
+// SHIPPED) is FB-096's question, not this ticket's.
 const KIND_LABEL: Record<ActivityEvent['kind'], string> = {
-  'pr-merged': 'merged',
-  'ci-failed': 'CI failed',
-  commit: 'commit',
+  'pr-merged': 'accepted',
+  'ci-failed': 'checks failed',
+  commit: 'change',
 };
 
 function ActivityRow({ event }: { event: ActivityEvent }) {

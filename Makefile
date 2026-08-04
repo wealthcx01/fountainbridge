@@ -16,11 +16,15 @@
 # design-lint: enforce the studio design contract (FB-057, docs/studio-design-contract.md) — tokens
 # only, one status vocabulary, no dead controls. Needs no install; it reads app/ and components/.
 #
+# copy-lint: enforce the founder vocabulary contract (FB-103, lib/glossary.ts) — no engineering word
+# reaches a founder's screen without a reasoned per-line opt-out. Needs no install; it reads app/,
+# components/ and the copy-bearing modules in lib/.
+#
 # sign-approval-fixtures: re-sign the e2e approval fixtures after adding or renaming one. Since
 # FB-051 an unsigned grant reads `unattested` and stays `proposed`, so a fixture that means
 # "granted" has to be signed like the real thing.
 
-.PHONY: validate-manifests parse-tickets provision-lint design-lint sign-approval-fixtures ticket-drift
+.PHONY: validate-manifests parse-tickets provision-lint design-lint copy-lint sign-approval-fixtures ticket-drift
 
 validate-manifests:
 	cd tools/manifest-validate && npm ci && npm test
@@ -30,6 +34,9 @@ parse-tickets:
 
 design-lint:
 	node scripts/design-lint.mjs
+
+copy-lint:
+	node scripts/copy-lint.mjs
 
 sign-approval-fixtures:
 	node scripts/sign-approval-fixtures.mjs

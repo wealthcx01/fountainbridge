@@ -8,7 +8,7 @@ import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/ticke
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
-import { STATUS_LABEL } from '@/lib/glossary';
+import { STATUS_LABEL, TEAM_INTRO, TEAM_TITLE } from '@/lib/glossary';
 import { ago } from '@/lib/when';
 import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
@@ -55,10 +55,16 @@ type LaneErrorKind = LaneTickets['errorKind'];
 
 function laneErrorNextStep(kind: LaneErrorKind): string | null {
   switch (kind) {
+    // FB-103: the founder's sentence first \u2014 it tells them who has to act, which is the only thing
+    // they can do anything with. The instruction that follows is for whoever fixes it, and it stays
+    // exact: FB-021 built these states so a person could act on them, and "something is misconfigured"
+    // is a diagnosis nobody can act on.
     case 'no-credentials':
-      return 'an admin connects the studio to GitHub (install the Foundry GitHub App, or set a read token) so it can see this venture\u2019s work.';
+      // copy-lint-ok: the bracketed half is the repair instruction for Bruntsfield, labelled as such
+      return 'Bruntsfield connects the studio to this venture\u2019s records so it can see the work. (For Bruntsfield: install the Foundry GitHub App, or set a read token.)';
     case 'unreadable':
-      return 'give the studio\u2019s GitHub credential read access to this repository (install or scope the Foundry GitHub App, or the read token) \u2014 or check the repository name is right.';
+      // copy-lint-ok: the bracketed half is the repair instruction for Bruntsfield, labelled as such
+      return 'Bruntsfield gives the studio read access to this venture\u2019s records \u2014 or checks the name it was given is right. (For Bruntsfield: install or scope the Foundry GitHub App, or the read token, for this repository.)';
     case 'rate-limit':
     case 'error':
     case null:
@@ -177,7 +183,7 @@ export function VentureBoard({
             className="tag"
             data-testid="warnings-badge"
             tabIndex={0}
-            title={`${totalWarnings} ticket${totalWarnings === 1 ? '' : 's'} could not be read completely — some detail is missing from the board, and nothing is lost in git.`}
+            title={`${totalWarnings} ticket${totalWarnings === 1 ? '' : 's'} could not be read completely — some detail is missing from the board, and nothing is lost from your venture’s records.`}
           >
             <span aria-hidden="true">⚠ </span>
             {totalWarnings} ticket{totalWarnings === 1 ? '' : 's'} not fully read
@@ -191,6 +197,13 @@ export function VentureBoard({
         <Link href={`/venture/${venture.id}?refresh=1`} className="mono" data-testid="refresh">
           refresh
         </Link>
+      </p>
+
+      {/* FB-103: the one introduction of the one name. Every panel below this line says "your team"
+          and none of them explains itself — which only works if the name is introduced above the
+          first thing that uses it, and the brief (immediately below) is that first thing. */}
+      <p className="muted" data-testid="team-intro" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '-0.35rem' }}>
+        <strong>{TEAM_TITLE}</strong> — {TEAM_INTRO}
       </p>
 
       {/* FB-042: the brief goes FIRST. Everything below it is a dashboard, and a dashboard shows you
@@ -294,7 +307,7 @@ export function VentureBoard({
                     // Not `mono`: this is an explanation, and the code face made it read as a
                     // value the founder was supposed to recognise rather than as a sentence.
                     ? <>{GATE_LABEL[d.gate] ?? `How work here gets approved is still being decided.`}</>
-                    : <>Set up when this venture’s <span className="mono">{d.repo}</span> repo is provisioned.</>}
+                    : <>Not open yet. Bruntsfield sets this side of the venture up when you need it.</>}
                 </p>
                 {/* One string owner: `describe` returns a whole sentence, so the view adds no
                     prefix of its own — "Budget no budget set" came from gluing a word onto a
@@ -379,11 +392,10 @@ export function VentureBoard({
                 <span aria-hidden="true">⚠ </span>nothing here lately
               </span>
             ) : null}
-            {lane.skipped > 0 ? (
-              <span className="muted" data-testid={`lane-skipped-${lane.repo}`} tabIndex={0} title="Files in the tickets folder that are not tickets — a README, for example. They are ignored rather than shown as work.">
-                {' '}· {lane.skipped} non-ticket file{lane.skipped === 1 ? '' : 's'} skipped
-              </span>
-            ) : null}
+            {/* FB-103: "· 8 non-ticket files skipped" used to sit here. It is a note the reader of
+                the tickets folder wrote to itself — a founder wants "42 tickets" and has no way to
+                act on the other number. `lane.skipped` is still counted and still on this object;
+                giving it an admin home is FB-100's item 4. */}
           </h3>
 
           {lane.error ? (
@@ -412,8 +424,11 @@ export function VentureBoard({
               <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
                 {emptyPanel('tickets', venture.hasComposer).how}
               </p>
+              {/* FB-103: this said "Reading main — a backlog on another branch will not show here",
+                  which asks a founder to know what a branch is before they can tell whether the
+                  emptiness is a problem. The fact worth keeping is that this list is the only one. */}
               <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.4rem 0 0' }}>
-                Reading <span className="mono">{lane.ref}</span> — a backlog on another branch will not show here.
+                This is the only place work for this side of the venture is read from.
               </p>
             </div>
           ) : (

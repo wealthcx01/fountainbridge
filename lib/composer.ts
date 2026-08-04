@@ -112,7 +112,7 @@ export function describeTool(rawName: string): string {
  * FB-087 drew for the wiring warning.
  */
 export const ENGINE_FAULT_MESSAGE =
-  'Something is wrong with this venture’s composer engine — not with what you asked, and nothing '
+  'Something is wrong with this venture’s composer — not with what you asked, and nothing '
   + 'you typed was lost. Bruntsfield can see the details. Try again once it has been looked at.';
 
 /**
