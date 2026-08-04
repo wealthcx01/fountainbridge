@@ -131,6 +131,21 @@ export interface WorkItem {
   files: ChangedFile[];
   /** Files beyond the render cap, so a truncated list never reads as the whole change. */
   moreFiles: number;
+  /**
+   * What the founder ASKED FOR — the originating ticket, read whole (FB-107).
+   *
+   * The work page used to show the ask last, and as a diff fragment: the changed-file preview of a
+   * ticket is the lines the lane touched, so a status flip rendered as `**Status:** Done` and a
+   * stray `- [x]`. A founder judging "is this what I asked for?" needs the ask itself, first, in
+   * one piece. Null when this work does not carry its ticket.
+   */
+  ask: { id: string; title: string; bodyMd: string } | null;
+  /**
+   * Where this work lives on the code host. A REFERENCE, never a requirement: the studio's own
+   * copy is the one a founder reads, and this is the door for the day they want to see the
+   * original (FB-107 — the drawer over-linked to it, this page did not link at all).
+   */
+  url: string | null;
 }
 
 const CODE = /\.(tsx?|jsx?|mjs|cjs|py|rs|go|rb|java|kt|swift|sh|bash|sql|css|scss|html)$/i;

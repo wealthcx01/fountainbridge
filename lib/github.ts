@@ -516,6 +516,20 @@ export class GitHubClient {
    * the branch has moved since, which is the server-side half of the binding `acceptability()` does
    * client-side. Both, deliberately: one gives a good message, the other makes it impossible.
    */
+  /**
+   * Say something back about a piece of work (FB-107).
+   *
+   * The issues endpoint, not the review endpoint, and deliberately: a founder sending work back is
+   * leaving a note in the thread the lane already reads on its next wake, not filing a line-by-line
+   * code review of a change they were never asked to read.
+   */
+  async commentOnPullRequest(repo: string, number: number, body: string): Promise<{ html_url: string }> {
+    return this.request<{ html_url: string }>(`/repos/${repo}/issues/${number}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+  }
+
   async mergePullRequest(
     repo: string,
     number: number,

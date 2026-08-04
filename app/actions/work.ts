@@ -24,6 +24,71 @@ export interface AcceptResult {
   message: string;
 }
 
+/** How long a note may be. Long enough for a paragraph; short enough that it is a note. */
+const NOTE_LIMIT = 2000;
+
+/**
+ * Send a piece of work back with a note (FB-107).
+ *
+ * The other half of a decision page. Before this, a founder who did not want the work could only
+ * leave it sitting there — and in the one case the page NAMES an action ("the team needs to bring
+ * this up to date before it can be accepted") there was no way to ask for it. A page that states the
+ * required action must offer it.
+ *
+ * The note goes to the work's own thread, which is what the venture's team reads on its next wake.
+ * Nothing is merged, closed or changed: this is the founder talking, not the studio acting.
+ */
+export async function sendBackWork(
+  ventureId: string,
+  repo: string,
+  number: number,
+  note: string,
+): Promise<AcceptResult> {
+  if (!Number.isInteger(number) || number <= 0) return { ok: false, message: 'That work could not be found.' };
+
+  const text = note.trim();
+  if (!text) return { ok: false, message: 'Say what needs changing, and it goes straight to your team.' };
+  if (text.length > NOTE_LIMIT) {
+    return { ok: false, message: `That note is too long — keep it under ${NOTE_LIMIT} characters.` };
+  }
+
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) return { ok: false, message: 'You need to sign in.' };
+
+  const admins = parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS);
+  const ventures = loadVentures();
+  const access = authorizeVentures(email, ventures, admins);
+  const venture = ventures.find((v) => v.id === ventureId);
+  if (!venture || !canAccessVenture(access, ventureId)) {
+    return { ok: false, message: 'You do not have access to this venture.' };
+  }
+  if (!approvalRepos(venture).includes(repo)) {
+    return { ok: false, message: 'That work is not part of this venture.' };
+  }
+
+  const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
+  if (!writeToken) {
+    return { ok: false, message: 'This studio is not set up to send work back yet — an admin needs to finish setting it up.' };
+  }
+
+  const org = process.env.GITHUB_ORG ?? 'wealthcx01';
+  const full = repo.includes('/') ? repo : `${org}/${repo}`;
+  // Attributed, because the team's next wake needs to know whose instruction this is — and because a
+  // note that could have come from anywhere is not an instruction a founder can be held to.
+  const body = `**${email} asked for a change before accepting this:**\n\n${text}`;
+
+  try {
+    await new GitHubClient({ token: writeToken }).commentOnPullRequest(full, number, body);
+    return { ok: true, message: 'Sent. Your team picks this up on its next wake.' };
+  } catch (e) {
+    if (e instanceof GitHubError && e.status === 403) {
+      return { ok: false, message: 'The studio is not allowed to write to this repository. An admin needs to widen its access.' };
+    }
+    return { ok: false, message: 'Something went wrong sending that. Nothing was sent — try again.' };
+  }
+}
+
 export async function acceptWork(
   ventureId: string,
   repo: string,

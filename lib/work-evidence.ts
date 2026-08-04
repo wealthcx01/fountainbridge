@@ -39,6 +39,12 @@ export interface Evidence {
   exceptions: string[];
   /** True when the markers were found. False means: show the body, do not pretend. */
   summarised: boolean;
+  /**
+   * The whole body as a founder should see it — the tool's own signature removed, nothing else
+   * touched. One owner for that removal, so the summary and the full record cannot disagree about
+   * what the team actually wrote.
+   */
+  record: string;
 }
 
 const GATE_HEADING = /^##\s+How the lane said it would check this/m;
@@ -81,6 +87,25 @@ export function plainWords(text: string): string {
 }
 
 /**
+ * The tool's signature on the bottom of every body (FB-107, and FB-100's item 2).
+ *
+ * A founder reviewing their own product's work met `🤖 Generated with [Claude Code](https://…)` and
+ * a `Co-Authored-By:` trailer, rendered as raw markdown, inside the section headed "what the team
+ * says about it". It is a commit convention this repo keeps on purpose — and it is addressed to
+ * engineers, not to the person deciding whether the work is what they asked for.
+ *
+ * Stripped at PRESENTATION, not at the source: FB-060 will eventually give the lane a body shape
+ * that has no footer in it, and until then the presenter must not wait for the writer.
+ */
+const MACHINERY_FOOTER =
+  /(\n\s*)*(🤖\s*)?Generated with \[?Claude Code\]?(\([^)]*\))?[^\n]*|(\n\s*)*Co-[Aa]uthored-[Bb]y:[^\n]*/g;
+
+/** Take the tool's signature off anything a founder is about to read. */
+export function stripMachinery(text: string): string {
+  return text.replace(MACHINERY_FOOTER, '').trimEnd();
+}
+
+/**
  * What the team says it did — the prose before the transcript begins.
  *
  * Capped, because the opening is occasionally three paragraphs of detail. The cap breaks on a
@@ -90,7 +115,7 @@ export function plainWords(text: string): string {
 function opening(body: string, limit = 400): string | null {
   const beforeGates = body.split(GATE_HEADING)[0].split(/\*\*Research:\*\*/)[0].trim();
   if (!beforeGates) return null;
-  const plain = plainWords(beforeGates.replace(BOILERPLATE, '')).replace(/\s*\n\s*/g, ' ').trim();
+  const plain = plainWords(stripMachinery(beforeGates).replace(BOILERPLATE, '')).replace(/\s*\n\s*/g, ' ').trim();
   if (!plain) return null;
   if (plain.length <= limit) return plain;
   const cut = plain.slice(0, limit);
@@ -105,8 +130,10 @@ function opening(body: string, limit = 400): string | null {
  * an inferred exception would be worse than none, because a founder who learns the warnings are
  * guesses stops reading the warnings.
  */
-export function readEvidence(body: string | null): Evidence {
-  if (!body?.trim()) return { did: null, verdict: null, exceptions: [], summarised: false };
+export function readEvidence(rawBody: string | null): Evidence {
+  // The footer goes first, so it cannot reach the summary, the record, or a gate match.
+  const body = rawBody ? stripMachinery(rawBody) : rawBody;
+  if (!body?.trim()) return { did: null, verdict: null, exceptions: [], summarised: false, record: '' };
 
   const gates = [...body.matchAll(GATE_LINE)];
   const failed = gates.filter((g) => g[1] === '❌' || g[1] === '✗');
@@ -116,7 +143,7 @@ export function readEvidence(body: string | null): Evidence {
 
   // Nothing recognisable — say so, and let the caller show everything.
   if (gates.length === 0 && !rounds && !review) {
-    return { did: opening(body), verdict: null, exceptions: [], summarised: false };
+    return { did: opening(body), verdict: null, exceptions: [], summarised: false, record: body };
   }
 
   const exceptions: string[] = [];
@@ -170,6 +197,6 @@ export function readEvidence(body: string | null): Evidence {
     verdict = 'A reviewer signed this off.';
   }
 
-  return { did: opening(body), verdict, exceptions, summarised: true };
+  return { did: opening(body), verdict, exceptions, summarised: true, record: body };
 }
 

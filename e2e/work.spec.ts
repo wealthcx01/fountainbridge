@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { testLogin } from './helpers';
 
+// The page a founder actually makes a decision on had no picture in the UI-gate gallery, which is
+// how it came to be reviewed by reading code rather than by looking at it (FB-107).
+const SHOTS = 'e2e/__screenshots__';
+
 /**
  * FB-064 — reading and accepting work without leaving the studio.
  *
@@ -24,9 +28,12 @@ test.describe('reading and accepting a piece of work', () => {
   test('prose is shown, and code is described rather than displayed', async ({ page }) => {
     await page.goto('/venture/arca/work/arca/10');
 
-    // A ticket is something a founder can genuinely read, so it is rendered.
+    // A ticket is something a founder can genuinely read, so it is rendered — since FB-107 in the
+    // "what you asked for" section at the top, whole, rather than as a fragment of its own diff.
+    await expect(page.getByTestId('work-ask')).toContainText('congratulates you is worse');
     const ticket = page.locator('[data-testid^="work-file-"][data-kind="description"]').first();
-    await expect(ticket).toContainText('congratulates you is worse');
+    await expect(ticket).toContainText('at the top of this page');
+    await expect(ticket).not.toContainText('# ARCA-44');
 
     // A code change is not. Showing a TypeScript diff and calling it a review would be asking a
     // founder to rubber-stamp something they cannot read.
@@ -62,9 +69,18 @@ test.describe('reading and accepting a piece of work', () => {
     await expect(page.getByTestId('work-arca/1')).toHaveCount(0);
   });
 
-  test('nothing on the work page sends the founder to a code host', async ({ page }) => {
+  test('the code host is a reference, never the way through (FB-107)', async ({ page }) => {
+    // FB-064 banned the link outright, because the queue used to hand the founder to github.com
+    // instead of showing them the work. FB-107 amends that: the drawer over-linked and this page did
+    // not link at all, and both are wrong the same way. One quiet reference, below the decision,
+    // never a button.
     await page.goto('/venture/arca/work/arca/10');
-    expect(await page.locator('a[href*="github.com"]').count()).toBe(0);
+    const host = page.locator('a[href*="github.com"]');
+    await expect(host).toHaveCount(1);
+    await expect(host).not.toHaveClass(/btn/);
+    const reference = await host.boundingBox();
+    const summary = await page.getByTestId('work-description').boundingBox();
+    expect(reference!.y).toBeGreaterThan(summary!.y);
   });
 
   test('the evidence is a decision, not a transcript (FB-081)', async ({ page }) => {
@@ -80,16 +96,82 @@ test.describe('reading and accepting a piece of work', () => {
     await expect(page.getByTestId('work-record')).toBeVisible();
   });
 
-  test('the decision comes before the detail (FB-081)', async ({ page }) => {
-    // It used to sit under 13,856 characters, which is how a page teaches someone to press the
-    // button without reading it.
+  test('the decision never sits under the transcript (FB-081, re-expressed by FB-107)', async ({ page }) => {
+    // FB-081 put the decision above "what changed" because it used to sit under 13,856 characters of
+    // gate transcript — that is how a page teaches someone to press the button without reading it.
+    // FB-107 reorders the page around the decision (ask → did → see → changes → decide → record) and
+    // the transcript moves BELOW the button, which is what FB-081 was actually protecting. The
+    // bounded file list above it is a few lines, not four thousand words.
     await page.goto('/venture/arca/work/arca/10');
-    const accept = page.getByTestId('work-accept');
-    if (await accept.count()) {
-      const decision = await accept.boundingBox();
-      const changes = await page.getByTestId('work-changes').boundingBox();
-      expect(decision!.y).toBeLessThan(changes!.y);
-    }
+    const decision = await page.getByTestId('work-decision').boundingBox();
+    const record = await page.getByTestId('work-record-toggle').boundingBox();
+    expect(decision!.y).toBeLessThan(record!.y);
+  });
+
+  test('the whole decision page, for the gallery (FB-107)', async ({ page }) => {
+    await page.goto('/venture/arca/work/arca/10');
+    await expect(page.getByTestId('work-ask')).toBeVisible();
+    await page.screenshot({ path: `${SHOTS}/18-work-decision.png`, fullPage: true });
+  });
+
+  test('the page reads ask → did → see → changes → decide → record (FB-107)', async ({ page }) => {
+    // John read the page top-down as a person making a decision and every complaint was the same
+    // one: the order was inverted. His own ask was at the BOTTOM, as a diff fragment of its ticket.
+    await page.goto('/venture/arca/work/arca/10');
+    const y = async (id: string) => (await page.getByTestId(id).boundingBox())!.y;
+    const order = [
+      await y('work-ask'),
+      await y('work-description'),
+      await y('work-changes'),
+      await y('work-decision'),
+      await y('work-record-toggle'),
+    ];
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  test('the ask is the founder’s own ticket, whole and readable (FB-107)', async ({ page }) => {
+    await page.goto('/venture/arca/work/arca/10');
+    const ask = page.getByTestId('work-ask');
+    await expect(ask).toContainText('ARCA-44');
+    await expect(ask).toContainText('congratulates you is worse');
+    // Rendered, not printed: `**Status:**` and `- [ ]` used to reach the founder as literal text.
+    await expect(page.getByTestId('work-ask-body')).not.toContainText('**Status:**');
+    await expect(page.getByTestId('work-ask-body').locator('h2').first()).toBeVisible();
+    // The ask does not repeat its own name as a second page heading.
+    await expect(page.getByTestId('work-ask-body').locator('h1')).toHaveCount(0);
+    // And the page's heading is the ask's title, not the branch-speak the lane named its work.
+    await expect(page.locator('h1')).toContainText('Seed script must fail loudly');
+  });
+
+  test('the tool’s signature never reaches the founder (FB-107)', async ({ page }) => {
+    await page.goto('/venture/arca/work/arca/10');
+    await page.getByTestId('work-record-toggle').click();
+    await expect(page.getByTestId('work-arca/10')).not.toContainText('Generated with');
+    await expect(page.getByTestId('work-arca/10')).not.toContainText('Co-Authored-By');
+  });
+
+  test('a knowledge deposit is introduced, not filed silently (FB-107)', async ({ page }) => {
+    await page.goto('/venture/arca/work/arca/12');
+    await expect(page.getByTestId('work-changes')).toContainText('also added to what your venture knows');
+  });
+
+  test('work that names a required action offers it (FB-107)', async ({ page }) => {
+    // The audit's new dead end: the page said "the team needs to bring it up to date before it can
+    // be accepted" and gave the founder no control that could ask for that.
+    await page.goto('/venture/arca/work/arca/12');
+    await expect(page.getByTestId('work-blocked')).toHaveAttribute('data-reason', 'conflicts');
+    await page.getByTestId('work-sendback-open').click();
+    await expect(page.getByTestId('work-note')).toHaveValue(/bring this up to date/);
+  });
+
+  test('a founder can send work back with a note (FB-107)', async ({ page }) => {
+    await page.goto('/venture/arca/work/arca/10');
+    await page.getByTestId('work-sendback-open').click();
+    await page.getByTestId('work-note').fill('The audit missed the mobile views.');
+    await page.getByTestId('work-sendback').click();
+    // No write credential in the UI gate, so the honest refusal is what this proves: the control
+    // exists, reaches the server, and says what is wrong rather than failing silently.
+    await expect(page.getByTestId('work-msg')).toBeVisible();
   });
 
   test('the page says how long it has been waiting (FB-081)', async ({ page }) => {
