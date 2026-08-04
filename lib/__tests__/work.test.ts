@@ -281,11 +281,13 @@ describe('counting the whole change, not the page of it we fetched', () => {
       return {
         number: 1, title: 't', body: null, state: 'open', merged: false, mergeable: true,
         author: null, createdAt: '2026-07-21T10:00:00Z', headSha: 'abc', changedFiles,
+        url: null,
       };
     },
     async files() {
       return Array.from({ length: files }, (_, i) => ({ path: `src/f${i}.ts`, added: 1, removed: 0 }));
     },
+    async file() { return null; },
     async checks() { return 'success' as const; },
     async preview() { return null; },
   });
@@ -335,5 +337,23 @@ describe('resolving the repo before it reaches GitHub', () => {
     const { githubWorkSource } = await import('../work-load');
     await githubWorkSource(client, 'wealthcx01').get('someone/else', 1);
     expect(seen).toEqual(['someone/else']);
+  });
+});
+
+describe('the ask, as the founder reads it (FB-107)', () => {
+  it('drops the ticket’s own title heading, which the page already shows', async () => {
+    // Two <h1>s on one page is two answers to "what is this page about" — and the second one was
+    // the ask repeating its own name directly under it.
+    const { withoutTitleHeading } = await import('../work-load');
+    const body = '# ARCA-44 — Seed script must fail loudly\n\n**Status:** In progress\n\n## Why this matters\n\nBecause.';
+    const out = withoutTitleHeading(body);
+    expect(out.startsWith('**Status:**')).toBe(true);
+    expect(out).toContain('## Why this matters');
+  });
+
+  it('leaves a body that never had one alone', async () => {
+    const { withoutTitleHeading } = await import('../work-load');
+    const body = '## Why this matters\n\nBecause.';
+    expect(withoutTitleHeading(body)).toBe(body);
   });
 });

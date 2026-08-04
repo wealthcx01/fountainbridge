@@ -7,5 +7,12 @@
   "merged": false,
   "mergeable": true,
   "checks": "pending",
-  "files": [{ "path": "client/src/pages/DeckPage.tsx", "added": 120, "removed": 4 }]
+  "files": [
+    {
+      "path": "client/src/pages/DeckPage.tsx",
+      "added": 120,
+      "removed": 4
+    }
+  ],
+  "url": "https://github.com/wealthcx01/arca/pull/11"
 }

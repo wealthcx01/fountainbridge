@@ -62,8 +62,24 @@ describe('what it refuses to do', () => {
 
   it('says nothing at all about an empty body', () => {
     for (const body of [null, '', '   ']) {
-      expect(readEvidence(body)).toEqual({ did: null, verdict: null, exceptions: [], summarised: false });
+      expect(readEvidence(body)).toEqual({ did: null, verdict: null, exceptions: [], summarised: false, record: '' });
     }
+  });
+
+  it('takes the tool’s signature off before a founder reads it (FB-107)', () => {
+    // A founder reviewing their own product's work met "🤖 Generated with [Claude Code](…)" and a
+    // Co-Authored-By trailer, rendered as raw markdown, inside "what the team says about it".
+    const body = 'Renamed the sign-in copy.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>';
+    const e = readEvidence(body);
+    expect(e.did).toBe('Renamed the sign-in copy.');
+    expect(e.record).toBe('Renamed the sign-in copy.');
+    expect(e.record).not.toContain('Claude');
+    expect(e.record).not.toContain('🤖');
+  });
+
+  it('leaves a body that has no signature exactly as it was', () => {
+    const body = 'Did the thing.\n\nAnd then the other thing.';
+    expect(readEvidence(body).record).toBe(body);
   });
 
   it('does not invent a retry when there was only one attempt', () => {

@@ -33,11 +33,23 @@ export function fixtureWorkSource(dir: string): WorkSource {
         createdAt: j.createdAt ?? '2026-07-21T10:00:00Z',
         headSha: j.headSha ?? `sha-${repo}-${number}`,
         changedFiles: j.changedFiles ?? (Array.isArray(j.files) ? j.files.length : 0),
+        url: j.url ?? null,
       };
     },
     async files(repo, number) {
       const j = read(repo, number);
       return Array.isArray(j?.files) ? j.files : [];
+    },
+    /**
+     * Whole-file reads — FB-107's ask. The fixture carries the text under `fileTexts`, keyed by
+     * path, and finds the right work the same way `preview` and `checks` do: the default headSha
+     * carries the number.
+     */
+    async file(repo, path, ref) {
+      const [, num] = ref.split(/-(\d+)$/);
+      const texts = read(repo, Number(num))?.fileTexts;
+      const text = texts?.[path];
+      return typeof text === 'string' ? text : null;
     },
     async preview(repo, sha) {
       const [, num] = sha.split(/-(\d+)$/);

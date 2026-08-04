@@ -1,6 +1,6 @@
 # FB-107 — The work page reads like a decision
 
-**Status:** Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-04, walking a real review — the
+**Status:** Done · **Phase:** 3 · **Asked for by:** John, 2026-08-04, walking a real review — the
 full quote is the spec: sections confusing, no GitHub link here (yet the drawer over-links to it),
 no way to launch the product and see the change, "team" unexplained, "Worth knowing" thin, the
 record hard to follow, "Something your venture knows" appearing under "What changed" without
@@ -55,8 +55,45 @@ names the required action must offer it; the send-back-with-a-note affordance co
 
 ## Acceptance criteria
 
-- [ ] The page reads ask → did → see → decide → record, in that order.
-- [ ] The launch button appears on every work page whose surface has a target.
-- [ ] "Send back with a note" exists and lands where the team reads it.
-- [ ] No machinery voice: footer stripped, "team" introduced, record collapsed by default.
-- [ ] E2e drives a full review through the new order, including a send-back.
+- [x] The page reads ask → did → see → decide → record, in that order. — asserted by bounding-box
+      order in `e2e/work.spec.ts`, so a future edit that re-inverts it fails CI rather than a review.
+- [x] The launch button appears on every work page whose surface has a target. — the surface is the
+      one whose repo the work is in; the target is the manifest's `launch:` (FB-093), which the board
+      already had and the page a founder decides on did not.
+- [x] "Send back with a note" exists and lands where the team reads it. — `sendBackWork` posts to the
+      work's own thread, attributed to the signed-in founder. Nothing is merged, closed or changed:
+      this is the founder talking, not the studio acting.
+- [x] No machinery voice: footer stripped, "team" introduced, record collapsed by default.
+- [x] E2e drives a full review through the new order, including a send-back. — plus a gallery
+      screenshot (`18-work-decision.png`): the page a founder actually decides on had no picture in
+      the UI gate, which is how it came to be reviewed by reading code instead of by looking at it.
+
+## What shipped
+
+The order, and the two things the order needed to exist: the **ask** (`WorkItem.ask` — the ticket read
+whole from the work's own head commit, rendered as markdown, its duplicate title heading dropped) and
+the **way out that was not "accept"** (`sendBackWork`). Plus the launch door, the quiet reference link
+to the code host, the knowledge-deposit introduction, and `stripMachinery` — one owner for taking the
+tool's signature off anything a founder reads, applied to the summary and the record together so they
+cannot disagree about what the team wrote.
+
+The page heading is now the ask's title. John met his own product's work headed *"build:
+show-set-name-card-pages (Foundry lane)"*.
+
+## Two earlier rules this amends, deliberately
+
+- **FB-064: "nothing on the work page sends the founder to a code host."** Right when the queue's
+  only affordance was a link to github.com; wrong once the studio renders the work itself. The
+  amended rule is the one this ticket asked for — reference everywhere, requirement nowhere — and
+  the e2e now pins it: exactly one such link, not a button, below the summary.
+- **FB-081: "the decision comes before the detail."** It was protecting a founder from meeting the
+  button under 13,856 characters of gate transcript. The transcript now sits BELOW the decision
+  (§6, collapsed), and what sits above it is a bounded file list of one line each. The test is
+  re-expressed to assert what FB-081 was actually protecting: the decision never sits under the
+  record.
+
+## Also found while building it
+
+The changes list rendered the ticket file's *diff* as plain text, which is where `# ARCA-44 —` and
+`**Status:**` reached the founder as literal characters. With the ask rendered whole above, that
+entry now points at it instead of repeating a fragment of it.

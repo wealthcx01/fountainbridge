@@ -6,6 +6,7 @@
  * and a module that reaches for the network cannot be.
  */
 
+import { parseTicket, looksLikeTicket } from '../tools/ticket-parser/src/index';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
@@ -19,8 +20,15 @@ export interface WorkSource {
     mergeable: boolean | null; author: string | null; createdAt: string; headSha: string;
     /** Every file the work changed, not just the page of them we fetched. */
     changedFiles: number;
+    /** Where this work lives on the code host, for the reference link. */
+    url: string | null;
   } | null>;
   files(repo: string, number: number): Promise<Array<{ path: string; added: number; removed: number; patch?: string }>>;
+  /**
+   * One file's whole text at a commit. Used for the ticket this work came from (FB-107) — a diff of
+   * a ticket is not the ask, and the ask is the first thing the page has to show.
+   */
+  file(repo: string, path: string, ref: string): Promise<string | null>;
   checks(repo: string, sha: string): Promise<PrCiStatus>;
   /** Where the work can be seen running, when a deployment advertised one. */
   preview(repo: string, sha: string): Promise<string | null>;
@@ -46,7 +54,15 @@ export function githubWorkSource(client: GitHubClient, org = process.env.GITHUB_
         merged: pr.merged, mergeable: pr.mergeable,
         author: pr.user?.login ?? null, createdAt: pr.created_at, headSha: pr.head.sha,
         changedFiles: pr.changed_files ?? 0,
+        url: pr.html_url ?? null,
       };
+    },
+    async file(repo, path, ref) {
+      try {
+        return await client.getFileContent(full(repo), path, ref);
+      } catch {
+        return null; // no ask is a state the page renders honestly; it is never a broken page
+      }
     },
     async files(repo, number) {
       const files = await client.listPullFiles(full(repo), number);
@@ -100,6 +116,44 @@ export function ticketIdFrom(title: string, branch?: string): string | null {
 const RENDER_CAP = 12;
 
 /**
+ * Drop the ticket's own `# ARCA-44 — Title` line.
+ *
+ * The body keeps the heading the file opens with, and the page shows the title above it — so the ask
+ * rendered its own name twice, the second time as a page-level heading competing with the work's.
+ * Two `<h1>`s on one page is also two answers to "what is this page about".
+ */
+export function withoutTitleHeading(bodyMd: string): string {
+  return bodyMd.replace(/^\s*#\s+[^\n]*\n+/, '');
+}
+
+/**
+ * The ticket this work came from, read whole (FB-107).
+ *
+ * Read from the work's OWN head commit rather than from the default branch, so the ask a founder
+ * reads is the version this work was written against — a ticket edited on main since would describe
+ * something else, and "is this what I asked for?" is the question the whole page is arranged around.
+ *
+ * One extra request, and only when the work actually carries its ticket. When it does not, the page
+ * says so rather than showing a diff fragment and calling it the ask.
+ */
+async function loadAsk(
+  repo: string,
+  files: ChangedFile[],
+  ref: string,
+  source: WorkSource,
+): Promise<WorkItem['ask']> {
+  const ticketFile = files.find((f) => f.kind === 'description');
+  if (!ticketFile) return null;
+  const content = await source.file(repo, ticketFile.path, ref);
+  if (!content) return null;
+  const parsed = parseTicket(content, { repo, path: ticketFile.path });
+  // A file under docs/tickets/ that does not parse as a ticket is not an ask. Showing its raw text
+  // under "What you asked for" would be the same fault this replaced, one level up.
+  if (!looksLikeTicket(parsed)) return null;
+  return { id: parsed.ticket.id, title: parsed.ticket.title, bodyMd: withoutTitleHeading(parsed.ticket.body_md) };
+}
+
+/**
  * Load one piece of work for the founder-facing view.
  *
  * Returns null when it does not exist or the repo is not one of this venture's — the caller turns
@@ -142,5 +196,7 @@ export async function loadWork(
     // Counted from GitHub's total, not from the page we fetched — `listPullFiles` stops at 50, so
     // a 300-file change would otherwise announce itself as a 50-file one.
     moreFiles: Math.max(0, Math.max(pr.changedFiles, raw.length) - files.length),
+    ask: await loadAsk(repo, files, pr.headSha, source),
+    url: pr.url,
   };
 }

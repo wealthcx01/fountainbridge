@@ -57,12 +57,17 @@ export default async function WorkPage({
   }
   if (!work) return <NotHere ventureId={id} />;
 
+  // FB-107: the "see it" door. The surface this work belongs to is the one whose repo it is in, and
+  // its launch target is already in the manifest (FB-093) — the board had the button and the page a
+  // founder actually decides on did not.
+  const launch = venture.departments.find((d) => d.repo === repo)?.launch ?? null;
+
   return (
     <>
       <p style={{ fontSize: 'var(--fs-body-sm)' }}>
         <Link href={`/venture/${id}`} data-testid="work-back">← Back to {venture.name}</Link>
       </p>
-      <WorkDetail ventureId={id} work={work} />
+      <WorkDetail ventureId={id} work={work} launch={launch} />
     </>
   );
 }
