@@ -109,6 +109,7 @@ export function VentureBoard({
   fetchedAt,
   org,
   openWork = {},
+  unmatchedWork = {},
   wiringWarning = null,
 }: {
   venture: {
@@ -143,6 +144,14 @@ export function VentureBoard({
    * (FB-105). So the drawer's Accept button and the column the card sits in are the same fact.
    */
   openWork?: Record<string, { repo: string; number: number }>;
+  /**
+   * Open work this venture has that matches no ticket, by repo (FB-099).
+   *
+   * It has to appear SOMEWHERE. The badge counts every open piece of work; the columns counted
+   * tickets. Anything the matcher cannot place used to fall between the two, which is how "Needs
+   * you — 15" sat six centimetres from a column reading 0.
+   */
+  unmatchedWork?: Record<string, Array<{ number: number; title: string }>>;
   /** FB-087: admin-only — this venture has a box the studio cannot reach. Null for founders. */
   wiringWarning?: string | null;
 }) {
@@ -447,7 +456,10 @@ export function VentureBoard({
               {GROUPS.map((g) => (
                 <div key={g.key} data-testid={`col-${g.key}`}>
                   <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>
-                    {g.label} <span className="mono">{lane.groups[g.key].length}</span>
+                    {g.label}{' '}
+                    <span className="mono" data-testid={`col-${g.key}-count`}>
+                      {lane.groups[g.key].length + (g.key === 'pr-open' ? (unmatchedWork[lane.repo]?.length ?? 0) : 0)}
+                    </span>
                   </p>
                   {/* FB-098 asked for every filed ticket to be marked "waiting for your team to pick
                       it up". Said once, on the column, rather than on each card: the same sentence
@@ -512,6 +524,26 @@ export function VentureBoard({
                       </div>
                       );
                     })}
+                    {/* Work the matcher could not place. Shown, not hidden: fifteen of these were
+                        invisible on this board while the badge counted every one of them. The card
+                        says what it is rather than pretending to be a ticket. */}
+                    {g.key === 'pr-open'
+                      ? (unmatchedWork[lane.repo] ?? []).map((w) => (
+                          <Link
+                            key={`unmatched-${w.number}`}
+                            href={`/venture/${venture.id}/work/${lane.repo}/${w.number}`}
+                            className="card card-link"
+                            data-testid={`unmatched-work-${lane.repo}-${w.number}`}
+                            style={{ display: 'block', padding: '0.7rem 0.85rem' }}
+                          >
+                            <span className="eyebrow-id" style={{ fontSize: 'var(--fs-eyebrow)' }}>No ticket</span>
+                            <div style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.15rem' }}>{w.title}</div>
+                            <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.25rem' }}>
+                              Finished work your team did not tie to anything you asked for. Read it and decide.
+                            </div>
+                          </Link>
+                        ))
+                      : null}
                   </div>
                 </div>
               ))}

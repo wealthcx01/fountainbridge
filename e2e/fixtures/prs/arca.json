@@ -31,5 +31,27 @@
     "branch": "arca-2-card-search",
     "state": "closed",
     "merged": true
+  },
+  {
+    "number": 13,
+    "title": "build: deck-export (Foundry lane)",
+    "url": "https://github.com/wealthcx01/arca/pull/13",
+    "author": "foundry-lane",
+    "createdAt": "2026-07-20T00:00:00Z",
+    "branch": "foundry/deck-export",
+    "state": "open",
+    "merged": false,
+    "ciStatus": "success"
+  },
+  {
+    "number": 14,
+    "title": "build: something-nobody-filed (Foundry lane)",
+    "url": "https://github.com/wealthcx01/arca/pull/14",
+    "author": "foundry-lane",
+    "createdAt": "2026-07-20T06:00:00Z",
+    "branch": "foundry/something-nobody-filed",
+    "state": "open",
+    "merged": false,
+    "ciStatus": "success"
   }
 ]

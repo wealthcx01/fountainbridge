@@ -19,6 +19,7 @@ import { GitHubClient, GitHubError } from './github';
 // The type lives here, the combining logic lives with the founder-facing gate that depends on it
 // being right. `import type` above means there is no runtime cycle.
 import { previewUrlFrom } from './work';
+import { linkedTicketId, matchWorkToTicket, type MatchableTicket } from './ticket-match';
 
 /** A raw PR as our source yields it — the minimum the queue and inference need. */
 export interface RawPr {
@@ -54,6 +55,8 @@ export interface PrApproval {
   createdAt: string;
   ageMs: number;
   linkedTicketId: string | null;
+  /** The matched ticket's human title (FB-099). Null when nothing matched. */
+  ticketTitle: string | null;
   ciStatus: PrCiStatus;
   /** Vercel preview — the primary click target when present (parity §3). Wired in FB-009. */
   previewUrl: string | null;
@@ -66,23 +69,17 @@ export interface RepoPrs {
 
 export type RepoPrFetcher = (repo: string) => Promise<RepoPrs>;
 
-// Case-insensitive so a lowercase branch (`fb-007-x`, `grs-0147b-x`) matches; canonicalized to the
-// contract form (uppercase prefix, lowercase suffix) so `FB-007` and `fb-007` resolve identically.
-const TICKET_ID = /([A-Za-z]{2,})-(\d+)([A-Za-z]?)/;
+// The id matcher moved to lib/ticket-match (FB-099), which owns every way a piece of work can be
+// tied to its ticket. Re-exported so the callers of `linkedTicketId` did not all have to move.
+export { linkedTicketId };
 
-function canonicalId(m: RegExpMatchArray): string {
-  return `${m[1].toUpperCase()}-${m[2]}${m[3].toLowerCase()}`;
-}
-
-/** Extract a linked ticket id from a PR's branch (e.g. `fb-007-x`) or title (`FB-007: …`). */
-export function linkedTicketId(pr: { branch: string; title: string }): string | null {
-  const fromBranch = pr.branch.match(TICKET_ID);
-  if (fromBranch) return canonicalId(fromBranch);
-  const fromTitle = pr.title.match(TICKET_ID);
-  return fromTitle ? canonicalId(fromTitle) : null;
-}
-
-function toApproval(ventureId: string, repo: string, pr: RawPr, now: number): PrApproval {
+function toApproval(
+  ventureId: string,
+  repo: string,
+  pr: RawPr,
+  now: number,
+  ticket: MatchableTicket | null = null,
+): PrApproval {
   const created = Date.parse(pr.createdAt);
   return {
     id: `${repo}#${pr.number}`,
@@ -95,7 +92,10 @@ function toApproval(ventureId: string, repo: string, pr: RawPr, now: number): Pr
     author: pr.author,
     createdAt: pr.createdAt,
     ageMs: Number.isFinite(created) ? Math.max(0, now - created) : 0,
-    linkedTicketId: linkedTicketId(pr),
+    linkedTicketId: ticket?.id ?? linkedTicketId(pr),
+    // FB-099: the founder reads the ticket's name, not the branch the lane happened to choose.
+    // Null when nothing matched, which the queue then says out loud rather than hiding.
+    ticketTitle: ticket?.title ?? null,
     ciStatus: pr.ciStatus ?? 'unknown',
     previewUrl: pr.previewUrl ?? null,
   };
@@ -115,6 +115,15 @@ export function buildAttention(
   venture: VentureSummary,
   perRepo: Array<{ repo: string; result: RepoPrs }>,
   now: number,
+  /**
+   * What the studio knows about this venture's tickets, per repo (FB-099).
+   *
+   * Optional, and the difference between a board that adds up and one that does not: without it a
+   * piece of work is only tied to a ticket when it says the id outright, which the lane's own
+   * branches (`foundry/<slug>`) never do. Callers that have already read the tickets pass them;
+   * callers that have not get the id-only behaviour, honestly.
+   */
+  tickets?: ReadonlyMap<string, readonly MatchableTicket[]>,
 ): { approvals: PrApproval[]; ticketStatus: Map<string, 'pr-open' | 'done'>; errors: string[] } {
   const approvals: PrApproval[] = [];
   const ticketStatus = new Map<string, 'pr-open' | 'done'>();
@@ -122,11 +131,13 @@ export function buildAttention(
 
   for (const { repo, result } of perRepo) {
     if (result.error) errors.push(`${repo}: ${result.error}`);
+    const known = tickets?.get(repo) ?? null;
     for (const pr of result.prs) {
-      const tid = linkedTicketId(pr);
+      const matched = known ? matchWorkToTicket(pr, known) : null;
+      const tid = matched?.id ?? linkedTicketId(pr);
       const key = tid ? inferenceKey(repo, tid) : null;
       if (pr.state === 'open') {
-        approvals.push(toApproval(venture.id, repo, pr, now));
+        approvals.push(toApproval(venture.id, repo, pr, now, matched));
         if (key) ticketStatus.set(key, 'pr-open'); // open PR wins for inference
       } else if (pr.merged && key && !ticketStatus.has(key)) {
         ticketStatus.set(key, 'done'); // merged → done, unless an open PR already claimed it
@@ -286,6 +297,14 @@ export interface VentureAttention {
   ticketStatus: Map<string, 'pr-open' | 'done'>;
   errors: string[];
   fetchedAt: number;
+  /**
+   * The raw fetch, kept so the derived view can be rebuilt with ticket knowledge (FB-099).
+   *
+   * What is CACHED is the network read; what is DERIVED is the matching. Caching the derived view
+   * instead would mean whichever page loaded first decided how well the whole studio matched for the
+   * next two minutes — the attention queue (which has no tickets to hand) would poison the board.
+   */
+  perRepo: Array<{ repo: string; result: RepoPrs }>;
 }
 
 const cache = new Map<string, VentureAttention>();
@@ -296,18 +315,29 @@ export function clearAttentionCache(): void {
 
 export async function loadVentureAttention(
   venture: VentureSummary,
-  opts: { fetcher?: RepoPrFetcher; refresh?: boolean; now?: () => number } = {},
+  opts: {
+    fetcher?: RepoPrFetcher;
+    refresh?: boolean;
+    now?: () => number;
+    /** This venture's tickets per repo, when the caller has already read them (FB-099). */
+    tickets?: ReadonlyMap<string, readonly MatchableTicket[]>;
+  } = {},
 ): Promise<VentureAttention> {
   const now = opts.now ?? Date.now;
   const cached = cache.get(venture.id);
-  if (!opts.refresh && cached && now() - cached.fetchedAt < CACHE_TTL_MS) return cached;
+  const fresh = !opts.refresh && cached && now() - cached.fetchedAt < CACHE_TTL_MS;
 
-  const fetcher = opts.fetcher ?? defaultPrFetcher();
-  const perRepo = await Promise.all(
-    venture.repos.map(async (repo) => ({ repo, result: await fetcher(repo) })),
-  );
-  const { approvals, ticketStatus, errors } = buildAttention(venture, perRepo, now());
-  const result: VentureAttention = { ventureId: venture.id, approvals, ticketStatus, errors, fetchedAt: now() };
+  const fetchedAt = fresh ? cached.fetchedAt : now();
+  const perRepo = fresh
+    ? cached.perRepo
+    : await Promise.all(
+        venture.repos.map(async (repo) => ({ repo, result: await (opts.fetcher ?? defaultPrFetcher())(repo) })),
+      );
+
+  // Derived on every read, from whatever ticket knowledge THIS caller has. The network read is what
+  // the cache is for.
+  const { approvals, ticketStatus, errors } = buildAttention(venture, perRepo, fetchedAt, opts.tickets);
+  const result: VentureAttention = { ventureId: venture.id, approvals, ticketStatus, errors, fetchedAt, perRepo };
   cache.set(venture.id, result);
   return result;
 }
@@ -325,12 +355,20 @@ export interface AccessibleAttention {
  */
 export async function loadAccessibleAttention(
   email: string,
-  opts: { fetcher?: RepoPrFetcher; refresh?: boolean; now?: () => number } = {},
+  opts: {
+    fetcher?: RepoPrFetcher;
+    refresh?: boolean;
+    now?: () => number;
+    /** Ticket knowledge per venture id, so the queue can name work the way the board does (FB-099). */
+    ticketsFor?: (venture: VentureSummary) => Promise<ReadonlyMap<string, readonly MatchableTicket[]> | undefined>;
+  } = {},
 ): Promise<AccessibleAttention> {
   const ventures = loadVentures();
   const access = authorizeVentures(email, ventures, parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS));
   const visible = ventures.filter((v) => canAccessVenture(access, v.id));
-  const results = await Promise.all(visible.map((v) => loadVentureAttention(v, opts)));
+  const results = await Promise.all(
+    visible.map(async (v) => loadVentureAttention(v, { ...opts, tickets: await opts.ticketsFor?.(v) })),
+  );
   const approvals = results.flatMap((r) => r.approvals).sort((a, b) => b.ageMs - a.ageMs);
   const ventureNames: Record<string, string> = {};
   for (const v of visible) ventureNames[v.id] = v.name;

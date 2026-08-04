@@ -9,7 +9,9 @@ test('attention queue lists open PRs oldest-first, with preview as the primary l
   await testLogin(page, 'john.gallagher@wealthcx.com'); // admin — sees all ventures' PRs
   await page.goto('/attention');
 
-  await expect(page.getByTestId('attention-count')).toHaveText('2'); // 2 open, 1 merged excluded
+  // 4 open (10, 11, 13, 14), 1 merged excluded. FB-099 added 13 and 14 — the lane's own branch shape,
+  // one that matches a ticket by slug and one that matches nothing at all.
+  await expect(page.getByTestId('attention-count')).toHaveText('4');
   // FB-024: plain-language copy, no git jargon ("open PR"/"the workshop never merges").
   await expect(page.getByText('Nothing goes live until you approve it.')).toBeVisible();
   const queue = page.getByTestId('attention-queue');
@@ -39,7 +41,7 @@ test('attention queue lists open PRs oldest-first, with preview as the primary l
 test('nav shows the attention badge count', async ({ page }) => {
   await testLogin(page, 'john.gallagher@wealthcx.com');
   await page.goto('/');
-  await expect(page.getByTestId('nav-attention-badge')).toHaveText('2');
+  await expect(page.getByTestId('nav-attention-badge')).toHaveText('4');
 });
 
 test('open PR moves its ticket to pr-open in the venture board (status inference)', async ({ page }) => {

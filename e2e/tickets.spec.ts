@@ -108,7 +108,7 @@ test.describe('the ticket carries its own decision (FB-105)', () => {
 
   test('a ticket nobody is waiting on offers no decision at all', async ({ page }) => {
     // Offering an Accept button for work that does not exist would be worse than offering none.
-    await page.getByTestId('ticket-ARCA-3').click();
+    await page.getByTestId('ticket-ARCA-6').click();
     await expect(page.getByTestId('drawer-decision')).toHaveCount(0);
   });
 
@@ -147,7 +147,7 @@ test.describe('the loop is visible on the board (FB-098)', () => {
   });
 
   test('a ticket being worked shows when it was picked up and the real check-in', async ({ page }) => {
-    const line = page.getByTestId('ticket-progress-ARCA-3');
+    const line = page.getByTestId('ticket-progress-ARCA-6');
     await expect(line).toHaveAttribute('data-state', 'working');
     await expect(line).toContainText('picked this up');
     await expect(line).toContainText('checked in');
@@ -155,7 +155,7 @@ test.describe('the loop is visible on the board (FB-098)', () => {
 
   test('nothing on a card counts to a finish it cannot know', async ({ page }) => {
     // The honesty rule. A progress bar that lies is the composer-said-it-filed bug in a costume.
-    const line = page.getByTestId('ticket-progress-ARCA-3');
+    const line = page.getByTestId('ticket-progress-ARCA-6');
     await expect(line).not.toContainText('%');
     await expect(page.locator('progress')).toHaveCount(0);
   });
@@ -171,5 +171,59 @@ test.describe('the loop is visible on the board (FB-098)', () => {
     // reading it (FB-100's item 5), so the reassurance lives on the column.
     await expect(page.getByTestId('ticket-progress-ARCA-2')).toHaveCount(0);
     await expect(page.getByTestId('col-todo-note')).toContainText('Waiting for your team to pick up');
+  });
+});
+
+
+/**
+ * FB-099 — the board said zero while fifteen waited.
+ *
+ * The badge counted open work; the columns counted ticket files whose status had been inferred from
+ * a matching piece of work. The lane's own branches (`foundry/<slug>`) carry no ticket id, so
+ * nothing matched, and the two numbers sat six centimetres apart telling different stories.
+ */
+test.describe('one number for what is waiting (FB-099)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+  });
+
+  test('work the lane filed under its own branch reaches its ticket', async ({ page }) => {
+    // PR 13 is `foundry/deck-export` / "build: deck-export (Foundry lane)" — no id anywhere. Before
+    // FB-099 it matched nothing and ARCA-3 sat in "To do" while the badge counted the work.
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('col-pr-open').getByTestId('ticket-ARCA-3')).toBeVisible();
+    await expect(page.getByTestId('ticket-progress-ARCA-3')).toHaveAttribute('data-state', 'worked');
+  });
+
+  test('work that matches nothing is shown as exactly that', async ({ page }) => {
+    // Inventing a match to make the columns add up would be the same failure in the opposite
+    // costume. It appears, says it has no ticket, and can still be read and decided.
+    await page.goto('/venture/arca');
+    const orphan = page.getByTestId('unmatched-work-arca-14');
+    await expect(orphan).toBeVisible();
+    await expect(orphan).toContainText('No ticket');
+    await expect(orphan).toHaveAttribute('href', '/venture/arca/work/arca/14');
+  });
+
+  test('the column and the queue count the same work', async ({ page }) => {
+    // The whole ticket in one assertion: what the board says is waiting, and what the queue says is
+    // waiting, are the same number computed from the same knowledge.
+    await page.goto('/venture/arca');
+    const column = Number(await page.getByTestId('col-pr-open-count').innerText());
+    await page.goto('/attention');
+    const badge = Number(await page.getByTestId('attention-count').innerText());
+    expect(column).toBe(badge);
+  });
+
+  test('the queue calls work by its ticket’s name, not the lane’s branch', async ({ page }) => {
+    await page.goto('/attention');
+    const queue = page.getByTestId('attention-queue');
+    // PR 13 is `foundry/deck-export` and used to read "build: deck-export (Foundry lane)" here while
+    // the board called the same thing "Deck export" — two lists a founder could not connect.
+    await expect(queue).toContainText('Deck export');
+    await expect(queue).not.toContainText('build: deck-export');
+    // The fallback survives exactly where it should: work that matches no ticket has no other name,
+    // and inventing one would be worse than showing the lane's.
+    await expect(queue).toContainText('build: something-nobody-filed (Foundry lane)');
   });
 });

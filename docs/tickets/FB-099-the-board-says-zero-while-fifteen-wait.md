@@ -1,6 +1,6 @@
 # FB-099 — The board says zero while fifteen wait
 
-**Status:** Todo · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03 ·
+**Status:** Done · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03 ·
 **Repo:** fountainbridge · **Branch:** `fb-099-the-board-says-zero-while-fifteen-wait` ·
 One ticket = one branch = one PR.
 
@@ -51,8 +51,40 @@ about exactly this: one fact, one number.
 
 ## Acceptance criteria
 
-- [ ] The badge and the board columns show the same number, from the same computation.
-- [ ] Each of ARCA's fifteen real PRs is either matched to its ticket (id + title shown) or
+- [x] The badge and the board columns show the same number, from the same computation. — pinned by
+      an e2e that reads both numbers off the two pages and asserts they are equal.
+- [x] Each of ARCA's fifteen real PRs is either matched to its ticket (id + title shown) or
       deliberately unmatched with the fallback title — none double-counted, none invisible.
-- [ ] Unit tests pin the matcher against the real PR/branch shapes the lane produces.
-- [ ] No surface shows a raw branch name to a founder when a ticket title is known.
+- [x] Unit tests pin the matcher against the real PR/branch shapes the lane produces.
+- [x] No surface shows a raw branch name to a founder when a ticket title is known.
+
+## What shipped
+
+`lib/ticket-match.ts` — all three shapes the lane produces, in one place, tried in order of how much
+the work states about itself: the id outright, then the branch slug (`foundry/<slug>`), then the slug
+out of the title once "build:" and "(Foundry lane)" are taken off it.
+
+**It never guesses.** A slug that matches nothing stays unmatched, and an id that names a ticket the
+studio cannot see does NOT fall through to slug-guessing: `ARCA-99` means the author meant ARCA-99,
+and matching it to something similar would be silently wrong rather than visibly unmatched.
+
+## Two things the fix turned out to need
+
+- **Unmatched work has to be on the board.** Matching alone cannot make the two numbers agree,
+  because some work genuinely has no ticket — and that work was falling between the badge (which
+  counted it) and the columns (which could not show it). It now appears in "Needs your OK" as a card
+  that says *"No ticket — finished work your team did not tie to anything you asked for"*, and can
+  still be read and decided. Inventing a match to make the columns add up would have been the same
+  failure in the opposite costume.
+- **"Unmatched" means "has no card on this board", not "has no id".** Work titled *"ARCA-5: deck
+  sharing"* whose ticket file does not exist has an id, matches nothing on screen, and fell through
+  exactly the same gap. Found by the count-agreement test, which is why that test asserts the numbers
+  rather than the mechanism.
+
+## One structural change worth knowing
+
+The attention cache now stores **the network read** and derives the matching on every read. Caching
+the derived view instead would mean whichever page loaded first decided how well the whole studio
+matched for the next two minutes — the queue (which had no tickets to hand) would poison the board.
+The tickets are threaded in from both pages through one helper, `lib/venture-tickets-index.ts`, so
+the two surfaces cannot answer "how much is waiting?" from different knowledge again.
