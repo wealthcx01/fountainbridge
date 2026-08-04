@@ -57,7 +57,7 @@ describe('turning five failures into sentences a person can act on', () => {
   it('says the busy one clears by itself, because it does', () => {
     const busy = groupFailures(REAL).find((g) => g.cause === 'busy')!;
     expect(busy.nextStep).toContain('clears on its own');
-    expect(busy.text).toContain('asking GitHub too often');
+    expect(busy.text).toContain('asking for it too often');
   });
 
   it('reads as a sentence for one workstream and for three', () => {

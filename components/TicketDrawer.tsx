@@ -120,7 +120,7 @@ export function TicketDrawer({
 
         <hr className="hr" style={{ margin: '1.25rem 0 1rem' }} />
         <a className="btn" href={fileUrl} target="_blank" rel="noreferrer" data-testid="drawer-github-link">
-          View on GitHub ↗
+          See where this is written down ↗
         </a>
       </aside>
     </div>

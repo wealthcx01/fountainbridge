@@ -42,7 +42,7 @@ describe('what the brief leads with', () => {
 
   it('distinguishes "no lane yet" from "quiet"', () => {
     const b = composeBrief(input({ engine: { state: 'unknown', text: 'No sign of an agent lane yet' } }));
-    expect(b.headline).toContain('no agent lane running yet');
+    expect(b.headline).toContain('no team working on it yet');
   });
 });
 
@@ -115,7 +115,8 @@ describe('ordering and tone', () => {
   it('gets its singulars and plurals right — a brief that says "1 actions" reads as a machine', () => {
     expect(composeBrief(input({ awaitingApproval: 1 })).lines[0].text).toContain('1 action outside the company is waiting');
     expect(composeBrief(input({ awaitingApproval: 2 })).lines[0].text).toContain('2 actions outside the company are waiting');
-    expect(composeBrief(input({ openPrs: 1 })).lines[0].text).toContain('1 pull request is open');
+    expect(composeBrief(input({ openPrs: 1 })).lines[0].text).toContain('1 piece of finished work is waiting');
+    expect(composeBrief(input({ openPrs: 2 })).lines[0].text).toContain('2 pieces of finished work are waiting');
     expect(composeBrief(input({ overBudget: ['Sell'] })).lines[0].text).toContain('Sell is over');
     expect(composeBrief(input({ overBudget: ['Sell', 'Scale'] })).lines[0].text).toContain('Sell and Scale are over');
   });

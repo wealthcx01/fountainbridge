@@ -26,6 +26,7 @@
 
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
+import { inFounderWords } from './glossary';
 
 export const STATE_REF = 'foundry-state';
 
@@ -192,25 +193,25 @@ export function engineState(
     return {
       state: 'unknown',
       lastSeen: null,
-      text: 'No sign of an agent lane on this venture yet — it starts with your box.',
+      text: 'Your team is not working on this venture yet — it starts with this venture’s own machine.',
     };
   }
   const ageMs = now.getTime() - new Date(latest).getTime();
   if (Number.isNaN(ageMs)) {
-    return { state: 'unknown', lastSeen: latest, text: 'The lane reported a time the studio could not read.' };
+    return { state: 'unknown', lastSeen: latest, text: 'Your team reported a time the studio could not read.' };
   }
   const minutes = Math.floor(ageMs / 60_000);
   if (minutes > stalledAfterMinutes) {
     return {
       state: 'stalled',
       lastSeen: latest,
-      text: `The agent lane has not checked in for ${describeGap(minutes)}. It wakes every few minutes when healthy, so something is wrong with the box.`,
+      text: `Your team has not checked in for ${describeGap(minutes)}. It wakes every few minutes when all is well, so something is wrong with this venture’s machine.`,
     };
   }
   return {
     state: 'running',
     lastSeen: latest,
-    text: minutes <= 1 ? 'The agent lane checked in just now.' : `The agent lane checked in ${describeGap(minutes)} ago.`,
+    text: minutes <= 1 ? 'Your team checked in just now.' : `Your team checked in ${describeGap(minutes)} ago.`,
   };
 }
 
@@ -222,25 +223,34 @@ function describeGap(minutes: number): string {
   return `${days} day${days === 1 ? '' : 's'}`;
 }
 
-/** The founder-facing sentence for one run. One owner for these words, so they cannot drift. */
+/**
+ * The founder-facing sentence for one run. One owner for these words, so they cannot drift.
+ *
+ * The reason a run stopped is written by the machine that stopped, in its own vocabulary, and the
+ * brief quotes it verbatim — so FB-103 passes exactly those quoted parts through `inFounderWords`.
+ * The studio's own half of each sentence is already in the founder's words; only the borrowed half
+ * needs translating, and it is translated rather than dropped because the reason IS the point
+ * (non-negotiable 10).
+ */
 export function describeRun(report: RunReport): string {
   const ticket = report.ticketsTouched[0];
   const on = ticket ? ` on ${ticket}` : '';
+  const said = (fallback: string) => inFounderWords(report.errorDetail || report.summaryMd || fallback);
   switch (report.outcome) {
     case null:
       return `Working${on} now.`;
     case 'opened-pr':
-      return `Finished${on} and opened a pull request for you to review.`;
+      return `Finished${on}. It needs your OK before it becomes part of your product.`;
     case 'awaiting-approval':
       return `Finished${on} and is waiting for your approval before anything happens.`;
     case 'blocked':
-      return `Stopped${on} and needs you: ${report.errorDetail || report.summaryMd || 'no reason was recorded.'}`;
+      return `Stopped${on} and needs you: ${said('no reason was recorded.')}`;
     case 'error':
-      return `Failed${on}: ${report.errorDetail || report.summaryMd || 'no detail was recorded.'}`;
+      return `Failed${on}: ${said('no detail was recorded.')}`;
     case 'no-useful-work':
       return 'Woke up, found nothing ready to work, and went back to sleep.';
     case 'progress':
     default:
-      return report.summaryMd || `Worked${on}.`;
+      return report.summaryMd ? inFounderWords(report.summaryMd) : `Worked${on}.`;
   }
 }

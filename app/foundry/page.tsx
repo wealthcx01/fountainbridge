@@ -25,7 +25,7 @@ export default async function FoundryPage() {
       <div className="stack" style={{ gap: '0.75rem', marginBottom: '1.5rem' }} data-testid="foundry-learn-more">
         <Link href="/how-it-works" className="card card-link" data-testid="foundry-to-how-it-works">
           <h3 style={{ margin: 0 }}>How the Foundry works →</h3>
-          <span className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>The real machinery — lanes, tickets, gstack, gbrain, ActiveGraph, the approval matrix.</span>
+          <span className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>What actually happens between your ask and your product: who does the work, how it is checked, and who has to approve what.</span>
         </Link>
         <Link href="/playbook" className="card card-link" data-testid="foundry-to-playbook">
           <h3 style={{ margin: 0 }}>The Foundry Playbook →</h3>

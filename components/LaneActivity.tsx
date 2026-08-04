@@ -1,4 +1,5 @@
 import { emptyPanel } from '@/lib/firstrun';
+import { TEAM_INTRO, TEAM_TITLE } from '@/lib/glossary';
 import type { RunReport } from '@/lib/runreports';
 import { describeRun } from '@/lib/runreports';
 import { toneColor, type Tone } from '@/lib/status';
@@ -28,8 +29,12 @@ export function LaneActivity({
   const engineTone: Tone = engine.state === 'stalled' ? 'blocked' : engine.state === 'unknown' ? 'idle' : 'working';
 
   return (
-    <section data-testid="lane-activity" style={{ marginTop: '1.25rem' }} aria-label="What the agent lanes did">
-      <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>What your agents have been doing</p>
+    <section data-testid="lane-activity" style={{ marginTop: '1.25rem' }} aria-label="What your team has been doing">
+      {/* FB-103: one name for the working machinery, introduced where the founder first meets it.
+          This panel is that place — it is the only surface that says what the team IS, and every
+          other surface then says "your team" without explaining itself again. */}
+      <p className="eyebrow" style={{ marginBottom: '0.15rem' }}>{TEAM_TITLE} — what has been happening</p>
+      <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0 0 0.5rem' }}>{TEAM_INTRO}</p>
 
       <p
         data-testid="engine-state"
@@ -91,7 +96,7 @@ export function LaneActivity({
                   {r.prUrl ? (
                     <>
                       {' · '}
-                      <a href={r.prUrl} data-testid={`run-${r.laneId}-${i}-pr`}>the pull request</a>
+                      <a href={r.prUrl} data-testid={`run-${r.laneId}-${i}-pr`}>the work itself</a>
                     </>
                   ) : null}
                 </p>

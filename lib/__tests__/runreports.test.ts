@@ -128,7 +128,7 @@ describe('engineState — is anything actually running?', () => {
     const s = engineState([beat('2026-07-31T11:00:00Z')], NOW);
     expect(s.state).toBe('stalled');
     expect(s.text).toContain('3 hours');
-    expect(s.text).toContain('something is wrong with the box');
+    expect(s.text).toContain('something is wrong with this venture’s machine');
   });
 
   it('says "no lane yet" rather than "offline" when there has never been one', () => {
@@ -136,7 +136,7 @@ describe('engineState — is anything actually running?', () => {
     // their engine is down would be false.
     const s = engineState([], NOW);
     expect(s.state).toBe('unknown');
-    expect(s.text).toContain('starts with your box');
+    expect(s.text).toContain('starts with this venture’s own machine');
   });
 
   it('does not read an unparseable timestamp as healthy', () => {
@@ -168,5 +168,19 @@ describe('describeRun — one owner for the words', () => {
 
   it('does not dress up an idle wake as work', () => {
     expect(describeRun(run({ outcome: 'no-useful-work', ticketsTouched: [] }))).toContain('nothing ready to work');
+  });
+
+  it('quotes the machine’s reason in the founder’s vocabulary (FB-103)', () => {
+    // The reason is written on the venture's own machine, in the machine's words, and the brief
+    // quotes it verbatim — so the board said "Your team" at the top and "The lane" four lines down.
+    const said = describeRun(run({ outcome: 'blocked', errorDetail: 'The lane tried this 3 times.' }));
+    expect(said).toContain('Your team tried this 3 times.');
+    expect(said).not.toContain('lane');
+  });
+
+  it('still hands over the whole reason, translated but not trimmed', () => {
+    const detail = 'The agent lane could not get typecheck to pass on lib/work.ts. Parked.';
+    expect(describeRun(run({ outcome: 'error', errorDetail: detail })))
+      .toContain('Your team could not get typecheck to pass on lib/work.ts. Parked.');
   });
 });

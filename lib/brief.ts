@@ -67,7 +67,7 @@ export function composeBrief(input: BriefInput): Brief {
   if (input.openPrs > 0) {
     lines.push({
       tone: 'attention',
-      text: `${plural(input.openPrs, 'pull request')} ${input.openPrs === 1 ? 'is' : 'are'} open for review.`,
+      text: `${plural(input.openPrs, 'piece of finished work', 'pieces of finished work')} ${input.openPrs === 1 ? 'is' : 'are'} waiting for your OK.`,
     });
   }
 
@@ -129,11 +129,13 @@ function headlineFor(input: BriefInput): string {
   }
   const stopped = input.failed.length + input.blocked.length;
   if (stopped > 0) return `${ventureName}: ${plural(stopped, 'thing')} stopped and ${stopped === 1 ? 'needs' : 'need'} a person.`;
-  if (input.engine.state === 'stalled') return `${ventureName}: the agent lane has stopped checking in.`;
-  if (input.openPrs > 0) return `${ventureName}: ${plural(input.openPrs, 'pull request')} to review, nothing blocked.`;
+  if (input.engine.state === 'stalled') return `${ventureName}: your team has stopped checking in.`;
+  if (input.openPrs > 0) {
+    return `${ventureName}: ${plural(input.openPrs, 'piece of finished work', 'pieces of finished work')} to read, nothing blocked.`;
+  }
   if (input.progressed.length > 0) return `${ventureName}: ${plural(input.progressed.length, 'ticket')} moved, nothing needs you.`;
-  if (input.engine.state === 'unknown') return `${ventureName} has no agent lane running yet.`;
-  return `${ventureName} is quiet — the lane is awake and there is nothing waiting on you.`;
+  if (input.engine.state === 'unknown') return `${ventureName} has no team working on it yet.`;
+  return `${ventureName} is quiet — your team is awake and there is nothing waiting on you.`;
 }
 
 /** Split a run history into the buckets the brief reads. One place, so the counts cannot disagree. */

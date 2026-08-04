@@ -149,6 +149,20 @@ jobs:
       - name: Enforce the studio design contract
         run: make design-lint
 
+  copy:
+    name: Plain English
+    runs-on: ubuntu-latest
+    # FB-103: the founder vocabulary contract (lib/glossary.ts) — no engineering words on a founder's
+    # screen without a reasoned opt-out. Same shape as the design contract above, and for the same
+    # reason: the copy had been fixed by hand four times and kept regressing.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enforce the founder vocabulary contract
+        run: make copy-lint
+
   ticket-drift:
     name: Tickets match the history
     runs-on: ubuntu-latest
