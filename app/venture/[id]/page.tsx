@@ -143,6 +143,13 @@ export default async function VenturePage({
   // FB-104: a stuck ticket reads by its name, not its number. The titles are already on the board —
   // this is the same parse the columns render from, so the brief cannot name a ticket differently
   // from the card the founder then goes and opens.
+  // FB-105: the work waiting on each ticket, keyed the same way the status inference is — so the
+  // drawer's Accept button and the column the card sits in cannot disagree about the same ticket.
+  const openWork: Record<string, { repo: string; number: number }> = {};
+  for (const pr of attention.approvals) {
+    if (pr.linkedTicketId) openWork[`${pr.repo} ${pr.linkedTicketId}`] = { repo: pr.repo, number: pr.number };
+  }
+
   const ticketTitles: Record<string, string> = {};
   for (const lane of lanes) {
     for (const group of Object.values(lane.groups)) {
@@ -227,6 +234,7 @@ export default async function VenturePage({
       orphanEnvelopes={orphanEnvelopes}
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
+      openWork={openWork}
       fetchedAt={data.fetchedAt}
       org={org}
       brief={brief}
