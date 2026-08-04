@@ -1,6 +1,6 @@
 # FB-105 — The whole ticket lives in the studio
 
-**Status:** Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"to see all the detail, it
+**Status:** Done · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"to see all the detail, it
 takes you out to GitHub… why cant we have this in the studio all as one ticket? And for example,
 some ticket's 'need my okay' but there is then no button to click accept, or deny, or then use the
 composer to edit the tickets."* · **Repo:** fountainbridge ·
@@ -60,8 +60,39 @@ Driven as the founder against a production build. Two corrections and one confir
 
 ## Acceptance criteria
 
-- [ ] A founder reads a full ticket, decides on it, and requests changes to it without leaving
+- [x] A founder reads a full ticket, decides on it, and requests changes to it without leaving
       the studio.
-- [ ] The GitHub link is a reference, not required reading — nothing on it is absent here.
-- [ ] Accept in the drawer and Accept on the work page are the same server action.
-- [ ] The composer opens pre-seeded from a ticket and files an edit to that ticket.
+- [x] The GitHub link is a reference, not required reading — nothing on it is absent here. — and the
+      "nothing absent" half turned out to be the real work: see below.
+- [x] Accept in the drawer and Accept on the work page are the same server action. — `acceptWork` and
+      `sendBackWork`, imported by both surfaces. One decision, two doors, one implementation.
+- [x] The composer opens pre-seeded from a ticket and files an edit to that ticket. — the drawer's
+      "Ask for changes to this" opens `/venture/<id>/composer?about=<ticket>` with the first words
+      written. The filing itself is the composer's existing, already-gated ticket tool; this ticket
+      adds no second write path.
+
+## What shipped
+
+The lever, where the decision is: a ticket with work waiting now carries **Accept**, **Send it back
+with a note**, and a link to read what was built — the FB-064/FB-107 server actions imported, not
+copied. Accepting from the drawer passes no `seenHeadSha` and says why in the code: the founder read
+the ASK here, not the work, so there is no rendered commit to bind to. The server still re-reads and
+re-decides against what is currently true, which is the check that matters.
+
+## The audit was right about the cause, and it was not truncation
+
+The drawer already rendered the whole body. What made GitHub feel like it had more was that **the
+studio was silently deleting part of the sentence**: react-markdown runs without `rehype-raw` (repo-
+controlled markdown must never render as HTML), so anything shaped like a tag is parsed as HTML and
+dropped. `read the slug from the repo (<slug>, <path>)` reached the founder as *"read the slug from
+the repo (, ) and from here"*. `showAngleBrackets` escapes them into text — nothing renders as HTML,
+and nothing disappears.
+
+The other audit finding — "Needs your OK" above `Status: Todo` — was the ticket file's own metadata
+line arguing with the chip the studio computes. `withoutStatusClaim` drops that one segment and keeps
+the rest of the line (the phase, who asked, their own words: none of it is in any chip). Both fixes
+apply to the work page's ask too, which had inherited both faults.
+
+`statusGroup` is now passed in rather than read off the ticket. The value was already correct — the
+inference rewrites it — but the drawer was reading a field that a caller could hand it un-inferred,
+and this is the surface where being quietly wrong about status costs a founder a decision.

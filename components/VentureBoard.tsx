@@ -45,6 +45,8 @@ interface Selected {
   repo: string;
   ref: string;
   item: TicketWithMeta;
+  /** The column it was opened from — the drawer must agree with the board about where it sits. */
+  group: TicketStatusGroup;
 }
 
 // FB-021: present each read-failure state so a founder can tell "not set up yet" from "broken".
@@ -105,6 +107,7 @@ export function VentureBoard({
   totalWarnings,
   fetchedAt,
   org,
+  openWork = {},
   wiringWarning = null,
 }: {
   venture: {
@@ -132,6 +135,11 @@ export function VentureBoard({
   totalWarnings: number;
   fetchedAt: number;
   org: string;
+  /**
+   * The work waiting on each ticket, keyed `"<repo> <id>"` — the same key the status inference uses
+   * (FB-105). So the drawer's Accept button and the column the card sits in are the same fact.
+   */
+  openWork?: Record<string, { repo: string; number: number }>;
   /** FB-087: admin-only — this venture has a box the studio cannot reach. Null for founders. */
   wiringWarning?: string | null;
 }) {
@@ -157,7 +165,7 @@ export function VentureBoard({
     const m = new Map<string, Selected>();
     for (const lane of lanes) {
       for (const g of GROUPS) {
-        for (const item of lane.groups[g.key]) m.set(item.ticket.id, { repo: lane.repo, ref: lane.ref, item });
+        for (const item of lane.groups[g.key]) m.set(item.ticket.id, { repo: lane.repo, ref: lane.ref, item, group: g.key });
       }
     }
     return m;
@@ -445,7 +453,7 @@ export function VentureBoard({
                         className="card card-link"
                         style={{ textAlign: 'left', cursor: 'pointer', padding: '0.7rem 0.85rem' }}
                         data-testid={`ticket-${item.ticket.id}`}
-                        onClick={() => setSelected({ repo: lane.repo, ref: lane.ref, item })}
+                        onClick={() => setSelected({ repo: lane.repo, ref: lane.ref, item, group: g.key })}
                       >
                         <span className="mono eyebrow-id" style={{ fontSize: 'var(--fs-eyebrow)' }}>{item.ticket.id}</span>
                         <div style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.15rem' }}>{item.ticket.title}</div>
@@ -470,6 +478,9 @@ export function VentureBoard({
           repo={selected.repo}
           gitRef={selected.ref}
           org={org}
+          ventureId={venture.id}
+          statusGroup={selected.group}
+          waiting={openWork[`${selected.repo} ${selected.item.ticket.id}`] ?? null}
           knownIds={index}
           onSelectId={selectById}
           onClose={() => setSelected(null)}

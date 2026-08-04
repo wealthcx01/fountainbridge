@@ -66,3 +66,53 @@ test('empty / not-provisioned repos render a clear state, not a crash', async ({
   await expect(page.getByTestId('lane-thereset-platform')).toBeVisible();
   await expect(page.getByTestId('lane-thereset-platform').getByTestId('lane-empty')).toBeVisible();
 });
+
+
+/**
+ * FB-105 — the whole ticket lives in the studio.
+ *
+ * John: "some ticket's 'need my okay' but there is then no button to click accept, or deny, or then
+ * use the composer to edit the tickets." The drawer showed him a decision and denied him the lever.
+ */
+test.describe('the ticket carries its own decision (FB-105)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/venture/arca');
+  });
+
+  test('a ticket waiting on the founder offers accept and send-back where the ticket is', async ({ page }) => {
+    // ARCA-1 has an open piece of work (PR 10), so the board files it under "Needs your OK".
+    await page.getByTestId('ticket-ARCA-1').click();
+    const decision = page.getByTestId('drawer-decision');
+    await expect(decision).toBeVisible();
+    await expect(page.getByTestId('drawer-read-work')).toHaveAttribute('href', '/venture/arca/work/arca/10');
+    await expect(page.getByTestId('drawer-accept')).toBeVisible();
+    await page.getByTestId('drawer-sendback-open').click();
+    await expect(page.getByTestId('drawer-note')).toBeVisible();
+  });
+
+  test('the drawer and the board agree about the status, and the body does not argue', async ({ page }) => {
+    // The audit: "Needs your OK" in the banner and `Status: Todo` two lines below it — two answers
+    // to one question, in one view, and the wrong one written larger.
+    await page.getByTestId('ticket-ARCA-1').click();
+    await expect(page.getByTestId('drawer-status')).toHaveText('Needs your OK');
+    await expect(page.getByTestId('ticket-drawer')).not.toContainText('Status:');
+  });
+
+  test('a ticket nobody is waiting on offers no decision at all', async ({ page }) => {
+    // Offering an Accept button for work that does not exist would be worse than offering none.
+    await page.getByTestId('ticket-ARCA-3').click();
+    await expect(page.getByTestId('drawer-decision')).toHaveCount(0);
+  });
+
+  test('changing the ask is a sentence, through the composer that already exists', async ({ page }) => {
+    await page.getByTestId('ticket-ARCA-1').click();
+    await page.getByTestId('drawer-ask-changes').click();
+    await expect(page).toHaveURL(/\/venture\/arca\/composer\?about=ARCA-1$/);
+  });
+
+  test('the code host is a reference here too, not the continuation of reading', async ({ page }) => {
+    await page.getByTestId('ticket-ARCA-1').click();
+    await expect(page.getByTestId('drawer-github-link')).not.toHaveClass(/btn/);
+  });
+});

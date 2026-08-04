@@ -31,9 +31,22 @@ import { toneColor } from '@/lib/status';
 const STORAGE = (ventureId: string) => `foundry:composer:${ventureId}`;
 const MAX_KEPT = 40;
 
-export function Composer({ ventureId, ventureName }: { ventureId: string; ventureName: string }) {
+export function Composer({
+  ventureId,
+  ventureName,
+  seed = null,
+}: {
+  ventureId: string;
+  ventureName: string;
+  /**
+   * First words already in the box (FB-105) — the founder arrived from a ticket wanting to change
+   * it. Only the opening: seeding the whole ticket body would hand them a wall of text to edit,
+   * which is the git-editing this deliberately is not.
+   */
+  seed?: string | null;
+}) {
   const [messages, setMessages] = useState<ComposerMessage[]>([]);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(seed ?? '');
   const [doc, setDoc] = useState<{ name: string; text: string; understood?: string } | null>(null);
   const [reading, setReading] = useState<string | null>(null);
   const [live, setLive] = useState<{ content: string; actions: ComposerAction[] } | null>(null);

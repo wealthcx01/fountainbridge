@@ -7,6 +7,7 @@
  */
 
 import { parseTicket, looksLikeTicket } from '../tools/ticket-parser/src/index';
+import { showAngleBrackets, withoutStatusClaim } from './markdown';
 import type { GitHubClient } from './github';
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
@@ -150,7 +151,11 @@ async function loadAsk(
   // A file under docs/tickets/ that does not parse as a ticket is not an ask. Showing its raw text
   // under "What you asked for" would be the same fault this replaced, one level up.
   if (!looksLikeTicket(parsed)) return null;
-  return { id: parsed.ticket.id, title: parsed.ticket.title, bodyMd: withoutTitleHeading(parsed.ticket.body_md) };
+  return {
+    id: parsed.ticket.id,
+    title: parsed.ticket.title,
+    bodyMd: showAngleBrackets(withoutStatusClaim(withoutTitleHeading(parsed.ticket.body_md))),
+  };
 }
 
 /**
