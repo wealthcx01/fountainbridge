@@ -55,7 +55,7 @@ test.describe('run reports and the founder brief', () => {
     const list = page.getByTestId('lane-activity-list');
     // Newest first across BOTH repos. FB-098 added the in-flight ARCA-3 (23:50) and the twice-parked
     // ARCA-4 (22:00, 21:00), so they now precede the Sell run (18:00) and the older arca ones.
-    await expect(list.locator('li').nth(0)).toContainText('ARCA-3');
+    await expect(list.locator('li').nth(0)).toContainText('ARCA-6');
     await expect(list.locator('li').nth(0)).toContainText('Working');
     await expect(list.locator('li').nth(1)).toContainText('ARCA-4');
     await expect(list.locator('li').nth(3)).toContainText('SELL-002');

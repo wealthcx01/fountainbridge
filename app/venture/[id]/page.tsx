@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { loadVentures, ventureChatUrl } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
+import { ticketsByRepo } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { loadApprovals, attachBudgetDisclosure, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
@@ -51,7 +52,14 @@ export default async function VenturePage({
 
   const data = await loadVentureTickets(venture, { refresh: refresh === '1' });
   // Overlay PR-derived status (FB-007): open PR → pr-open, merged → done. Shared per-venture cache.
-  const attention = await loadVentureAttention(venture, { refresh: refresh === '1' });
+  //
+  // FB-099: the tickets go IN. Without them a piece of work is only tied to its ticket when it names
+  // the id outright, which the lane's own branches (`foundry/<slug>`) never do — which is how the
+  // badge came to say 15 while every column said 0.
+  const attention = await loadVentureAttention(venture, {
+    refresh: refresh === '1',
+    tickets: await ticketsByRepo(venture, { refresh: refresh === '1' }),
+  });
   const lanes = data.lanes.map((lane) => applyStatusInference(lane, attention.ticketStatus));
   // Staleness (FB-008): flag a lane whose repo has had no activity in N days — surfaced on the board.
   const health = await loadVentureHealth(venture, { refresh: refresh === '1' });
@@ -157,6 +165,16 @@ export default async function VenturePage({
     }
   }
 
+  // FB-099: everything with no CARD on this board — which is not the same as "no ticket id". A piece
+  // of work titled "ARCA-5: deck sharing" whose ticket file does not exist has an id, matches
+  // nothing on screen, and fell through exactly the same gap the badge/column mismatch fell through.
+  const onBoard = new Set(Object.keys(ticketTitles));
+  const unmatchedWork: Record<string, Array<{ number: number; title: string }>> = {};
+  for (const pr of attention.approvals) {
+    if (pr.linkedTicketId && onBoard.has(pr.linkedTicketId)) continue;
+    (unmatchedWork[pr.repo] ??= []).push({ number: pr.number, title: pr.title });
+  }
+
   const brief: Brief = composeBrief({
     ventureName: venture.name,
     awaitingApproval: approvals.filter((a) => a.status === 'proposed').length,
@@ -235,6 +253,7 @@ export default async function VenturePage({
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
       openWork={openWork}
+      unmatchedWork={unmatchedWork}
       fetchedAt={data.fetchedAt}
       org={org}
       brief={brief}

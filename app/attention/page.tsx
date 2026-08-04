@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadAccessibleAttention, type PrApproval } from '@/lib/attention';
+import { ticketsByRepo } from '@/lib/venture-tickets-index';
 import { APPROVAL_REASSURANCE } from '@/lib/glossary';
 import { prCiTone, toneColor } from '@/lib/status';
 import { groupFailures, needsAction } from '@/lib/read-failures';
@@ -18,8 +19,12 @@ export default async function AttentionPage({
   const session = await auth();
   if (!session?.user?.email) redirect('/login');
   const { refresh } = await searchParams;
+  // FB-099: the queue names work the way the board does. Without the tickets it showed the lane's
+  // own branch-speak — "build: bulk-daily-price-feed-plan (Foundry lane)" — for the same items the
+  // board listed under their human titles, and a founder had no way to connect the two lists.
   const { approvals, ventureNames, errors } = await loadAccessibleAttention(session.user.email, {
     refresh: refresh === '1',
+    ticketsFor: (venture) => ticketsByRepo(venture, { refresh: refresh === '1' }),
   });
 
   return (
@@ -68,7 +73,7 @@ function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureN
     <article className="card card-link" data-testid={`approval-${approval.id}`} style={{ padding: '0.85rem 1rem' }}>
       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
         <Link href={here} style={{ fontWeight: 500 }} data-testid={`approval-primary-${approval.id}`}>
-          {approval.title}
+          {approval.ticketTitle ?? approval.title}
         </Link>
         <CiDot status={approval.ciStatus} />
         {approval.previewUrl ? (

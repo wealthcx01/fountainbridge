@@ -1,8 +1,8 @@
 {
-  "ticket": "ARCA-3",
+  "ticket": "ARCA-6",
   "lane": "arca",
   "status": "working",
-  "summary": "Picked up the deck export.",
+  "summary": "Picked up the price history work.",
   "started": "2026-07-21T23:50:00Z",
   "repo": "wealthcx01/arca"
 }
