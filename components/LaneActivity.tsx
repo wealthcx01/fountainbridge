@@ -1,5 +1,5 @@
 import { emptyPanel } from '@/lib/firstrun';
-import { TEAM_INTRO, TEAM_TITLE } from '@/lib/glossary';
+import { TEAM_TITLE } from '@/lib/glossary';
 import type { RunReport } from '@/lib/runreports';
 import { describeRun } from '@/lib/runreports';
 import { toneColor, type Tone } from '@/lib/status';
@@ -28,13 +28,15 @@ export function LaneActivity({
 }) {
   const engineTone: Tone = engine.state === 'stalled' ? 'blocked' : engine.state === 'unknown' ? 'idle' : 'working';
 
+  // The `id` is FB-104's anchor: the brief's sentences about the team link down here, because this is
+  // where each run's own account of itself is printed — the one place those sentences can honestly
+  // be expanded.
   return (
-    <section data-testid="lane-activity" style={{ marginTop: '1.25rem' }} aria-label="What your team has been doing">
-      {/* FB-103: one name for the working machinery, introduced where the founder first meets it.
-          This panel is that place — it is the only surface that says what the team IS, and every
-          other surface then says "your team" without explaining itself again. */}
-      <p className="eyebrow" style={{ marginBottom: '0.15rem' }}>{TEAM_TITLE} — what has been happening</p>
-      <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0 0 0.5rem' }}>{TEAM_INTRO}</p>
+    <section id="what-your-team-is-doing" data-testid="lane-activity" style={{ marginTop: '1.25rem' }} aria-label="What your team has been doing">
+      {/* FB-103 introduced "your team" here; FB-104 moved the introduction up to the board header,
+          because the brief above this panel uses the name first. The introduction printed in both
+          places, and a page that explains the same thing twice reads as padding (FB-063). */}
+      <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>{TEAM_TITLE} — what has been happening</p>
 
       <p
         data-testid="engine-state"

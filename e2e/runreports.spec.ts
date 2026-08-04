@@ -20,19 +20,33 @@ test.describe('run reports and the founder brief', () => {
   test('the brief leads with what needs the founder, not with what is newest', async ({ page }) => {
     const brief = page.getByTestId('founder-brief');
     await expect(brief).toBeVisible();
-    // arca's approval fixture has a proposal awaiting the gate, so that outranks everything.
-    await expect(page.getByTestId('brief-headline')).toContainText('needs you');
-    const first = page.getByTestId('brief-lines').locator('li').first();
-    await expect(first).toContainText('waiting for your approval');
-    await expect(first).toContainText('Nothing has been sent.');
+    // arca's fixtures have proposals awaiting the gate and work awaiting a read, so the count of
+    // what is waiting outranks everything else on the board.
+    await expect(page.getByTestId('brief-headline')).toContainText('waiting for your OK');
+    await expect(page.getByTestId('brief-headline')).toContainText('outside the company');
   });
 
-  test('a blocked run is named with its reason, in the founder\'s language', async ({ page }) => {
+  test('the whole board reads as four sentences, not as a log (FB-104)', async ({ page }) => {
+    // The state these fixtures describe produced eight bullets before FB-104, three of them about
+    // one ticket. An executive summary that grows with the log is not a summary.
+    const lines = page.getByTestId('brief-lines').locator('li');
+    expect(await lines.count()).toBeLessThanOrEqual(4);
+  });
+
+  test('repeated attempts at one ticket are one fact, named (FB-104)', async ({ page }) => {
     const lines = page.getByTestId('brief-lines');
+    await expect(lines).toContainText('stuck and need');
     await expect(lines).toContainText('ARCA-31');
-    // The reason is the entire point — a count of blocked things is not actionable.
-    await expect(lines).toContainText('needs a human');
+    // The machine's own account of the attempt belongs beside the attempt, not in the summary.
+    await expect(lines).not.toContainText('review/tests');
     await expect(lines.locator('li[data-tone="blocked"]').first()).toBeVisible();
+  });
+
+  test('every sentence in the brief is a way in (FB-104)', async ({ page }) => {
+    const brief = page.getByTestId('founder-brief');
+    await expect(brief.getByRole('link').first()).toHaveAttribute('href', '/attention');
+    // The link down to the activity strip must land on the strip, not under the sticky bar.
+    await expect(page.locator('#what-your-team-is-doing')).toBeVisible();
   });
 
   test('the activity strip shows what each lane did, across department repos', async ({ page }) => {

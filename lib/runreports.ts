@@ -182,7 +182,7 @@ export function engineState(
   now: Date,
   /** How long without a wake before a lane that should be waking counts as stalled. */
   stalledAfterMinutes = 30,
-): { state: EngineState; lastSeen: string | null; text: string } {
+): { state: EngineState; lastSeen: string | null; text: string; ageMinutes: number | null } {
   const latest = heartbeats
     .map((h) => h.endedAt ?? h.startedAt)
     .filter((t): t is string => !!t)
@@ -193,29 +193,33 @@ export function engineState(
     return {
       state: 'unknown',
       lastSeen: null,
+      ageMinutes: null,
       text: 'Your team is not working on this venture yet — it starts with this venture’s own machine.',
     };
   }
   const ageMs = now.getTime() - new Date(latest).getTime();
   if (Number.isNaN(ageMs)) {
-    return { state: 'unknown', lastSeen: latest, text: 'Your team reported a time the studio could not read.' };
+    return { state: 'unknown', lastSeen: latest, ageMinutes: null, text: 'Your team reported a time the studio could not read.' };
   }
   const minutes = Math.floor(ageMs / 60_000);
   if (minutes > stalledAfterMinutes) {
     return {
       state: 'stalled',
       lastSeen: latest,
+      ageMinutes: minutes,
       text: `Your team has not checked in for ${describeGap(minutes)}. It wakes every few minutes when all is well, so something is wrong with this venture’s machine.`,
     };
   }
   return {
     state: 'running',
     lastSeen: latest,
+    ageMinutes: minutes,
     text: minutes <= 1 ? 'Your team checked in just now.' : `Your team checked in ${describeGap(minutes)} ago.`,
   };
 }
 
-function describeGap(minutes: number): string {
+/** "3 minutes" / "2 hours" / "4 days" — the gap alone, for callers writing their own sentence. */
+export function describeGap(minutes: number): string {
   if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}`;

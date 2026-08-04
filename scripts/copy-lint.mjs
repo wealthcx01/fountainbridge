@@ -102,7 +102,9 @@ const PROSE = /[A-Za-z]{2,}[\s ][A-Za-z]{2,}/;
  * generics wear the same brackets — `useState<Thing | null>(null); const x = useRef<` reads to the
  * scanner as a sentence between two tags. Anything carrying these is source, not copy.
  */
-const IS_CODE = /[;]|=>|\)\s*[.;,]|\b(const|let|var|function|return|import|export|interface|type|use[A-Z]\w*)\b/;
+// `\w\(` is a call — `Date.parse(x)`. Prose puts a space before an opening bracket; code does not,
+// and `(r) => now - Date.parse(r.endedAt as string) <= WEEK` is a "sentence" between `>` and `<`.
+const IS_CODE = /[;]|=>|\w\(|\)\s*[.;,]|\b(const|let|var|function|return|import|export|interface|type|use[A-Z]\w*)\b/;
 
 /** Shaped like prose, but not copy: ids, paths, imports, css declarations. */
 function isNotCopy(value) {
@@ -148,7 +150,10 @@ export function visibleLiterals(line) {
     const before = line.slice(0, m.index);
     if (INVISIBLE_ATTR.test(before) || LOG_CALL.test(before)) continue;
     if (/\b(from|import|require)\s*\(?\s*$/.test(before)) continue;
-    const value = m[2].replace(/\\u2019/g, '’').replace(/\\[nt]/g, ' ');
+    // A `${…}` interpolation is code, not copy: `it checked in ${describeGap(engine.ageMinutes)} ago`
+    // is a perfectly plain sentence, and the only banned word in it is an identifier the founder
+    // never sees. What the expression EVALUATES to is copy — and is caught wherever it was written.
+    const value = m[2].replace(/\$\{[^}]*\}/g, ' ').replace(/\\u2019/g, '’').replace(/\\[nt]/g, ' ');
     if (!isNotCopy(value)) out.push({ value, column: m.index });
   }
   return out;
