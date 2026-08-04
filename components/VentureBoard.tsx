@@ -12,6 +12,7 @@ import { STATUS_LABEL, TEAM_INTRO, TEAM_TITLE } from '@/lib/glossary';
 import { ago } from '@/lib/when';
 import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
+import { ticketProgress } from '@/lib/ticket-progress';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
@@ -126,7 +127,9 @@ export function VentureBoard({
   /** What the agent lanes did, newest first (FB-042). */
   runs?: RunReport[];
   runsTotal?: number;
-  engine?: { state: string; text: string } | null;
+  /** `ageMinutes` since FB-098: a card can only say "picked up 12 minutes ago; last checked in 2
+   *  minutes ago" if the real check-in travels with the state. */
+  engine?: { state: string; text: string; ageMinutes: number | null } | null;
   /** Non-null when the venture's budgets file exists but could not be read (FB-054). */
   budgetsError?: string | null;
   /** Envelopes keyed to departments this venture does not declare — configured but enforcing nothing. */
@@ -446,10 +449,30 @@ export function VentureBoard({
                   <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>
                     {g.label} <span className="mono">{lane.groups[g.key].length}</span>
                   </p>
+                  {/* FB-098 asked for every filed ticket to be marked "waiting for your team to pick
+                      it up". Said once, on the column, rather than on each card: the same sentence
+                      repeated down twenty cards is the fault FB-100's item 5 is about, and the cards
+                      that DO have news need to stand out from the ones that do not. */}
+                  {g.key === 'todo' && lane.groups.todo.length > 0 ? (
+                    <p className="muted" data-testid="col-todo-note" style={{ fontSize: 'var(--fs-meta)', margin: '-0.35rem 0 0.5rem' }}>
+                      Waiting for your team to pick up.
+                    </p>
+                  ) : null}
                   <div className="stack" style={{ gap: '0.5rem' }}>
-                    {lane.groups[g.key].map((item) => (
+                    {lane.groups[g.key].map((item) => {
+                      // What is actually happening to this ticket, from evidence only (FB-098).
+                      const progress = ticketProgress({
+                        ticketId: item.ticket.id,
+                        ventureId: venture.id,
+                        group: g.key,
+                        runs,
+                        engine: engine ?? { state: 'unknown', ageMinutes: null },
+                        waiting: openWork[`${lane.repo} ${item.ticket.id}`] ?? null,
+                        now: fetchedAt,
+                      });
+                      return (
+                      <div key={item.ticket.id} className="stack" style={{ gap: '0.2rem' }}>
                       <button
-                        key={item.ticket.id}
                         className="card card-link"
                         style={{ textAlign: 'left', cursor: 'pointer', padding: '0.7rem 0.85rem' }}
                         data-testid={`ticket-${item.ticket.id}`}
@@ -463,7 +486,32 @@ export function VentureBoard({
                           </span>
                         ) : null}
                       </button>
-                    ))}
+                      {/* Outside the card, not inside it: the card opens the ticket, and this is a
+                          different destination. A link nested in a button is neither. */}
+                      {progress ? (
+                        progress.href ? (
+                          <Link
+                            href={progress.href}
+                            className="quiet-link"
+                            data-testid={`ticket-progress-${item.ticket.id}`}
+                            data-state={progress.state}
+                            style={{ fontSize: 'var(--fs-meta)', color: toneColor(progress.tone), paddingLeft: '0.2rem' }}
+                          >
+                            {progress.text}
+                          </Link>
+                        ) : (
+                          <span
+                            data-testid={`ticket-progress-${item.ticket.id}`}
+                            data-state={progress.state}
+                            style={{ fontSize: 'var(--fs-meta)', color: toneColor(progress.tone), paddingLeft: '0.2rem' }}
+                          >
+                            {progress.text}
+                          </span>
+                        )
+                      ) : null}
+                      </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

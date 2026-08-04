@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { showAngleBrackets, withoutStatusClaim } from '../markdown';
+import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '../markdown';
 
 /**
  * The audit's finding, pinned. A ticket that says `(<slug>, <path>)` reached the founder as `(, )` —
@@ -51,5 +51,19 @@ describe('one answer about a ticket’s status', () => {
   it('drops only the first claim, not the word wherever it appears', () => {
     const body = '**Status:** Todo\n\nThe **Status:** field is parsed from here.';
     expect(withoutStatusClaim(body)).toContain('The **Status:** field is parsed');
+  });
+});
+
+describe('one name per ticket, per screen', () => {
+  it('drops the body’s own title heading, which every surface already shows above it', () => {
+    const body = '# ARCA-44 — Seed script must fail loudly\n\n**Status:** In progress\n\n## Why this matters\n\nBecause.';
+    const out = withoutTitleHeading(body);
+    expect(out.startsWith('**Status:**')).toBe(true);
+    expect(out).toContain('## Why this matters');
+  });
+
+  it('leaves a body that never had one alone', () => {
+    const body = '## Why this matters\n\nBecause.';
+    expect(withoutTitleHeading(body)).toBe(body);
   });
 });

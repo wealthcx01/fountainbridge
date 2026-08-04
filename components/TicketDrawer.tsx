@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import { STATUS_LABEL } from '@/lib/glossary';
-import { showAngleBrackets, withoutStatusClaim } from '@/lib/markdown';
+import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/lib/markdown';
 import { toneColor } from '@/lib/status';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
 
@@ -155,7 +155,7 @@ export function TicketDrawer({
           {/* Escaped rather than stripped: without this, `(<slug>, <path>)` reached the founder as
               "(, )" — the studio deleting part of the sentence that says what was asked for. */}
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {showAngleBrackets(withoutStatusClaim(ticket.body_md))}
+            {showAngleBrackets(withoutStatusClaim(withoutTitleHeading(ticket.body_md)))}
           </ReactMarkdown>
         </div>
 

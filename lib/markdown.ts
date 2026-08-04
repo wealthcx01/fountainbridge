@@ -43,3 +43,18 @@ export function showAngleBrackets(md: string): string {
 export function withoutStatusClaim(md: string): string {
   return md.replace(/\*\*Status:\*\*\s*[^·\n]*?(\s*·\s*|(?=\n)|$)/, '');
 }
+
+/**
+ * Drop the ticket's own `# ARCA-44 — Title` line.
+ *
+ * Every surface that renders a ticket body also shows its title above it, so the body rendered the
+ * same name a second time — as a page-level heading competing with the page's own. Two `<h1>`s is
+ * also two answers to "what is this about".
+ *
+ * Lives here rather than beside the loader (where FB-107 first wrote it) because the ticket drawer
+ * needs it too, and the drawer is a client component that must not pull in a module that reaches
+ * for the network.
+ */
+export function withoutTitleHeading(bodyMd: string): string {
+  return bodyMd.replace(/^\s*#\s+[^\n]*\n+/, '');
+}
