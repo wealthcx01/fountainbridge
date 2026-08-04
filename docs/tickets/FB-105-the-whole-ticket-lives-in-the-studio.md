@@ -37,6 +37,21 @@ path stays the one that already exists and is already gated.
 of work show the same id + title (depends on FB-099's matcher), so a founder always knows they are
 looking at the same thing.
 
+## Verified in the browser (audit of 2026-08-04, post-review)
+
+Driven as the founder against a production build. Two corrections and one confirmation to the spec:
+
+- The drawer renders MORE of the ticket than the review suggested — SELL-001's full body (why /
+  scope / out-of-scope / criteria) is all there, and "View on GitHub ↗" is already a bottom
+  reference link. The "GitHub has more detail" *feeling* comes from inline code references
+  rendering as broken sentence fragments ("from the repo (, ) and from here") — fix the inline
+  rendering, not just the truncation assumption.
+- **Confirmed hard:** SELL-001 shows a "Needs your OK" banner with no accept or deny control
+  anywhere in the drawer — Close and the GitHub link are the only actions.
+- **New:** the same drawer shows `Status: Todo` directly beneath the "Needs your OK" banner — two
+  contradicting statuses for one ticket in one view. The status line and the queue grouping must
+  come from one computation (FB-099's rule, applied inside the drawer).
+
 ## Explicitly NOT here
 
 - In-place text editing of ticket files in the studio (the composer IS the edit surface; a second,

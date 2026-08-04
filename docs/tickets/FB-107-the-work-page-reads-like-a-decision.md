@@ -36,6 +36,17 @@ doesn't exist, and the OK button sits among things it doesn't explain.
 what it is: *"This work also added to what your venture knows:"* — one line before the entry, or
 it moves under Knowledge (FB-106) entirely.
 
+## Verified in the browser (audit of 2026-08-04, post-review)
+
+Driven as the founder on `work/arca/36`. Confirmed: the ask sits at the bottom and renders as raw
+markdown (`**Status:**`, `- [x]`, `##` all literal); the title is branch-speak ("build:
+show-set-name-card-pages (Foundry lane)"); no launch link and no GitHub reference on the page.
+One NEW dead end this audit found: the page says *"This work clashes with something else that
+changed since it was written… The team needs to bring it up to date before it can be accepted"* —
+correct and honest, but there is **no control to ask the team to do that**. A decision page that
+names the required action must offer it; the send-back-with-a-note affordance covers this case
+("please bring this up to date" is a one-click note).
+
 ## Explicitly NOT here
 
 - The queue page itself (FB-099/FB-100 cover its naming and badges).
