@@ -174,7 +174,30 @@ export function VentureBoard({
     (a) => a.status === 'granted' || a.status === 'executing' || a.status === 'executed' || a.status === 'rejected',
   );
   const [selected, setSelected] = useState<Selected | null>(null);
+  // FB-109: which surface the founder is looking at, if any. Deliberately not routed and not
+  // persisted — a filter that survives reload is navigation, and navigation is a bigger decision
+  // than this ticket makes.
+  const [surface, setSurface] = useState<string | null>(null);
   const stale = new Set(staleRepos);
+
+  // The board showed the same three-way split twice and never joined them: cards named Build / Sell
+  // / Scale, and lanes headed `arca`, `arca-marketing`, `arca-ops`. The mapping was in the manifest
+  // the whole time and the studio kept it to itself.
+  const surfaceOf = (repo: string) => departments.find((d) => d.repo === repo) ?? null;
+  const selectedRepo = surface ? (departments.find((d) => d.id === surface)?.repo ?? null) : null;
+
+  /** What a surface's queue is worth clicking for, from the same counts the lanes render. */
+  const queueOf = (repo: string | null) => {
+    const lane = repo ? lanes.find((l) => l.repo === repo) : null;
+    if (!lane) return null;
+    const waiting = lane.groups['pr-open'].length + (unmatchedWork[lane.repo]?.length ?? 0);
+    const working = lane.groups['in-progress'].length;
+    const parts: string[] = [];
+    if (waiting > 0) parts.push(`${waiting} waiting for your OK`);
+    if (working > 0) parts.push(`${working} in progress`);
+    if (parts.length === 0) parts.push(`${lane.total} ticket${lane.total === 1 ? '' : 's'}`);
+    return parts.join(' · ');
+  };
 
   // Index every ticket by id so dependency chips in the drawer can jump to another ticket.
   const index = useMemo(() => {
@@ -323,7 +346,31 @@ export function VentureBoard({
               // not something to render at reduced contrast.
               <div key={d.id} className="card" data-testid={`dept-${d.id}`}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
-                  <strong style={{ fontSize: 'var(--fs-subhead)' }}>{d.name}</strong>
+                  {/* A real button, not a card-shaped div: the audit found the surface cards were the
+                      most button-shaped objects on the page and the only ones that did nothing. The
+                      NAME is the control rather than the whole card, because the card also holds the
+                      launch link and a link inside a button is neither. */}
+                  {d.repo && lanes.some((l) => l.repo === d.repo) ? (
+                    <button
+                      type="button"
+                      className="surface-name"
+                      data-testid={`dept-${d.id}-select`}
+                      aria-pressed={surface === d.id}
+                      aria-controls={`lane-${d.repo}`}
+                      onClick={() => {
+                        const next = surface === d.id ? null : d.id;
+                        setSurface(next);
+                        if (next && d.repo) {
+                          document.getElementById(`lane-${d.repo}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      style={{ fontSize: 'var(--fs-subhead)', fontWeight: 600 }}
+                    >
+                      {d.name}
+                    </button>
+                  ) : (
+                    <strong style={{ fontSize: 'var(--fs-subhead)' }}>{d.name}</strong>
+                  )}
                   <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
                     {d.provisioned ? 'active' : 'coming'}
                   </span>
@@ -335,6 +382,13 @@ export function VentureBoard({
                     ? <>{GATE_LABEL[d.gate] ?? `How work here gets approved is still being decided.`}</>
                     : <>Not open yet. Bruntsfield sets this side of the venture up when you need it.</>}
                 </p>
+                {/* FB-109: worth clicking BEFORE it is clicked. Same counts the lane below renders,
+                    so the card and the queue cannot disagree about how much is waiting. */}
+                {queueOf(d.repo) ? (
+                  <p className="muted" data-testid={`dept-${d.id}-queue`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.3rem 0 0' }}>
+                    {queueOf(d.repo)}
+                  </p>
+                ) : null}
                 {/* One string owner: `describe` returns a whole sentence, so the view adds no
                     prefix of its own — "Budget no budget set" came from gluing a word onto a
                     fragment. The sentence names whose figure it is, so no glyph or sr-only twin is
@@ -404,9 +458,26 @@ export function VentureBoard({
       <hr className="hr" />
 
       {lanes.map((lane) => (
-        <div key={lane.repo} style={{ marginBottom: '2.5rem' }} data-testid={`lane-${lane.repo}`}>
-          <h3 className="mono" style={{ fontSize: 'var(--fs-subhead)' }}>
-            {lane.repo} <span className="muted">· {lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
+        <div
+          key={lane.repo}
+          id={`lane-${lane.repo}`}
+          data-testid={`lane-${lane.repo}`}
+          /* FB-109: quieted, never hidden. Hiding two-thirds of the board behind a first click is how
+             a founder loses work they did not know to look for. */
+          data-quiet={selectedRepo && selectedRepo !== lane.repo ? 'true' : 'false'}
+          style={{
+            marginBottom: '2.5rem',
+            opacity: selectedRepo && selectedRepo !== lane.repo ? 0.45 : 1,
+            transition: 'opacity var(--dur) var(--ease)',
+          }}
+        >
+          {/* The surface's name leads; the repo slug is the aside. The two halves of the page finally
+              speak the same names — a founder no longer has to already know that "Build — Product"
+              IS `arca` to connect a card to its queue. */}
+          <h3 style={{ fontSize: 'var(--fs-subhead)' }}>
+            {surfaceOf(lane.repo)?.name ?? lane.repo}{' '}
+            <span className="muted mono" style={{ fontSize: 'var(--fs-meta)' }}>{lane.repo}</span>
+            <span className="muted">· {lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
             {stale.has(lane.repo) ? (
               <span
                 className="tag"

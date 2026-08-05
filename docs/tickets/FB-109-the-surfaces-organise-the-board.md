@@ -1,6 +1,6 @@
 # FB-109 — The surfaces organise the board
 
-**Status:** Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"We then have the
+**Status:** Done · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"We then have the
 surfaces… and dont actually act as a filter. Because then underneath we have each repo of Build,
 GTM, Growth & Ops - sat underneath."* Caught on re-read: this was the one sentence of the journey
 review the first eight tickets did not cover. · **Repo:** fountainbridge ·
@@ -37,10 +37,23 @@ look like controls — they are the most button-shaped objects on the page — a
 
 ## Acceptance criteria
 
-- [ ] Clicking a surface card brings its queue into view, visibly associated, others quieted.
-- [ ] Lane headings lead with the surface name; the repo slug becomes an aside.
-- [ ] Surface cards show their queue's counts, from the shared attention computation.
-- [ ] Keyboard and screen-reader users can operate the cards (they become real buttons —
-      the audit found the ticket cards are the only button-shaped things on the page that act
-      like one; the surface cards must not repeat that).
-- [ ] E2e: select Build → arca's queue is focused; deselect → all three equal again.
+- [x] Clicking a surface card brings its queue into view, visibly associated, others quieted.
+- [x] Lane headings lead with the surface name; the repo slug becomes an aside.
+- [x] Surface cards show their queue's counts, from the shared attention computation — the same
+      numbers the lane below renders, including FB-099's unmatched work, so the card and the queue
+      cannot disagree about how much is waiting.
+- [x] Keyboard and screen-reader users can operate the cards — a real `<button>` with `aria-pressed`
+      and `aria-controls`, driven by Enter in the e2e.
+- [x] E2e: select Build → arca's queue is focused; deselect → all three equal again.
+
+## One structural choice
+
+**The surface's NAME is the control, not the whole card.** The card also holds the launch link, and a
+link inside a button is neither — so making the card itself a button would have traded one
+accessibility fault for a worse one. The name gets the pointer, the hover underline and the pressed
+state; the card keeps its budget line, its gate sentence and its door.
+
+Quieted at 0.45 opacity rather than hidden, as the ticket asks: hiding two-thirds of the board behind
+a first click is how a founder loses work they did not know to look for. The selection is neither
+routed nor persisted — a filter that survives reload is navigation, and the ticket says navigation is
+a bigger decision than this.
