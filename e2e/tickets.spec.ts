@@ -254,3 +254,57 @@ test.describe('an unnumbered ticket is flagged, not named (FB-097)', () => {
     await expect(page.getByTestId('ticket-id-ARCA-3')).toHaveText('ARCA-3');
   });
 });
+
+
+/**
+ * FB-109 — the surfaces organise the board.
+ *
+ * John: "We then have the surfaces… and dont actually act as a filter. Because then underneath we
+ * have each repo of Build, GTM, Growth & Ops - sat underneath." The board showed the same three-way
+ * split twice and never joined them.
+ */
+test.describe('a surface is the door to its queue (FB-109)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/venture/arca');
+  });
+
+  test('the lane leads with the surface’s name, with the repo demoted to an aside', async ({ page }) => {
+    // A founder had to already know that "Build — Product" IS `arca`.
+    const lane = page.getByTestId('lane-arca');
+    await expect(lane.locator('h3')).toContainText('Build — Product');
+    await expect(lane.locator('h3')).toContainText('arca');
+  });
+
+  test('the card says what its queue is worth before it is clicked', async ({ page }) => {
+    await expect(page.getByTestId('dept-build-queue')).toContainText('waiting for your OK');
+  });
+
+  test('selecting a surface brings its queue forward and quiets the others', async ({ page }) => {
+    await page.getByTestId('dept-build-select').click();
+    await expect(page.getByTestId('dept-build-select')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('lane-arca')).toHaveAttribute('data-quiet', 'false');
+    // Quieted, never hidden: hiding two-thirds of the board is how a founder loses work they did not
+    // know to look for.
+    await expect(page.getByTestId('lane-arca-marketing')).toHaveAttribute('data-quiet', 'true');
+    await expect(page.getByTestId('lane-arca-marketing')).toBeVisible();
+  });
+
+  test('deselecting puts all three back on equal terms', async ({ page }) => {
+    await page.getByTestId('dept-build-select').click();
+    await page.getByTestId('dept-build-select').click();
+    await expect(page.getByTestId('dept-build-select')).toHaveAttribute('aria-pressed', 'false');
+    for (const repo of ['arca', 'arca-marketing', 'arca-ops']) {
+      await expect(page.getByTestId(`lane-${repo}`)).toHaveAttribute('data-quiet', 'false');
+    }
+  });
+
+  test('the card is operable from the keyboard', async ({ page }) => {
+    // The audit found the surface cards were the most button-shaped objects on the page and the only
+    // ones that did nothing. They must not become mouse-only controls instead.
+    const select = page.getByTestId('dept-build-select');
+    await select.focus();
+    await page.keyboard.press('Enter');
+    await expect(select).toHaveAttribute('aria-pressed', 'true');
+  });
+});

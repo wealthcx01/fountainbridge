@@ -296,3 +296,19 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
   h1 { font-size: 30px; }
   /* Ticket drawer is already min(40rem, 100%) → full-width on phone. */
 }
+
+/* A surface's name, which is also the door to its queue (FB-109). It has to look like the heading it
+   replaced — the card is not a button, the name is — so the only affordances are the pointer, an
+   underline on hover, and a visible pressed state. */
+.surface-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid transparent;
+}
+.surface-name:hover { border-bottom-color: var(--color-border-strong); }
+.surface-name[aria-pressed='true'] { border-bottom-color: var(--color-accent); color: var(--color-accent); }
