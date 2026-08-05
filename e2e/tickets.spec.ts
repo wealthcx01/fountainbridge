@@ -227,3 +227,30 @@ test.describe('one number for what is waiting (FB-099)', () => {
     await expect(queue).toContainText('build: something-nobody-filed (Foundry lane)');
   });
 });
+
+
+/**
+ * FB-097 — a ticket with no number is nobody's ticket.
+ *
+ * The composer filed everything as `<PREFIX>-NEW`; the walkthrough counted four distinct pieces of
+ * work all called ARCA-NEW. The filer allocates real ids now; this is the studio's half — anything
+ * still unnumbered is shown as unnumbered rather than rendered as though "ARCA-NEW" were a name.
+ */
+test.describe('an unnumbered ticket is flagged, not named (FB-097)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/venture/arca');
+  });
+
+  test('the board says "unnumbered" instead of pretending -NEW is a name', async ({ page }) => {
+    await expect(page.getByTestId('ticket-id-ARCA-NEW')).toHaveText('unnumbered');
+  });
+
+  test('the title does the work while it has no number', async ({ page }) => {
+    await expect(page.getByTestId('ticket-ARCA-NEW')).toContainText('Show set name on card pages');
+  });
+
+  test('a numbered ticket still shows its number', async ({ page }) => {
+    await expect(page.getByTestId('ticket-id-ARCA-3')).toHaveText('ARCA-3');
+  });
+});

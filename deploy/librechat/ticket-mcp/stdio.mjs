@@ -19,6 +19,7 @@
 // STDOUT carries ONLY protocol messages (newline-delimited JSON). All logging goes to STDERR.
 
 import readline from 'node:readline';
+import { existingTicketFile, nextTicketId, ticketPath, withTicketId } from './ids.mjs';
 
 // LibreChat interpolates ${VAR} in the yaml `env:` block from its own process.env, but when the
 // referenced var is empty/unset it passes the LITERAL "${VAR}" placeholder through (see
@@ -33,6 +34,8 @@ function envVal(name) {
 const REPO = envVal('VENTURE_REPO') || 'wealthcx01/arca';
 const TOKEN = envVal('TICKET_GITHUB_TOKEN');   // only this token — never an ambient GITHUB_TOKEN
 const API = 'https://api.github.com';
+// FB-088 gave each venture its own ticket prefix; FB-097 made the filer use it to allocate a number.
+const PREFIX = (envVal('VENTURE_TICKET_PREFIX') || REPO.split('/')[1] || 'TICKET').toUpperCase();
 
 const log = (...a) => console.error('[ticket-filer]', ...a);
 
@@ -87,6 +90,12 @@ function friendlyError(e) {
 // slug guard so a model can't inject a path or a huge blob.
 const slugRe = /^[a-z0-9][a-z0-9-]{1,60}$/;
 
+/** The ticket filenames currently on a ref. Empty when the folder is missing or unreadable. */
+async function listTicketNames(ref) {
+  const dir = await ghMaybe(`/repos/${REPO}/contents/docs/tickets?ref=${encodeURIComponent(ref)}`);
+  return Array.isArray(dir) ? dir.filter((e) => e.type === 'file').map((e) => e.name) : [];
+}
+
 // Idempotent: re-filing the same slug UPDATES the ticket on its branch and returns the existing PR,
 // rather than 422-ing (the composer is told to revise + re-file, so this path is common).
 async function fileTicket({ slug, title, body }) {
@@ -114,18 +123,44 @@ async function fileTicket({ slug, title, body }) {
     });
   }
 
-  // slug is guarded to [a-z0-9-] and the rest is URL-safe, so use the path literally — do NOT
-  // encodeURIComponent it (that would percent-encode the slashes and file at the wrong path).
-  const path = `docs/tickets/${slug}.md`;
-  const put = {
-    message: `ticket: ${title}`,
-    content: Buffer.from(body, 'utf8').toString('base64'),
-    branch,
+  // FB-097: the ticket gets a real number, allocated HERE — only the filer can see the backlog.
+  // Everything the composer filed used to be called `<PREFIX>-NEW`, so four different pieces of work
+  // shared one name and none of them could be referred to, depended on, or sorted.
+  //
+  // Idempotency first: a revision of a ticket already on this branch keeps its number. The composer
+  // tells founders to revise and re-file, so this is a common path — allocating afresh each time
+  // would leave a trail of half-written duplicates.
+  const onBranch = await listTicketNames(branch);
+  const alreadyFiled = existingTicketFile(onBranch, slug);
+  const path = alreadyFiled
+    ? `docs/tickets/${alreadyFiled}`
+    : ticketPath(nextTicketId(PREFIX, await listTicketNames(base)), slug);
+  const id = path.match(/\/([A-Za-z]+-\d+[a-z]?)-/)?.[1] ?? nextTicketId(PREFIX, []);
+
+  const write = async (at) => {
+    const put = {
+      message: `ticket: ${title}`,
+      content: Buffer.from(withTicketId(body, id), 'utf8').toString('base64'),
+      branch,
+    };
+    // If the file already exists on this branch, GitHub requires its sha to update in place.
+    const existingFile = await ghMaybe(`/repos/${REPO}/contents/${at}?ref=${branch}`);
+    if (existingFile && existingFile.sha) put.sha = existingFile.sha;
+    await gh(`/repos/${REPO}/contents/${at}`, { method: 'PUT', body: JSON.stringify(put) });
   };
-  // If the file already exists on this branch, GitHub requires its sha to update in place.
-  const existingFile = await ghMaybe(`/repos/${REPO}/contents/${path}?ref=${branch}`);
-  if (existingFile && existingFile.sha) put.sha = existingFile.sha;
-  await gh(`/repos/${REPO}/contents/${path}`, { method: 'PUT', body: JSON.stringify(put) });
+
+  try {
+    await write(path);
+  } catch (e) {
+    // The race: two filings picked the same number between the list and the write. Re-read and take
+    // the next one. One retry closes the common case — two founders filing at once is not a thing
+    // yet, and a duplicate number that survives is still better than everything being called NEW.
+    if (alreadyFiled) throw e;
+    const retryId = nextTicketId(PREFIX, await listTicketNames(base));
+    const retryPath = ticketPath(retryId, slug);
+    log(`id ${id} lost a race, retrying as ${retryId}`);
+    await write(retryPath);
+  }
 
   // Reuse an open PR for this branch if one exists, else open one.
   const openPrs = await gh(`/repos/${REPO}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);

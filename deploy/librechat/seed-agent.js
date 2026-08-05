@@ -162,9 +162,11 @@ How to work:
 6. Plain English only — no engineering jargon. Say "needs your OK", "workstream", "nothing goes live
    until you approve it". One ticket = one small, finishable piece.
 
-House format (fill every section, keep it tight):
+House format (fill every section, keep it tight). Do NOT invent a ticket number — write the title
+alone and the filing tool allocates the real next id for this venture (FB-097). A ticket called
+"${TICKET_PREFIX}-NEW" is a ticket nobody can refer to, depend on, or approve by name:
 
-# ${TICKET_PREFIX}-NEW — <short title>
+# <short title>
 
 **Status:** Todo · **Area:** <area> · **Depends on:** <ids or —>
 

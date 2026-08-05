@@ -13,6 +13,7 @@ import { ago } from '@/lib/when';
 import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { ticketProgress } from '@/lib/ticket-progress';
+import { isUnnumbered } from '@/lib/ticket-ids';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
@@ -495,7 +496,14 @@ export function VentureBoard({
                         data-testid={`ticket-${item.ticket.id}`}
                         onClick={() => setSelected({ repo: lane.repo, ref: lane.ref, item, group: g.key })}
                       >
-                        <span className="mono eyebrow-id" style={{ fontSize: 'var(--fs-eyebrow)' }}>{item.ticket.id}</span>
+                        {/* FB-097: a ticket called "ARCA-NEW" is a ticket nobody can refer to,
+                            depend on, or approve by name — and the walkthrough met four of them at
+                            once. The filer numbers them now; anything still unnumbered is shown as
+                            what it is, with the title doing the work. */}
+                        <span className="mono eyebrow-id" style={{ fontSize: 'var(--fs-eyebrow)' }}
+                              data-testid={`ticket-id-${item.ticket.id}`}>
+                          {isUnnumbered(item.ticket.id) ? 'unnumbered' : item.ticket.id}
+                        </span>
                         <div style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.15rem' }}>{item.ticket.title}</div>
                         {item.warnings.length > 0 ? (
                           <span className="tag" style={{ marginTop: '0.35rem', color: toneColor('attention') }}>

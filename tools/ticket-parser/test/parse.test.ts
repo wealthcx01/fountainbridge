@@ -149,3 +149,26 @@ test('parseDependsOn extracts ids and handles "none"', () => {
   assert.deepEqual(parseDependsOn(''), []);
   assert.deepEqual(parseDependsOn('FB-002, FB-002'), ['FB-002']); // de-duped
 });
+
+test('an unnumbered ticket parses, and says it needs a number (FB-097)', () => {
+  // The composer filed everything as `<PREFIX>-NEW` for weeks. Rejecting those files meant the
+  // studio counted them as "not tickets" and dropped them off the board — work a founder asked for,
+  // filed successfully, and invisible. That is a stranger failure than showing them.
+  const r = parseTicket('# ARCA-NEW — Show set name on card pages\n\n**Status:** Todo\n', {
+    repo: 'arca',
+    path: 'docs/tickets/ARCA-NEW-show-set-name.md',
+  });
+  assert.equal(r.ticket.id, 'ARCA-NEW');
+  assert.equal(r.ticket.title, 'Show set name on card pages');
+  assert.ok(looksLikeTicket(r), 'must parse as a ticket, not be skipped as a stray file');
+  assert.ok(r.warnings.some((w) => w.code === 'unnumbered-id'), 'must say it needs a real number');
+});
+
+test('a numbered ticket carries no unnumbered warning', () => {
+  const r = parseTicket('# ARCA-44 — Seed script\n\n**Status:** Todo\n', {
+    repo: 'arca',
+    path: 'docs/tickets/ARCA-44-seed.md',
+  });
+  assert.equal(r.ticket.id, 'ARCA-44');
+  assert.ok(!r.warnings.some((w) => w.code === 'unnumbered-id'));
+});
