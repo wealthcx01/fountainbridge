@@ -2,6 +2,11 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadAccessibleHealth, type RepoHealth, type ActivityEvent } from '@/lib/health';
+import { classifyActivity, dedupeActivity, filedTicketId, isFounderVisible, MEANING_LABEL } from '@/lib/activity-kind';
+import { loadRunReports } from '@/lib/runreports';
+import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
+import { stuckTickets } from '@/lib/brief';
+import { GitHubClient } from '@/lib/github';
 import { ciRunTone, toneColor } from '@/lib/status';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
@@ -31,9 +36,10 @@ export default async function ActivityPage({
   if (!session?.user?.email) redirect('/login');
   const { refresh, repo: repoFilter } = await searchParams;
   const { ventures, activity } = await loadAccessibleHealth(session.user.email, { refresh: refresh === '1' });
+  const ventureSummaries = loadVentures();
   const isAdmin = authorizeVentures(
     session.user.email,
-    loadVentures(),
+    ventureSummaries,
     parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS),
   ).isAdmin;
 
@@ -42,7 +48,32 @@ export default async function ActivityPage({
   const failures = ventures.flatMap((v) => v.health.repos.filter((r) => r.error).map((r) => r.error as string));
 
   const allRepos = ventures.flatMap((v) => v.health.repos.map((r) => r.repo));
-  const events = repoFilter ? activity.filter((e) => e.repo === repoFilter) : activity;
+  // FB-096, in order: one human event per row, then only what is a founder's business. Admins keep
+  // the housekeeping — it is real and Bruntsfield needs it; it is not what a founder came here for.
+  const deduped = dedupeActivity(repoFilter ? activity.filter((e) => e.repo === repoFilter) : activity);
+  const events = isAdmin ? deduped : deduped.filter((e) => isFounderVisible(classifyActivity(e)));
+  const hidden = deduped.length - events.length;
+
+  // FB-096: "whatever happened to the tagline fix?" A filing that merged three days ago tells the
+  // founder their request was accepted; it says nothing about the work, which may have been tried
+  // three times and parked. The answer has to be on the row that raised the question.
+  const parked = new Set<string>();
+  await Promise.all(
+    ventures.map(async (v) => {
+      try {
+        const runSource =
+          process.env.RUNREPORTS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1'
+            ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
+            : githubRunReportSource(new GitHubClient());
+        const summary = ventureSummaries.find((x) => x.id === v.id);
+        if (!summary) return;
+        const runs = await loadRunReports(summary, runSource);
+        for (const id of stuckTickets(runs.reports)) parked.add(id);
+      } catch {
+        // Unreadable run history means the feed simply does not annotate — it never means "fine".
+      }
+    }),
+  );
 
   return (
     <section>
@@ -52,7 +83,15 @@ export default async function ActivityPage({
         <Link href="/activity?refresh=1" className="mono muted" data-testid="activity-refresh" style={{ fontSize: 'var(--fs-meta-lg)' }}>refresh</Link>
       </div>
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-        Everything your ventures have done lately, newest first.
+        Everything your ventures have done lately, newest first.{' '}
+        {/* Said, not hidden: a feed that quietly drops rows is a feed that cannot be counted on
+            either. The founder is told the housekeeping exists and that it is not theirs. */}
+        {hidden > 0 ? (
+          <span data-testid="activity-hidden">
+            {hidden} more {hidden === 1 ? 'entry is' : 'entries are'} housekeeping Bruntsfield does on
+            the studio itself, and are not shown here.
+          </span>
+        ) : null}
       </p>
 
       <hr className="hr" />
@@ -76,7 +115,9 @@ export default async function ActivityPage({
         </p>
       ) : (
         <div className="stack" data-testid="activity-feed" style={{ gap: '0.4rem' }}>
-          {events.map((e, i) => <ActivityRow key={`${e.url}-${i}`} event={e} />)}
+          {events.map((e, i) => (
+            <ActivityRow key={`${e.url}-${i}`} event={e} parked={isParked(e, parked)} />
+          ))}
         </div>
       )}
 
@@ -162,21 +203,47 @@ function HealthStrip({ health }: { health: RepoHealth }) {
   );
 }
 
-// FB-103: the badge on each row, in the founder's words. A straight swap of vocabulary — "merged"
-// for "accepted", "CI failed" for the checks failing — and nothing else. Whether these three kinds
-// are even the right distinction (a row cannot currently tell a ticket being FILED from work being
-// SHIPPED) is FB-096's question, not this ticket's.
+/**
+ * The badge on each row (FB-103's words, FB-096's meaning).
+ *
+ * A merged change is labelled by WHAT IT WAS, not by the git verb: the walkthrough met "MERGED —
+ * Replace Bloomberg/Pokemon tagline" three days before opening the product and finding the old
+ * tagline still there, because what merged was the request. A failure and a bare commit keep their
+ * own words — neither one claims anything about the founder's product.
+ */
 const KIND_LABEL: Record<ActivityEvent['kind'], string> = {
   'pr-merged': 'accepted',
   'ci-failed': 'checks failed',
   commit: 'change',
 };
 
-function ActivityRow({ event }: { event: ActivityEvent }) {
+function rowLabel(event: ActivityEvent): string {
+  if (event.kind !== 'pr-merged') return KIND_LABEL[event.kind];
+  const meaning = classifyActivity(event);
+  return meaning === 'unknown' ? KIND_LABEL['pr-merged'] : MEANING_LABEL[meaning];
+}
+
+/** True when this row is a filing whose ticket has since been tried and stopped. */
+function isParked(event: ActivityEvent, parked: ReadonlySet<string>): boolean {
+  if (classifyActivity(event) !== 'ticket-filed') return false;
+  const id = filedTicketId(event);
+  return !!id && parked.has(id);
+}
+
+function ActivityRow({ event, parked = false }: { event: ActivityEvent; parked?: boolean }) {
   return (
     <a className="card card-link" href={event.url} target="_blank" rel="noreferrer" data-testid={`activity-${event.kind}`} style={{ padding: '0.5rem 0.8rem', display: 'flex', gap: '0.6rem', alignItems: 'baseline' }}>
-      <span className="tag mono" style={{ minWidth: '5.5rem', textAlign: 'center' }}>{KIND_LABEL[event.kind]}</span>
-      <span style={{ flex: 1, fontSize: 'var(--fs-body-sm)' }}>{event.title}</span>
+      <span className="tag mono" data-testid={`activity-label-${event.kind}`} style={{ minWidth: '5.5rem', textAlign: 'center' }}>
+        {rowLabel(event)}
+      </span>
+      <span style={{ flex: 1, fontSize: 'var(--fs-body-sm)' }}>
+        {event.title}
+        {parked ? (
+          <span data-testid="activity-parked" style={{ color: toneColor('blocked'), fontWeight: 600 }}>
+            {' '}— tried since, and stopped. It needs a person.
+          </span>
+        ) : null}
+      </span>
       <span className="muted mono" style={{ fontSize: 'var(--fs-meta)' }}>{event.repo} · {ago(event.at) ?? ''}</span>
     </a>
   );

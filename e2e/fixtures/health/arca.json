@@ -1,10 +1,60 @@
 {
   "defaultBranch": "master",
   "protected": true,
-  "latestRun": { "conclusion": "success", "url": "https://github.com/wealthcx01/arca/actions/runs/1", "createdAt": "2026-07-21T00:00:00Z" },
+  "latestRun": {
+    "conclusion": "success",
+    "url": "https://github.com/wealthcx01/arca/actions/runs/1",
+    "createdAt": "2026-07-21T00:00:00Z"
+  },
   "activity": [
-    { "kind": "pr-merged", "repo": "arca", "title": "ARCA-2: card search", "url": "https://github.com/wealthcx01/arca/pull/9", "at": "2026-07-21T00:00:00Z" },
-    { "kind": "commit", "repo": "arca", "title": "add card grid layout", "url": "https://github.com/wealthcx01/arca/commit/abc", "at": "2026-07-20T12:00:00Z" }
+    {
+      "kind": "pr-merged",
+      "repo": "arca",
+      "title": "Card animation polish",
+      "url": "https://github.com/wealthcx01/arca/pull/20",
+      "at": "2026-07-21T09:00:00Z",
+      "paths": [
+        "docs/tickets/ARCA-4-odd-status.md"
+      ]
+    },
+    {
+      "kind": "commit",
+      "repo": "arca",
+      "title": "Card animation polish (#20)",
+      "url": "https://github.com/wealthcx01/arca/commit/dup",
+      "at": "2026-07-21T09:00:20Z",
+      "paths": [
+        "docs/tickets/ARCA-4-odd-status.md"
+      ]
+    },
+    {
+      "kind": "pr-merged",
+      "repo": "arca",
+      "title": "ARCA-2: card search",
+      "url": "https://github.com/wealthcx01/arca/pull/9",
+      "at": "2026-07-21T00:00:00Z",
+      "paths": [
+        "client/src/Search.tsx",
+        "docs/tickets/ARCA-2-card-search.md"
+      ]
+    },
+    {
+      "kind": "pr-merged",
+      "repo": "arca",
+      "title": "seed: arca-ops — the queue, the context and the library",
+      "url": "https://github.com/wealthcx01/arca/pull/8",
+      "at": "2026-07-20T18:00:00Z",
+      "paths": [
+        "docs/tickets/README.md"
+      ]
+    },
+    {
+      "kind": "commit",
+      "repo": "arca",
+      "title": "add card grid layout",
+      "url": "https://github.com/wealthcx01/arca/commit/abc",
+      "at": "2026-07-20T12:00:00Z"
+    }
   ],
   "error": null
 }

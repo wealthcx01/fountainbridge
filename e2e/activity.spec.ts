@@ -72,3 +72,53 @@ test('the administration is not deleted, it is shown to Bruntsfield (FB-080)', a
   const admin = await page.getByText('Repository health').boundingBox();
   expect(admin!.y).toBeGreaterThan(news!.y);
 });
+
+/**
+ * FB-096 — "merged" does not mean what the founder thinks it means.
+ *
+ * The feed said MERGED — Replace Bloomberg/Pokemon tagline, three days before the founder opened
+ * their product and found the old tagline still there. What merged was the REQUEST.
+ */
+test.describe('the feed says what actually happened (FB-096)', () => {
+  test('a ticket-only change reads as a request, never as shipped work', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/activity');
+    const filing = page.getByTestId('activity-pr-merged').first();
+    await expect(filing).toContainText('Card animation polish');
+    await expect(filing).toContainText('asked for');
+    await expect(filing).not.toContainText('shipped');
+  });
+
+  test('a change to the product reads as shipped', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/activity');
+    await expect(page.getByTestId('activity-feed')).toContainText('shipped');
+  });
+
+  test('one merge is one row', async ({ page }) => {
+    // Every MERGED row was shadowed by a COMMIT row saying the same words.
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/activity');
+    await expect(page.getByTestId('activity-feed').getByText('Card animation polish')).toHaveCount(1);
+  });
+
+  test('the founder’s feed has no housekeeping, and says that it does not', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/activity');
+    await expect(page.getByTestId('activity-feed')).not.toContainText('seed: arca-ops');
+    await expect(page.getByTestId('activity-hidden')).toContainText('housekeeping');
+  });
+
+  test('Bruntsfield still sees the housekeeping', async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/activity');
+    await expect(page.getByTestId('activity-feed')).toContainText('seed: arca-ops');
+  });
+
+  test('a filing whose work later parked says so where the founder asked', async ({ page }) => {
+    // "Whatever happened to the tagline fix?" — the answer has to be on the row that raised it.
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/activity');
+    await expect(page.getByTestId('activity-parked')).toContainText('needs a person');
+  });
+});
