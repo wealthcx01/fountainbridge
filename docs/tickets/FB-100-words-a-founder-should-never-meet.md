@@ -1,6 +1,6 @@
 # FB-100 — Words a founder should never meet
 
-**Status:** Todo · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03 — every item
+**Status:** Done · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03 — every item
 below was seen through `arca.founder@`'s eyes on a production build · **Repo:** fountainbridge ·
 **Branch:** `fb-100-words-a-founder-should-never-meet` · One ticket = one branch = one PR.
 
@@ -48,7 +48,32 @@ review, with each fix listed so nothing is silently dropped.
 
 ## Acceptance criteria
 
-- [ ] Each numbered item fixed, or explicitly recorded here as rejected with a reason.
-- [ ] No founder-visible surface renders the Claude Code footer, raw markdown control characters,
+- [x] Each numbered item fixed, or explicitly recorded here as rejected with a reason.
+- [x] No founder-visible surface renders the Claude Code footer, raw markdown control characters,
       parser internals, or a repeated identical badge.
-- [ ] The e2e screenshots (the PR UI-gate gallery) show the corrected copy.
+- [x] The e2e screenshots (the PR UI-gate gallery) show the corrected copy.
+
+## What happened to each item
+
+1. **The sign-in page disowned its own second door.** Fixed — and the sentence now follows the doors
+   that are actually open, rather than being written once for whichever configuration was live the
+   day it was typed.
+2. **The Claude Code footer inside the founder's review.** Already fixed, by **FB-107**:
+   `stripMachinery` takes the tool's signature off the summary and the record together, so the two
+   cannot disagree about what the team wrote.
+3. **The expanded record showed raw markdown.** Fixed by taking the ticket's second option — *one
+   renderer for both*. It was a `<pre>`, so `**Status:**` and `##` reached the founder as literal
+   characters while the summary directly above rendered properly: one document, two renderers.
+4. **"8 non-ticket files skipped".** Already fixed, by **FB-103** — off the founder's header. Giving
+   the count an admin home was this ticket's half and remains unbuilt; it is a debugging note whose
+   only reader is the person reading the parser's warnings, and it is not worth a surface of its own
+   until someone wants it. **Recorded as deliberately not built** rather than silently dropped.
+5. **The same alarm fifteen times.** Fixed. When every item in the queue shares one check state it is
+   said once above the list and the per-card badge disappears; the moment items DIFFER the badges
+   come back, which is when they carry information. A single-item queue keeps its badge — "the same
+   for everything below" over one card is a sentence about nothing.
+6. **"waiting 3 days" with no verb owner.** Fixed — "waiting 3 days for you", the sentence FB-064's
+   page already used.
+7. **The board named the wrong person to the founder.** Fixed: when the signed-in account IS the
+   venture's named founder, the line reads "Founder: you". The manifest was always right; this was
+   presentation.

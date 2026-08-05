@@ -110,6 +110,7 @@ export function VentureBoard({
   org,
   openWork = {},
   unmatchedWork = {},
+  viewerIsFounder = false,
   wiringWarning = null,
 }: {
   venture: {
@@ -152,6 +153,8 @@ export function VentureBoard({
    * you — 15" sat six centimetres from a column reading 0.
    */
   unmatchedWork?: Record<string, Array<{ number: number; title: string }>>;
+  /** True when the person reading this IS the venture's named founder (FB-100's item 7). */
+  viewerIsFounder?: boolean;
   /** FB-087: admin-only — this venture has a box the studio cannot reach. Null for founders. */
   wiringWarning?: string | null;
 }) {
@@ -210,8 +213,10 @@ export function VentureBoard({
           </span>
         ) : null}
       </div>
-      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
-        {venture.founderName ? <>Founder: {venture.founderName} · </> : null}
+      <p className="muted" data-testid="board-founder" style={{ fontSize: 'var(--fs-body-sm)' }}>
+        {/* FB-100's item 7: "Founder: John Gallagher" while signed in AS the founder reads as the
+            studio introducing someone to themselves. The manifest is right; this is presentation. */}
+        {venture.founderName ? <>Founder: {viewerIsFounder ? 'you' : venture.founderName} · </> : null}
         {/* FB-068: "3:05:32 PM" was a clock reading, not an answer to "is this current?". */}
         <span>updated {ago(new Date(fetchedAt).toISOString()) ?? 'just now'}</span> ·{' '}
         <Link href={`/venture/${venture.id}?refresh=1`} className="mono" data-testid="refresh">

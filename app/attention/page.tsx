@@ -46,11 +46,27 @@ export default async function AttentionPage({
       {approvals.length === 0 ? (
         <p className="card muted" data-testid="attention-empty">Nothing is waiting for you.</p>
       ) : (
-        <div className="stack" data-testid="attention-queue" style={{ gap: '0.75rem' }}>
-          {approvals.map((a) => (
-            <ApprovalRow key={a.id} approval={a} ventureName={ventureNames[a.ventureId] ?? a.ventureId} />
-          ))}
-        </div>
+        <>
+          {/* FB-100's item 5: every card carried the identical badge "This work has no automatic
+              checks" — fifteen copies of one fact about the repository, which is how a founder
+              learns to stop reading badges. When they all say the same thing, say it once; the
+              per-card badge comes back the moment items DIFFER, which is when it means something. */}
+          {sharedCheckState(approvals) ? (
+            <p className="muted" data-testid="attention-checks-shared" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '-0.25rem' }}>
+              {CHECK_LABEL[sharedCheckState(approvals) as string] ?? CHECK_LABEL.unknown} — the same for everything below.
+            </p>
+          ) : null}
+          <div className="stack" data-testid="attention-queue" style={{ gap: '0.75rem' }}>
+            {approvals.map((a) => (
+              <ApprovalRow
+                key={a.id}
+                approval={a}
+                ventureName={ventureNames[a.ventureId] ?? a.ventureId}
+                showChecks={!sharedCheckState(approvals)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {/* FB-076: BELOW the work, not above it. A founder came here to answer something; a degraded
@@ -62,7 +78,28 @@ export default async function AttentionPage({
   );
 }
 
-function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureName: string }) {
+/**
+ * The one check state every item shares, or null when they differ (FB-100's item 5).
+ *
+ * Null for a single item too: "the same for everything below" over one card is a sentence about
+ * nothing, and the card's own badge says it better.
+ */
+function sharedCheckState(approvals: PrApproval[]): PrApproval['ciStatus'] | null {
+  if (approvals.length < 2) return null;
+  const first = approvals[0].ciStatus;
+  return approvals.every((a) => a.ciStatus === first) ? first : null;
+}
+
+function ApprovalRow({
+  approval,
+  ventureName,
+  showChecks = true,
+}: {
+  approval: PrApproval;
+  ventureName: string;
+  /** False when the whole queue shares one check state and it has been said once above. */
+  showChecks?: boolean;
+}) {
   // FB-064: the title now opens the work INSIDE the studio. This page told a founder work was
   // waiting for their OK and then offered one link to github.com — the break in the loop.
   // `repo` is the short name; the venture's manifest resolves the owner, so no founder-facing URL
@@ -75,7 +112,7 @@ function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureN
         <Link href={here} style={{ fontWeight: 500 }} data-testid={`approval-primary-${approval.id}`}>
           {approval.ticketTitle ?? approval.title}
         </Link>
-        <CiDot status={approval.ciStatus} />
+        {showChecks ? <CiDot status={approval.ciStatus} /> : null}
         {approval.previewUrl ? (
           <a href={approval.previewUrl} target="_blank" rel="noreferrer" className="tag tag-accent" data-testid={`approval-preview-${approval.id}`}>
             see it running
@@ -85,7 +122,9 @@ function ApprovalRow({ approval, ventureName }: { approval: PrApproval; ventureN
       <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
         <span>{ventureName}</span>
         {approval.linkedTicketId ? <span>· {approval.linkedTicketId}</span> : null}
-        <span>· waiting {howLong(approval.createdAt) ?? 'a while'}</span>
+        {/* FB-100's item 6: "waiting 3 days" — waiting on whom? The sentence FB-064's page already
+            uses is the one that works. */}
+        <span>· waiting {howLong(approval.createdAt) ?? 'a while'} for you</span>
         <Link href={here} data-testid={`approval-open-${approval.id}`}>· Read it and decide</Link>
       </div>
     </article>

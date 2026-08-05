@@ -20,7 +20,15 @@ export default async function LoginPage({
   return (
     <section style={{ maxWidth: '28rem', margin: '4rem auto', textAlign: 'center' }}>
       <h1>Sign in</h1>
-      <p className="muted">Foundry Studio is invite-scoped. Sign in with your venture Google account.</p>
+      {/* FB-100's item 1: this read "Foundry Studio is invite-scoped. Sign in with your venture Google
+          account." — directly above the email-and-password form FB-092 added. A founder holding an
+          email login was told, by the page offering it, that Google was the way in. One sentence
+          that covers whichever doors are actually open. */}
+      <p className="muted">
+        {passwordLoginEnabled
+          ? 'Sign in with your venture account — Google, or the email and password you were given.'
+          : 'Sign in with your venture Google account.'}
+      </p>
       <form
         action={async () => {
           'use server';

@@ -131,3 +131,47 @@ test('badges say what they mean and can be reached by keyboard (FB-068)', async 
     await expect(stale).not.toHaveText(/^⚠ stale$/);
   }
 });
+
+
+/**
+ * FB-100 — words a founder should never meet. The items the walkthrough actually met, pinned so the
+ * next surface does not re-earn them.
+ */
+test.describe('the walkthrough’s words (FB-100)', () => {
+  test('the sign-in page does not disown its own second door', async ({ page }) => {
+    // The subtitle read "Sign in with your venture Google account" directly above the email-and-
+    // password form — a founder holding an email login told, by the page offering it, to use Google.
+    await page.goto('/login');
+    await expect(page.getByTestId('password-login')).toBeVisible();
+    await expect(page.locator('section')).toContainText('email and password');
+  });
+
+  test('one alarm for one fact, not one per card', async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/attention');
+    const shared = page.getByTestId('attention-checks-shared');
+    const perCard = page.getByTestId('approval-ci');
+    // Either the queue says it once above the list, or the items genuinely differ and each says its
+    // own. Never fifteen copies of one sentence.
+    if (await shared.count()) {
+      await expect(perCard).toHaveCount(0);
+    } else {
+      expect(new Set(await perCard.evaluateAll((els) => els.map((e) => e.getAttribute('data-checks')))).size)
+        .toBeGreaterThan(1);
+    }
+  });
+
+  test('a wait says who it is waiting on', async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/attention');
+    await expect(page.getByTestId('attention-queue')).toContainText('for you');
+  });
+
+  test('the studio does not introduce the founder to themselves', async ({ page }) => {
+    // "Founder: John Gallagher" while signed in AS the founder. The manifest is right; this is
+    // presentation. arca.founder@bruntsfield.capital is ARCA's named founder in the manifest.
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('board-founder')).toContainText('Founder: you');
+  });
+});
