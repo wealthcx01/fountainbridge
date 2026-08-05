@@ -254,6 +254,9 @@ export default async function VenturePage({
       totalWarnings={data.totalWarnings}
       openWork={openWork}
       unmatchedWork={unmatchedWork}
+      viewerIsFounder={
+        !!venture.founderEmail && venture.founderEmail.toLowerCase() === session.user.email.toLowerCase()
+      }
       fetchedAt={data.fetchedAt}
       org={org}
       brief={brief}

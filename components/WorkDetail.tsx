@@ -8,6 +8,7 @@ import { acceptability, describeChange, isReadable, summariseChanges } from '@/l
 import { toneColor } from '@/lib/status';
 import { CHECK_LABEL } from '@/lib/glossary';
 import { readEvidence } from '@/lib/work-evidence';
+import { showAngleBrackets } from '@/lib/markdown';
 import { howLong } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
 
@@ -140,12 +141,22 @@ function TheRecord({ body }: { body: string }) {
       >
         {open ? 'Hide the full record' : 'Show me everything the team recorded'}
       </button>
+      {/* FB-100's item 3: this was a <pre>, so `**Status:**` and `##` reached the founder as literal
+          asterisks and hashes while the summary directly above them rendered properly — one
+          document, two renderers. It is the same markdown either way; formatting it loses nothing
+          and stops the record reading as a machine dump. */}
       {open ? (
-        <pre data-testid="work-record" style={{
-          fontSize: 'var(--fs-meta-lg)', whiteSpace: 'pre-wrap', overflowX: 'auto',
-          background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
-          borderRadius: 'var(--radius-sm)', padding: '0.7rem', margin: '0.5rem 0 0',
-        }}>{e.record}</pre>
+        <div
+          className="ticket-body"
+          data-testid="work-record"
+          style={{
+            fontSize: 'var(--fs-meta-lg)', overflowX: 'auto',
+            background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
+            borderRadius: 'var(--radius-sm)', padding: '0.7rem', margin: '0.5rem 0 0',
+          }}
+        >
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{showAngleBrackets(e.record)}</ReactMarkdown>
+        </div>
       ) : null}
     </section>
   );
