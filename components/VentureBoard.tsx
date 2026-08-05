@@ -18,6 +18,7 @@ import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
 import { LaneActivity } from './LaneActivity';
+import { WhileWorking } from './WhileWorking';
 import type { Brief } from '@/lib/brief';
 import type { RunReport } from '@/lib/runreports';
 
@@ -215,8 +216,14 @@ export function VentureBoard({
     if (hit) setSelected(hit);
   };
 
+  // FB-098's live board, affordable since FB-083: poll only while a run is genuinely in flight. The
+  // same evidence the cards read from — a run with no outcome yet — so the page cannot poll over
+  // work that is not happening.
+  const somethingInFlight = runs.some((r) => r.outcome === null);
+
   return (
     <section>
+      <WhileWorking working={somethingInFlight} />
       <p className="eyebrow">
         <span className="eyebrow-id">{venture.id}</span> — Venture
       </p>

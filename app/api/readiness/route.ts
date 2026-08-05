@@ -19,6 +19,7 @@ import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { readiness, keyEnvName } from '@/lib/readiness';
+import { githubBudget, githubBlockedUntil } from '@/lib/github';
 import { composerEndpoint, engineFault } from '@/lib/composer';
 
 export const dynamic = 'force-dynamic';
@@ -98,9 +99,14 @@ export async function GET(req: Request) {
     return Response.json({ error: 'admin only' }, { status: 403 });
   }
 
+  // FB-083: the ceiling, where a monitor can reach it. The admin page shows the same two numbers to
+  // a person; this is for whatever notices before a person is looking. Free — read from headers the
+  // studio already received.
+  const budget = { github: githubBudget(), blockedUntil: githubBlockedUntil()?.toISOString() ?? null };
+
   const report = readiness(ventures, process.env);
   if (new URL(req.url).searchParams.get('probe') !== '1') {
-    return Response.json(report, { status: report.ok ? 200 : 503 });
+    return Response.json({ ...report, budget }, { status: report.ok ? 200 : 503 });
   }
 
   const probed = await Promise.all(
@@ -116,5 +122,5 @@ export async function GET(req: Request) {
     }),
   );
   const ok = probed.every((v) => v.ready);
-  return Response.json({ ok, ventures: probed }, { status: ok ? 200 : 503 });
+  return Response.json({ ok, ventures: probed, budget }, { status: ok ? 200 : 503 });
 }

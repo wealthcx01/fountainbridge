@@ -122,3 +122,47 @@ test.describe('the feed says what actually happened (FB-096)', () => {
     await expect(page.getByTestId('activity-parked')).toContainText('needs a person');
   });
 });
+
+
+/**
+ * FB-083's last acceptance criterion: the ceiling was measured (FB-077) and lowered (FB-083), and
+ * through both of those nobody could see how close the studio was to it. The first sign of running
+ * out would have been a founder's board quietly failing to show their work.
+ */
+test.describe('an operator can see the budget (FB-083)', () => {
+  test('the admin page shows what is left of each allowance', async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    await page.goto('/activity');
+    const strip = page.getByTestId('github-budget');
+    // The UI gate runs on fixtures and never calls GitHub, so there is genuinely nothing heard yet —
+    // and the strip says nothing rather than showing a reassuring blank. "Not heard" and "nearly
+    // empty" must never look the same, which is the whole point of the component.
+    await expect(strip).toHaveCount(0);
+  });
+
+  test('a founder never sees it', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/activity');
+    await expect(page.getByTestId('github-budget')).toHaveCount(0);
+  });
+
+  test('a monitor can read it without a person looking', async ({ page }) => {
+    // The strip is for whoever is on the page; this is for whatever notices before anyone is. The
+    // absence test above cannot prove the plumbing, because the UI gate never calls GitHub — this
+    // one proves the field is carried, admin-gated, and honest about having heard nothing yet.
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    const res = await page.request.get('/api/readiness');
+    const body = await res.json();
+    expect(body).toHaveProperty('budget');
+    expect(body.budget).toHaveProperty('github');
+    expect(body.budget.github).toEqual({ rest: null, graphql: null });
+    expect(body.budget.blockedUntil).toBeNull();
+  });
+
+  test('the budget is admin-only, like everything else on this endpoint', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    const res = await page.request.get('/api/readiness');
+    expect(res.status()).toBe(403);
+    expect(await res.json()).not.toHaveProperty('budget');
+  });
+});

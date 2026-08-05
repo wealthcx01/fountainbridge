@@ -125,8 +125,8 @@ skipped on a warm render. It did not recover the difference.
 - [x] **Warm cost does not regress.** It did at the halfway point — 28 to 48 — and the ticket was
       written up as failing before being extended. Finished, it is **28 to 19**.
 - [x] The read models still take an injectable source; the UI gate still runs offline on fixtures.
-- [ ] An operator can see how much of the budget is left. `githubBlockedUntil` exists from FB-077 and
-      still nothing renders it. Not done, again.
+- [x] An operator can see how much of the budget is left. **Done at the third attempt** — it was
+      carried unfinished through FB-077 and the first pass of this ticket.
 
 ## Extended, and now it is a win
 The paragraph below was written when this ticket stopped at tickets-only, and the warm path had
@@ -185,3 +185,49 @@ Two existing FB-021 tests were updated, not deleted — they stubbed the three R
 replaced, and their properties still hold against the new one.
 
 Then the real thing: three consecutive renders of the live ARCA board, numbers above.
+
+## The last criterion, finished (2026-08-05)
+
+It had been carried unfinished through two tickets: FB-077 measured the ceiling, FB-083 lowered it,
+and through both of those **nobody could see how close the studio was to it.** The first sign of
+running out would have been a founder's board quietly failing to show their work — which is the exact
+failure mode CLAUDE.md #10 is about, sitting inside the ticket that measured everything else.
+
+**It costs nothing, which mattered on this ticket in particular.** GitHub answers *every* response
+with the remaining budget for the resource that response used, including a `304` — so the figure is
+read off traffic the studio was already making, and it stays current precisely on the warm path where
+things are going well. Asking `/rate_limit` would also have been free, but a number that arrives on
+its own cannot be forgotten and is never stale in a way nobody notices.
+
+Both allowances are shown, because the whole argument for moving tickets and pull requests onto
+GraphQL was that it draws on a **separate** 5,000-point pool — an operator who sees only one cannot
+see the headroom that bought. A resource the studio has not touched reads as *not heard yet* rather
+than as a reassuring blank: "not heard" and "nearly empty" must never look the same.
+
+Two surfaces: the admin block on the activity page for whoever is looking, and `/api/readiness` for
+whatever notices before anyone is.
+
+## And the polling FB-098 deferred here
+
+FB-098 asked for a live board and deliberately did not build it, because it allowed polling "bounded
+by FB-083's request-budget discipline" and no such budget existed. A warm board then cost 87
+requests. It now costs 21, so this is both the ticket that made polling affordable and the PR where
+the budget it must respect exists.
+
+`components/WhileWorking.tsx`, bounded three ways — each closing a way it could quietly become
+expensive:
+
+- **only while a run is genuinely in flight** (most boards, most of the time, do not poll at all);
+- **only while the tab is visible**, checked at fire time, so a board left open on a second monitor
+  overnight costs nothing;
+- **it stops when the work does.**
+
+The cost, stated rather than buried: one board render a minute while a founder is watching their
+ticket — roughly 60 an hour against the ~260 the budget now allows.
+
+## What is honestly not covered
+
+The budget strip's *rendering* is unit-tested and its plumbing is driven end-to-end through
+`/api/readiness`, but the visible strip is never exercised with real numbers: the UI gate runs on
+fixtures and never calls GitHub, so there is genuinely nothing to show. The e2e asserts the honest
+empty case instead. Saying so here rather than implying a coverage that does not exist.

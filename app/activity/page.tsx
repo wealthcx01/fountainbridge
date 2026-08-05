@@ -6,7 +6,7 @@ import { classifyActivity, dedupeActivity, filedTicketId, isFounderVisible, MEAN
 import { loadRunReports } from '@/lib/runreports';
 import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
 import { stuckTickets } from '@/lib/brief';
-import { GitHubClient } from '@/lib/github';
+import { GitHubClient, githubBudget, budgetIsLow } from '@/lib/github';
 import { ciRunTone, toneColor } from '@/lib/status';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
@@ -143,6 +143,10 @@ export default async function ActivityPage({
       {isAdmin ? (
         <>
           <hr className="hr" />
+          {/* FB-083's last acceptance criterion. The ceiling was measured (FB-077) and lowered
+              (FB-083) and through both of those nobody could SEE it — the first sign of running out
+              would have been a founder's board quietly failing to show their work. */}
+          <BudgetStrip />
           {/* copy-lint-ok: admin-only (inside `isAdmin`) — this is repository administration, which is
               what it is called, and a founder never reaches it */}
           <h2 style={{ marginBottom: '0.25rem' }}>Repository health</h2>
@@ -161,6 +165,36 @@ export default async function ActivityPage({
         </>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * What is left of GitHub's allowances, for whoever operates the studio (FB-083).
+ *
+ * Admin-only and deliberately plain: two numbers, when they refill, and when the studio last heard.
+ * A resource the studio has not touched this process says so rather than showing a reassuring blank
+ * — "not heard yet" and "nearly empty" must never look the same.
+ */
+function BudgetStrip() {
+  const { rest, graphql } = githubBudget();
+  if (!rest && !graphql) return null;
+  const row = (label: string, b: ReturnType<typeof githubBudget>['rest']) =>
+    b ? (
+      <span data-testid={`budget-${label}`} data-low={budgetIsLow(b) ? 'true' : 'false'}
+            style={{ color: budgetIsLow(b) ? toneColor('blocked') : undefined, fontWeight: budgetIsLow(b) ? 600 : undefined }}>
+        {label}: {b.remaining.toLocaleString()} of {b.limit.toLocaleString()} left, refills {ago(b.resetsAt) ?? 'shortly'}
+      </span>
+    ) : null;
+
+  return (
+    <p className="muted" data-testid="github-budget" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0 0 0.75rem' }}>
+      {/* copy-lint-ok: admin-only — this is the GitHub API budget, and naming it anything else would
+          leave the operator guessing which ceiling the number is about */}
+      <strong>GitHub budget</strong>{' '}
+      {row('REST', rest)}
+      {rest && graphql ? ' · ' : null}
+      {row('GraphQL', graphql)}
+    </p>
   );
 }
 
