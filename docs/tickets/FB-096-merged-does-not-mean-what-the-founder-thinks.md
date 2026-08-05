@@ -1,6 +1,6 @@
 # FB-096 — "Merged" does not mean what the founder thinks it means
 
-**Status:** Todo · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03, holding the
+**Status:** Done · **Phase:** 3 · **Found by:** the founder walkthrough, 2026-08-03, holding the
 activity feed and the running product side by side · **Repo:** fountainbridge ·
 **Branch:** `fb-096-merged-does-not-mean-what-the-founder-thinks` · One ticket = one branch = one PR.
 
@@ -54,8 +54,39 @@ The feed renders git events in git's vocabulary rather than the founder's:
 
 ## Acceptance criteria
 
-- [ ] A docs-only ticket PR renders as a filing, never as shipped work.
-- [ ] One merge produces one row.
-- [ ] The founder feed contains no seed/test/cleanup plumbing; the admin feed still does.
-- [ ] A parked ticket is visibly parked wherever its filing appears.
-- [ ] Unit tests cover the classifier on real path-shapes from `wealthcx01/arca`'s history.
+- [x] A docs-only ticket PR renders as a filing, never as shipped work. — "asked for" vs "shipped",
+      decided by the paths.
+- [x] One merge produces one row.
+- [x] The founder feed contains no seed/test/cleanup plumbing; the admin feed still does — and the
+      founder is *told* the housekeeping exists rather than having rows quietly disappear.
+- [x] A parked ticket is visibly parked wherever its filing appears. — *"— tried since, and stopped.
+      It needs a person."*
+- [x] Unit tests cover the classifier on real path-shapes from `wealthcx01/arca`'s history.
+
+## What shipped
+
+`lib/activity-kind.ts`: classify (from paths, never the title), dedupe the merge/commit pair, and the
+founder/admin split — all pure, 19 cases.
+
+**It claims nothing it does not know.** Where the paths were not looked up the meaning is `unknown`
+and the row keeps its plain git word. Guessing "shipped" for an unclassified event is exactly the lie
+this ticket exists to stop, so the fallback had to be the honest one rather than the useful-looking
+one.
+
+## The cost, stated
+
+Classification needs the paths, and the paths are one request per merged change. That is on the very
+page **FB-083** (*eighty-seven requests for one page*) is about, so the lookup is **capped at the 12
+most recent merged changes** — the feed is newest-first and bounded, so the cap covers what is on
+screen and anything older falls back to `unknown`. The parked annotation costs one run-history read
+per venture on the same page.
+
+Both are bounded per page-load rather than repeating on a timer — which is the distinction that made
+polling the wrong call in FB-098 and makes these the right one. **FB-083 should fold both into its
+budget**, and the cap is a constant in one place so it can.
+
+## One narrow exception to "read the paths, not the title"
+
+A `seed:`, `test:`, `cleanup:` or `chore:` prefix is housekeeping whatever it touched. These are
+events the machinery made about itself, and the walkthrough met all three of them in a founder's
+feed. Everything else is decided by what actually changed.

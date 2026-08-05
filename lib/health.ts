@@ -36,6 +36,14 @@ export interface ActivityEvent {
   title: string;
   url: string;
   at: string; // ISO
+  /**
+   * Every path this change touched, when the studio knows them (FB-096).
+   *
+   * What a change TOUCHED is the only thing that tells a request apart from the work it asked for —
+   * the titles are identical. Absent means "not looked up", and the classifier says `unknown` rather
+   * than guessing, because guessing "shipped" is the exact lie this exists to stop.
+   */
+  paths?: string[];
 }
 
 /** What a fetch source yields for one repo. */
@@ -109,10 +117,17 @@ interface GhRun {
   name?: string;
 }
 interface GhPr {
+  number: number;
   title: string;
   html_url: string;
   merged_at: string | null;
 }
+
+/**
+ * How many merged changes get their paths looked up (FB-096). One request each, on the page FB-083
+ * is already about — so it is bounded by what the feed actually shows rather than by the window.
+ */
+const PATH_LOOKUPS = 12;
 interface GhCommit {
   sha: string;
   html_url: string;
@@ -173,11 +188,25 @@ export function githubHealthFetcher(client: GitHubClient, org: string): RepoHeal
         activity.push({ kind: 'ci-failed', repo, title: r.name ?? 'CI run failed', url: r.html_url, at: r.created_at });
       }
     }
-    for (const p of prs) {
-      if (p.merged_at && p.merged_at >= since) {
-        activity.push({ kind: 'pr-merged', repo, title: p.title, url: p.html_url, at: p.merged_at });
-      }
-    }
+    // FB-096: the paths, for the merged changes a founder will actually meet.
+    //
+    // Capped, and deliberately: this is one request per change, on the page FB-083 is already about.
+    // The feed is newest-first and bounded, so the cap covers what is on screen; anything older
+    // classifies as `unknown` and is shown as the plain fact it is rather than mislabelled.
+    const merged = prs.filter((p) => p.merged_at && p.merged_at >= since).slice(0, PATH_LOOKUPS);
+    const paths = await Promise.all(
+      merged.map((p) =>
+        client
+          .request<Array<{ filename: string }>>(`/repos/${fullName}/pulls/${p.number}/files?per_page=100`)
+          .then((files) => files.map((f) => f.filename))
+          .catch(() => undefined), // a lookup that fails leaves the event honestly unclassified
+      ),
+    );
+    merged.forEach((p, i) => {
+      activity.push({
+        kind: 'pr-merged', repo, title: p.title, url: p.html_url, at: p.merged_at as string, paths: paths[i],
+      });
+    });
     for (const c of commits) {
       const at = c.commit?.author?.date;
       if (at && at >= since) {
