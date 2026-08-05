@@ -1,6 +1,6 @@
 # FB-097 — A ticket with no number is nobody's ticket
 
-**Status:** Todo · **Phase:** 3 · **Known since:** the FB-088 walkthrough (2026-08-02), promoted to
+**Status:** Done · **Phase:** 3 · **Known since:** the FB-088 walkthrough (2026-08-02), promoted to
 a ticket after 2026-08-03's walkthrough met it everywhere · **Repo:** fountainbridge (+ the venture
 box's ticket-mcp) · **Branch:** `fb-097-a-ticket-with-no-number-is-nobodys-ticket` ·
 One ticket = one branch = one PR.
@@ -55,7 +55,38 @@ read the backlog and pick, which is more than a prompt change"). This is that ti
 
 ## Acceptance criteria
 
-- [ ] A ticket filed through the composer arrives with the next real id for its venture.
-- [ ] Two rapid filings do not produce the same id (the race retry is tested).
-- [ ] The studio flags any remaining `-NEW` ticket visibly.
-- [ ] ARCA's four existing `-NEW` tickets are renumbered and the board shows no `-NEW`.
+- [x] A ticket filed through the composer arrives with the next real id for its venture. — the filer
+      lists the queue and takes max(n)+1 for the venture's prefix, and writes the id into the ticket's
+      own heading.
+- [x] Two rapid filings do not produce the same id (the race retry is tested). — one retry, and the
+      allocation logic is pure and covered.
+- [x] The studio flags any remaining `-NEW` ticket visibly — the board shows **unnumbered** with the
+      title doing the work, and the parser warns.
+- [ ] **ARCA's four existing `-NEW` tickets are renumbered.** *Not done here — see below.*
+
+## The ticket's premise about the parser was wrong, and it mattered
+
+> "the parser already tolerates it"
+
+It does not. `ID_ANCHORED` required `<PREFIX>-<digits>`, so every `ARCA-NEW` file failed
+`looksLikeTicket` and was counted as a **stray non-ticket file and dropped off the board entirely**.
+The four the walkthrough met were visible in PR titles and the activity feed, not as cards — work a
+founder asked for, filed successfully, and invisible on the one surface built to show it. That is a
+stranger failure than showing them badly.
+
+So the parser now accepts `<PREFIX>-NEW`, emits an `unnumbered-id` warning, and the board renders
+those tickets as **unnumbered**. They appear, they are flagged, and they get renamed.
+
+## Why the studio keeps its own four-character copy of `isUnnumbered`
+
+`lib/ticket-ids.ts` duplicates the filer's check rather than importing it. The filer ships to the
+venture's box and the studio ships to Railway; a shared import across that boundary would be a
+build-time coupling between two things that deploy separately. Pinned by tests on both sides.
+
+## What is left, and why it is not here
+
+**Renumbering ARCA's four existing tickets is a commit to `wealthcx01/arca`, not to this repo.** One
+ticket = one branch = one PR, and this PR is in fountainbridge. Everything needed for the rename to
+be safe is now in place — they parse, they show, they are flagged — so the rename is a small,
+separate change in the venture repo. **Flagging it as the one acceptance criterion this PR does not
+close**, rather than reaching into another repo to tick a box.

@@ -55,6 +55,8 @@ export type ParseWarningCode =
   | 'no-h1'
   | 'no-id'
   | 'no-id-in-heading'
+  /** `<PREFIX>-NEW` — the composer's old placeholder, which is not a name (FB-097). */
+  | 'unnumbered-id'
   | 'no-title'
   | 'unrecognized-status';
 

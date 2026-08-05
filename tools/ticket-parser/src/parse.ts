@@ -21,7 +21,17 @@ import type {
 } from './types';
 
 /** Ticket id: 2+ uppercase letters, a hyphen, digits, an optional lowercase suffix. e.g. FB-1, GRS-0147b. */
-const ID_ANCHORED = /^([A-Z]{2,}-\d+[a-z]?)\b/;
+/**
+ * A ticket id at the start of a heading or filename.
+ *
+ * `<PREFIX>-NEW` is accepted deliberately (FB-097). The composer filed everything under that
+ * placeholder for weeks, so those files exist — and rejecting them meant the studio counted them as
+ * "not tickets" and dropped them off the board entirely, which is a stranger failure than showing
+ * them: work a founder asked for, filed successfully, and invisible. They parse, they carry an
+ * `unnumbered-id` warning, and the board renders them as unnumbered so they get renamed rather than
+ * quietly accumulate.
+ */
+const ID_ANCHORED = /^([A-Z]{2,}-(?:\d+[a-z]?|NEW))\b/;
 const ID_GLOBAL = /\b[A-Z]{2,}-\d+[a-z]?\b/g;
 /** Separators between an id and its title in an H1: em/en dash, hyphen, colon, middot. */
 const HEADING_SEP = /\s*[—–\-:·]\s*/;
@@ -149,6 +159,15 @@ export function parseTicket(markdown: string, ctx: ParseContext): ParseResult {
           'No ticket id (e.g. FB-001) found in the heading or filename; this may not be a ticket file.',
       });
     }
+  }
+
+  // FB-097: a ticket that never got a real number cannot be referred to, depended on, or approved by
+  // name. It parses — dropping it would hide real work — and says loudly that it needs renaming.
+  if (/-NEW$/.test(id)) {
+    warnings.push({
+      code: 'unnumbered-id',
+      message: `"${id}" is a placeholder, not a ticket id — this ticket needs a real number before anything can refer to it.`,
+    });
   }
 
   if (!title) {
