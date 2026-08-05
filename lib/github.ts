@@ -162,6 +162,72 @@ export function githubBlockedUntil(now = Date.now()): Date | null {
   return blockedUntilMs > now ? new Date(blockedUntilMs) : null;
 }
 
+/**
+ * How much of GitHub's budget is left (FB-083's last acceptance criterion).
+ *
+ * FB-077 measured the ceiling and FB-083 lowered it, and through both of those an operator still had
+ * no way to see how close the studio was to it — the first sign would have been a founder's board
+ * quietly failing to show their work. `githubBlockedUntil` existed and nothing rendered it.
+ *
+ * Read from the headers of requests the studio was making anyway. GitHub answers every response with
+ * the remaining budget for the resource that response used, so this costs **nothing** — which
+ * matters on the one ticket whose whole subject is not spending requests. (`/rate_limit` would be
+ * free too, but a number that arrives on its own is better than one that has to be asked for: it
+ * cannot be forgotten, and it is never stale in a way nobody notices.)
+ *
+ * Two resources, because FB-083 moved the ticket and pull-request reads onto GraphQL precisely
+ * because it draws on a **separate** 5,000-point allowance. An operator needs to see both, or the
+ * headroom that move bought is invisible.
+ */
+export interface GitHubBudget {
+  remaining: number;
+  limit: number;
+  /** When this allowance refills. */
+  resetsAt: string;
+  /** When the studio last heard about it — a stale figure is not a reassuring one. */
+  seenAt: string;
+}
+
+const budget: { rest: GitHubBudget | null; graphql: GitHubBudget | null } = { rest: null, graphql: null };
+
+/** What the studio last heard about each allowance. Null means it has not used that resource yet. */
+export function githubBudget(): { rest: GitHubBudget | null; graphql: GitHubBudget | null } {
+  return { rest: budget.rest, graphql: budget.graphql };
+}
+
+export function clearGithubBudget(): void {
+  budget.rest = null;
+  budget.graphql = null;
+}
+
+/**
+ * Record the allowance a response reported.
+ *
+ * A 304 carries the headers too, which is the point: the warm path FB-077 built is exactly where an
+ * operator most needs the figure, and a reading that only updated on paid requests would go stale
+ * precisely when things are going well.
+ */
+export function recordBudget(resource: 'rest' | 'graphql', headers: Headers, now = Date.now()): void {
+  const remaining = Number(headers.get('x-ratelimit-remaining'));
+  const limit = Number(headers.get('x-ratelimit-limit'));
+  const reset = Number(headers.get('x-ratelimit-reset'));
+  if (!Number.isFinite(remaining) || !Number.isFinite(limit) || limit <= 0) return;
+  budget[resource] = {
+    remaining,
+    limit,
+    resetsAt: new Date(Number.isFinite(reset) && reset > 0 ? reset * 1000 : now).toISOString(),
+    seenAt: new Date(now).toISOString(),
+  };
+}
+
+/**
+ * Is an allowance low enough that someone should know before a founder finds out?
+ *
+ * A fifth left. Not a tuned number — it is the point at which "plenty" stops being true, and the
+ * cost of saying so early is a line on an admin page nobody has to act on.
+ */
+export const budgetIsLow = (b: GitHubBudget | null): boolean => !!b && b.remaining / b.limit < 0.2;
+
 export function clearGithubBlock(): void {
   blockedUntilMs = 0;
 }
@@ -307,6 +373,7 @@ export class GitHubClient {
       body: JSON.stringify({ query, variables }),
     });
 
+    recordBudget('graphql', res.headers);
     const rateLimited = res.status === 429
       || (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0');
     if (rateLimited) githubStats.rateLimited += 1;
@@ -381,6 +448,10 @@ export class GitHubClient {
           ...(init?.headers ?? {}),
         },
       });
+
+      // Before the 304 short-circuit: a not-modified response carries the budget headers too, and
+      // the warm path is exactly where an operator most needs the figure to stay current.
+      recordBudget('rest', res.headers);
 
       if (res.status === 304 && cached) {
         githubStats.notModified += 1;
