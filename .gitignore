@@ -46,3 +46,9 @@ docs/source/reference-pdfs/
 *.mp4
 *.m4a
 .gstack/
+
+# FB-106: `build/` above is meant for compiler output, and it silently swallowed a corpus fixture —
+# because `build` is also a DEPARTMENT id in every venture manifest (Build / Sell / Scale), so a
+# venture's `library/build/…` is a real content path. The e2e passed locally on a file git never
+# received and only failed in CI, which is the expensive way to find this.
+!e2e/fixtures/**
