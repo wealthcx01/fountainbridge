@@ -181,7 +181,54 @@ export function emptyRefusal(name: string, text = ''): string {
  */
 export const MAX_DOCUMENT_BYTES = 12 * 1024 * 1024;
 
+/**
+ * What the studio accepts, said once (FB-106).
+ *
+ * The rules existed only inside the refusals, so a founder learned them by being turned away. Stated
+ * at the point of upload now — and built from `MAX_DOCUMENT_BYTES` itself, so the sentence cannot
+ * promise a limit the code does not enforce.
+ */
+export const ACCEPTED_DESCRIPTION =
+  `Text, Markdown, PDF, Word, PowerPoint and Excel files, up to ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB.`;
+
 export function tooLargeRefusal(name: string, bytes: number): string {
   return `“${name}” is ${Math.round(bytes / 1024 / 1024)}MB, and the studio takes documents up to `
     + `${MAX_DOCUMENT_BYTES / 1024 / 1024}MB. Split it, or send the part that matters.`;
+}
+
+/**
+ * Read a document's text — the ONE reader (FB-106).
+ *
+ * It lived inline in the composer's upload route until the studio grew a second way to hand a
+ * document over. Two copies of "what the studio can read" would be a founder told yes on one screen
+ * and no on the other, which is precisely the drift FB-106 forbids at the point of upload.
+ *
+ * Throws for a document it cannot open; the caller decides how to say so, because the composer and
+ * the knowledge view apologise in different places.
+ */
+export async function readDocumentText(file: File): Promise<{ text: string; pages?: number }> {
+  const kind = documentKind(file.name);
+  if (kind === 'office') {
+    // FB-084: .docx / .pptx / .xlsx are ZIP archives of XML. One tiny dependency, no service.
+    const { unzipSync, strFromU8 } = await import('fflate');
+    const zip = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    const { match, ordered } = officeParts(file.name);
+    let names = Object.keys(zip).filter(match);
+    // A ZIP's entry order is not a deck's order: slide10 can precede slide2. Reading a deck out of
+    // sequence would hand the venture a market story with its argument shuffled.
+    if (ordered) names = names.sort((a, b) => slideNumber(a) - slideNumber(b));
+    const parts = names.map((n) => textFromOfficeXml(strFromU8(zip[n]))).filter(Boolean);
+    // Slide boundaries survive, so a deck still reads as a deck.
+    const text = ordered ? parts.map((t, i) => `## Slide ${i + 1}\n\n${t}`).join('\n\n') : parts.join('\n\n');
+    return ordered ? { text, pages: parts.length } : { text };
+  }
+  if (kind === 'pdf') {
+    // Imported here rather than at module scope: it is a large dependency, and every other route in
+    // the studio would otherwise pay to load it.
+    const { extractText, getDocumentProxy } = await import('unpdf');
+    const pdf = await getDocumentProxy(new Uint8Array(await file.arrayBuffer()));
+    const extracted = await extractText(pdf, { mergePages: true });
+    return { text: String(extracted.text ?? ''), pages: extracted.totalPages };
+  }
+  return { text: await file.text() };
 }
