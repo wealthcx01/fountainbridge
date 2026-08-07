@@ -295,6 +295,13 @@ export function VentureBoard({
       >
         Tell the studio what you want
       </Link>
+      {/* FB-106: the corpus a founder has been building and could not see. Beside the composer,
+          because the composer is where most of it went in. */}
+      <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
+        <Link href={`/venture/${venture.id}/knowledge`} data-testid="venture-knowledge-link">
+          See what your venture knows
+        </Link>
+      </p>
       {venture.chatUrl ? (
         <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
           <a

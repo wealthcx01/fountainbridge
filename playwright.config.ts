@@ -40,6 +40,8 @@ export default defineConfig({
       RUNREPORTS_FIXTURE_DIR: 'e2e/fixtures/runreports',
       // FB-064. Gated on E2E_TEST_LOGIN at the call site as well — this surface can MERGE.
       WORK_FIXTURE_DIR: 'e2e/fixtures/work',
+      // FB-106: the venture's corpus, offline.
+      KNOWLEDGE_FIXTURE_DIR: 'e2e/fixtures/knowledge',
       // FB-065. A recorded stream off the real ARCA box, including the inconsistent tool-call
       // indices the engine actually sends — so the UI gate proves the surface against what the
       // engine does, not against what its format says it should do.
