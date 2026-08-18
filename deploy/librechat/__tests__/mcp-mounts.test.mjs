@@ -40,7 +40,49 @@ const entrypoints = Object.entries(lcConfig.mcpServers ?? {})
   .map(([name, s]) => ({ name, containerPath: s.args.find((a) => a.endsWith('.mjs')) }))
   .filter((e) => e.containerPath);
 
-const RELATIVE_IMPORT = /^\s*import\s[^'"]*from\s+['"](\.[^'"]+)['"]/gm;
+/**
+ * Every way a file can pull in a sibling. A guard that only understood
+ * `import x from './y.mjs'` would wave through the side-effect and dynamic forms — and this test
+ * exists precisely because the unmounted-sibling failure is invisible until the container starts.
+ */
+const RELATIVE_IMPORT_PATTERNS = [
+  /(?:^|[\s;])(?:import|export)\b[^'"]*?\bfrom\s*['"](\.[^'"]+)['"]/gm, // import x from / export * from
+  /(?:^|[\s;])import\s*['"](\.[^'"]+)['"]/gm, //                          import './y.mjs' (side effect)
+  /\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/gm, //                         await import('./y.mjs')
+  /\brequire\s*\(\s*['"](\.[^'"]+)['"]\s*\)/gm, //                        require('./y.mjs')
+];
+
+/** The distinct relative specifiers a source file references, in any import form. */
+function relativeImports(source) {
+  const found = new Set();
+  for (const pattern of RELATIVE_IMPORT_PATTERNS) {
+    for (const [, specifier] of source.matchAll(pattern)) found.add(specifier);
+  }
+  return found;
+}
+
+describe('relativeImports', () => {
+  it('sees every import form, and ignores bare specifiers', () => {
+    const source = [
+      "import readline from 'node:readline';", //          bare — not a sibling, must be ignored
+      "import { a } from './ids.mjs';",
+      "export { b } from './helpers.mjs';",
+      "import './register.mjs';", //                        side effect, no `from`
+      "const c = await import('./lazy.mjs');",
+      "const d = require('./legacy.mjs');",
+      "import e from '../shared/util.mjs';",
+    ].join('\n');
+
+    expect([...relativeImports(source)].sort()).toEqual([
+      '../shared/util.mjs',
+      './helpers.mjs',
+      './ids.mjs',
+      './lazy.mjs',
+      './legacy.mjs',
+      './register.mjs',
+    ]);
+  });
+});
 
 describe('librechat MCP bind mounts', () => {
   it('finds the stdio MCP servers to check', () => {
@@ -56,7 +98,7 @@ describe('librechat MCP bind mounts', () => {
     const source = readFileSync(join(DEPLOY_DIR, hostPath), 'utf8');
     const containerDir = posix.dirname(containerPath);
 
-    for (const [, specifier] of source.matchAll(RELATIVE_IMPORT)) {
+    for (const specifier of relativeImports(source)) {
       // Resolve the import the way node will *inside the container*, not on this machine.
       const importedInContainer = posix.normalize(posix.join(containerDir, specifier));
       const importedOnHost = byContainerPath.get(importedInContainer);
