@@ -70,12 +70,43 @@ an upgrade is a bump and a re-run.
 `[llm]` is in the default extras on purpose: the core alone installs cleanly and then cannot do the
 one thing a founder's venture needs it for.
 
+## Installed on ARCA, 2026-08-18 — and the first run failed
+
+Run on `venture-arca` (Ubuntu 24.04.4, Python 3.12.3) with John's say-so. It failed, for a reason
+worth recording because it is this lane's recurring shape:
+
+    python3 -c 'import venv'      # PASSES — venv is stdlib, always importable
+    python3 -m venv /opt/...      # FAILS  — ensurepip ships in the separate python3-venv package
+
+**The guard was green and the thing it guarded was broken.** Same family as every entry in the
+box-install gotchas: a check that looks like verification and verifies nothing. The check now tests
+`ensurepip`, which is the actual prerequisite, and re-checks after installing the package rather than
+assuming apt succeeded.
+
+The failure also left a **half-built venv**, and the script claimed to be re-runnable *to repair* —
+but its "already done?" test was `-x bin/python`, which the broken venv satisfied. It now tests for
+`bin/pip` and rebuilds anything incomplete, because repairing from a broken state is the entire point
+of being re-runnable.
+
+Both defects were found by running it on a real box. Neither was reachable from lint, and CI is green
+on this script either way.
+
+### The verified result
+
+| | |
+| --- | --- |
+| Version | `activegraph 1.10.0` |
+| On `PATH` for a login shell | yes |
+| **On `PATH` for systemd** | **yes** — the trap that cost this lane a debugging session |
+| Footprint | 78 MB in `/opt/activegraph` |
+| `activegraph quickstart` | ran end to end, exit 0, real memos and event log |
+| Lane, brain bridge, 5 LibreChat containers | unchanged and healthy afterwards |
+
 ## Still to happen, and deliberately not here
 
-**No running box has been touched.** The installer ships; applying it to ARCA is one command —
-`bash deploy/lane/install-activegraph.sh` as root on the box — and it is a deliberate act rather than
-a side effect of a merge. Nothing about the studio, the lane's current loop, or the approval gate
-changes until someone runs it, and nothing breaks if nobody does.
+~~No running box has been touched.~~ **Installed on ARCA 2026-08-18** (above). Nothing about the
+studio, the lane's current loop, or the approval gate changed: the library is present and idle until
+something is written to use it.
 
 Adopting ActiveGraph as the lane's actual runtime is the larger, separate question this ticket
 explicitly did not answer.

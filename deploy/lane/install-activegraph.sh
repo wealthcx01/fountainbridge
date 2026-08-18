@@ -42,15 +42,33 @@ if [ "$PY_OK" != "1" ]; then
 fi
 say "python $(python3 --version 2>&1 | cut -d' ' -f2)"
 
-# `venv` is a separate package on Debian and its absence only shows up at venv-creation time.
-python3 -c 'import venv' 2>/dev/null || {
-  say "installing python3-venv…"
+# The venv prerequisite — and it is `ensurepip`, NOT `venv`.
+#
+# This check originally tested `import venv` and passed on a box where venv creation then failed:
+# `venv` is stdlib and always imports, while `ensurepip` ships in the separate python3-venv package.
+# So the guard was green and the thing it guarded was broken — the same shape as every other entry in
+# the box-install gotchas, and found the only way these ever are, by running it on a real box.
+python3 -c 'import ensurepip' 2>/dev/null || {
+  say "installing python3-venv (ensurepip is missing)…"
   apt-get update -qq
   apt-get install -y -qq python3-venv
+  python3 -c 'import ensurepip' 2>/dev/null || {
+    echo "python3-venv installed but ensurepip is still missing; cannot build a virtualenv." >&2
+    exit 1
+  }
 }
 
 # 2. The virtualenv. Created once; re-runs reuse it, which is what makes this safe to run again.
-if [ ! -x "$ACTIVEGRAPH_HOME/bin/python" ]; then
+#
+# "Reuse it" has to mean reuse a WORKING one. The first run here left a half-built venv behind — a
+# bin/python3 with no pip — and a script that treats that as "already done" repairs nothing and fails
+# one step later with a stranger message. Repairing from a broken state is the whole point of being
+# re-runnable, so a venv without pip is rebuilt rather than trusted.
+if [ ! -x "$ACTIVEGRAPH_HOME/bin/pip" ]; then
+  if [ -e "$ACTIVEGRAPH_HOME" ]; then
+    say "found an incomplete virtualenv at $ACTIVEGRAPH_HOME — rebuilding it…"
+    rm -rf "${ACTIVEGRAPH_HOME:?}"
+  fi
   say "creating the virtualenv at $ACTIVEGRAPH_HOME…"
   python3 -m venv "$ACTIVEGRAPH_HOME"
 fi
