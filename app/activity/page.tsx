@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadAccessibleHealth, type RepoHealth, type ActivityEvent } from '@/lib/health';
 import { classifyActivity, dedupeActivity, filedTicketId, isFounderVisible, MEANING_LABEL } from '@/lib/activity-kind';
+import { composeActivitySummary } from '@/lib/activity-summary';
 import { loadRunReports } from '@/lib/runreports';
 import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
 import { stuckTickets } from '@/lib/brief';
@@ -12,6 +13,12 @@ import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { groupFailures, needsAction } from '@/lib/read-failures';
 import { ago } from '@/lib/when';
+
+/**
+ * The window this page shows. One constant, because FB-108's opening paragraph states the same
+ * number as the heading above the feed — and two literals would eventually disagree.
+ */
+const ACTIVITY_WINDOW_DAYS = 14;
 
 /**
  * What has been happening (FB-008, rewritten by FB-080).
@@ -53,6 +60,11 @@ export default async function ActivityPage({
   const deduped = dedupeActivity(repoFilter ? activity.filter((e) => e.repo === repoFilter) : activity);
   const events = isAdmin ? deduped : deduped.filter((e) => isFounderVisible(classifyActivity(e)));
   const hidden = deduped.length - events.length;
+
+  // FB-108. Built from `events` — the same list, already deduplicated and already filtered to what
+  // this reader may see — so the paragraph counts exactly the rows underneath it. Passing the raw
+  // feed here instead would give an admin and a founder different numbers above identical rows.
+  const activitySummary = composeActivitySummary({ events, windowDays: ACTIVITY_WINDOW_DAYS });
 
   // FB-096: "whatever happened to the tagline fix?" A filing that merged three days ago tells the
   // founder their request was accepted; it says nothing about the work, which may have been tried
@@ -98,7 +110,7 @@ export default async function ActivityPage({
 
       {/* Activity feed — the thing the page is named after, and now the first thing on it. */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-        <h2 style={{ margin: 0 }}>Last 14 days</h2>
+        <h2 style={{ margin: 0 }}>Last {ACTIVITY_WINDOW_DAYS} days</h2>
         <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>filter:</span>
         <Link href="/activity" className={`pill`} data-active={!repoFilter} data-testid="filter-all">all</Link>
         {[...new Set(allRepos)].map((r) => (
@@ -108,9 +120,21 @@ export default async function ActivityPage({
         ))}
       </div>
 
+      {/*
+        FB-108: the paragraph a chief of staff would open with. Composed from the very events
+        rendered below — same list, after the same deduplication and the same visibility filter — so
+        the numbers here are arithmetic on the rows and cannot drift from them. Deterministic, so it
+        renders instantly and is never waiting on anything.
+      */}
+      {activitySummary.sentences.length > 0 && (
+        <p className="card" data-testid="activity-summary" style={{ marginBottom: '0.75rem' }}>
+          {activitySummary.sentences.join(' ')}
+        </p>
+      )}
+
       {events.length === 0 ? (
         <p className="card muted" data-testid="activity-empty">
-          Nothing has happened in the last 14 days. When your team builds something, or a check
+          Nothing has happened in the last {ACTIVITY_WINDOW_DAYS} days. When your team builds something, or a check
           fails, it appears here.
         </p>
       ) : (
