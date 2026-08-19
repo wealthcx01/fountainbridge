@@ -3,6 +3,11 @@
 **Status:** In progress — the model is in, the surfaces are not · **Phase:** 3 · **Depends on:** FB-040 (scheduler), FB-042 (RunReports) · **Repo:**
 fountainbridge (+ venture VM) · **Branch:** `fb-047-agent-proposed-routines` · One ticket = one branch = one PR.
 
+**Shipped in part:** the routine model and its dispatch rules (#125) and the storage/reading half
+(#126). Still to come: the studio surface (approve / pause / run-now, state, last result) and the
+box-side scheduler that reads approved routines. A founder cannot yet see or control a routine, so
+this ticket is not done.
+
 ## Why this matters (for the founder)
 Recurring work runs itself, but on your terms: the agent *proposes* a standing routine (e.g. "each week,
 work the new sign-ups"), you approve/pause/run-now from the studio, and you always see its last result.
