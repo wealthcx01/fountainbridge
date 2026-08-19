@@ -26,6 +26,8 @@
  */
 
 import type { RunOutcome } from './runreports';
+import type { VentureSummary } from './ventures';
+import { approvalRepos } from './venture-repos';
 
 /** How often a routine wants to run. Deliberately three words, not a cron expression. */
 export type Cadence = 'hourly' | 'daily' | 'weekly';
@@ -172,4 +174,72 @@ export function nextToDispatch(routines: readonly Routine[], now: Date): Routine
 
   const waitingSince = (r: Routine) => (r.last_run_at ? Date.parse(r.last_run_at) : 0);
   return [...due].sort((a, b) => waitingSince(a) - waitingSince(b) || a.id.localeCompare(b.id))[0];
+}
+
+/**
+ * Where routines live: beside the run reports, on the venture repo's own state ref.
+ *
+ * Same ref as FB-042 deliberately — a routine and the report of it running are one story, and a
+ * founder asking "did the Monday routine do anything?" should not need two places to look.
+ */
+export const ROUTINES_DIR = 'routines';
+
+export interface RoutineSource {
+  list(repo: string): Promise<string[]>;
+  read(repo: string, name: string): Promise<unknown | null>;
+}
+
+/**
+ * Read a stored routine, keeping the approval fields a proposal is not allowed to carry.
+ *
+ * `fromProposal` strips them, which is right for something a lane just wrote and wrong for a record
+ * the studio itself approved earlier. This is the reading half: the base is still rebuilt field by
+ * field, and only a *plausible* approval is restored — a state of `active` with no `approved_at`
+ * behind it is read back as `proposed`, so a hand-edited or lane-written file cannot promote itself
+ * by asserting a state.
+ */
+export function fromStored(raw: unknown, ventureId: string): Routine | null {
+  const base = fromProposal(raw, ventureId);
+  if (!base) return null;
+
+  const r = raw as Record<string, unknown>;
+  const approved_at = text(r.approved_at) || null;
+  const approved_by = text(r.approved_by) || null;
+  if (!approved_at || !approved_by) return base; // never approved — whatever `state` claims
+
+  const claimed = text(r.state);
+  const state: RoutineState = claimed === 'paused' ? 'paused' : 'active';
+  const last_run_at = text(r.last_run_at) || null;
+  const outcome = text(r.last_outcome);
+
+  return {
+    ...base,
+    state,
+    approved_at,
+    approved_by,
+    last_run_at,
+    last_outcome: outcome ? (outcome as RunOutcome) : null,
+  };
+}
+
+/**
+ * Every routine a venture has, across its department repos.
+ *
+ * Ordered so the founder's attention lands where it is needed: what is waiting on them first, then
+ * what is running, then what they have paused.
+ */
+export async function loadRoutines(
+  venture: VentureSummary,
+  source: RoutineSource,
+): Promise<Routine[]> {
+  const all: Routine[] = [];
+  for (const repo of approvalRepos(venture)) {
+    for (const name of await source.list(repo)) {
+      const parsed = fromStored(await source.read(repo, name), venture.id);
+      if (parsed) all.push(parsed);
+    }
+  }
+
+  const rank: Record<RoutineState, number> = { proposed: 0, active: 1, paused: 2 };
+  return all.sort((a, b) => rank[a.state] - rank[b.state] || a.title.localeCompare(b.title));
 }

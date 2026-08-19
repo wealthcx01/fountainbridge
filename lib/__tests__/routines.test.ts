@@ -4,13 +4,17 @@ import {
   cooledDown,
   dueRoutines,
   fromProposal,
+  fromStored,
+  loadRoutines,
   nextToDispatch,
   pause,
   readCadence,
   resume,
   whyNotRunning,
   type Routine,
+  type RoutineSource,
 } from '../routines';
+import type { VentureSummary } from '../ventures';
 
 const PROPOSAL = {
   id: 'weekly-signups',
@@ -152,6 +156,101 @@ describe('whyNotRunning', () => {
 
   it('says nothing when the routine is simply going to run', () => {
     expect(whyNotRunning(approve(routine(), 'j', 'x'), now)).toBeNull();
+  });
+});
+
+describe('fromStored', () => {
+  const approvedRecord = {
+    ...PROPOSAL,
+    state: 'active',
+    approved_at: '2026-08-19T10:00:00Z',
+    approved_by: 'john@bruntsfield.capital',
+    last_run_at: '2026-08-19T11:00:00Z',
+    last_outcome: 'progress',
+  };
+
+  it('restores an approval the studio actually recorded', () => {
+    const r = fromStored(approvedRecord, 'arca');
+    expect(r?.state).toBe('active');
+    expect(r?.approved_by).toBe('john@bruntsfield.capital');
+    expect(r?.last_outcome).toBe('progress');
+  });
+
+  it('reads a paused record back as paused, not active', () => {
+    expect(fromStored({ ...approvedRecord, state: 'paused' }, 'arca')?.state).toBe('paused');
+  });
+
+  it('refuses to let a record promote itself by claiming a state', () => {
+    // The file lives on a ref the lane can write. `state: "active"` with nothing behind it is a
+    // claim, not a grant — so it reads back as proposed and the routine does not run.
+    const noApproval = { ...PROPOSAL, state: 'active', last_outcome: 'progress' };
+    const r = fromStored(noApproval, 'arca');
+    expect(r?.state).toBe('proposed');
+    expect(r?.approved_at).toBeNull();
+    expect(r?.last_outcome).toBeNull();
+  });
+
+  it('needs both halves of the approval, not just one', () => {
+    expect(fromStored({ ...approvedRecord, approved_by: '' }, 'arca')?.state).toBe('proposed');
+    expect(fromStored({ ...approvedRecord, approved_at: '' }, 'arca')?.state).toBe('proposed');
+  });
+
+  it('still refuses a record that is not a valid routine at all', () => {
+    expect(fromStored({ ...approvedRecord, cadence: 'whenever' }, 'arca')).toBeNull();
+  });
+});
+
+describe('loadRoutines', () => {
+  const venture = { id: 'arca', repos: ['arca', 'arca-marketing'], departments: [] } as unknown as VentureSummary;
+
+  const sourceOf = (byRepo: Record<string, Record<string, unknown>>): RoutineSource => ({
+    async list(repo) {
+      return Object.keys(byRepo[repo] ?? {});
+    },
+    async read(repo, name) {
+      return byRepo[repo]?.[name] ?? null;
+    },
+  });
+
+  it('gathers routines across every department repo', async () => {
+    const routines = await loadRoutines(
+      venture,
+      sourceOf({
+        arca: { 'a.json': { ...PROPOSAL, id: 'a', title: 'Alpha' } },
+        'arca-marketing': { 'b.json': { ...PROPOSAL, id: 'b', title: 'Beta' } },
+      }),
+    );
+    expect(routines.map((r) => r.id)).toEqual(['a', 'b']);
+  });
+
+  it('puts what is waiting on the founder first, then running, then paused', async () => {
+    const approved = {
+      approved_at: '2026-08-19T10:00:00Z',
+      approved_by: 'john@bruntsfield.capital',
+    };
+    const routines = await loadRoutines(
+      venture,
+      sourceOf({
+        arca: {
+          'paused.json': { ...PROPOSAL, id: 'p', title: 'Paused one', ...approved, state: 'paused' },
+          'active.json': { ...PROPOSAL, id: 'a', title: 'Active one', ...approved, state: 'active' },
+          'proposed.json': { ...PROPOSAL, id: 'n', title: 'New one' },
+        },
+        'arca-marketing': {},
+      }),
+    );
+    expect(routines.map((r) => r.state)).toEqual(['proposed', 'active', 'paused']);
+  });
+
+  it('drops an unreadable record without losing the rest', async () => {
+    const routines = await loadRoutines(
+      venture,
+      sourceOf({
+        arca: { 'good.json': { ...PROPOSAL, id: 'good' }, 'junk.json': { nonsense: true } },
+        'arca-marketing': {},
+      }),
+    );
+    expect(routines.map((r) => r.id)).toEqual(['good']);
   });
 });
 
