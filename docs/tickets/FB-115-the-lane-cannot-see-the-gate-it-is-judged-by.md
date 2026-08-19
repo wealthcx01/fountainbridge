@@ -1,6 +1,6 @@
 # FB-115 — The lane cannot see the gate it is judged by
 
-**Status:** Todo · **Phase:** 2 · **Found by:** ARCA-34's CI meeting the lane's first PRs, 2026-08-19
+**Status:** Done — not yet on a box · **Phase:** 2 · **Found by:** ARCA-34's CI meeting the lane's first PRs, 2026-08-19
 — a mismatch this lane created the same day · **Repo:** fountainbridge (+ every venture box) ·
 **Branch:** `fb-115-the-lane-cannot-see-the-gate-it-is-judged-by` · One ticket = one branch = one PR.
 
@@ -70,9 +70,33 @@ cannot pass, without teaching the lane the same trick.
 
 ## Acceptance criteria
 
-- [ ] A lane change that introduces a lint error on a file it touched fails the lane's own VALIDATE,
+- [x] A lane change that introduces a lint error on a file it touched fails the lane's own VALIDATE
       and goes to a repair round rather than to a PR.
-- [ ] A venture with pre-existing lint debt does not have that debt attributed to the lane.
-- [ ] A toolchain with no changed-files lint is a stated no-op, not a silent pass.
-- [ ] Verified against the real case: re-run ARCA-053 through the lane and watch it fix its own
-      `noArrayIndexKey` before opening the PR.
+- [x] A venture with pre-existing lint debt does not have that debt attributed to the lane — the
+      baseline guard on the whole-repo run is untouched, and the new check reads only the branch.
+- [x] A toolchain with no changed-files lint reports `none`, which passes and says so. A step that
+      cannot run must not look like a step that ran.
+- [x] Verified against the real case — `changed_lint` returns **1** on
+      `foundry/ARCA-053-card-detail-blank-identity`, the branch ARCA's CI refused, and **0** on a
+      clean checkout.
+- [ ] **Watched end to end on the box**: ARCA-053 re-run through the lane, fixing its own
+      `noArrayIndexKey` before opening a PR. Needs the sync (FB-116) and a lane wake.
+
+## How it works
+
+`changed_lint` asks the venture's CI's own question — *are the files this change touched clean?* —
+and `venture_regression` requires **zero**, with no baseline comparison. That distinction is the
+whole fix: on a repo carrying debt the baseline is already dirty, so a comparison can never fire,
+which is exactly why lint was silently unchecked on ARCA while its CI failed every lane PR.
+
+Three things it deliberately keeps:
+
+- **The whole-repo baseline guard.** It is right — a venture's pre-existing red is not the lane's
+  fault — and it answers a different question. Both are asked.
+- **`--no-errors-on-unmatched`.** biome exits 1 when it processes no files, and a ticket-only change
+  touches nothing it lints. Without it every ticket the composer files would read as a lint failure
+  — the same trap ARCA-34's CI had to handle.
+- **An honest `none`.** A toolchain with no changed-files linter says so in the probe output rather
+  than passing quietly.
+
+A probe written before this field exists still passes, so a box mid-upgrade is not broken by it.
