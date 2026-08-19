@@ -134,6 +134,29 @@ brain_refresh_if_available() {
   fi
 }
 
+# --- fire any routine that is due, BEFORE the scan (FB-047) -----------------------------------------
+# A routine the founder approved keeps its cadence whether or not the backlog is busy — otherwise a
+# weekly commitment is starved forever by a queue that is never empty, which is the opposite of what
+# approving it meant. Firing is one API call and no model session; the ticket it files is worked
+# through the ordinary queue below, with the same claim, budget, circuit breaker and founder accept.
+#
+# Deliberately not fatal and not `set -e`-guarded: the wake's real job is the backlog, and a routine
+# that cannot fire is a line in the log rather than a reason to skip work already waiting.
+fire_due_routine() {
+  # Loud when absent, not silent. Lane files reach a box by hand, so an approved routine that never
+  # fires because this file was not copied would look exactly like a routine with nothing to do —
+  # the "green and doing nothing" failure this lane has met three times (FB-112, FB-113, ARCA-34).
+  if [ ! -f "$SCRIPT_DIR/routines-fire.mjs" ]; then
+    flog "routines-fire.mjs is not on this box — approved routines will NOT run until it is copied"
+    return 0
+  fi
+  command -v node >/dev/null 2>&1 || { flog "no node — routines skipped this wake"; return 0; }
+  REPO="$PRIMARY_REPO" STATE_REF="${STATE_REF:-foundry-state}" \
+    node "$SCRIPT_DIR/routines-fire.mjs" 2>&1 | while IFS= read -r line; do flog "$line"; done
+  return 0
+}
+fire_due_routine
+
 # --- scan each department for the first workable ticket ---------------------------------------------
 PICK="" PICK_SLUG="" PICK_DEPT="" PICK_GATE="" PICK_REPO="" PICK_DIR="" PICK_BASE=""
 shopt -s nullglob
