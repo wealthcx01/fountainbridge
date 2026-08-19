@@ -251,6 +251,29 @@ ticket_department() {
 # pre-existing debt (arca's typecheck/lint are red on master) — the lane must not be blocked by breakage
 # it didn't cause, only by breakage it introduces.
 : "${PROBE_TIMEOUT:=300}"   # per-step cap so a hanging venture command can't hang the lane
+# changed_lint <dir> <log> — echo 0 (clean), 1 (dirty) or none (no changed-files linter here).
+#
+# FB-115. The gate a lane is judged by is not the one it was checking. ARCA's CI lints only the files
+# a change touches and requires zero; the lane linted the whole repo and compared against a baseline
+# that has never been green, so the comparison never fired. Two gates measuring different things.
+#
+# Derived per toolchain rather than assuming biome: a venture using eslint should get its own
+# equivalent added here, and one with nothing gets an honest `none`.
+changed_lint() {
+  local dir="$1" log="$2" base="${BASE_BRANCH:-master}"
+  ( cd "$dir" 2>/dev/null || exit 0
+    export PATH="$HOME/.bun/bin:$PATH"
+    if [ -f biome.json ] || [ -f biome.jsonc ]; then
+      # --no-errors-on-unmatched is load-bearing: biome exits 1 when it processes no files, and a
+      # ticket-only change touches nothing it lints. Without it every ticket the composer files
+      # would read as a lint failure (the same trap ARCA-34's CI had to handle).
+      if timeout "${PROBE_TIMEOUT:-600}" bunx biome check --changed --since="origin/$base" \
+           --no-errors-on-unmatched . >>"$log" 2>&1; then echo 0; else echo 1; fi
+    else
+      echo none
+    fi )
+}
+
 toolchain_probe() {
   local dir="$1" log="$2"; : >"$log"
   local run install testcmd to="timeout $PROBE_TIMEOUT"
@@ -264,6 +287,15 @@ toolchain_probe() {
     if [ ! -d node_modules ]; then eval "$to $install" >>"$log" 2>&1; fi
     if has typecheck; then eval "$to $run typecheck" >>"$log" 2>&1; echo "typecheck $?"; fi
     if has lint;      then eval "$to $run lint"      >>"$log" 2>&1; echo "lint $?"; fi
+    # FB-115: the whole-repo lint above is compared against a BASELINE, which on a venture carrying
+    # pre-existing debt means it never fires — ARCA's has never exited 0, so `lint` was silently
+    # unchecked while its CI (ARCA-34) failed every lane PR on changed files it had never seen.
+    #
+    # This is that CI's own question, asked here: are the files THIS change touched clean? It has no
+    # baseline to compare against because the answer must be yes outright, which is exactly what the
+    # gate downstream requires. A toolchain with no changed-files linter reports `none` rather than
+    # passing quietly — a step that cannot run must not look like a step that ran.
+    echo "lint-changed $(changed_lint "$dir" "$log")"
     eval "$to $testcmd" >>"$log" 2>&1; local trc=$?
     local fails; fails=$(grep -oE '[0-9]+ fail' "$log" | tail -1 | grep -oE '^[0-9]+' || true)
     if [ -z "$fails" ]; then if [ "$trc" -eq 0 ]; then fails=0; else fails=999; fi; fi
@@ -284,6 +316,19 @@ venture_regression() {
       echo "your change broke '$step' (was passing before)"; return 1
     fi
   done
+  # FB-115: the changed-files lint is NOT a baseline comparison. It asks "are the files this change
+  # touched clean?", and the only acceptable answer is yes — which is what the venture's CI requires
+  # downstream. Comparing it to a baseline would reproduce the bug this fixes: on a repo with
+  # pre-existing debt, the baseline is already dirty and the check never fires.
+  #
+  # Only the BRANCH value is read. `none` (no changed-files linter for this toolchain) passes, and
+  # says so in the probe output rather than pretending a check ran.
+  local lc; lc=$(awk '$1=="lint-changed"{print $2}' "$branch")
+  if [ "$lc" = "1" ]; then
+    echo "the files you changed do not pass this venture's linter (its checks will refuse this)"
+    return 1
+  fi
+
   local bt xt; bt=$(awk '$1=="test"{print $2}' "$base"); xt=$(awk '$1=="test"{print $2}' "$branch")
   if [ -n "$bt" ] && [ -n "$xt" ] && [ "$xt" -gt "$bt" ] 2>/dev/null; then
     echo "your change added failing tests (${bt} → ${xt})"; return 1
