@@ -3,10 +3,10 @@
 **Status:** In progress — the model is in, the surfaces are not · **Phase:** 3 · **Depends on:** FB-040 (scheduler), FB-042 (RunReports) · **Repo:**
 fountainbridge (+ venture VM) · **Branch:** `fb-047-agent-proposed-routines` · One ticket = one branch = one PR.
 
-**Shipped in part:** the routine model and its dispatch rules (#125) and the storage/reading half
-(#126). Still to come: the studio surface (approve / pause / run-now, state, last result) and the
-box-side scheduler that reads approved routines. A founder cannot yet see or control a routine, so
-this ticket is not done.
+**Shipped in part:** the routine model (#125), the storage/reading half (#126) and the studio
+surface (#127). Still to come: the box-side scheduler that reads approved routines, and the lane
+side that proposes one. A founder can now see and control a routine; nothing yet creates or runs
+them, so this ticket is not done.
 
 ## Why this matters (for the founder)
 Recurring work runs itself, but on your terms: the agent *proposes* a standing routine (e.g. "each week,
@@ -71,13 +71,29 @@ routine does not run. Both halves of the approval are required; one without the 
 
 Listing is ordered by what needs the founder: proposed first, then active, then paused.
 
-## What is left, in order
+### The surface (third piece)
 
-1. **The studio surface** — routines listed with state, cadence, why-not-running, and last result
-   (reads FB-042), plus approve / pause / run-now, in the same shape as the approve action so a
-   founder learns one pattern for agreeing to things.
-2. **The box** — the lane proposes a routine; the scheduler reads approved ones and honours
-   `nextToDispatch`. This deploys separately, like every other box-side change.
+`/venture/<id>/routines` — each routine with its state, its cadence, the standing order, the "only
+when" test, how it went last time, and **why it is not running right now**. That last line is the
+one the page exists for: "nothing is happening", "paused by you" and "ran an hour ago" are three
+different facts that look identical on a list.
+
+The decision action is deliberately the same shape as the approve action (FB-046/058) — session,
+venture, repo allowlist, re-read what is true now, pinned sha — so a founder learns one pattern for
+agreeing to things. It is **not** HMAC-signed, and that is a considered difference rather than an
+omission: a signed grant authorises a separate executor to do something irreversible outside the
+company. Approving a routine authorises the lane to keep doing what it already does, on a cadence,
+and the external actions inside a routine still gate individually every time through that same
+signed path. Signing here would imply a guarantee this action cannot make.
+
+Reachable from the venture board, beside "See what your venture knows", rather than as a fifth item
+in the navigation FB-067 cut to four. A page nobody can reach is the same as no page.
+
+## What is left
+
+**The box.** The lane proposes a routine; the scheduler reads the approved ones and honours
+`nextToDispatch` with its cooldown. This deploys separately, like every other box-side change —
+and until it lands, nothing creates a routine and nothing runs one.
 
 ## Verification
 `/review` + live: a proposed routine appears, is approved, runs on cadence, and is pausable.
