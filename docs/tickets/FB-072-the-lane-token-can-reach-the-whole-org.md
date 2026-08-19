@@ -86,11 +86,43 @@ the studio cannot reach the one repo it needs.**
   the signature already carries the trust; revisit if a venture ever needs a lane it does not control.
 
 ## Acceptance criteria
-- [ ] A venture box's token returns 404 for every repo outside its own venture.
-- [ ] The lane, the composer's ticket-filer and the deposit tool all still work on ARCA.
-- [ ] The status connector uses a read-only token, and a write attempt with it fails.
-- [ ] The provisioning runbook mints a per-venture token, and says what it must not be able to reach.
+- [ ] A venture box's token returns 404 for every repo outside its own venture. — *needs the token
+      to exist; the runbook's step 5 is exactly this test, run before it goes near the box.*
+- [ ] The lane, the composer's ticket-filer and the deposit tool all still work on ARCA. — *runbook
+      step 7, which deliberately confirms the box works BEFORE the old token is revoked.*
+- [ ] The status connector uses a read-only token, and a write attempt with it fails. — **not
+      addressed by the runbook.** See "what is still open" below.
+- [x] The provisioning runbook mints a per-venture token, and says what it must not be able to
+      reach. — `docs/venture-github-token.md`, written from the actual API calls the box makes
+      rather than a guess at what it needs, and reusable per venture.
 - [ ] FB-071's first acceptance criterion is re-tested and its result recorded honestly either way.
+
+## Progress, 2026-08-19 — the runbook, not the token
+
+**Status stays Open, because the credential does not exist yet.** Issuing it needs an account that
+owns the org, so it is John's to do; what was blocking him was not the decision but the absence of a
+precise, checkable procedure. That now exists.
+
+`docs/venture-github-token.md` gives the seven steps, and three things in it are worth naming here:
+
+- **The permission set is derived, not assumed.** Every GitHub call the box makes was read out of
+  `ticket-mcp`, `deposit-mcp`, `status-mcp` and the lane scripts. The answer is Contents RW, Pull
+  requests RW, Metadata RO — and *nothing else*. It holds Administration today.
+- **The repository list is the manifest's `repos:` block** — for ARCA, `arca`, `arca-marketing`,
+  `arca-ops`, all three of which exist. The manifest is the source; the token page should match it.
+- **The proof is a 404, checked before the token reaches the box.** A fine-grained token that was
+  never granted a repository cannot see it exists. The `permissions` block on `GET /repos` must not
+  be used for this — for fine-grained tokens it reports the *user's* access, not the token's, which
+  is what made this hole easy to miss in the first place.
+
+### What is still open after the runbook is followed
+
+Criterion 3 — a separate read-only token for the status connector — is **not** covered. The runbook
+issues one credential per venture, shared by the filer, the deposit tool, the status connector and
+the lane. That closes the large hole (one venture's agents reaching every other venture and the
+studio) and leaves a smaller one: within a venture, a compromised composer has the lane's reach.
+Splitting per-tool is a further step and deserves its own ticket rather than being quietly folded in
+here and left half-done.
 
 ## Verification
 On the box, after the swap — the check that found this, run again:
