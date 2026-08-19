@@ -236,6 +236,32 @@ export function describeGap(minutes: number): string {
  * needs translating, and it is translated rather than dropped because the reason IS the point
  * (non-negotiable 10).
  */
+/**
+ * An outcome on its own, in the founder's words (FB-047).
+ *
+ * `describeRun` needs a whole report — the ticket it touched, the summary the lane wrote. A routine
+ * remembers only how it went last time, and "how did the Monday routine go?" deserves an answer
+ * without loading the report it came from. Same six words, said shorter; kept in this file so the
+ * outcome vocabulary still has exactly one owner.
+ */
+export function describeOutcome(outcome: RunOutcome): string {
+  switch (outcome) {
+    case 'opened-pr':
+      return 'finished something — it needs your OK';
+    case 'awaiting-approval':
+      return 'finished and is waiting for your approval';
+    case 'blocked':
+      return 'stopped and needs you';
+    case 'error':
+      return 'failed';
+    case 'no-useful-work':
+      return 'found nothing to do';
+    case 'progress':
+    default:
+      return 'made progress';
+  }
+}
+
 export function describeRun(report: RunReport): string {
   const ticket = report.ticketsTouched[0];
   const on = ticket ? ` on ${ticket}` : '';

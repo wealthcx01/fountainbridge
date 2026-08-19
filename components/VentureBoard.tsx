@@ -302,6 +302,14 @@ export function VentureBoard({
           See what your venture knows
         </Link>
       </p>
+      {/* FB-047: the scheduler has run since FB-040 with no way in. A page nobody can reach is the
+          same as no page, so it goes here — beside the other "what is this venture doing without
+          me" link, rather than as a fifth thing in the navigation FB-067 cut down to four. */}
+      <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
+        <Link href={`/venture/${venture.id}/routines`} data-testid="venture-routines-link">
+          What happens without you asking
+        </Link>
+      </p>
       {venture.chatUrl ? (
         <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
           <a
