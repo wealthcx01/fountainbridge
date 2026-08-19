@@ -1,6 +1,6 @@
 # FB-113 — A fresh box gets a composer with no tools
 
-**Status:** Todo · **Phase:** 0 (provisioning) · **Found by:** FB-112, deploying the ticket-filer to
+**Status:** Done — one criterion open, see below · **Phase:** 0 (provisioning) · **Found by:** FB-112, deploying the ticket-filer to
 the ARCA box, 2026-08-19 — the mount fix was the defect; this is the gap it stood on ·
 **Repo:** fountainbridge (provisioning) ·
 **Branch:** `fb-113-a-fresh-box-gets-a-composer-with-no-tools` · One ticket = one branch = one PR.
@@ -68,10 +68,31 @@ FB-085 ("arca is reproducible") does not hold while the reproducible part omits 
 
 ## Acceptance criteria
 
-- [ ] Every host path bind-mounted by `docker-compose.yml` is staged by `install.sh`.
-- [ ] `seed.sh` and `seed-agent.js` are on the box after an install.
-- [ ] A missing source file stops the install with the path named, instead of becoming an empty
-      directory inside the container.
-- [ ] A test fails if a new mount is added to the compose file without the installer staging it.
-- [ ] Verified on a box that was never touched by hand — the only honest test of a provisioning
-      script. CI being green says nothing about whether box-side code runs.
+- [x] Every host path bind-mounted by `docker-compose.yml` is staged by `install.sh`. — derived from
+      the compose file by `compose_mounts()`, not a second hand-kept list.
+- [x] `seed.sh` and `seed-agent.js` are on the box after an install, and `seed.sh` is executable
+      (asserted with `chmod +x`, because a non-executable seeder fails at the worst moment).
+- [x] A missing source file stops the install with the path named. It reports **every** missing file
+      in one pass, then exits 1 — before Caddy and `docker compose up -d`, so a half-staged box is
+      never brought up.
+- [x] A test fails if a new mount is added without the installer staging it —
+      `__tests__/install-stages-mounts.test.mjs` lifts `compose_mounts()` out of `install.sh` and
+      compares it against a real YAML parse. Verified by quoting a mount so the sed misses it: the
+      test fails.
+- [ ] **Verified on a box that was never touched by hand.** *Not done — see below.*
+
+## The one criterion left open, and why
+
+There is no box to run this against. ARCA already has all six files, put there by hand, so installing
+onto it would pass whether or not this change works — the definition of a test that proves nothing.
+
+What was done instead: the staging block was extracted from `install.sh` and run against a temporary
+source and destination, both paths.
+
+- **Full source:** ten files staged (six mounts + both yaml + both seeder files), `seed.sh`
+  executable, exit 0.
+- **`ids.mjs` and `seed-agent.js` deleted from source:** both named, `refusing to continue`, exit 1.
+
+That is real execution of the shipped code, not a reading of it. It is still not a fresh venture box,
+and the difference is exactly where this class of bug lives — so the criterion stays open until
+**the-reset** is provisioned, which is the honest moment to close it.
