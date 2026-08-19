@@ -3,6 +3,11 @@
 **Status:** In progress — the model is in, the surfaces are not · **Phase:** 3 · **Depends on:** FB-040 (scheduler), FB-042 (RunReports) · **Repo:**
 fountainbridge (+ venture VM) · **Branch:** `fb-047-agent-proposed-routines` · One ticket = one branch = one PR.
 
+**Shipped in part:** the routine model and its dispatch rules (#125) and the storage/reading half
+(#126). Still to come: the studio surface (approve / pause / run-now, state, last result) and the
+box-side scheduler that reads approved routines. A founder cannot yet see or control a routine, so
+this ticket is not done.
+
 ## Why this matters (for the founder)
 Recurring work runs itself, but on your terms: the agent *proposes* a standing routine (e.g. "each week,
 work the new sign-ups"), you approve/pause/run-now from the studio, and you always see its last result.
@@ -52,6 +57,19 @@ Three things the tests pin that are easy to get wrong:
   the routine that is due on every sweep cannot hold the slot forever.
 - **A corrupt `last_run_at` must not retire a routine.** An unreadable timestamp lets it run rather
   than wedging something the founder approved, silently, for good.
+
+### Reading them back (second piece)
+
+Routines live beside the run reports on the venture repo's `foundry-state` ref — the same ref
+deliberately, because a routine and the report of it running are one story, and a founder asking
+"did the Monday routine do anything?" should not need two places to look.
+
+`fromStored()` is the reading half of the write-side stripping above, and it has the harder job:
+restore an approval the studio recorded, without letting a file **claim** one. That ref is writable
+by the lane, so `state: "active"` with no `approved_at` behind it is read back as `proposed` and the
+routine does not run. Both halves of the approval are required; one without the other is not a grant.
+
+Listing is ordered by what needs the founder: proposed first, then active, then paused.
 
 ## What is left, in order
 
