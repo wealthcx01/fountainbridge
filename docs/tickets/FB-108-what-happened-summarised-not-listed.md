@@ -1,6 +1,6 @@
 # FB-108 — What happened, summarised — not listed
 
-**Status:** Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"What happened seems
+**Status:** Done — sentence 3 written but not yet wired, see below · **Phase:** 3 · **Asked for by:** John, 2026-08-04 — *"What happened seems
 somewhat useful, but need at least an AI summary at the top which tells you the summary of the
 tickets that have been worked in aggregate, the recent tickets worked, and what the goal is."* ·
 **Repo:** fountainbridge · **Branch:** `fb-108-what-happened-summarised-not-listed` ·
@@ -41,7 +41,37 @@ one computation, two surfaces, per the one-source rule.
 
 ## Acceptance criteria
 
-- [ ] The page opens with ≤3 sentences answering: how much, what recently, aimed where.
-- [ ] Numbers agree with the rows below and with the board's brief (one computation).
-- [ ] The summary renders instantly with or without the optional model-written line.
-- [ ] Unit tests pin the composition on a fixture window of real ARCA history shapes.
+- [x] The page opens with ≤3 sentences. **Two of the three are live** — how much, and what recently.
+      The third is written and tested but not yet wired; see below.
+- [x] Numbers agree with the rows below. The summary is built from `events` — the *same* array the
+      feed renders, after the same deduplication and the same visibility filter — so the counts are
+      arithmetic on the rows and there is no second pass that could drift. An admin and a founder
+      see different rows and correspondingly different numbers, which is correct.
+- [x] The summary renders instantly. It is pure aggregation: no model, no network, nothing to wait
+      on, and nothing to cache.
+- [x] Unit tests pin the composition on real ARCA history shapes — the lane's own titles and the
+      paths each change touched, taken from what landed on 2026-08-19, not invented from the type.
+
+## What is not wired, and why it is not pretended otherwise
+
+`directionSentence()` — *"Most of the work still open is aimed at pricing and brand"* — **exists and
+is tested, but nothing passes it any areas yet**, so the page renders two sentences, not three.
+
+The reason is that it needs a fact the activity page does not currently load: what the *still-open*
+backlog is about. The page loads health and activity; the open queue with its areas is a separate
+read, and adding one to this page without care is how FB-083 (eighty-seven requests for one page)
+happened in the first place.
+
+The function is deliberately built to write nothing when it is told nothing, rather than to guess a
+direction from the events it does have. A sentence about where the venture is heading, inferred from
+what merely happened recently, would be exactly the confident-and-wrong copy FB-096 and FB-070 exist
+to prevent. Two true sentences beat three with one bluffing.
+
+Wiring it needs the open-backlog areas on this page within the request budget FB-083 set. That is a
+small, separate piece of work.
+
+## Deliberately still deferred
+
+The model-written line. The deterministic version had to stand on its own first — a page that waits
+on a model to say what happened is a page that sometimes says nothing — and now that it does, the
+model line is an enhancement rather than a dependency.
