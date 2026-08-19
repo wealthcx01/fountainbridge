@@ -73,6 +73,10 @@ write_runreport() {
   # everything already on the ref. The lane vocabulary is written alongside, not instead: reports on
   # the ref today were written by the old shape, and the legacy half of `fromLaneRecord` is what
   # keeps them readable. Dropping either half is a separate decision, once those have aged out.
+  # Single quotes are the point: this is a node program, not shell. The only `$` inside it is the
+  # anchor in /\.\d+Z$/, and shell must not touch it. Values arrive as argv below, never by
+  # interpolation — which is also what keeps a summary containing `$(…)` from being run.
+  # shellcheck disable=SC2016
   local report; report=$(node -e '
     const [slug,status,summary,pr,started,repo,lane,trigger]=process.argv.slice(1);
     // The contract states an OUTCOME; the lane has always stated a status. Same mapping the studio
