@@ -20,6 +20,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,6 +38,7 @@ jobs:
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,6 +56,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,6 +74,7 @@ jobs:
   manifests:
     name: Validate manifests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # ventures/*.yaml must validate against the bcap-contracts Venture JSON Schema (FB-003).
     # Isolated tool (tools/manifest-validate) so it needs no root package.json / studio app.
     steps:
@@ -84,6 +88,7 @@ jobs:
   tickets:
     name: Parse tickets
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # docs/tickets/*.md must parse into the bcap-contracts Ticket contract (FB-004): typecheck +
     # unit/corpus/schema tests. Isolated tool (tools/ticket-parser) — no root package.json / app.
     steps:
@@ -97,6 +102,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # The Next.js studio app (FB-005) must compile. Auth secret is a throwaway — build never
     # touches real credentials; runtime secrets live on the deployment env (D8, FB-009).
     steps:
@@ -116,15 +122,41 @@ jobs:
     runs-on: ubuntu-latest
     # FB-005 UI-gate: the three authorization cases (admin all / founder scoped / unlisted refused)
     # against a real server, with screenshots uploaded as the per-PR gallery artifact.
+    #
+    # FB-114: this job had no timeout of any kind, so when the browser install wedged it ran to
+    # GitHub's 6-hour ceiling before being cancelled — and every merge waited on it. Twice in one
+    # day. A hung gate must fail fast and cheap, not slowly and expensively.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - run: npm ci --no-audit --no-fund
+      # Cache the browser itself, keyed on the resolved Playwright version — a version bump must
+      # miss the cache, or the run would test against a browser the new version did not ask for.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}-chromium
+      # `--with-deps` is the part that wedges: it shells out to apt-get, which can block on a lock or
+      # a mirror indefinitely. On a cache hit the browser is already there, so only the system
+      # packages are needed — and both paths are bounded.
       - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 8
         run: npx playwright install --with-deps chromium
+      - name: Install browser system dependencies (cached browser)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 8
+        run: npx playwright install-deps chromium
       - name: Run the UI gate
+        timeout-minutes: 10
         run: npm run test:e2e
       - name: Upload UI-gate gallery (screenshots + report)
         if: always()
@@ -139,6 +171,7 @@ jobs:
   design:
     name: Design contract
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # FB-057: the studio design contract (docs/studio-design-contract.md) — tokens only, one status
     # vocabulary, no dead controls. Pure Node, no install: it reads app/ and components/.
     steps:
@@ -152,6 +185,7 @@ jobs:
   copy:
     name: Plain English
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # FB-103: the founder vocabulary contract (lib/glossary.ts) — no engineering words on a founder's
     # screen without a reasoned opt-out. Same shape as the design contract above, and for the same
     # reason: the copy had been fixed by hand four times and kept regressing.
@@ -166,6 +200,7 @@ jobs:
   ticket-drift:
     name: Tickets match the history
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # FB-070: needs the full history — the check reads every commit on main to see what shipped, and
     # a shallow clone would silently find nothing and pass.
     steps:
@@ -179,6 +214,7 @@ jobs:
   provision:
     name: Provision scripts
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # FB-011: the venture-provisioning script must stay shellcheck-clean. shellcheck is preinstalled
     # on ubuntu-latest runners; the script is only linted here, never executed (it touches Hetzner).
     steps:
