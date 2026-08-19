@@ -1,8 +1,14 @@
 # FB-069 — The founding conversation: bring your research in, leave with a thesis
 
-**Status:** Planned · **Phase:** 3 · **Depends on:** FB-066 (day one), FB-043 (deposits), FB-050
+**Status:** In progress · **Phase:** 3 · **Depends on:** FB-066 (day one), FB-043 (deposits), FB-050
 (the brain), FB-018 (the deep playbook) · **Repo:** fountainbridge (+ venture box) ·
 **Branch:** `fb-069-the-founding-conversation` · One ticket = one branch = one PR.
+
+**Shipped in part:** the strategic lens (`lib/founding-lens.ts`) — the powers read out of the shipped
+playbook, the questions, and the boundary that decides when to coach and when to stay out of the
+way. Still to come: the composer actually using it (its instructions live on the box), the
+corpus-in/thesis-out conversation mode, and writing the thesis to the venture's knowledge. A founder
+does not yet get a founding conversation.
 
 ## Why this matters (for the founder)
 The first thing a founder should do is not "file a ticket". It is to bring in everything they already
@@ -82,15 +88,42 @@ makes the product exhausting, which is worse than making it shallow.
 
 ## Acceptance criteria
 - [ ] A founder can hand over a body of existing research at the start and have it become the
-      venture's knowledge.
-- [ ] The composer can quote the studio's own playbook rather than paraphrasing from memory.
-- [ ] The conversation reaches "what would stop someone copying this?" and does not accept a feature
-      list as the answer.
-- [ ] It names which power is realistically available to a newcomer, and says plainly when a claimed
-      one is not.
+      venture's knowledge. — *the deposit path exists (FB-043); making it the first thing that
+      happens does not.*
+- [x] The composer can quote the studio's own playbook rather than paraphrasing from memory — the
+      lens **parses** `content/playbook/09-seven-powers.md`, including each power's own sentence
+      about when it becomes buildable, so what gets quoted is the chapter a founder can go and read.
+- [x] The conversation reaches "what would stop someone copying this?" and does not accept a feature
+      list as the answer — the question carries its own refusal.
+- [x] It names which power is realistically available to a newcomer, and says plainly when a claimed
+      one is not — `availableAtFounding` / `notYetAvailable`, both derived from the chapter rather
+      than restated.
 - [ ] A thesis document is produced, in the founder's words, and saved to the venture's knowledge.
 - [ ] The first tickets trace to the thesis.
-- [ ] A founder filing a routine small ticket is **not** taken through any of this.
+- [x] A founder filing a routine small ticket is **not** taken through any of this — see below.
+
+## The boundary, which is the part worth getting right
+
+The ticket names the tension and it is the whole design problem: *"a founder who wanted to file one
+small ticket must not be dragged through a strategy interview."*
+
+`wantsStrategicLens` errs towards silence. It engages on day one (that **is** the founding
+conversation), whenever the founder asks, and when the ask is about direction — and otherwise stays
+out of the way. The asymmetry is deliberate: a missed coaching moment is an opportunity lost, while
+interrogating someone who asked to move a button teaches them that talking to the studio is
+expensive, and they stop.
+
+It reads the **question**, not the size of the work. "Rewrite the entire analytics module" is large
+and not strategic; "should we charge monthly or per seat?" is small and entirely strategic. Both are
+pinned by tests, along with five real asks from ARCA's own backlog that must not trigger it.
+
+## What is left
+
+1. **The composer using it.** Its instructions live in `seed-agent.js` on the box — the same
+   hand-copied deploy path as FB-047's runner and FB-060's hand-off.
+2. **The conversation mode** — corpus in, thesis out — and writing the thesis to the venture's
+   knowledge so later work plans from it.
+3. **Handing the thesis to FB-056's founding run**, so the starter backlog derives from it.
 
 ## Verification
 `/review` + CI, then the real thing: a founding conversation on a venture with no history, starting
