@@ -259,10 +259,12 @@ ticket_department() {
 #
 # Derived per toolchain rather than assuming biome: a venture using eslint should get its own
 # equivalent added here, and one with nothing gets an honest `none`.
+# PATH is not exported here: the library already puts LANE_BUN_BIN on it once, above. Doing it again
+# per subshell was duplicated logic, and shellcheck reads two subshells both touching PATH as a
+# modification that might be lost (SC2030/SC2031).
 changed_lint() {
   local dir="$1" log="$2" base="${BASE_BRANCH:-master}"
   ( cd "$dir" 2>/dev/null || exit 0
-    export PATH="$HOME/.bun/bin:$PATH"
     if [ -f biome.json ] || [ -f biome.jsonc ]; then
       # --no-errors-on-unmatched is load-bearing: biome exits 1 when it processes no files, and a
       # ticket-only change touches nothing it lints. Without it every ticket the composer files
@@ -282,7 +284,6 @@ toolchain_probe() {
   else echo "toolchain none"; return 0; fi
   (
     cd "$dir" || exit 3
-    export PATH="$HOME/.bun/bin:$PATH"
     has() { node -e 'const s=require("./package.json").scripts||{};process.exit(s[process.argv[1]]?0:1)' "$1" 2>/dev/null; }
     if [ ! -d node_modules ]; then eval "$to $install" >>"$log" 2>&1; fi
     if has typecheck; then eval "$to $run typecheck" >>"$log" 2>&1; echo "typecheck $?"; fi
