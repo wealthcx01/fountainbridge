@@ -39,8 +39,53 @@ fi
 if command -v ufw >/dev/null 2>&1; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi
 
 # --- 4. stage the recipe + generate box-local secrets ----------------------------------------
+#
+# FB-113: this used to copy docker-compose.yml and librechat.yaml and stop, while the compose file
+# bind-mounted six OTHER host paths — every MCP server plus the logo. They reached ARCA by hand, so
+# a genuinely fresh box came up with five healthy containers and a composer that could not file,
+# deposit, search or report anything.
+#
+# It failed quietly because a bind mount with a missing source is not an error: docker creates an
+# empty DIRECTORY at the target, and `node /app/foundry/ticket-filer.mjs` then fails on a directory
+# long after install.sh has printed success.
+#
+# So the compose file is the single list of what the box needs, and this reads it rather than
+# keeping a second hand-maintained list here to drift out of step with it.
+
+# Bind-mount sources declared in a compose file: the `./path` of every `- ./path:/target[:ro]` entry.
+# Named volumes (no leading ./) and comments (no leading -) are left out by construction.
+# NOTE: deploy/librechat/__tests__/install-stages-mounts.test.mjs extracts THIS function and runs it
+# against the real compose file, so the shape below is covered rather than assumed.
+compose_mounts() { sed -n 's|^[[:space:]]*-[[:space:]]*\(\./[^:]*\):.*|\1|p' "$1"; }
+
 mkdir -p "$DEST"
 cp -f "$SRC/docker-compose.yml" "$SRC/librechat.yaml" "$DEST"/
+
+# seed.sh + seed-agent.js are not mounted (they run on the host, against the mongo container), so
+# they are named here. Without them a fresh box has no way to seed its own agents.
+log "staging what the compose file mounts, plus the seeder..."
+_missing=0
+for _rel in $(compose_mounts "$SRC/docker-compose.yml") ./seed.sh ./seed-agent.js; do
+  _src="$SRC/${_rel#./}"
+  _dst="$DEST/${_rel#./}"
+  if [ ! -f "$_src" ]; then
+    # Loud, at install time, naming the file — the whole point of this section.
+    printf '[librechat] MISSING %s\n' "$_src" >&2
+    _missing=1
+    continue
+  fi
+  mkdir -p "$(dirname "$_dst")"
+  cp -f "$_src" "$_dst"
+done
+if [ "$_missing" -ne 0 ]; then
+  echo "[librechat] refusing to continue: the files above are mounted or needed but not present." >&2
+  echo "[librechat] docker would mount an empty directory at each target and the tool would fail at runtime." >&2
+  exit 1
+fi
+# The exec bit does not survive every copy path, and a non-executable seed.sh fails at the worst
+# moment — after the stack is up and someone is trying to seed. Assert it.
+chmod +x "$DEST/seed.sh"
+
 if [ ! -f "$DEST/.env" ]; then
   log "generating .env (secrets local to this box; human values left blank)..."
   cp "$SRC/.env.example" "$DEST/.env"
