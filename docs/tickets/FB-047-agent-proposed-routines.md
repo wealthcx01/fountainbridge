@@ -3,10 +3,10 @@
 **Status:** In progress — the model is in, the surfaces are not · **Phase:** 3 · **Depends on:** FB-040 (scheduler), FB-042 (RunReports) · **Repo:**
 fountainbridge (+ venture VM) · **Branch:** `fb-047-agent-proposed-routines` · One ticket = one branch = one PR.
 
-**Shipped in part:** the routine model (#125), the storage/reading half (#126) and the studio
-surface (#127). Still to come: the box-side scheduler that reads approved routines, and the lane
-side that proposes one. A founder can now see and control a routine; nothing yet creates or runs
-them, so this ticket is not done.
+**Shipped in part:** the routine model (#125), storage/reading (#126), the studio surface (#127)
+and the box-side firing (#128). Still to come: **deploying it to a box** — lane files reach a box by
+hand — and the lane *proposing* a routine of its own. A founder can see, approve, pause and resume a
+routine, and an approved routine files its work on cadence once the box has the runner.
 
 ## Why this matters (for the founder)
 Recurring work runs itself, but on your terms: the agent *proposes* a standing routine (e.g. "each week,
@@ -89,11 +89,39 @@ signed path. Signing here would imply a guarantee this action cannot make.
 Reachable from the venture board, beside "See what your venture knows", rather than as a fifth item
 in the navigation FB-067 cut to four. A page nobody can reach is the same as no page.
 
+### The box (fourth piece)
+
+`routines-fire.mjs` runs once per wake, **before** the ticket scan. A routine the founder approved
+keeps its cadence whether or not the backlog is busy — otherwise a weekly commitment is starved
+forever by a queue that is never empty, which is the opposite of what approving it meant. Firing is
+one API call and no model session; the ticket it files is then worked through the ordinary queue,
+with the same claim, budget, circuit breaker and founder accept.
+
+**A routine files a ticket. It does not do the work.** Git is the source of truth for work items, so
+recurring work enters the queue like everything else — otherwise it would be a second, ungoverned
+path to changing a venture and every safeguard would have to be built twice.
+
+`routines-lib.mjs` duplicates the dispatch logic rather than importing `lib/routines.ts`, on
+FB-097's precedent: this ships to the box and the studio ships to Railway, and a shared import
+across that boundary is a build-time coupling between two things that deploy separately. The
+duplication is pinned — `__tests__/routines-lib.test.mjs` asserts the same behaviours as
+`lib/__tests__/routines.test.ts`, including that an approval a *file* merely claims is refused,
+which matters more on this side because this is the code that would act on it.
+
+Firing is non-fatal by design: the wake's real job is the backlog, and a routine that cannot fire is
+a line in the log, not a reason to skip work already waiting. But a **missing** runner logs loudly
+rather than skipping quietly — an approved routine that never fires because the file was not copied
+would otherwise look identical to a routine with nothing to do, which is the failure this lane has
+now met three times (FB-112, FB-113, ARCA-34).
+
 ## What is left
 
-**The box.** The lane proposes a routine; the scheduler reads the approved ones and honours
-`nextToDispatch` with its cooldown. This deploys separately, like every other box-side change —
-and until it lands, nothing creates a routine and nothing runs one.
+1. **Deploy it.** `routines-fire.mjs` and `routines-lib.mjs` are not on any box. Lane files are
+   copied by hand — the same gap FB-113 fixed for the LibreChat side and has not fixed here. Until
+   they are copied, the wake logs that routines will not run.
+2. **The lane proposing one.** Nothing yet writes a proposal, so every routine today has to be
+   created by hand. The mechanism accepts them; the judgement about *when* to suggest one is a
+   model-side change and is the honest remainder of "agent-proposed".
 
 ## Verification
 `/review` + live: a proposed routine appears, is approved, runs on cadence, and is pausable.
