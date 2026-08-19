@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { fromLaneRecord } from '../runreports';
@@ -12,26 +10,22 @@ import { fromLaneRecord } from '../runreports';
  * That was deliberate: reader first, so the box could change without a flag day. This is the test
  * that the box's new output actually IS the contract shape, and that it is still read correctly.
  *
- * It runs the real node expression out of `foundry-lib.sh` rather than a copy of it, for the same
- * reason FB-113's installer test lifts `compose_mounts()` out of `install.sh`: a copy proves the
- * copy works.
+ * It imports the very module `write_runreport` calls, so the thing under test is the thing that
+ * ships — not a copy of it, which would only prove the copy works.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const LIB_SH = resolve(HERE, '../../deploy/lane/foundry-lib.sh');
+const RECORD_MJS = resolve(HERE, '../../deploy/lane/runreport-record.mjs');
 
-/** The `node -e '…'` program `write_runreport` uses, lifted verbatim from the shell function. */
-function writerProgram(): string {
-  const source = readFileSync(LIB_SH, 'utf8');
-  const start = source.indexOf("local report; report=$(node -e '");
-  if (start === -1) throw new Error('write_runreport no longer builds its record with node -e');
-  const from = source.indexOf("'", start + "local report; report=$(node -e ".length);
-  const end = source.indexOf("\n  ' \"$slug\"", from);
-  if (end === -1) throw new Error('could not find the end of the writer program');
-  return source.slice(from + 1, end);
-}
+/**
+ * Build a record exactly as `write_runreport` does — by importing the module the shell calls.
+ *
+ * An earlier version of this test lifted the program back out of `foundry-lib.sh` by string
+ * matching. That worked and was brittle for no gain; moving the program into its own file (which
+ * shellcheck also wanted) means the thing under test is the thing that ships.
+ */
+const { buildRecord } = await import(RECORD_MJS);
 
-/** Run the writer exactly as the shell does, and parse what it emits. */
 function write(args: {
   slug: string;
   status: string;
@@ -42,23 +36,17 @@ function write(args: {
   lane?: string;
   trigger?: string;
 }): Record<string, unknown> {
-  const out = execFileSync(
-    'node',
-    [
-      '-e',
-      writerProgram(),
-      args.slug,
-      args.status,
-      args.summary,
-      args.pr ?? '',
-      args.started ?? '2026-08-19T12:00:00Z',
-      args.repo ?? 'wealthcx01/arca',
-      args.lane ?? 'arca',
-      args.trigger ?? 'scheduled',
-    ],
-    { encoding: 'utf8' },
-  );
-  return JSON.parse(out);
+  return buildRecord({
+    slug: args.slug,
+    status: args.status,
+    summary: args.summary,
+    prUrl: args.pr ?? '',
+    started: args.started ?? '2026-08-19T12:00:00Z',
+    repo: args.repo ?? 'wealthcx01/arca',
+    lane: args.lane ?? 'arca',
+    trigger: args.trigger ?? 'scheduled',
+    now: '2026-08-19T12:30:00Z',
+  });
 }
 
 describe('the RunReport the lane writes', () => {

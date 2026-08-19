@@ -16,6 +16,11 @@
 # This box serves ONE department's queue (FB-041 slice). FB-045 provisions the Sell/Scale boxes/repos.
 : "${LANE_DEPARTMENT:=build}"
 
+# Where this library and its sibling helpers live. Derived here rather than inherited: foundry-lib
+# is sourced by several scripts, and depending on each of them to have set SCRIPT_DIR is how a
+# helper ends up "not found" on the one path nobody tested.
+: "${LANE_DIR:=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
 flog() { echo "[lane $(date -u +%FT%TZ)] $*" >&2; }
 
 # bun-installed tools (gbrain, FB-050) live in ~/.bun/bin, which is NOT on the PATH systemd hands a
@@ -68,37 +73,13 @@ ensure_state_ref() {
 write_runreport() {
   local slug="$1" status="$2" summary="$3" pr_url="${4:-}" started="${5:-$(date -u +%FT%TZ)}"
   ensure_state_ref || { flog "could not ensure state ref — report not written"; return 1; }
-  # FB-060: emit the bcap-contracts shape. The studio's reader has accepted BOTH since FB-042 —
-  # reader first, deliberately, so this could change without a flag day and without going blind to
-  # everything already on the ref. The lane vocabulary is written alongside, not instead: reports on
-  # the ref today were written by the old shape, and the legacy half of `fromLaneRecord` is what
-  # keeps them readable. Dropping either half is a separate decision, once those have aged out.
-  # Single quotes are the point: this is a node program, not shell. The only `$` inside it is the
-  # anchor in /\.\d+Z$/, and shell must not touch it. Values arrive as argv below, never by
-  # interpolation — which is also what keeps a summary containing `$(…)` from being run.
-  # shellcheck disable=SC2016
-  local report; report=$(node -e '
-    const [slug,status,summary,pr,started,repo,lane,trigger]=process.argv.slice(1);
-    // The contract states an OUTCOME; the lane has always stated a status. Same mapping the studio
-    // uses (lib/runreports.ts OUTCOME_OF_STATUS) — the two must not disagree about what a word means.
-    const OUTCOME={idle:"no-useful-work",opened_pr:"opened-pr",blocked:"blocked",awaiting_founder:"awaiting-approval",failed:"error",progress:"progress"};
-    const now=new Date().toISOString().replace(/\.\d+Z$/,"Z");
-    // `working` is in flight: the contract says ended_at and outcome travel together, so a run that
-    // has not finished states neither rather than half of a fact.
-    const inFlight = status==="working";
-    const outcome = inFlight ? null : (OUTCOME[status] ?? "blocked");
-    const OWES=new Set(["blocked","error"]);
-    process.stdout.write(JSON.stringify({
-      lane_id:lane, started_at:started, ended_at:inFlight?null:now, trigger,
-      outcome, summary_md:summary,
-      tickets_touched: slug && slug!=="heartbeat" ? [slug] : [],
-      error_detail: outcome && OWES.has(outcome) ? (summary||null) : null,
-      pr_url: pr||null,
-      // The lane vocabulary, kept so a report written today still reads on anything that has not
-      // learned the contract shape yet. Removed once nothing depends on it.
-      ticket:slug, lane, status, summary, started, finished:inFlight?undefined:now, repo,
-    },null,2));
-  ' "$slug" "$status" "$summary" "$pr_url" "$started" "$REPO" "${LANE_ID:-arca}" "${LANE_TRIGGER:-scheduled}")
+  # FB-060: the record is built by runreport-record.mjs, not by a node program embedded here — the
+  # same seam as prp-check/proposal-check/handoff-check. It emits the bcap-contracts shape alongside
+  # the lane's original vocabulary, so the studio (which has read both since FB-042) sees the
+  # contract while every report already on the ref stays readable.
+  local report
+  report=$(node "$LANE_DIR/runreport-record.mjs" \
+    "$slug" "$status" "$summary" "$pr_url" "$started" "$REPO" "${LANE_ID:-arca}" "${LANE_TRIGGER:-scheduled}")
   # The idle heartbeat overwrites ONE file (a liveness beacon), so frequent wakes don't flood the ref;
   # real ticket RunReports are timestamped history.
   local path

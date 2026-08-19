@@ -71,7 +71,13 @@ them as its own.
 
 ### The writer half of FB-042
 
-`write_runreport` now emits the contract shape **alongside** the lane vocabulary, not instead of it.
+The record is built by `runreport-record.mjs` — a file, like every other seam on this box
+(`prp-check`, `proposal-check`, `handoff-check`), rather than a `node -e '…'` embedded in the shell.
+It started as an embedded program and shellcheck was right to object: a program the linter cannot
+read is one nobody can test either, and the first version of its test had to scrape it back out of
+`foundry-lib.sh` by string matching. Now the test imports the module the shell actually calls.
+
+`write_runreport` emits the contract shape **alongside** the lane vocabulary, not instead of it.
 The reader has accepted both since FB-042 — reader first, deliberately — so this lands without a flag
 day, and the legacy fields keep every report already on the ref readable. Dropping them is a separate
 decision, once those have aged out.
