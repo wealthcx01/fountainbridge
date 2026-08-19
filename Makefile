@@ -50,6 +50,8 @@ ticket-drift:
 provision-lint:
 	bash -n scripts/provision-venture.sh
 	shellcheck scripts/provision-venture.sh
+	bash -n scripts/sync-box.sh
+	shellcheck scripts/sync-box.sh
 	for f in deploy/lane/*.sh; do bash -n "$$f"; done
 	shellcheck deploy/lane/*.sh
 	for f in deploy/librechat/*.sh; do bash -n "$$f"; done
