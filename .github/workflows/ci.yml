@@ -144,17 +144,21 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}-chromium
-      # `--with-deps` is the part that wedges: it shells out to apt-get, which can block on a lock or
-      # a mirror indefinitely. On a cache hit the browser is already there, so only the system
-      # packages are needed — and both paths are bounded.
+      # No apt, at all (FB-114, amended after it bit again on 2026-08-19).
+      #
+      # The first version of this bounded `--with-deps` at 8 minutes instead of removing it. That
+      # turned a 6-hour hang into an 8-minute failure — better, and still a gate that goes red
+      # because an Ubuntu mirror is unreachable, which is not a fact about this repository. The run
+      # that proved it spent its whole budget on `Ign: azure.archive.ubuntu.com` retries.
+      #
+      # `--with-deps` exists for bare systems. The ubuntu-latest runner already carries chromium's
+      # libraries, so the browser download is all that is needed — and that is what the cache holds.
+      # If a library ever does go missing the tests fail in seconds with a loader error naming it,
+      # which is a better failure than apt retrying a mirror for eight minutes.
       - name: Install Playwright browser
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 8
-        run: npx playwright install --with-deps chromium
-      - name: Install browser system dependencies (cached browser)
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 8
-        run: npx playwright install-deps chromium
+        timeout-minutes: 5
+        run: npx playwright install chromium
       - name: Run the UI gate
         timeout-minutes: 10
         run: npm run test:e2e

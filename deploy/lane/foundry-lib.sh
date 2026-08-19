@@ -16,6 +16,11 @@
 # This box serves ONE department's queue (FB-041 slice). FB-045 provisions the Sell/Scale boxes/repos.
 : "${LANE_DEPARTMENT:=build}"
 
+# Where this library and its sibling helpers live. Derived here rather than inherited: foundry-lib
+# is sourced by several scripts, and depending on each of them to have set SCRIPT_DIR is how a
+# helper ends up "not found" on the one path nobody tested.
+: "${LANE_DIR:=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
 flog() { echo "[lane $(date -u +%FT%TZ)] $*" >&2; }
 
 # bun-installed tools (gbrain, FB-050) live in ~/.bun/bin, which is NOT on the PATH systemd hands a
@@ -68,10 +73,13 @@ ensure_state_ref() {
 write_runreport() {
   local slug="$1" status="$2" summary="$3" pr_url="${4:-}" started="${5:-$(date -u +%FT%TZ)}"
   ensure_state_ref || { flog "could not ensure state ref — report not written"; return 1; }
-  local report; report=$(node -e '
-    const [slug,status,summary,pr,started,repo,lane]=process.argv.slice(1);
-    process.stdout.write(JSON.stringify({ticket:slug,lane,status,summary,pr_url:pr||undefined,started,finished:new Date().toISOString().replace(/\.\d+Z$/,"Z"),repo},null,2));
-  ' "$slug" "$status" "$summary" "$pr_url" "$started" "$REPO" "${LANE_ID:-arca}")
+  # FB-060: the record is built by runreport-record.mjs, not by a node program embedded here — the
+  # same seam as prp-check/proposal-check/handoff-check. It emits the bcap-contracts shape alongside
+  # the lane's original vocabulary, so the studio (which has read both since FB-042) sees the
+  # contract while every report already on the ref stays readable.
+  local report
+  report=$(node "$LANE_DIR/runreport-record.mjs" \
+    "$slug" "$status" "$summary" "$pr_url" "$started" "$REPO" "${LANE_ID:-arca}" "${LANE_TRIGGER:-scheduled}")
   # The idle heartbeat overwrites ONE file (a liveness beacon), so frequent wakes don't flood the ref;
   # real ticket RunReports are timestamped history.
   local path

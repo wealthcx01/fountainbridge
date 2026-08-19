@@ -63,6 +63,9 @@ mkdir -p "$RUNDIR"
 # Outside the venture worktree, so `git add -A` at COMMIT cannot sweep the proposal — a
 # frozen draft and a compliance record — into the founder's PR as a stray file.
 PROPOSAL_FILE="$RUNDIR/proposal.json"
+# FB-060: where the implement phase writes what it wants the founder to read. Per-round, and cleared
+# before each round, so a repair cannot inherit round 1's caveats and present them as its own.
+HANDOFF_FILE="$RUNDIR/handoff.json"
 PROPOSAL_INSTRUCTION=""
 if [ "$LANE_REQUIRE_PROPOSAL" = 1 ]; then
   # The draft is inlined into the proposal rather than referenced, because the founder must approve
@@ -314,7 +317,13 @@ while : ; do
 your PRP at $PLAN_FILE — including making its Validation gates actually hold. Make the smallest
 correct change. Edit files in the working tree only — do NOT commit, push, or open a PR (the
 supervisor does that), and do NOT run deploy or send commands.${PROPOSAL_INSTRUCTION}
-When done, print ONE plain-English line summarising what you changed."
+When done, write your hand-off to $HANDOFF_FILE as JSON:
+  {\"summary\": \"ONE plain-English line describing what you changed\",
+   \"could_not_establish\": [\"anything the ticket asked for that you could NOT source — say what and why\"],
+   \"findings\": [\"anything you learned that the reader should know\"],
+   \"caveats\": [\"anything you are unsure of\"]}
+Every list may be empty. Do NOT invent entries to fill them, and do NOT put a fact you could not
+source into the work itself — say so here instead. This file is what the founder reads on the PR."
   else
     log "REPAIR (round $ROUND/$MAX_VALIDATION_ROUNDS)…"
     IMPL_PROMPT="You are a Foundry engineering lane on the '$REPO' repo. Your previous attempt at this ticket did
@@ -333,8 +342,16 @@ $REPAIR_DETAIL
 Your PRP is at $PLAN_FILE — the Validation gates in it are the standard you must meet. Change the
 code so the failures above are genuinely resolved; do not weaken a test or a gate to make it pass.
 Edit files in the working tree only — do NOT commit, push, or open a PR, and do NOT run deploy or
-send commands. When done, print ONE plain-English line summarising what you changed."
+send commands.
+When done, write your hand-off to $HANDOFF_FILE as JSON:
+  {\"summary\": \"ONE plain-English line describing what you changed\",
+   \"could_not_establish\": [\"anything the ticket asked for that you could NOT source — say what and why\"],
+   \"findings\": [\"anything you learned that the reader should know\"],
+   \"caveats\": [\"anything you are unsure of\"]}
+Every list may be empty. Do NOT invent entries to fill them, and do NOT put a fact you could not
+source into the work itself — say so here instead. This file is what the founder reads on the PR."
   fi
+  rm -f "$HANDOFF_FILE"
   set +e
   claude_lane "$IMPL_TIMEOUT" "$IMPL_PROMPT
 
@@ -343,7 +360,13 @@ $(cat "$TICKET_FILE")" >"$RUNDIR/impl-$ROUND.log" 2>&1
   rc=$?; set -e
   phase_blocked "$RUNDIR/impl-$ROUND.log" && blocked "The lane needed a human decision while implementing (it stopped rather than guess)."
   [ $rc -eq 124 ] && blocked "Implementation timed out after ${IMPL_TIMEOUT}s — parked for a retry."
-  SUMMARY=$(tail -1 "$RUNDIR/impl-$ROUND.log" 2>/dev/null); [ -n "$SUMMARY" ] || SUMMARY="Lane worked the ticket."
+  # FB-060: read the hand-off the model wrote, not the last line it happened to print. `tail -1`
+  # meant a ticket could ask the lane to enumerate what it could not establish, the lane could do it,
+  # and the answer could not reach the PR — which is exactly what SELL-001 hit. Both fall back
+  # loudly rather than failing: the work and its gates have already passed by this point.
+  SUMMARY=$(node "$SCRIPT_DIR/handoff-check.mjs" summary "$HANDOFF_FILE" 2>>"$RUNDIR/handoff.log")
+  HANDOFF_BODY=$(node "$SCRIPT_DIR/handoff-check.mjs" body "$HANDOFF_FILE" 2>>"$RUNDIR/handoff.log")
+  [ -n "$SUMMARY" ] || SUMMARY="Lane worked the ticket."
 
   # --- 7. COMMIT to the claim branch (local) so VALIDATE runs against the exact PR content ----------
   git add -A
@@ -558,7 +581,7 @@ git push --quiet "$(origin_url)" "$BRANCH"
 log "pushed $BRANCH"
 PR_BODY="Worked by the Foundry lane through the full RPIV loop (research → plan → implement → validate).
 
-$SUMMARY
+${HANDOFF_BODY:-$SUMMARY}
 
 ## How the lane said it would check this
 Before writing any code it wrote a PRP — a plan that states up front how \"done\" gets proved. These

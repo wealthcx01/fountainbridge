@@ -55,9 +55,28 @@ thing that was not broken and left the actual defect (an unbounded apt call) in 
   ticket rather than riding on an availability fix.
 - Any change to the tests themselves.
 
+## Amended 2026-08-19, the same day: bounding apt was not enough
+
+The first fix bounded `--with-deps` at 8 minutes rather than removing it, and kept an
+`install-deps` step on the cache-hit path. Hours later the gate went red on FB-060 for exactly the
+reason it had hung before: `Ign: azure.archive.ubuntu.com` retries, the whole 8 minutes spent, no
+test run.
+
+That is an improvement — 8 minutes beats 6 hours — and it is still a gate that fails because an
+Ubuntu mirror is unreachable, which is not a fact about this repository.
+
+**apt is gone.** `--with-deps` exists for bare systems; the ubuntu-latest runner already carries
+chromium's libraries, so the browser download is the only thing needed and the cache holds it. If a
+library ever does go missing, the tests fail in seconds with a loader error naming it — a better
+failure than apt retrying a mirror.
+
+The lesson is the one this ticket already half-learned: **bounding an unreliable dependency is not
+the same as not depending on it.**
+
 ## Acceptance criteria
 
 - [x] No job in `ci.yml` can run longer than 20 minutes.
-- [x] The browser install is bounded at 8 minutes and cannot hold the queue.
+- [x] The browser install is bounded (now 5 minutes) and cannot hold the queue.
+- [x] The gate does not depend on apt or an Ubuntu mirror at all (amended, see above).
 - [x] The browser is cached across runs and re-fetched when the Playwright version changes.
 - [x] The UI gate still passes and still uploads its screenshot gallery.
