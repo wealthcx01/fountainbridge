@@ -4,6 +4,11 @@
 assuming it · **Repo:** fountainbridge (+ every venture box) ·
 **Branch:** `fb-072-scope-the-lane-token` · One ticket = one branch = one PR.
 
+**Shipped in part:** the runbook shipped (`docs/venture-github-token.md`, PR #123); the credential
+itself has not. Issuing it needs an account that owns the org, so it is John's step, and the ticket
+stays Open until a venture token exists and the old org-wide one is revoked. The status connector
+also still shares that token rather than holding a read-only one of its own.
+
 ## Why this matters (for the founder)
 The agent that writes your tickets should only be able to touch your venture. Right now it could
 touch everything Bruntsfield has on GitHub, including the studio you approve things in.
