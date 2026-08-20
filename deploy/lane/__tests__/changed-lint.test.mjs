@@ -42,16 +42,18 @@ function regression(baseProbe, branchProbe) {
 /** ARCA's real shape: whole-repo lint has never passed, tests pass, typecheck passes. */
 const ARCA_BASE = 'typecheck 0\nlint 1\ntest 0\n';
 
-describe('the changed-files lint is required outright, not compared to a baseline', () => {
-  it('fails a change whose own files do not lint — even though the repo was already dirty', () => {
-    // The exact case: ARCA's baseline lint is 1 and always has been, so the old comparison could
-    // never fire. This is what let the lane open a PR that its own CI then refused.
-    const r = regression(ARCA_BASE, 'typecheck 0\nlint 1\nlint-changed 1\ntest 0\n');
+describe('lint-changed counts what THIS change wrote, not what it inherited', () => {
+  it('fails a change that introduced problems on its own lines', () => {
+    const r = regression(ARCA_BASE, 'typecheck 0\nlint 1\nlint-changed 2\ntest 0\n');
     expect(r.failed).toBe(true);
-    expect(r.message).toContain('the files you changed');
+    expect(r.message).toContain('introduced 2 lint problem');
   });
 
-  it('passes a change whose own files are clean, on the same dirty repo', () => {
+  it('passes a change that added none, on a repo that is already dirty', () => {
+    // The case that forced this amendment. ARCA-53 touched ONE line of a file carrying six
+    // pre-existing errors. Under the first version of this gate it failed, went to a repair round
+    // it could not win, and would have tripped the circuit breaker and parked real work over
+    // problems that were not in its change.
     const r = regression(ARCA_BASE, 'typecheck 0\nlint 1\nlint-changed 0\ntest 0\n');
     expect(r.failed).toBe(false);
   });
@@ -96,6 +98,16 @@ describe('the checks it must not have broken', () => {
 });
 
 describe('changed_lint, the probe side', () => {
+  it('counts only findings on lines the change added', () => {
+    // The amendment's whole point. biome lints the WHOLE of a changed file, so the probe has to
+    // intersect its findings with the diff's added lines — otherwise inherited debt reads as this
+    // change's fault, which is a gate no change to that file could pass.
+    const fn = source.match(/^changed_lint\(\) \{[\s\S]*?^\}/m);
+    expect(fn).toBeTruthy();
+    expect(fn[0]).toContain('git diff --unified=0');
+    expect(fn[0]).toContain('comm -12');
+  });
+
   it('handles a ticket-only change without calling it a lint failure', () => {
     // biome exits 1 when it processes no files, and a ticket-only change touches nothing it lints.
     // Without --no-errors-on-unmatched every ticket the composer files reads as a failure — the
