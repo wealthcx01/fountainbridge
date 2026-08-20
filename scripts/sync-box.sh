@@ -131,11 +131,23 @@ push() { # local_dir remote_dir  (reads file list on stdin)
 # correctly, and every line after this point (the checksum verify, the systemd reload, the "you still
 # need to re-seed" warnings) never ran. Work done, verification skipped, silence reading as success —
 # which is the exact failure this script was written to end.
-if [ -n "$LANE_CHANGED" ]; then printf '%s\n' "$LANE_CHANGED" | push deploy/lane /opt/foundry/lane; fi
-if [ -n "$LC_CHANGED" ]; then printf '%s\n' "$LC_CHANGED" | push deploy/librechat /opt/foundry/librechat; fi
+# chmod immediately after EACH push, not once after both. When the second push aborted this script
+# on its first real run, the single trailing chmod never ran — `run-once.sh` sat at 644 and systemd
+# refused it with 203/EXEC, taking the whole lane down. Repairing the exec bit belongs next to the
+# thing that could have broken it.
+#
+# tar carries the source's mode, so the real fix is that the repo ships these executable (they now
+# do). This stays as the belt: a file that arrives non-executable here is one systemd cannot start.
+fix_modes() { ssh -o BatchMode=yes "$HOST" "chmod +x $1 2>/dev/null || true"; }
 
-# Assert the exec bit rather than trusting the transfer to carry it.
-ssh -o BatchMode=yes "$HOST" "chmod +x /opt/foundry/lane/*.sh /opt/foundry/librechat/*.sh 2>/dev/null || true"
+if [ -n "$LANE_CHANGED" ]; then
+  printf '%s\n' "$LANE_CHANGED" | push deploy/lane /opt/foundry/lane
+  fix_modes "/opt/foundry/lane/*.sh"
+fi
+if [ -n "$LC_CHANGED" ]; then
+  printf '%s\n' "$LC_CHANGED" | push deploy/librechat /opt/foundry/librechat
+  fix_modes "/opt/foundry/librechat/*.sh"
+fi
 
 # --- verify -----------------------------------------------------------------------------------
 # The point of the whole script. Re-read the far side and compare; a sync that reports success

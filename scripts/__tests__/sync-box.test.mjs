@@ -102,6 +102,45 @@ describe('what sync-box.sh ships to librechat', () => {
   });
 });
 
+describe('the files systemd has to exec ship executable', () => {
+  // The failure this pins took ARCA's lane down on 2026-08-20 with 203/EXEC. `foundry-lane.service`
+  // has ExecStart=run-once.sh, the repo shipped it 644, tar faithfully carried that mode, and the
+  // box had only ever worked because someone chmod'd it by hand months earlier.
+  const mode = (p) =>
+    execFileSync('git', ['ls-files', '-s', p], { cwd: ROOT, encoding: 'utf8' }).trim().split(' ')[0];
+
+  it.each(['deploy/lane/run-once.sh', 'deploy/lane/supervisor.sh'])(
+    '%s is executable in git, because systemd execs it',
+    (p) => {
+      expect(mode(p)).toBe('100755');
+    },
+  );
+
+  it('every unit that execs one of our files DIRECTLY ships it executable', () => {
+    // The distinction matters and the first version of this test missed it:
+    //   ExecStart=/opt/foundry/lane/run-once.sh          → executed directly, needs the bit
+    //   ExecStart=/usr/bin/env node /opt/.../x.mjs       → the interpreter is executed, x.mjs is an
+    //                                                      argument, and the bit is irrelevant
+    // Requiring it everywhere would be cargo-culting a mode onto files nothing execs.
+    const units = readdirSync(join(ROOT, 'deploy/lane')).filter((f) => f.endsWith('.service'));
+    expect(units.length).toBeGreaterThan(0);
+
+    let checked = 0;
+    for (const unit of units) {
+      const text = readFileSync(join(ROOT, 'deploy/lane', unit), 'utf8');
+      for (const [, line] of text.matchAll(/^ExecStart=(.*)$/gm)) {
+        const first = line.trim().split(/\s+/)[0];
+        const rel = `deploy/lane/${first.split('/').pop()}`;
+        if (!existsSync(join(ROOT, rel))) continue; // an interpreter or a system binary, not ours
+        expect(mode(rel), `${unit} execs ${rel} directly, so it must be executable in git`).toBe('100755');
+        checked += 1;
+      }
+    }
+    // At least one unit really does exec our own file directly — otherwise this passes vacuously.
+    expect(checked).toBeGreaterThan(0);
+  });
+});
+
 describe('the safety argument', () => {
   it('never deletes on the far side', () => {
     // The whole safety case is "only writes files that exist here, never removes". An `rm` or a
@@ -116,6 +155,13 @@ describe('the safety argument', () => {
 
   it('refuses to sync when a named file is missing locally', () => {
     expect(source).toContain('refusing to sync');
+  });
+
+  it('repairs modes next to each push, not once after both', () => {
+    // The single trailing chmod never ran when the second push aborted the script, which is how
+    // run-once.sh ended up at 644 on a live box.
+    expect(code).toMatch(/fix_modes "\/opt\/foundry\/lane/);
+    expect(code).toMatch(/fix_modes "\/opt\/foundry\/librechat/);
   });
 
   it('does not pipe a possibly-empty list into grep, which would exit before verifying', () => {
