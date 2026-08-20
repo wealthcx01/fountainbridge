@@ -82,12 +82,39 @@ cannot pass, without teaching the lane the same trick.
 - [ ] **Watched end to end on the box**: ARCA-053 re-run through the lane, fixing its own
       `noArrayIndexKey` before opening a PR. Needs the sync (FB-116) and a lane wake.
 
+## Amended the same day it shipped: the first version was unwinnable
+
+Reviewing ARCA-53 found it. That PR touched **one line** of `CardDetailPage.tsx` and failed lint on
+**six errors that were already there** — six on master, six on the branch, none of them the lane's.
+
+`biome check --changed` lints the **whole of every changed file**, not the changed lines. So
+requiring zero is a gate no change to a debt-carrying file can ever pass. Under the first version
+the lane would have failed VALIDATE, repaired, failed, repaired, failed, tripped the circuit breaker
+at three attempts and **parked real work** over problems it did not cause. Worse than the bug it
+replaced, and it was live on ARCA's box for about an hour.
+
+The fix asks the question that is actually worth asking — *did you make it worse?* `changed_lint`
+intersects biome's findings with the lines `git diff` says this change added, and counts only those.
+No baseline tree, no second checkout, no dependency install.
+
+Two earlier attempts are worth recording because both looked reasonable:
+
+- **Reconstructing the base files in a temp directory** and linting them there. Reported 0 for a file
+  that genuinely has six errors: biome needs the project around a file — its config, its neighbours,
+  the paths its ignore rules are written against — and a bag of files in `/tmp` is not that project.
+- **A real `git worktree` at the base.** Correct in principle and defeated in practice by needing its
+  own dependency install before `bunx biome` would run.
+
+Verified on the branch that caused the amendment: it reports **1**, which is right — a `useTemplate`
+on line 44 of `card-detail-identity.pw.ts`, a file the lane itself wrote. Inherited debt excluded,
+its own work caught.
+
 ## How it works
 
-`changed_lint` asks the venture's CI's own question — *are the files this change touched clean?* —
-and `venture_regression` requires **zero**, with no baseline comparison. That distinction is the
-whole fix: on a repo carrying debt the baseline is already dirty, so a comparison can never fire,
-which is exactly why lint was silently unchecked on ARCA while its CI failed every lane PR.
+`changed_lint` counts the lint findings that land on lines this change added, and
+`venture_regression` fails when that count is above zero. The lane's original whole-repo check was
+compared against a baseline that has never been green on ARCA, so it never fired at all — which is
+why lint was silently unchecked while the venture's CI failed every lane PR.
 
 Three things it deliberately keeps:
 

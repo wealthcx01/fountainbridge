@@ -251,29 +251,53 @@ ticket_department() {
 # pre-existing debt (arca's typecheck/lint are red on master) — the lane must not be blocked by breakage
 # it didn't cause, only by breakage it introduces.
 : "${PROBE_TIMEOUT:=300}"   # per-step cap so a hanging venture command can't hang the lane
-# changed_lint <dir> <log> — echo 0 (clean), 1 (dirty) or none (no changed-files linter here).
+# changed_lint <dir> <log> — how many lint problems this change ITSELF introduced.
 #
-# FB-115. The gate a lane is judged by is not the one it was checking. ARCA's CI lints only the files
-# a change touches and requires zero; the lane linted the whole repo and compared against a baseline
-# that has never been green, so the comparison never fired. Two gates measuring different things.
+# FB-115, amended the same day it shipped, because the first version was a gate no change could pass.
 #
-# Derived per toolchain rather than assuming biome: a venture using eslint should get its own
-# equivalent added here, and one with nothing gets an honest `none`.
-# PATH is not exported here: the library already puts LANE_BUN_BIN on it once, above. Doing it again
-# per subshell was duplicated logic, and shellcheck reads two subshells both touching PATH as a
-# modification that might be lost (SC2030/SC2031).
+# `biome check --changed` lints the WHOLE of every changed file, not the changed lines. ARCA-53
+# touched one line of CardDetailPage.tsx and inherited the six pre-existing errors already in it —
+# six on master, six on the branch, none of them the lane's. Requiring zero there means the lane
+# repairs, fails, repairs, fails, trips the circuit breaker at three attempts and parks real work
+# over problems that are not in its change. Unwinnable by construction.
+#
+# So: ask biome which lines it objects to, ask git which lines this change added, and count only the
+# intersection. That is the question worth asking — *did you make it worse?* — and it needs no
+# baseline tree, no second checkout and no dependency install to answer.
+#
+# Echoes a count, or `none` when the toolchain has no changed-files linter.
 changed_lint() {
   local dir="$1" log="$2" base="${BASE_BRANCH:-master}"
-  ( cd "$dir" 2>/dev/null || exit 0
-    if [ -f biome.json ] || [ -f biome.jsonc ]; then
-      # --no-errors-on-unmatched is load-bearing: biome exits 1 when it processes no files, and a
-      # ticket-only change touches nothing it lints. Without it every ticket the composer files
-      # would read as a lint failure (the same trap ARCA-34's CI had to handle).
-      if timeout "${PROBE_TIMEOUT:-600}" bunx biome check --changed --since="origin/$base" \
-           --no-errors-on-unmatched . >>"$log" 2>&1; then echo 0; else echo 1; fi
-    else
-      echo none
-    fi )
+  ( cd "$dir" 2>/dev/null || { echo none; exit 0; }
+    [ -f biome.json ] || [ -f biome.jsonc ] || { echo none; exit 0; }
+
+    # The lines this change added, as "path:line". Deletions cannot carry a lint finding.
+    local added; added=$(git diff --unified=0 "origin/$base"...HEAD 2>/dev/null | awk '
+      /^\+\+\+ b\// { file = substr($0, 7); next }
+      /^@@ / {
+        # @@ -old,n +new,m @@  → the added-line range
+        split($3, a, ","); start = substr(a[1], 2) + 0; len = (a[2] == "" ? 1 : a[2] + 0)
+        for (i = 0; i < len; i++) print file ":" (start + i)
+      }' | sort -u)
+
+    # --no-errors-on-unmatched is load-bearing: biome exits 1 when it processes no files, and a
+    # ticket-only change touches nothing it lints (the trap ARCA-34's CI also had to handle).
+    local out
+    out=$(timeout "${PROBE_TIMEOUT:-600}" bunx biome check --changed --since="origin/$base" \
+            --no-errors-on-unmatched . 2>&1) || true
+    printf '%s\n' "$out" >>"$log"
+
+    # biome reports "path/to/file.tsx:LINE:COL rulename". Keep only findings on an added line.
+    local mine=0
+    if [ -n "$added" ]; then
+      mine=$(printf '%s\n' "$out" \
+        | grep -oE '^[A-Za-z0-9._/-]+\.[a-z]+:[0-9]+:[0-9]+' \
+        | sed 's/:[0-9]*$//' \
+        | sort -u \
+        | comm -12 - <(printf '%s\n' "$added") \
+        | grep -c . || true)
+    fi
+    printf '%s\n' "${mine:-0}" )
 }
 
 toolchain_probe() {
@@ -322,11 +346,22 @@ venture_regression() {
   # downstream. Comparing it to a baseline would reproduce the bug this fixes: on a repo with
   # pre-existing debt, the baseline is already dirty and the check never fires.
   #
-  # Only the BRANCH value is read. `none` (no changed-files linter for this toolchain) passes, and
-  # says so in the probe output rather than pretending a check ran.
+  # FB-115, as amended: "do not make it worse", not "inherit everyone else's debt".
+  #
+  # `biome check --changed` lints the whole of every changed file, so a one-line edit to a file with
+  # six pre-existing errors reports six. Requiring zero there is a gate no change to that file can
+  # ever pass — the lane would repair, fail, repair, fail, trip the circuit breaker and park real
+  # work over errors that were not in its change. So compare the two counts.
+  # `lint-changed` counts findings on the lines this change ADDED — not every finding in every file
+  # it touched. A one-line edit to a file carrying six pre-existing errors reports zero here, which
+  # is right: those errors are the venture's debt (ARCA-65), not this change's doing, and failing on
+  # them is a gate no change to that file could ever pass.
+  #
+  # `none` (no changed-files linter for this toolchain) passes, and says so in the probe output
+  # rather than pretending a check ran.
   local lc; lc=$(awk '$1=="lint-changed"{print $2}' "$branch")
-  if [ "$lc" = "1" ]; then
-    echo "the files you changed do not pass this venture's linter (its checks will refuse this)"
+  if [ -n "$lc" ] && [ "$lc" != "none" ] && [ "$lc" -gt 0 ] 2>/dev/null; then
+    echo "your change introduced $lc lint problem(s) on the lines it wrote"
     return 1
   fi
 
