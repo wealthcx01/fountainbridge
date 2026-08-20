@@ -98,6 +98,26 @@ describe('the checks it must not have broken', () => {
 });
 
 describe('changed_lint, the probe side', () => {
+  it('knows BOTH shapes biome reports findings in', () => {
+    // The gap that let a real run through. biome writes:
+    //   path.tsx:91:3 lint/correctness/…   <- a rule, has a line, intersect it with the diff
+    //   path.tsx format                     <- formatter, NO line
+    //   path.pw.ts organize                 <- import order, NO line
+    // The first version knew only the first shape, so a run whose two problems were both of the
+    // second kind - in files it had written from scratch - reported 0. The lane's own /review
+    // caught it by running the real CI command, which is the only reason it never reached a PR.
+    const fn = source.match(/^changed_lint\(\) \{[\s\S]*?^\}/m);
+    expect(fn).toBeTruthy();
+    expect(fn[0], 'rule findings must be intersected with added lines').toMatch(/comm -12/);
+    expect(fn[0], 'format/organize findings must be counted too').toMatch(/\(format\|organize\)/);
+    expect(fn[0], 'the two counts must be summed').toMatch(/\$\(\(/);
+  });
+
+  it('counts format/organize per touched FILE, since they have no line to intersect', () => {
+    const fn = source.match(/^changed_lint\(\) \{[\s\S]*?^\}/m);
+    expect(fn[0]).toContain('git diff --name-only');
+  });
+
   it('counts only findings on lines the change added', () => {
     // The amendment's whole point. biome lints the WHOLE of a changed file, so the probe has to
     // intersect its findings with the diff's added lines — otherwise inherited debt reads as this

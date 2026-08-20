@@ -287,8 +287,19 @@ changed_lint() {
             --no-errors-on-unmatched . 2>&1) || true
     printf '%s\n' "$out" >>"$log"
 
-    # biome reports "path/to/file.tsx:LINE:COL rulename". Keep only findings on an added line.
+    # biome reports findings in TWO shapes, and the first version of this only knew about one:
+    #
+    #   path/to/file.tsx:91:3 lint/correctness/useExhaustiveDependencies   ← a rule, has a line
+    #   path/to/file.tsx format                                            ← formatter, NO line
+    #   path/to/file.pw.ts organize                                        ← import order, NO line
+    #
+    # Missing the second shape made this report 0 for a run whose two problems were both of that
+    # kind, in files the lane had written from scratch — a false negative on the easiest possible
+    # case. The lane's own /review caught it by running the real CI command, which is the only
+    # reason it did not reach a PR. Defence in depth worked; this did not.
     local mine=0
+
+    # Rule findings: only those on a line this change added, so inherited debt stays the venture's.
     if [ -n "$added" ]; then
       mine=$(printf '%s\n' "$out" \
         | grep -oE '^[A-Za-z0-9._/-]+\.[a-z]+:[0-9]+:[0-9]+' \
@@ -297,7 +308,23 @@ changed_lint() {
         | comm -12 - <(printf '%s\n' "$added") \
         | grep -c . || true)
     fi
-    printf '%s\n' "${mine:-0}" )
+
+    # Formatter and import-order findings have no line, so they cannot be intersected. They are
+    # counted per FILE the change touched — which is right rather than a compromise: both are
+    # whole-file properties, and CI fails on them whoever left them there. A change that touches a
+    # badly-formatted file is expected to leave it formatted.
+    local touched fmt=0
+    touched=$(git diff --name-only "origin/$base"...HEAD 2>/dev/null | sort -u)
+    if [ -n "$touched" ]; then
+      fmt=$(printf '%s\n' "$out" \
+        | grep -oE '^[A-Za-z0-9._/-]+\.[a-z]+ (format|organize)\b' \
+        | awk '{print $1}' \
+        | sort -u \
+        | comm -12 - <(printf '%s\n' "$touched") \
+        | grep -c . || true)
+    fi
+
+    printf '%s\n' "$(( ${mine:-0} + ${fmt:-0} ))" )
 }
 
 toolchain_probe() {

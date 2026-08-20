@@ -109,6 +109,33 @@ Verified on the branch that caused the amendment: it reports **1**, which is rig
 on line 44 of `card-detail-identity.pw.ts`, a file the lane itself wrote. Inherited debt excluded,
 its own work caught.
 
+## Amended again, by watching it run: it knew only half of biome's output
+
+The first real run under this gate (ARCA-53, 2026-08-20) reported **0** and then had its `/review`
+step refuse the work over **2 lint errors in files the lane had written from scratch**.
+
+biome reports findings in two shapes, and this knew only one:
+
+    path/to/file.tsx:91:3 lint/correctness/useExhaustiveDependencies   ← a rule, has a line
+    path/to/file.tsx format                                            ← formatter, NO line
+    path/to/file.pw.ts organize                                        ← import order, NO line
+
+Intersecting with the diff's added lines only works on the first shape. The other two have no line
+to intersect, so they were silently dropped — a false negative on the easiest possible case, a brand
+new file where every line is added.
+
+Rule findings are still intersected with added lines, so a venture's pre-existing debt stays its own.
+Format and import-order findings are counted **per touched file**, which is right rather than a
+compromise: both are whole-file properties, CI fails on them whoever left them there, and a change
+that touches a badly-formatted file is expected to leave it formatted.
+
+Verified on the three cases that matter: **2** on the branch that slipped through (matching what
+`/review` found), **0** on the PR that then passed CI, **0** on a clean tree.
+
+**What actually held the line was defence in depth.** `/review` runs the real CI command
+independently, caught what this missed, and forced a repair round — the lane fixed its own work and
+opened a PR that passed all four CI gates. The system was more robust than this check was.
+
 ## How it works
 
 `changed_lint` counts the lint findings that land on lines this change added, and
