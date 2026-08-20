@@ -19,6 +19,18 @@ const SYNC_SH = join(ROOT, 'scripts/sync-box.sh');
 
 const source = readFileSync(SYNC_SH, 'utf8');
 
+/**
+ * The script with its comments stripped.
+ *
+ * Needed because this file's comments quote the very shell constructs the assertions below forbid —
+ * a test that reads a comment as code is a test that fails for the wrong reason, which is how the
+ * first version of the grep-pipeline assertion behaved.
+ */
+const code = source
+  .split('\n')
+  .filter((l) => !l.trim().startsWith('#'))
+  .join('\n');
+
 /** Run one of the script's list functions, exactly as shipped. */
 function shipList(fn) {
   const body = source.match(new RegExp(`^${fn}\\(\\) \\{[\\s\\S]*?^\\}`, 'm'));
@@ -94,8 +106,8 @@ describe('the safety argument', () => {
   it('never deletes on the far side', () => {
     // The whole safety case is "only writes files that exist here, never removes". An `rm` or a
     // `--delete` appearing in this script would silently make a box's own state destructible.
-    expect(source).not.toMatch(/\brm\s+-[rf]/);
-    expect(source).not.toMatch(/--delete\b/);
+    expect(code).not.toMatch(/\brm\s+-[rf]/);
+    expect(code).not.toMatch(/--delete\b/);
   });
 
   it('verifies after pushing rather than trusting the transfer', () => {
@@ -104,5 +116,16 @@ describe('the safety argument', () => {
 
   it('refuses to sync when a named file is missing locally', () => {
     expect(source).toContain('refusing to sync');
+  });
+
+  it('does not pipe a possibly-empty list into grep, which would exit before verifying', () => {
+    // The first real run against ARCA died here. `printf '%s\n' ""` sends one blank line into
+    // `grep .`, which exits 1, and under `set -euo pipefail` that killed the script immediately
+    // after the lane push — so the checksum verify, the systemd reload and the re-seed warnings all
+    // silently never ran. Work done, verification skipped: the exact failure this script exists to
+    // end, committed by the script itself.
+    expect(code).not.toMatch(/\|\s*grep \.\s*\|\s*push/);
+    expect(code).toMatch(/if \[ -n "\$LANE_CHANGED" \]/);
+    expect(code).toMatch(/if \[ -n "\$LC_CHANGED" \]/);
   });
 });
