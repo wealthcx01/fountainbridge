@@ -45,6 +45,26 @@ export function nextTicketId(prefix, filenames) {
  * founders to revise and re-file, so this is a common path, not an edge case. Without it, allocation
  * would hand out a fresh number on every revision and leave a trail of half-written duplicates.
  */
+/**
+ * Which other ticket already carries this id, if any (FB-117).
+ *
+ * Checked *after* the write, because a lost race leaves nothing to catch: every filing commits to its
+ * own branch, so two tickets can be handed the same number and both writes succeed. A duplicate id is
+ * a successful write of the wrong name, and the only way to find one is to go and look.
+ *
+ * Our own file is not a clash with itself — the same id and the same slug is the ticket we just wrote.
+ */
+export function idTakenElsewhere(id, ourSlug, filenames) {
+  const mine = `${id}-${ourSlug}.md`.toLowerCase();
+  const prefix = `${id.toLowerCase()}-`;
+  return (
+    filenames.find((n) => {
+      const lower = n.toLowerCase();
+      return lower.startsWith(prefix) && lower !== mine;
+    }) ?? null
+  );
+}
+
 export function existingTicketFile(filenames, slug) {
   return (
     filenames.find((n) => new RegExp(`^[A-Za-z]+-\\d+-${escapeRe(slug)}\\.md$`, 'i').test(n)) ??
