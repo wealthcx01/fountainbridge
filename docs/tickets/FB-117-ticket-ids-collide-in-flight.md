@@ -1,6 +1,11 @@
 # FB-117 — Every ticket a founder files in one sitting gets the same number
 
-**Status:** Todo · **Area:** Composer / ticket-filer · **Depends on:** —
+**Status:** Done · **Area:** Composer / ticket-filer · **Depends on:** —
+
+Shipped in #138 and synced to the ARCA box. Proved live: two tickets filed in one composer session
+came back as `ARCA-73` and `ARCA-74`, and the composer named them to the founder rather than quoting
+PR numbers. The five tickets from the run that found this are renumbered `ARCA-068`…`ARCA-072`, each
+depending on a real id. The width they are rendered at is FB-118.
 
 ## What happened
 
