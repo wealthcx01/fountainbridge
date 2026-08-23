@@ -19,7 +19,7 @@
 // STDOUT carries ONLY protocol messages (newline-delimited JSON). All logging goes to STDERR.
 
 import readline from 'node:readline';
-import { existingTicketFile, nextTicketId, ticketPath, withTicketId } from './ids.mjs';
+import { existingTicketFile, mustRenumber, nextTicketId, ticketPath, withTicketId } from './ids.mjs';
 
 // LibreChat interpolates ${VAR} in the yaml `env:` block from its own process.env, but when the
 // referenced var is empty/unset it passes the LITERAL "${VAR}" placeholder through (see
@@ -96,6 +96,45 @@ async function listTicketNames(ref) {
   return Array.isArray(dir) ? dir.filter((e) => e.type === 'file').map((e) => e.name) : [];
 }
 
+/**
+ * Every ticket in flight, not just the merged ones (FB-117).
+ *
+ * Allocating from the default branch alone freezes the backlog for as long as nothing is merged, and
+ * each filing commits to its own `foundry/<slug>` branch that the default branch never sees. So a
+ * founder who asks for a research ticket, three build tickets and a QA ticket — the thing the
+ * composer exists to do — gets five tickets all called `ARCA-68`. That happened; FB-117 is the run.
+ *
+ * The union is the honest backlog: what is merged, plus what is already filed and waiting. Bounded
+ * by the number of OPEN ticket branches, which is the number of things a founder is waiting on, not
+ * the size of the backlog.
+ */
+async function listTicketNamesInFlight(base) {
+  const names = await listTicketNames(base);
+
+  // Branches, not open PRs. `fileTicket` writes the ticket file BEFORE it opens the PR, so a filing
+  // that is seconds ahead of this one is a branch with no pull request yet — invisible to a PR
+  // listing, and exactly the neighbour whose number must not be handed out twice.
+  //
+  // A branch left behind by a closed-unmerged ticket burns its number. That is the safe direction:
+  // skipping a number costs nothing, reusing one costs a founder the ability to name their work.
+  const refs = await ghMaybe(`/repos/${REPO}/git/matching-refs/heads/foundry/?per_page=100`);
+  if (!Array.isArray(refs)) return names;
+
+  // Say so rather than quietly reading 100 of them. A truncated union hands out a number that is
+  // already taken, which is the bug this function exists to end — and it would do it silently.
+  if (refs.length >= 100) {
+    log(`WARNING: 100+ foundry branches; the id union may be incomplete. Delete merged ticket branches.`);
+  }
+
+  const branches = refs
+    .map((r) => r && typeof r.ref === 'string' && r.ref.replace(/^refs\/heads\//, ''))
+    .filter(Boolean);
+
+  const perBranch = await Promise.all(branches.map((b) => listTicketNames(b)));
+  return names.concat(...perBranch);
+}
+
+
 // Idempotent: re-filing the same slug UPDATES the ticket on its branch and returns the existing PR,
 // rather than 422-ing (the composer is told to revise + re-file, so this path is common).
 async function fileTicket({ slug, title, body }) {
@@ -130,17 +169,23 @@ async function fileTicket({ slug, title, body }) {
   // Idempotency first: a revision of a ticket already on this branch keeps its number. The composer
   // tells founders to revise and re-file, so this is a common path — allocating afresh each time
   // would leave a trail of half-written duplicates.
+  //
+  // FB-117: allocate against everything in flight, not just what has merged. Reading the default
+  // branch alone gave five tickets filed in one sitting the same number, because none of them had
+  // merged and the directory the allocator read never changed.
   const onBranch = await listTicketNames(branch);
   const alreadyFiled = existingTicketFile(onBranch, slug);
-  const path = alreadyFiled
+  let path = alreadyFiled
     ? `docs/tickets/${alreadyFiled}`
-    : ticketPath(nextTicketId(PREFIX, await listTicketNames(base)), slug);
-  const id = path.match(/\/([A-Za-z]+-\d+[a-z]?)-/)?.[1] ?? nextTicketId(PREFIX, []);
+    : ticketPath(nextTicketId(PREFIX, await listTicketNamesInFlight(base)), slug);
+  let id = path.match(/\/([A-Za-z]+-\d+[a-z]?)-/)?.[1] ?? nextTicketId(PREFIX, []);
 
-  const write = async (at) => {
+  // The id goes in the heading as well as the filename, so it has to be an argument — the previous
+  // version closed over `id` and would have written the retry's filename with the losing number.
+  const write = async (at, withId) => {
     const put = {
       message: `ticket: ${title}`,
-      content: Buffer.from(withTicketId(body, id), 'utf8').toString('base64'),
+      content: Buffer.from(withTicketId(body, withId), 'utf8').toString('base64'),
       branch,
     };
     // If the file already exists on this branch, GitHub requires its sha to update in place.
@@ -149,23 +194,51 @@ async function fileTicket({ slug, title, body }) {
     await gh(`/repos/${REPO}/contents/${at}`, { method: 'PUT', body: JSON.stringify(put) });
   };
 
-  try {
-    await write(path);
-  } catch (e) {
-    // The race: two filings picked the same number between the list and the write. Re-read and take
-    // the next one. One retry closes the common case — two founders filing at once is not a thing
-    // yet, and a duplicate number that survives is still better than everything being called NEW.
-    if (alreadyFiled) throw e;
-    const retryId = nextTicketId(PREFIX, await listTicketNames(base));
+  await write(path, id);
+
+  // FB-117: settle the number AFTER writing, because a lost race leaves no error to catch.
+  //
+  // The retry this replaces was unreachable. It caught a failed write, on the theory that two filings
+  // picking the same number would collide — but every filing writes to its own branch, so nothing
+  // collides, nothing throws, and five tickets went out sharing a number in silence. A duplicate id
+  // is not a failed write; it is a successful write of the wrong name, and the only way to find one
+  // is to go and look.
+  //
+  // A loop, not one retry: `mustRenumber` makes the lowest filename keep the id and everyone else
+  // move, so a three-way pile-up leaves two filings stepping to the same next number — and the
+  // second step needs the same check as the first. Bounded, and it says so when it gives up.
+  const SETTLE_ATTEMPTS = 4;
+  for (let attempt = 0; !alreadyFiled && attempt < SETTLE_ATTEMPTS; attempt++) {
+    const inFlight = await listTicketNamesInFlight(base);
+    const winner = mustRenumber(id, slug, inFlight);
+    if (!winner) break;
+
+    const retryId = nextTicketId(PREFIX, inFlight);
     const retryPath = ticketPath(retryId, slug);
-    log(`id ${id} lost a race, retrying as ${retryId}`);
-    await write(retryPath);
+    log(`id ${id} goes to ${winner}; re-filing as ${retryId}`);
+    await write(retryPath, retryId);
+
+    // Remove the file we just gave up, so the branch carries one ticket rather than two. Only ever
+    // a file written moments ago by this same call — never one that was already on the branch.
+    const stale = await ghMaybe(`/repos/${REPO}/contents/${path}?ref=${branch}`);
+    if (stale && stale.sha) {
+      await gh(`/repos/${REPO}/contents/${path}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ message: `ticket: renumber ${id} → ${retryId}`, sha: stale.sha, branch }),
+      });
+    }
+    path = retryPath;
+    id = retryId;
+
+    if (attempt === SETTLE_ATTEMPTS - 1) {
+      log(`WARNING: ${id} may still be shared after ${SETTLE_ATTEMPTS} attempts — check the backlog.`);
+    }
   }
 
   // Reuse an open PR for this branch if one exists, else open one.
   const openPrs = await gh(`/repos/${REPO}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`);
   if (Array.isArray(openPrs) && openPrs.length) {
-    return { url: openPrs[0].html_url, number: openPrs[0].number, branch, updated: true };
+    return { url: openPrs[0].html_url, number: openPrs[0].number, branch, id, updated: true };
   }
   const pr = await gh(`/repos/${REPO}/pulls`, {
     method: 'POST',
@@ -176,7 +249,7 @@ async function fileTicket({ slug, title, body }) {
       body: `Filed from the Foundry composer on the founder's approval.\n\n---\n\n${body}`,
     }),
   });
-  return { url: pr.html_url, number: pr.number, branch };
+  return { url: pr.html_url, number: pr.number, branch, id };
 }
 
 // ---- MCP tool definition ----------------------------------------------------
@@ -249,9 +322,12 @@ async function handle(msg) {
       }
       try {
         const r = await fileTicket(args);
+        // FB-117: the id, not just the PR number. The model can only tell a founder what its work is
+        // called if the filer says so — the dogfood run reported five tickets as "PR #58, #60…"
+        // because the ticket id never came back out of this tool.
         const verb = r.updated ? 'Updated the ticket on' : 'Filed to';
         reply(id, {
-          content: [{ type: 'text', text: `${verb} ${REPO}: PR #${r.number} — ${r.url}` }],
+          content: [{ type: 'text', text: `${verb} ${REPO}: ${r.id} — PR #${r.number} — ${r.url}` }],
         });
       } catch (e) {
         log('file_venture_ticket failed:', String(e));

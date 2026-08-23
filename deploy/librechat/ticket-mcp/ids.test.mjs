@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextTicketId, idNumber, existingTicketFile, withTicketId, ticketPath, isUnnumbered } from './ids.mjs';
+import { nextTicketId, idNumber, existingTicketFile, mustRenumber, withTicketId, ticketPath, isUnnumbered } from './ids.mjs';
 
 // ARCA's real backlog shapes, including the four the walkthrough met all called ARCA-NEW.
 const backlog = [
@@ -78,6 +78,79 @@ describe('putting the id into the ticket itself', () => {
 
   it('files it where the venture repos already keep them', () => {
     expect(ticketPath('ARCA-44', 'show-set-name')).toBe('docs/tickets/ARCA-44-show-set-name.md');
+  });
+});
+
+describe('a whole set filed in one sitting (FB-117)', () => {
+  // The dogfood run of 2026-08-23: a founder asked for a research ticket, three build tickets and a
+  // QA ticket. All five came back called ARCA-68, because allocation read only the default branch and
+  // no ticket had merged. This is that run, as an allocation sequence.
+  const set = [
+    'auction-source-research',
+    'auction-feed-ingestion',
+    'auction-view-price-history',
+    'auction-in-app-notifications',
+    'auction-aggregator-qa',
+  ];
+
+  it('gives five tickets five numbers when nothing has merged in between', () => {
+    const merged = ['ARCA-66-e2e-smoke-in-ci.md', 'ARCA-67-api-key-in-source.md'];
+    const inFlight = [];
+    const allocated = set.map((slug) => {
+      const id = nextTicketId('ARCA', [...merged, ...inFlight]);
+      inFlight.push(`${id}-${slug}.md`); // what the branch now carries, before any merge
+      return id;
+    });
+
+    expect(allocated).toEqual(['ARCA-68', 'ARCA-69', 'ARCA-70', 'ARCA-71', 'ARCA-72']);
+    expect(new Set(allocated).size).toBe(5);
+  });
+
+  it('reads the merged backlog alone and reproduces the bug — which is why it must not', () => {
+    // Kept as the counter-example: this is exactly what shipped, and it passes. The fix is the union
+    // above, not a cleverer reading of the same list.
+    const merged = ['ARCA-66-e2e-smoke-in-ci.md', 'ARCA-67-api-key-in-source.md'];
+    expect(set.map(() => nextTicketId('ARCA', merged))).toEqual(Array(5).fill('ARCA-68'));
+  });
+});
+
+describe('deciding who gives up a shared number', () => {
+  const clash = ['ARCA-67-api-key-in-source.md', 'ARCA-68-auction-feed-ingestion.md', 'ARCA-68-auction-source-research.md'];
+
+  it('makes the higher filename move', () => {
+    expect(mustRenumber('ARCA-68', 'auction-source-research', clash)).toBe('arca-68-auction-feed-ingestion.md');
+  });
+
+  it('lets the lowest filename keep the number', () => {
+    // The half that matters: if BOTH sides moved, they would step to the same next number together
+    // and collide again one along. Exactly one side stays put.
+    expect(mustRenumber('ARCA-68', 'auction-feed-ingestion', clash)).toBe(null);
+  });
+
+  it('never asks both sides of a pair to move', () => {
+    const pair = ['ARCA-68-a.md', 'ARCA-68-b.md'];
+    const movers = ['a', 'b'].filter((slug) => mustRenumber('ARCA-68', slug, pair));
+    expect(movers).toEqual(['b']);
+  });
+
+  it('leaves exactly one holder in a three-way pile-up', () => {
+    const three = ['ARCA-68-a.md', 'ARCA-68-b.md', 'ARCA-68-c.md'];
+    const stayers = ['a', 'b', 'c'].filter((slug) => !mustRenumber('ARCA-68', slug, three));
+    expect(stayers).toEqual(['a']);
+  });
+
+  it('is not fooled by a longer number that starts the same way', () => {
+    // ARCA-680 is not ARCA-68. Matching on the prefix alone would renumber a ticket for nothing.
+    expect(mustRenumber('ARCA-68', 'mine', ['ARCA-680-something-else.md'])).toBe(null);
+  });
+
+  it('holds the number when nobody else has it', () => {
+    expect(mustRenumber('ARCA-69', 'mine', ['ARCA-68-other.md'])).toBe(null);
+  });
+
+  it('assumes our own file is there when the listing came back short', () => {
+    // A partial read must not be mistaken for "no clash" — that is how a duplicate survives.
+    expect(mustRenumber('ARCA-68', 'zzz-ours', ['ARCA-68-aaa-theirs.md'])).toBe('arca-68-aaa-theirs.md');
   });
 });
 
