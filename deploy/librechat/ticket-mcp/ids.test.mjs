@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextTicketId, idNumber, existingTicketFile, idTakenElsewhere, withTicketId, ticketPath, isUnnumbered } from './ids.mjs';
+import { nextTicketId, idNumber, existingTicketFile, mustRenumber, withTicketId, ticketPath, isUnnumbered } from './ids.mjs';
 
 // ARCA's real backlog shapes, including the four the walkthrough met all called ARCA-NEW.
 const backlog = [
@@ -114,24 +114,43 @@ describe('a whole set filed in one sitting (FB-117)', () => {
   });
 });
 
-describe('catching an id that was taken while we wrote', () => {
-  it('finds the other ticket holding our number', () => {
-    const all = ['ARCA-67-api-key-in-source.md', 'ARCA-68-auction-source-research.md', 'ARCA-68-auction-feed-ingestion.md'];
-    expect(idTakenElsewhere('ARCA-68', 'auction-feed-ingestion', all)).toBe('ARCA-68-auction-source-research.md');
+describe('deciding who gives up a shared number', () => {
+  const clash = ['ARCA-67-api-key-in-source.md', 'ARCA-68-auction-feed-ingestion.md', 'ARCA-68-auction-source-research.md'];
+
+  it('makes the higher filename move', () => {
+    expect(mustRenumber('ARCA-68', 'auction-source-research', clash)).toBe('arca-68-auction-feed-ingestion.md');
   });
 
-  it('does not call our own file a clash', () => {
-    const all = ['ARCA-67-api-key-in-source.md', 'ARCA-68-auction-source-research.md'];
-    expect(idTakenElsewhere('ARCA-68', 'auction-source-research', all)).toBe(null);
+  it('lets the lowest filename keep the number', () => {
+    // The half that matters: if BOTH sides moved, they would step to the same next number together
+    // and collide again one along. Exactly one side stays put.
+    expect(mustRenumber('ARCA-68', 'auction-feed-ingestion', clash)).toBe(null);
+  });
+
+  it('never asks both sides of a pair to move', () => {
+    const pair = ['ARCA-68-a.md', 'ARCA-68-b.md'];
+    const movers = ['a', 'b'].filter((slug) => mustRenumber('ARCA-68', slug, pair));
+    expect(movers).toEqual(['b']);
+  });
+
+  it('leaves exactly one holder in a three-way pile-up', () => {
+    const three = ['ARCA-68-a.md', 'ARCA-68-b.md', 'ARCA-68-c.md'];
+    const stayers = ['a', 'b', 'c'].filter((slug) => !mustRenumber('ARCA-68', slug, three));
+    expect(stayers).toEqual(['a']);
   });
 
   it('is not fooled by a longer number that starts the same way', () => {
     // ARCA-680 is not ARCA-68. Matching on the prefix alone would renumber a ticket for nothing.
-    expect(idTakenElsewhere('ARCA-68', 'mine', ['ARCA-680-something-else.md'])).toBe(null);
+    expect(mustRenumber('ARCA-68', 'mine', ['ARCA-680-something-else.md'])).toBe(null);
   });
 
-  it('reports nothing when the id is ours alone', () => {
-    expect(idTakenElsewhere('ARCA-69', 'mine', ['ARCA-68-other.md'])).toBe(null);
+  it('holds the number when nobody else has it', () => {
+    expect(mustRenumber('ARCA-69', 'mine', ['ARCA-68-other.md'])).toBe(null);
+  });
+
+  it('assumes our own file is there when the listing came back short', () => {
+    // A partial read must not be mistaken for "no clash" — that is how a duplicate survives.
+    expect(mustRenumber('ARCA-68', 'zzz-ours', ['ARCA-68-aaa-theirs.md'])).toBe('arca-68-aaa-theirs.md');
   });
 });
 

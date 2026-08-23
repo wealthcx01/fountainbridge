@@ -19,7 +19,7 @@
 // STDOUT carries ONLY protocol messages (newline-delimited JSON). All logging goes to STDERR.
 
 import readline from 'node:readline';
-import { existingTicketFile, idTakenElsewhere, nextTicketId, ticketPath, withTicketId } from './ids.mjs';
+import { existingTicketFile, mustRenumber, nextTicketId, ticketPath, withTicketId } from './ids.mjs';
 
 // LibreChat interpolates ${VAR} in the yaml `env:` block from its own process.env, but when the
 // referenced var is empty/unset it passes the LITERAL "${VAR}" placeholder through (see
@@ -117,8 +117,14 @@ async function listTicketNamesInFlight(base) {
   //
   // A branch left behind by a closed-unmerged ticket burns its number. That is the safe direction:
   // skipping a number costs nothing, reusing one costs a founder the ability to name their work.
-  const refs = await ghMaybe(`/repos/${REPO}/git/matching-refs/heads/foundry/`);
+  const refs = await ghMaybe(`/repos/${REPO}/git/matching-refs/heads/foundry/?per_page=100`);
   if (!Array.isArray(refs)) return names;
+
+  // Say so rather than quietly reading 100 of them. A truncated union hands out a number that is
+  // already taken, which is the bug this function exists to end — and it would do it silently.
+  if (refs.length >= 100) {
+    log(`WARNING: 100+ foundry branches; the id union may be incomplete. Delete merged ticket branches.`);
+  }
 
   const branches = refs
     .map((r) => r && typeof r.ref === 'string' && r.ref.replace(/^refs\/heads\//, ''))
@@ -190,30 +196,42 @@ async function fileTicket({ slug, title, body }) {
 
   await write(path, id);
 
-  // FB-117: check AFTER writing, because a lost race leaves no error to catch.
+  // FB-117: settle the number AFTER writing, because a lost race leaves no error to catch.
   //
-  // The retry this replaces was unreachable. It caught a failed write, on the theory that two
-  // filings picking the same number would collide — but every filing writes to its own branch, so
-  // nothing collides, nothing throws, and five tickets went out sharing a number in silence. A
-  // duplicate id is not a failed write; it is a successful write of the wrong name, and the only way
-  // to find it is to look.
-  if (!alreadyFiled) {
-    const clash = idTakenElsewhere(id, slug, await listTicketNamesInFlight(base));
-    if (clash) {
-      const retryId = nextTicketId(PREFIX, await listTicketNamesInFlight(base));
-      const retryPath = ticketPath(retryId, slug);
-      log(`id ${id} was already taken by ${clash}, re-filing as ${retryId}`);
-      await write(retryPath, retryId);
-      // Remove the losing file so the branch carries one ticket, not two.
-      const stale = await ghMaybe(`/repos/${REPO}/contents/${path}?ref=${branch}`);
-      if (stale && stale.sha) {
-        await gh(`/repos/${REPO}/contents/${path}`, {
-          method: 'DELETE',
-          body: JSON.stringify({ message: `ticket: renumber ${id} → ${retryId}`, sha: stale.sha, branch }),
-        });
-      }
-      path = retryPath;
-      id = retryId;
+  // The retry this replaces was unreachable. It caught a failed write, on the theory that two filings
+  // picking the same number would collide — but every filing writes to its own branch, so nothing
+  // collides, nothing throws, and five tickets went out sharing a number in silence. A duplicate id
+  // is not a failed write; it is a successful write of the wrong name, and the only way to find one
+  // is to go and look.
+  //
+  // A loop, not one retry: `mustRenumber` makes the lowest filename keep the id and everyone else
+  // move, so a three-way pile-up leaves two filings stepping to the same next number — and the
+  // second step needs the same check as the first. Bounded, and it says so when it gives up.
+  const SETTLE_ATTEMPTS = 4;
+  for (let attempt = 0; !alreadyFiled && attempt < SETTLE_ATTEMPTS; attempt++) {
+    const inFlight = await listTicketNamesInFlight(base);
+    const winner = mustRenumber(id, slug, inFlight);
+    if (!winner) break;
+
+    const retryId = nextTicketId(PREFIX, inFlight);
+    const retryPath = ticketPath(retryId, slug);
+    log(`id ${id} goes to ${winner}; re-filing as ${retryId}`);
+    await write(retryPath, retryId);
+
+    // Remove the file we just gave up, so the branch carries one ticket rather than two. Only ever
+    // a file written moments ago by this same call — never one that was already on the branch.
+    const stale = await ghMaybe(`/repos/${REPO}/contents/${path}?ref=${branch}`);
+    if (stale && stale.sha) {
+      await gh(`/repos/${REPO}/contents/${path}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ message: `ticket: renumber ${id} → ${retryId}`, sha: stale.sha, branch }),
+      });
+    }
+    path = retryPath;
+    id = retryId;
+
+    if (attempt === SETTLE_ATTEMPTS - 1) {
+      log(`WARNING: ${id} may still be shared after ${SETTLE_ATTEMPTS} attempts — check the backlog.`);
     }
   }
 

@@ -71,6 +71,10 @@ Not cosmetic, and not deferrable to merge time:
   known thing (`lib/tickets.ts:102`).
 - Not the "the composer said `Before I file — nothing — say the word` and then filed without waiting"
   behaviour from the same run. Real, separate, and about the composer's prompt rather than the filer.
+- **Deleting merged ticket branches.** ARCA has 13 `foundry/` branches and four of them merged weeks
+  ago; nothing removes them, so the union grows forever and every filing reads one more branch. It is
+  bounded per filing rather than repeating on a timer, and it warns above 100 rather than silently
+  truncating — so it is a cost, not a defect. A follow-up should delete the branch when its PR merges.
 
 ## Acceptance criteria
 

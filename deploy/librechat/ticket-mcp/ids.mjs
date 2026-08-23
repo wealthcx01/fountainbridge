@@ -46,23 +46,31 @@ export function nextTicketId(prefix, filenames) {
  * would hand out a fresh number on every revision and leave a trail of half-written duplicates.
  */
 /**
- * Which other ticket already carries this id, if any (FB-117).
+ * Whether WE are the one who has to give this number up (FB-117).
  *
  * Checked *after* the write, because a lost race leaves nothing to catch: every filing commits to its
  * own branch, so two tickets can be handed the same number and both writes succeed. A duplicate id is
  * a successful write of the wrong name, and the only way to find one is to go and look.
  *
- * Our own file is not a clash with itself — the same id and the same slug is the ticket we just wrote.
+ * **Only the loser moves.** "Is anyone else on my number, and if so I'll take the next one" is
+ * symmetric: two filings that collide would both see a clash, both step to the same next number, and
+ * collide again — a fix that reproduces the bug one number along. So the tie is broken the same way
+ * by everyone without anyone having to coordinate: lowest filename keeps the id, everybody else
+ * renumbers. Deterministic, and it needs no lock, no clock and no shared state.
+ *
+ * Returns the winner's filename when we must renumber, null when the id is ours to keep.
  */
-export function idTakenElsewhere(id, ourSlug, filenames) {
+export function mustRenumber(id, ourSlug, filenames) {
   const mine = `${id}-${ourSlug}.md`.toLowerCase();
   const prefix = `${id.toLowerCase()}-`;
-  return (
-    filenames.find((n) => {
-      const lower = n.toLowerCase();
-      return lower.startsWith(prefix) && lower !== mine;
-    }) ?? null
-  );
+  const sharing = filenames.map((n) => n.toLowerCase()).filter((n) => n.startsWith(prefix));
+  // Our own file is in the union by construction — we just wrote it — but not if that listing came
+  // back short. Assume ourselves present rather than read a partial list as "no clash".
+  if (!sharing.includes(mine)) sharing.push(mine);
+  if (sharing.length < 2) return null;
+
+  const winner = sharing.slice().sort()[0];
+  return winner === mine ? null : winner;
 }
 
 export function existingTicketFile(filenames, slug) {
