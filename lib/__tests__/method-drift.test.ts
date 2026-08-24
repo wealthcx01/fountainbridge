@@ -108,6 +108,39 @@ describe('the composer cannot file in the reply that reads a ticket back', () =>
     expect(PROMPT).toMatch(/never read a ticket back and file it in the same message/i);
   });
 
+  it('does not hand the composer the phrase that broke the gate', () => {
+    // The first attempt at this ticket added the rule and left the TEMPLATE telling the composer to
+    // write "nothing — say the word". It filed anyway, on the box, with the rule three steps below.
+    // The shape a model is told to output beats a rule it is told to follow, so the phrase has to go
+    // rather than be argued with.
+    const template = PROMPT.slice(PROMPT.indexOf('Before I file'), PROMPT.indexOf('Hard limit'));
+    expect(template).not.toMatch(/"nothing — say the word"/);
+    expect(template).toMatch(/shall I file it\?/);
+  });
+
+  it('makes the gate a question rather than an offer', () => {
+    // "Say the word" is a sentence that sounds like a stop without being one. A question mark is a
+    // shape the composer can check itself against; a flourish is not.
+    expect(PROMPT).toMatch(/ENDING IN A QUESTION MARK/);
+    expect(PROMPT).toMatch(/never write "say the word"/i);
+  });
+
+  it('gives the composer a way to obey a founder who already said go', () => {
+    // The attempt before this one only tightened the gate, and it broke live anyway: a founder said
+    // "I approve in advance, no more questions" three times and the composer wrote "shall I file
+    // it?" and filed. It was not disobeying — it was obeying, while reading out a sentence that said
+    // otherwise. A rule with no branch for the obvious case gets one improvised for it.
+    expect(PROMPT).toMatch(/Filing now, as you asked/);
+    expect(PROMPT).toMatch(/DO NOT write "Before I file" at all/);
+  });
+
+  it('names the thing that is actually forbidden', () => {
+    // Not "it filed" — a founder is allowed to pre-approve. What is forbidden is one reply that
+    // claims to be waiting and is not.
+    expect(PROMPT).toMatch(/if your reply asks "shall I file it\?", your reply\s+does not file it/i);
+    expect(PROMPT).toMatch(/a reply that says it is waiting and is not/i);
+  });
+
   it('says a yes that predates the draft is not a yes to it', () => {
     // The whole failure in one claim. Without it, "just file it" reads as standing approval for
     // words the founder has not seen.
