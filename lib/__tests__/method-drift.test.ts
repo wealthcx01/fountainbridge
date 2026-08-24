@@ -87,3 +87,43 @@ describe('the prompt and the guides still agree', () => {
     for (const slug of new Set(cited)) expect(slugs, `cited /playbook/${slug}`).toContain(slug);
   });
 });
+
+/**
+ * The gate the composer states in prose must be a rule about its own reply (FB-119).
+ *
+ * The dogfood run of 2026-08-23 produced a read-back ending "Before I file — nothing — say the
+ * word", and then filed five tickets in the same message. The founder never said the word.
+ *
+ * It was not disobedience. The gate was written as a property of the FOUNDER's message — "wait for an
+ * explicit yes" — and the founder's message had been `file the whole set`. A yes existed; it was just
+ * a yes to a ticket that did not exist yet. Nothing said that does not carry.
+ *
+ * So these assert the three things the prompt has to keep saying. They are deliberately about claims
+ * rather than wording: rephrase the prompt freely, but a rewrite that drops the rule fails here
+ * rather than in front of a founder.
+ */
+describe('the composer cannot file in the reply that reads a ticket back', () => {
+  it('says a read-back ends the reply', () => {
+    expect(PROMPT).toMatch(/read-back ends your reply/i);
+    expect(PROMPT).toMatch(/never read a ticket back and file it in the same message/i);
+  });
+
+  it('says a yes that predates the draft is not a yes to it', () => {
+    // The whole failure in one claim. Without it, "just file it" reads as standing approval for
+    // words the founder has not seen.
+    expect(PROMPT).toMatch(/before the draft existed is not a yes to the draft/i);
+  });
+
+  it('tells the composer what to do with a set, so it does not have to improvise one', () => {
+    // It improvised the split well and the gate badly. A normal ask the prompt does not cover is a
+    // gate written by whichever model is answering.
+    expect(PROMPT).toMatch(/is a SET/);
+    expect(PROMPT).toMatch(/read back ONCE/i);
+    expect(PROMPT).toMatch(/one yes files the whole set/i);
+  });
+
+  it('still refuses to name a ticket the filing tool did not name', () => {
+    // FB-097 and FB-117 both end here: an id the composer chose is a ticket nobody can approve.
+    expect(PROMPT).toMatch(/never one you chose|Do NOT invent a ticket number/);
+  });
+});
