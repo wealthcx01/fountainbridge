@@ -1,6 +1,8 @@
 # FB-122 — A plan the lane stops to show you has no way of ever being approved
 
-**Status:** Todo · **Area:** Studio / lane handshake · **Depends on:** FB-121
+**Status:** Done · **Area:** Studio / lane handshake · **Depends on:** FB-121
+
+Proved on the ARCA box before merging, both directions — see the last acceptance criterion.
 
 ## What is true today
 
@@ -87,7 +89,16 @@ lane holds no credential and cannot forge anything.
       action's own header and in the marker file itself.
 - [x] The lane reads a real marker off the real state ref. Proved on the box against the exact bytes
       the action writes: present → prints the approver and succeeds; absent → reports no release.
-- [ ] The release BRANCH observed firing in situ — the hold cleared and the ticket worked in the same
-      wake. The marker for ARCA-057 is in place and this fires on the next free wake; the lane has
-      been continuously busy working the backlog FB-121 unblocked. **This PR does not merge until
-      that line appears in the log.** FB-119 shipped green twice and failed on the box both times.
+- [x] The release BRANCH observed firing in situ. ARCA-057 was held, then released, and the next
+      free wake did this:
+
+```
+12:30:43  skip ARCA-057-pricing-sources-always-zero-synced — waiting on your go (held)
+12:46:43  ARCA-057-pricing-sources-always-zero-synced released by john.gallagher@wealthcx.com
+          — clearing the hold and working it
+12:46:43  working ARCA-057-pricing-sources-always-zero-synced in build (full-auto RPIV)
+12:46:44  claimed foundry/ARCA-057-pricing-sources-always-zero-synced
+```
+
+      The hold marker is gone from the box and the ticket is being worked normally. Both halves of
+      the branch seen: held-and-not-released skips and keeps scanning, released clears and proceeds.
