@@ -1,6 +1,6 @@
 # FB-121 — One ticket waiting on the founder stops the lane working anything else
 
-**Status:** Todo · **Area:** Lane / supervisor · **Depends on:** —
+**Status:** Done · **Area:** Lane / supervisor · **Depends on:** —
 
 ## What is happening right now
 
@@ -78,11 +78,24 @@ correctly on their own line.
 
 ## Acceptance criteria
 
-- [ ] With the first workable ticket parked awaiting the founder, the lane works the next unparked
+- [x] With the first workable ticket parked awaiting the founder, the lane works the next unparked
       ticket in the same wake.
-- [ ] With every workable ticket parked, the lane reports idle *and says the queue is waiting on the
-      founder*, naming how many tickets are held.
-- [ ] A parked ticket is never worked twice and never loses its parked state.
-- [ ] The skip decisions live in one place, so "cannot work this" cannot mean `continue` in one branch
-      and `exit` in another.
-- [ ] Proved on the ARCA box: after the fix, a wake picks up one of the ten currently-starved tickets.
+- [x] With every workable ticket parked, the lane reports idle *and says the queue is waiting on the
+      founder*, naming how many tickets are held — as `awaiting_founder`, which the contract maps to
+      `awaiting-approval`, so the studio shows a lane held on a person rather than one with nothing
+      to do. It is still a heartbeat: liveness keys off the slug, not the outcome.
+- [x] A parked ticket is never worked twice and never loses its parked state — the skip only reads
+      the marker, and nothing on this path writes or clears it.
+- [x] The skip decisions live in one place. The post-scan `exit 0` is gone; the only place that
+      decides "cannot work this one" is the scan loop, where it has always meant `continue`.
+- [x] **Proved on the ARCA box before this PR was opened.** One controlled wake with the timer
+      stopped:
+
+```
+skip ARCA-047-sign-in-tagline-fix — gave up after 3 attempts (surfaced)
+skip ARCA-048-real-history-honest-gaps — gave up after 3 attempts (surfaced)
+skip ARCA-054-settings-pricing-keys-route-shadowed — waiting on your go (held)
+working ARCA-055-news-tab-shows-alerts-not-news in build (full-auto RPIV, low blast-radius)
+```
+
+      It went on to research, write a PRP and implement. First lane work since 21 August.
