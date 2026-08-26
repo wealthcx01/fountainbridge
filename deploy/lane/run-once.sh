@@ -55,6 +55,18 @@ runs_today() { if [ -f "$BUDGET_FILE" ]; then wc -l < "$BUDGET_FILE" | tr -d ' '
 attempts_of() { if [ -f "$STATE_DIR/attempts-$1" ]; then cat "$STATE_DIR/attempts-$1"; else echo 0; fi; }
 
 # Read a ticket's Status field (lowercased first word), e.g. "todo".
+# FB-122: who released this plan, if anyone. Prints the approver and succeeds; silent failure means
+# no release. Read from the state ref rather than the box, so the studio (which cannot reach this
+# machine) is the thing that writes it.
+release_of() {
+  local body approver
+  body=$(gh_api "$API/repos/$REPO/contents/approvals/plan-$1.json?ref=$STATE_REF" 2>/dev/null) || return 1
+  case "$body" in *'"content"'*) ;; *) return 1 ;; esac
+  approver=$(printf '%s' "$body" | jval '.content' | base64 -d 2>/dev/null | jval '.approver')
+  [ -n "$approver" ] || return 1
+  printf '%s\n' "$approver"
+}
+
 ticket_status() { grep -oiE '\*\*Status:\*\*[[:space:]]*[A-Za-z]+' "$1" | head -1 | sed -E 's/.*\*\*Status:\*\*[[:space:]]*//I' | tr '[:upper:]' '[:lower:]'; }
 # Is there an open PR for this ticket's claim branch? (parse JSON — don't grep minified output.)
 has_open_pr() {
@@ -202,8 +214,24 @@ for f in docs/tickets/*.md; do
   # with ten workable tickets and 864 wakes that did nothing. Here it is a `continue`, which is what
   # "cannot work this one" means everywhere else in this loop.
   if [ -f "$STATE_DIR/awaiting-$slug" ]; then
-    HELD=$((HELD + 1)); HELD_NAMES="${HELD_NAMES:+$HELD_NAMES, }$slug"
-    flog "skip $slug — waiting on your go (held)"; continue
+    # FB-122: unless the founder has released it from the studio. Before this there was no exit from
+    # the sensitive gate at all — the marker was written and nothing anywhere deleted it, so a plan
+    # the lane stopped to show someone could never be approved. ARCA-054 sat behind it for a week
+    # and was eventually done by hand.
+    #
+    # The marker is UNSIGNED and this lane trusts it, which is only defensible because of what this
+    # gate is: it exists so the lane does not spend model time and open a PR on high-blast-radius
+    # work before a person has read what it intends to do. It is not a security boundary. Engineering
+    # change is gated on the pull request; anything leaving the building is gated on a signed
+    # ActiveGraph approval this box holds no secret for. The record of WHO released a plan is written
+    # into the studio's own ActiveGraph, where this lane has no credential and cannot forge one.
+    if release_of "$slug" >/dev/null; then
+      flog "$slug released by $(release_of "$slug") — clearing the hold and working it"
+      rm -f "$STATE_DIR/awaiting-$slug"
+    else
+      HELD=$((HELD + 1)); HELD_NAMES="${HELD_NAMES:+$HELD_NAMES, }$slug"
+      flog "skip $slug — waiting on your go (held)"; continue
+    fi
   fi
   PICK="$REPO_DIR/$f"; PICK_SLUG="$slug"
   PICK_DEPT="$DEPT_ID"; PICK_GATE="$DEPT_GATE"; PICK_REPO="$REPO"; PICK_DIR="$REPO_DIR"; PICK_BASE="$BASE_BRANCH"
