@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { loadVentures, ventureChatUrl } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
+import { loadFiledForLanes, defaultBranchFileReader, type FiledTicket } from '@/lib/filed-tickets';
 import { ticketsByRepo } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
@@ -60,7 +61,30 @@ export default async function VenturePage({
     refresh: refresh === '1',
     tickets: await ticketsByRepo(venture, { refresh: refresh === '1' }),
   });
-  const lanes = data.lanes.map((lane) => applyStatusInference(lane, attention.ticketStatus));
+  const inferred = data.lanes.map((lane) => applyStatusInference(lane, attention.ticketStatus));
+  // FB-120: the work the founder approved minutes ago, which is not on the default branch yet.
+  //
+  // AFTER inference, deliberately. A filed ticket's own pull request is open, so inference would move
+  // it to "Needs your OK" — the wrong sentence about work nobody has started, and the loss of exactly
+  // the distinction this exists to draw.
+  //
+  // A read failure must not blank a board that was fine a moment ago, so it degrades to none: the
+  // pull requests stay in the attention queue either way, which is where the founder was before.
+  let filedByRepo = new Map<string, FiledTicket[]>();
+  try {
+    filedByRepo = await loadFiledForLanes(inferred, attention.perRepo, defaultBranchFileReader());
+  } catch {
+    filedByRepo = new Map();
+  }
+  const lanes = inferred.map((lane) => {
+    const filed = filedByRepo.get(lane.repo);
+    if (!filed?.length) return lane;
+    return {
+      ...lane,
+      groups: { ...lane.groups, filed },
+      total: lane.total + filed.length,
+    };
+  });
   // Staleness (FB-008): flag a lane whose repo has had no activity in N days — surfaced on the board.
   const health = await loadVentureHealth(venture, { refresh: refresh === '1' });
   const staleRepos = health.repos.filter((r) => r.stale).map((r) => r.repo);
@@ -169,9 +193,26 @@ export default async function VenturePage({
   // of work titled "ARCA-5: deck sharing" whose ticket file does not exist has an id, matches
   // nothing on screen, and fell through exactly the same gap the badge/column mismatch fell through.
   const onBoard = new Set(Object.keys(ticketTitles));
+  // FB-120: a filing now HAS a card, so it must stop being listed as work with nowhere to go. It is
+  // keyed by pull request rather than ticket id because that is what the filing is — the ticket it
+  // carries is the card, and listing both would show the same thing twice under two names.
+  // FB-120: where each filed ticket actually LIVES. The drawer builds a GitHub file link from the
+  // lane's ref, which for these is the default branch — the one branch the file is provably not on.
+  // Without this the card a founder opens to re-read what they approved links to a 404.
+  const filedRefs: Record<string, { branch: string; prNumber: number; prUrl: string }> = {};
+  for (const [repo, fs] of filedByRepo) {
+    for (const f of fs) {
+      filedRefs[`${repo} ${f.ticket.id}`] = { branch: f.branch, prNumber: f.prNumber, prUrl: f.prUrl };
+    }
+  }
+
+  const filedPrs = new Set(
+    [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => `${repo} ${f.prNumber}`)),
+  );
   const unmatchedWork: Record<string, Array<{ number: number; title: string }>> = {};
   for (const pr of attention.approvals) {
     if (pr.linkedTicketId && onBoard.has(pr.linkedTicketId)) continue;
+    if (filedPrs.has(`${pr.repo} ${pr.number}`)) continue;
     (unmatchedWork[pr.repo] ??= []).push({ number: pr.number, title: pr.title });
   }
 
@@ -253,6 +294,7 @@ export default async function VenturePage({
       staleRepos={staleRepos}
       totalWarnings={data.totalWarnings}
       openWork={openWork}
+      filedRefs={filedRefs}
       unmatchedWork={unmatchedWork}
       viewerIsFounder={
         !!venture.founderEmail && venture.founderEmail.toLowerCase() === session.user.email.toLowerCase()

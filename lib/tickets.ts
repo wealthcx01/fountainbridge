@@ -16,8 +16,17 @@ import type { VentureSummary } from './ventures';
 import { GitHubClient, GitHubError } from './github';
 import { inferenceKey } from './attention';
 
-export type TicketStatusGroup = 'todo' | 'in-progress' | 'pr-open' | 'done';
-export const STATUS_GROUPS: readonly TicketStatusGroup[] = ['todo', 'in-progress', 'pr-open', 'done'];
+/**
+ * `filed` is a ticket the founder approved in the composer whose pull request has not merged yet
+ * (FB-120). It is deliberately FIRST: it is the earliest thing that can be true of a piece of work,
+ * before anyone has agreed to start it.
+ *
+ * It is not a status a ticket file can declare. Every filed ticket says `**Status:** Todo` in its own
+ * markdown, because that is what it will be once it lands. `filed` is a fact about WHERE the ticket
+ * is (on a branch, not on the default branch), which only the studio can see.
+ */
+export type TicketStatusGroup = 'filed' | 'todo' | 'in-progress' | 'pr-open' | 'done';
+export const STATUS_GROUPS: readonly TicketStatusGroup[] = ['filed', 'todo', 'in-progress', 'pr-open', 'done'];
 
 /**
  * Why a lane couldn't be read (FB-021). A bare GitHub 404 means BOTH "repo doesn't exist" and
@@ -71,7 +80,7 @@ export interface RepoTicketFiles {
 export type RepoTicketFetcher = (repo: string) => Promise<RepoTicketFiles>;
 
 function emptyGroups(): Record<TicketStatusGroup, TicketWithMeta[]> {
-  return { todo: [], 'in-progress': [], 'pr-open': [], done: [] };
+  return { filed: [], todo: [], 'in-progress': [], 'pr-open': [], done: [] };
 }
 
 /** Parse a repo's ticket files into status-grouped lanes. Pure — the heart of the service. */
@@ -104,7 +113,13 @@ export function groupRepoTickets(repo: string, fetched: RepoTicketFiles): LaneTi
  */
 export function applyStatusInference(
   lane: LaneTickets,
-  statusMap: ReadonlyMap<string, TicketStatusGroup>,
+  /**
+   * Deliberately narrower than `TicketStatusGroup`: inference can only ever conclude `pr-open` or
+   * `done`, because both come from the state of a pull request. `filed` is not inferable — it is a
+   * fact about a ticket that is NOT on the default branch, and every ticket reaching this function
+   * already is (FB-120).
+   */
+  statusMap: ReadonlyMap<string, 'pr-open' | 'done'>,
 ): LaneTickets {
   const groups = emptyGroups();
   for (const g of STATUS_GROUPS) {

@@ -18,6 +18,9 @@ import type { TicketStatusGroup } from './tickets';
  * rather than the git term "PR open".
  */
 export const STATUS_LABEL: Record<TicketStatusGroup, string> = {
+  // Not "on a branch" and not "PR open". What a founder did was file it; what has not happened yet
+  // is anyone agreeing to start. FB-120.
+  filed: 'Just filed',
   todo: 'To do',
   'in-progress': 'In progress',
   'pr-open': 'Needs your OK',

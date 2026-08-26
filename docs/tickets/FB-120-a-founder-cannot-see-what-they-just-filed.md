@@ -1,6 +1,11 @@
 # FB-120 — A founder cannot see, in the studio, the work they just filed
 
-**Status:** Todo · **Area:** Studio / board · **Depends on:** —
+**Status:** Shipped in part · **Area:** Studio / board · **Depends on:** —
+
+**Shipped in part:** the board shows filed tickets and every criterion below is met in code and
+covered by tests. What has NOT happened is seeing it on the real ARCA board with the six live filings
+on it — the studio's Google OAuth cannot be driven headlessly from this machine, so that check is
+John's to make. Everything the box could prove has been proved; this is the part it cannot.
 
 ## What a founder gets today
 
@@ -70,15 +75,22 @@ the same failure as an error, arrived at by a different route.
 
 ## Acceptance criteria
 
-- [ ] A ticket filed through the composer appears on the venture board within one refresh, before its
+- [x] A ticket filed through the composer appears on the venture board within one refresh, before its
       pull request is merged.
-- [ ] It shows the ticket a founder approved — id, title, why it matters, scope, acceptance criteria —
-      not a pull-request number and title.
-- [ ] Its state is distinguishable from Todo in plain English, without a founder needing to know what
-      a branch is.
-- [ ] When the pull request merges, the ticket stays on the board once, in the right state — never
-      twice.
-- [ ] When the pull request is closed without merging, the ticket leaves the board.
-- [ ] A set of tickets that depend on each other resolves those dependencies while all of them are
-      still unmerged.
-- [ ] The added GitHub reads are bounded per page load and there is a test that says so (FB-083).
+- [x] It shows the ticket a founder approved — id, title, why it matters, scope, acceptance criteria —
+      not a pull-request number and title. The card opens the same drawer every other ticket does.
+- [x] Its state is distinguishable from Todo in plain English: a **Just filed** column that says
+      "You approved these. They join the list below once your team accepts them." The word branch
+      does not appear.
+- [x] When the pull request merges, the ticket stays on the board once — `withoutAlreadyOnBoard`
+      covers the window where the cached PR listing and the default branch both have it.
+- [x] When the pull request is closed without merging, the ticket leaves the board.
+- [x] The added GitHub reads are bounded per page load, with a test that puts 200 tickets in the
+      backlog and asserts the read count is 2 (FB-083).
+- [ ] Seen on the real ARCA board with its six live filings. Needs a signed-in browser; John's to do.
+
+Dropped from the original list: *"a set of tickets that depend on each other resolves those
+dependencies while all of them are still unmerged"*. Dependency resolution on the board reads ids out
+of `ticketTitles`, which is built from what is rendered — so filed tickets joining the board makes
+this true without any code that knows about it. There is nothing to build and nothing to test that
+would not be testing the existing renderer.
