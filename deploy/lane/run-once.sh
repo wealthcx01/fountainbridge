@@ -159,6 +159,10 @@ fire_due_routine
 
 # --- scan each department for the first workable ticket ---------------------------------------------
 PICK="" PICK_SLUG="" PICK_DEPT="" PICK_GATE="" PICK_REPO="" PICK_DIR="" PICK_BASE=""
+# FB-121: how much of the queue is held on the founder rather than on us. An idle wake with ten
+# tickets waiting for a go is not the same fact as an idle wake with an empty queue, and a founder
+# who cannot tell them apart has no way to know they are the blocker.
+HELD=0; HELD_NAMES=""
 shopt -s nullglob
 scan_department() {
 for f in docs/tickets/*.md; do
@@ -192,6 +196,15 @@ for f in docs/tickets/*.md; do
     fi
     flog "skip $slug — gave up after $MAX_ATTEMPTS attempts (surfaced)"; continue
   fi
+  # FB-121: parked awaiting the founder's go. This used to be checked AFTER the scan had committed
+  # to a pick, where the only thing left to do was `exit 0` — ending the whole wake. So one ticket
+  # waiting on a person stopped every ticket alphabetically behind it, and ARCA sat for five days
+  # with ten workable tickets and 864 wakes that did nothing. Here it is a `continue`, which is what
+  # "cannot work this one" means everywhere else in this loop.
+  if [ -f "$STATE_DIR/awaiting-$slug" ]; then
+    HELD=$((HELD + 1)); HELD_NAMES="${HELD_NAMES:+$HELD_NAMES, }$slug"
+    flog "skip $slug — waiting on your go (held)"; continue
+  fi
   PICK="$REPO_DIR/$f"; PICK_SLUG="$slug"
   PICK_DEPT="$DEPT_ID"; PICK_GATE="$DEPT_GATE"; PICK_REPO="$REPO"; PICK_DIR="$REPO_DIR"; PICK_BASE="$BASE_BRANCH"
   return 0
@@ -218,8 +231,17 @@ fi
 
 # --- "useful work?" — nothing ready → idle heartbeat, no model session -----------------------------
 if [ -z "$PICK" ]; then
-  flog "no workable Todo/Ready ticket — idle"
-  write_runreport "heartbeat" "idle" "Lane awake — nothing to work right now." || true
+  # FB-121: two different facts, said differently. `awaiting_founder` maps to `awaiting-approval` in
+  # the contract, so the studio shows a lane held on a person rather than one with nothing to do —
+  # and the heartbeat is still a heartbeat, because liveness keys off the slug, not the outcome.
+  if [ "$HELD" -gt 0 ]; then
+    flog "nothing workable — $HELD ticket(s) held on your go: $HELD_NAMES"
+    write_runreport "heartbeat" "awaiting_founder" \
+      "Lane awake with nothing it may work: $HELD ticket(s) are waiting for your go — $HELD_NAMES. Nothing else is queued." || true
+  else
+    flog "no workable Todo/Ready ticket — idle"
+    write_runreport "heartbeat" "idle" "Lane awake — nothing to work right now." || true
+  fi
   exit 0
 fi
 
@@ -257,9 +279,9 @@ fi
 if [ "$REQUIRE_PROPOSAL" = 0 ] && grep -qiE "$ENGINEERING_SENSITIVE|\boutreach\b|send.{0,6}email" "$PICK"; then
   # Produce the plan ONCE (not every wake) so the founder sees exactly what the lane WOULD do before
   # approving — honest "stop-at-PLAN", not stop-before-plan (adversarial review P1).
-  if [ -f "$STATE_DIR/awaiting-$PICK_SLUG" ]; then
-    flog "$PICK_SLUG already surfaced for founder go — skipping"; exit 0
-  fi
+  # (The "already surfaced" check that used to live here is gone: the scan skips a parked ticket
+  # before it can be picked, so reaching this line means we are surfacing a plan for the first time.
+  # Two places deciding the same thing is what FB-121 was — `continue` in one, `exit` in the other.)
   flog "$PICK_SLUG classified SENSITIVE → planning for founder review (no PR)"
   echo "$PICK_SLUG $(date -u +%FT%TZ)" >> "$BUDGET_FILE"   # a plan session counts against the budget
   PLAN_OUT="$STATE_DIR/sensitive-plan-$PICK_SLUG.md"
