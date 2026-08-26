@@ -9,6 +9,8 @@ import {
   type BranchFileReader,
 } from '../filed-tickets';
 import type { RawPr } from '../attention';
+import type { TicketStatusGroup, TicketWithMeta } from '../tickets';
+import { parseTicket } from '../../tools/ticket-parser/src/index';
 
 /**
  * The board has to show a founder the work they just approved (FB-120).
@@ -48,6 +50,22 @@ const pr = (over: Partial<RawPr> = {}): RawPr => ({
 });
 
 const reader = (content: string | null): BranchFileReader => async () => content;
+
+/**
+ * A board group, typed. Built through the real parser rather than cast from a literal: a fixture that
+ * lies about the shape of a Ticket is a test that passes while the thing it guards breaks.
+ */
+const onBoard = (...ids: string[]): Record<TicketStatusGroup, TicketWithMeta[]> => {
+  const groups: Record<TicketStatusGroup, TicketWithMeta[]> = {
+    filed: [], todo: [], 'in-progress': [], 'pr-open': [], done: [],
+  };
+  for (const id of ids) {
+    const parsed = parseTicket(ticket(id), { repo: 'arca', path: `docs/tickets/${id}-on-board.md` });
+    groups.todo.push({ ticket: parsed.ticket, warnings: parsed.warnings });
+  }
+  return groups;
+};
+
 
 describe('telling a ticket filing from everything else on a branch', () => {
   it('takes the one ticket file a filing adds', () => {
@@ -163,15 +181,8 @@ describe('the transitions, which is where a board like this usually goes wrong',
   });
 
   it('reads the ids the board already shows out of every column', () => {
-    const groups = {
-      filed: [],
-      todo: [{ ticket: { id: 'A-1' }, warnings: [] }],
-      'in-progress': [],
-      'pr-open': [{ ticket: { id: 'A-2' }, warnings: [] }],
-      done: [{ ticket: { id: 'A-3' }, warnings: [] }],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
-    expect([...ticketIdsOnBoard(groups)].sort()).toEqual(['A-1', 'A-2', 'A-3']);
+    const groups = onBoard('ARCA-001', 'ARCA-002', 'ARCA-003');
+    expect([...ticketIdsOnBoard(groups)].sort()).toEqual(['ARCA-001', 'ARCA-002', 'ARCA-003']);
   });
 });
 
@@ -181,11 +192,7 @@ describe('what it costs to render (FB-083)', () => {
     // size must not change this number — only the count of things the founder is waiting on does.
     let reads = 0;
     const counting: BranchFileReader = async () => { reads += 1; return ticket('ARCA-090'); };
-    const bigBacklog = {
-      filed: [], todo: Array.from({ length: 200 }, (_, i) => ({ ticket: { id: `ARCA-${i}` }, warnings: [] })),
-      'in-progress': [], 'pr-open': [], done: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+    const bigBacklog = onBoard(...Array.from({ length: 200 }, (_, i) => `ARCA-${i + 100}`));
 
     await loadFiledForLanes(
       [{ repo: 'arca', groups: bigBacklog }],
@@ -200,8 +207,7 @@ describe('what it costs to render (FB-083)', () => {
     let reads = 0;
     const counting: BranchFileReader = async () => { reads += 1; return ticket('X-1'); };
     const out = await loadFiledForLanes(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      [{ repo: 'arca', groups: { filed: [], todo: [], 'in-progress': [], 'pr-open': [], done: [] } as any }],
+      [{ repo: 'arca', groups: onBoard() }],
       [{ repo: 'arca', result: { prs: [pr({ branch: 'fb-1-not-a-filing' })] } }],
       counting,
     );
@@ -213,8 +219,7 @@ describe('what it costs to render (FB-083)', () => {
     const seen: string[] = [];
     const read: BranchFileReader = async (repo) => { seen.push(repo); return ticket('ARCA-068'); };
     await loadFiledForLanes(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      [{ repo: 'arca', groups: { filed: [], todo: [], 'in-progress': [], 'pr-open': [], done: [] } as any }],
+      [{ repo: 'arca', groups: onBoard() }],
       [
         { repo: 'arca', result: { prs: [pr()] } },
         { repo: 'arca-sell', result: { prs: [pr({ number: 99 })] } },
