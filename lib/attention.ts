@@ -33,6 +33,12 @@ export interface RawPr {
   merged: boolean;
   ciStatus?: PrCiStatus;
   previewUrl?: string | null;
+  /**
+   * Paths this pull request changes (FB-120). Open PRs only, and capped — it exists to tell a
+   * ticket FILING (one file under docs/tickets) from everything else, not to describe a diff. It
+   * rides on the query that was already being made, so it costs nothing.
+   */
+  files?: string[];
 }
 
 /**
@@ -166,6 +172,7 @@ const PRS_QUERY = `query($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
     open: pullRequests(states: [OPEN], first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
       nodes { number title url createdAt state merged headRefName author { login }
+        files(first: 20) { nodes { path } }
         commits(last: 1) { nodes { commit { oid
           statusCheckRollup { state
             contexts(first: 100) { nodes {
@@ -182,6 +189,7 @@ const PRS_QUERY = `query($owner: String!, $name: String!) {
 interface GqlPr {
   number: number; title: string; url: string; createdAt: string;
   state: string; merged: boolean; headRefName: string; author: { login: string } | null;
+  files?: { nodes: Array<{ path: string }> } | null;
   commits?: { nodes: Array<{ commit: { oid: string; statusCheckRollup: GqlRollup | null } }> };
 }
 interface GqlRollup {
@@ -211,6 +219,7 @@ function toRawPr(p: GqlPr, ciStatus?: PrCiStatus, previewUrl?: string | null): R
     state: p.state === 'OPEN' ? 'open' : 'closed',
     merged: Boolean(p.merged),
     ...(ciStatus ? { ciStatus } : {}),
+    ...(p.files ? { files: p.files.nodes.map((f) => f.path) } : {}),
     previewUrl: previewUrl ?? null,
   };
 }

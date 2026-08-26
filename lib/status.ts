@@ -98,6 +98,10 @@ export function ticketTone(group: TicketStatusGroup): Tone {
       return 'working';
     case 'pr-open':
       return 'attention';
+    // Same reason as pr-open, one step earlier: a filed ticket is sitting on a pull request nobody
+    // has merged, so the human is the blocker rather than the machine (FB-120).
+    case 'filed':
+      return 'attention';
     case 'todo':
       return 'idle';
     default: {

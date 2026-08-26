@@ -38,6 +38,10 @@ const GATE_LABEL: Record<string, string> = {
 // Column keys stay technical (col-<key> test ids, contract statuses); the visible label is the
 // founder-facing term from the glossary (FB-024) — e.g. "pr-open" → "Needs your OK".
 const GROUPS: { key: TicketStatusGroup; label: string }[] = [
+  // FB-120: first, because it is the earliest thing that can be true of a piece of work — the founder
+  // has approved it and nobody has picked it up. The column is omitted entirely when empty (below);
+  // a permanently empty first column would be a worse first impression than no column at all.
+  { key: 'filed', label: STATUS_LABEL.filed },
   { key: 'todo', label: STATUS_LABEL.todo },
   { key: 'in-progress', label: STATUS_LABEL['in-progress'] },
   { key: 'pr-open', label: STATUS_LABEL['pr-open'] },
@@ -111,6 +115,7 @@ export function VentureBoard({
   fetchedAt,
   org,
   openWork = {},
+  filedRefs = {},
   unmatchedWork = {},
   viewerIsFounder = false,
   wiringWarning = null,
@@ -147,6 +152,10 @@ export function VentureBoard({
    * (FB-105). So the drawer's Accept button and the column the card sits in are the same fact.
    */
   openWork?: Record<string, { repo: string; number: number }>;
+  /** Where a filed ticket lives, keyed `<repo> <ticketId>` — its own branch, not the default
+   *  one. The drawer builds a GitHub link from the ref it is given, and the default branch is
+   *  the one branch a filed ticket is provably not on (FB-120). */
+  filedRefs?: Record<string, { branch: string; prNumber: number; prUrl: string }>;
   /**
    * Open work this venture has that matches no ticket, by repo (FB-099).
    *
@@ -552,7 +561,13 @@ export function VentureBoard({
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(14rem, 1fr))' }}>
-              {GROUPS.map((g) => (
+              {GROUPS
+                // FB-120: "Just filed" only exists while something is in it. Every other column is a
+                // permanent part of the shape of work; this one is a transient state most boards are
+                // not in, and a column that is empty almost always reads as a feature that does not
+                // work rather than as a state you are not currently in.
+                .filter((g) => g.key !== 'filed' || lane.groups.filed.length > 0)
+                .map((g) => (
                 <div key={g.key} data-testid={`col-${g.key}`}>
                   <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>
                     {g.label}{' '}
@@ -567,6 +582,14 @@ export function VentureBoard({
                   {g.key === 'todo' && lane.groups.todo.length > 0 ? (
                     <p className="muted" data-testid="col-todo-note" style={{ fontSize: 'var(--fs-meta)', margin: '-0.35rem 0 0.5rem' }}>
                       Waiting for your team to pick up.
+                    </p>
+                  ) : null}
+                  {/* FB-120: said once on the column, for the same reason as the note above. It has
+                      to answer the question a founder actually has — "I approved that, where is it?"
+                      — without using the word branch, which is not a thing they should need. */}
+                  {g.key === 'filed' && lane.groups.filed.length > 0 ? (
+                    <p className="muted" data-testid="col-filed-note" style={{ fontSize: 'var(--fs-meta)', margin: '-0.35rem 0 0.5rem' }}>
+                      You approved these. They join the list below once your team accepts them.
                     </p>
                   ) : null}
                   <div className="stack" style={{ gap: '0.5rem' }}>
@@ -587,7 +610,14 @@ export function VentureBoard({
                         className="card card-link"
                         style={{ textAlign: 'left', cursor: 'pointer', padding: '0.7rem 0.85rem' }}
                         data-testid={`ticket-${item.ticket.id}`}
-                        onClick={() => setSelected({ repo: lane.repo, ref: lane.ref, item, group: g.key })}
+                        onClick={() =>
+                          setSelected({
+                            repo: lane.repo,
+                            ref: filedRefs[`${lane.repo} ${item.ticket.id}`]?.branch ?? lane.ref,
+                            item,
+                            group: g.key,
+                          })
+                        }
                       >
                         {/* FB-097: a ticket called "ARCA-NEW" is a ticket nobody can refer to,
                             depend on, or approve by name — and the walkthrough met four of them at
