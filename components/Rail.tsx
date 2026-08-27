@@ -75,7 +75,7 @@ export function Rail({
             color: 'var(--color-ink-muted)',
           }}
         >
-          Not live yet. Your agents’ desks appear here once this venture’s machine reports what they
+          Not live yet. Your team’s desks appear here once this venture’s machine reports what they
           are doing.
         </div>
       </div>
@@ -120,15 +120,21 @@ export function Rail({
         </span>
       </div>
 
+      {/* No link to the venture box's own chat here, and that is deliberate.
+       *
+       * The first version of this rail had one, and `e2e/composer.spec.ts` caught it: "nothing on the
+       * composer sends the founder to another product". That test is FB-065's whole point — the
+       * composer was moved inside the studio precisely so a founder stops being handed to a second
+       * application — and a link in the persistent rail would have put that hand-off on every screen.
+       *
+       * The design's rail does not have one either. It was invented here, and removed. The desk keeps
+       * its existing link (FB-128's business); a rail is not the place to leave the studio from.
+       *
+       * The pocket-studio link the design shows arrives with FB-138. It is omitted rather than stubbed
+       * because a nav row to a screen that does not exist is a dead control, which the design contract
+       * forbids and `design-lint` enforces. */}
       <div style={{ marginTop: 'auto', paddingTop: '1.6rem', fontSize: 'var(--fs-meta)' }}>
-        {data.chatUrl ? (
-          <div>
-            <a href={data.chatUrl} data-testid="rail-chat">The composer, on this venture’s machine ↗</a>
-          </div>
-        ) : (
-          <div className="muted" data-testid="rail-no-box">This venture has no machine yet.</div>
-        )}
-        <div style={{ marginTop: '0.4rem' }}>
+        <div>
           <Link href="/api/auth/signout" data-testid="rail-signout">Sign out</Link>
         </div>
       </div>

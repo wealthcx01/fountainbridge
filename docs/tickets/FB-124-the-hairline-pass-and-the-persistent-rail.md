@@ -116,6 +116,21 @@ is the whole value. Redirecting it to one venture would have removed function to
 paths now exist; the venture-scoped activity is an honest shim over the same page until FB-132
 narrows it deliberately.
 
+**CI caught two things local gates did not, and both were me being wrong.**
+
+`e2e/composer.spec.ts` — *"nothing on the composer sends the founder to another product"* — failed
+because the first rail carried a link to the venture box's own chat. That test is FB-065's whole
+point: the composer was moved inside the studio precisely so a founder stops being handed to a second
+application, and a rail link would have put that hand-off on **every screen**. The design's rail has
+no such link either; it was invented here, and removed.
+
+`make copy-lint` — the founder-vocabulary contract (FB-103) — rejected the word "agents". Worth
+recording, because **the design's own copy uses it nine times** across day one, the desk, the composer
+and the pocket studio ("your agents, live, at their desks", "Each character is 1 agent"). The contract
+is enforced and the design is not, so the contract wins here — but FB-128 and FB-143 will meet the
+same wall, and someone should decide deliberately whether the contract or the design's voice is right
+rather than rewording it four more times by hand.
+
 **`main` was red before this could land.** The commit that filed this set said "FB-124…FB-142", and
 ticket-drift read the range's endpoints as shipped. Fixed in FB-145 first, because a red `main` blocks
 everything behind it.

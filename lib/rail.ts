@@ -1,6 +1,5 @@
 import { cache } from 'react';
 import type { VentureSummary } from './ventures';
-import { ventureChatUrl } from './ventures';
 import { loadVentureAttention } from './attention';
 import { departmentBudgets, type BudgetDisclosure } from './budgets';
 import { loadEnvelopes } from './budgets-load';
@@ -35,6 +34,10 @@ import { GitHubClient } from './github';
  *
  * ## What it deliberately does not carry
  *
+ * A link to the venture box's own chat. The first draft had one and `e2e/composer.spec.ts` caught it:
+ * "nothing on the composer sends the founder to another product" — FB-065's whole point, and a rail
+ * link would have put that hand-off on every screen.
+ *
  * The office plate's live state. That is FB-139 (G6); until it exists the rail draws a placeholder
  * that says so in words. A rail polling a feed that does not exist would be the most expensive way to
  * render nothing.
@@ -45,8 +48,6 @@ export interface RailData {
   /** Per-department budgets. `null` where a department declares no envelope; the rail says so. */
   budgets: (BudgetDisclosure | null)[];
   engine: { state: EngineState; text: string; ageMinutes: number | null };
-  /** Null when this venture has no box yet. The rail says so rather than drawing a dead link. */
-  chatUrl: string | null;
   /** True when any read above failed. The rail is quieter about what it could not load, not silent. */
   degraded: boolean;
 }
@@ -102,7 +103,6 @@ export const loadRailData = cache(async (venture: VentureSummary, nowMs: number)
     needsYou: attention?.approvals.length ?? 0,
     budgets,
     engine: { state: engine.state, text: engine.text, ageMinutes: engine.ageMinutes },
-    chatUrl: ventureChatUrl(venture.vpsHost),
     degraded,
   };
 });
