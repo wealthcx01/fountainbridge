@@ -175,6 +175,18 @@ export function isShippingCommit(paths: string[]): boolean {
 const TICKET_ID = /\b[A-Z]{2,}-\d+[a-z]?\b/g;
 
 /**
+ * A range of ticket ids: `FB-124…FB-142`, `FB-124...FB-142`, `FB-124 – FB-142`.
+ *
+ * Matched so it can be REMOVED before ids are read (FB-145). A range names a set the string does not
+ * enumerate — `FB-124…FB-142` is a claim about nineteen tickets, of which it spells two — so reading
+ * its endpoints as "these shipped" is reading punctuation as evidence.
+ *
+ * `main` went red on exactly this: the planning commit for the desk redesign said
+ * "…and FB-124…FB-142", and the checker demanded FB-142 be marked Done for work that had not started.
+ */
+const TICKET_ID_RANGE = /\b[A-Z]{2,}-\d+[a-z]?\s*(?:\.{2,3}|…|—|–|-{1,2}>?|\bto\b)\s*[A-Z]{2,}-\d+[a-z]?\b/g;
+
+/**
  * Which tickets one commit is evidence for — the two precise signals, and nothing looser.
  *
  * Returns nothing for a commit that shipped no code, whatever its message says: a ticket-filing
@@ -182,5 +194,7 @@ const TICKET_ID = /\b[A-Z]{2,}-\d+[a-z]?\b/g;
  */
 export function ticketsShippedBy(commit: { subject: string; paths: string[] }): string[] {
   if (!isShippingCommit(commit.paths)) return [];
-  return [...new Set(commit.subject.match(TICKET_ID) ?? [])];
+  // FB-145: ranges out first. An id only counts when the subject names it on its own.
+  const subject = commit.subject.replace(TICKET_ID_RANGE, ' ');
+  return [...new Set(subject.match(TICKET_ID) ?? [])];
 }
