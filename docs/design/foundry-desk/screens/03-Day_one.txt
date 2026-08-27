@@ -1,0 +1,16 @@
+data-screen-label="Day one" style="padding:72px 40px 96px; max-width:760px;">
+ARCA
+· Venture · Day one
+Good morning. Arca is ready.
+Your team is set up and waiting for its first piece of work. Start with what you already have: research, notes, a deck, exports from other conversations. Hand it over, and it becomes what Arca knows.
+Tell the studio what you want →
+What will be here
+The office: your agents, live, at their desks.
+Tickets: everything you have asked for, each one followable to where it changed things.
+A queue that counts only what waits on you.
+[IF notesOn]
+Wireframe: one action, per FB-066 in the build. The rest of this file shows the venture 10 weeks in.
+[/IF]
+[/IF]
+[IF isDesk]
+<div

@@ -1,0 +1,209 @@
+/* =========================================================================
+   Bruntsfield Capital — Foundations
+   Colour and type tokens, plus semantic element styles.
+   Import in any HTML: <link rel="stylesheet" href="../colors_and_type.css">
+   ========================================================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+  /* -------------------- Colour ------------------------------------------ */
+  /* The palette is intentionally narrow: paper, ink, rule, one accent.    */
+
+  --paper:        #F7F6F2;   /* page background — off-white, slight warmth */
+  --paper-deep:   #EFEDE6;   /* one notch warmer for inset panels          */
+  --ink:          #17191F;   /* near-black body text                       */
+  --ink-soft:     #3A3D45;   /* secondary text                             */
+  --ink-mute:     #6E7079;   /* meta, captions, timestamps                 */
+  --rule:         #DDDBD6;   /* hairline borders, dividers, table rules    */
+  --rule-strong:  #B9B6AE;   /* emphasised rule (e.g. table header bottom) */
+
+  --accent:       #1A3B26;   /* Bottle Green — the only chromatic colour   */
+  --accent-deep:  #112619;   /* hover / pressed                            */
+  --accent-soft:  #E4EAE3;   /* tint for badges, callouts (very rare use)  */
+
+  /* Semantic colour roles -------------------------------------------------*/
+  --bg:           var(--paper);
+  --bg-inset:     var(--paper-deep);
+  --fg:           var(--ink);
+  --fg-2:         var(--ink-soft);
+  --fg-3:         var(--ink-mute);
+  --border:       var(--rule);
+  --border-2:     var(--rule-strong);
+  --link:         var(--accent);
+  --link-hover:   var(--accent-deep);
+
+  /* -------------------- Type --------------------------------------------- */
+  --serif:  "Source Serif 4", "Source Serif Pro", "Freight Display", "Canela",
+            ui-serif, Georgia, "Times New Roman", serif;
+  --sans:   "Inter", "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system,
+            "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono:   "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+            Consolas, monospace;
+
+  /* Type scale — editorial, modest, large gaps between display + body.    */
+  --fs-display:   clamp(56px, 7vw, 96px);
+  --fs-h1:        clamp(40px, 4.5vw, 64px);
+  --fs-h2:        clamp(28px, 2.6vw, 36px);
+  --fs-h3:        22px;
+  --fs-h4:        18px;
+  --fs-body:      16px;
+  --fs-body-sm:   14px;
+  --fs-meta:      12px;
+  --fs-eyebrow:   11px;   /* tracked uppercase label                       */
+
+  --lh-display:   1.05;
+  --lh-h:         1.15;
+  --lh-body:      1.7;
+  --lh-tight:     1.4;
+
+  --tracking-eyebrow:  0.16em;
+  --tracking-tight:    -0.01em;
+
+  /* -------------------- Spacing / Layout --------------------------------- */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  24px;
+  --sp-6:  32px;
+  --sp-7:  48px;
+  --sp-8:  64px;
+  --sp-9:  96px;
+  --sp-10: 128px;
+
+  --col-gutter:    32px;
+  --page-pad:      clamp(20px, 4vw, 56px);
+  --content-max:   1240px;
+  --measure:       62ch;     /* ideal reading width for body copy          */
+  --measure-tight: 48ch;
+
+  /* -------------------- Borders, radii, elevation ------------------------ */
+  --hairline:    1px solid var(--border);
+  --hairline-2:  1px solid var(--border-2);
+  --radius-0:    0;          /* default — most surfaces are square         */
+  --radius-1:    2px;        /* inputs, very small affordances             */
+  --radius-2:    4px;        /* tags, the rare badge                       */
+  /* No larger radii by design. No drop shadows. Elevation is layout only. */
+  --shadow-rule: 0 1px 0 var(--border);
+
+  /* -------------------- Motion ------------------------------------------- */
+  --ease:        cubic-bezier(.2,.6,.2,1);
+  --dur-fast:    120ms;
+  --dur:         200ms;
+  --dur-slow:    320ms;
+}
+
+/* =========================================================================
+   Element defaults
+   ========================================================================= */
+
+html { background: var(--bg); color: var(--fg); }
+body {
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headlines — serif, restrained weight (regular/medium only).             */
+h1, h2, h3, h4 {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+  text-wrap: balance;
+}
+h1 { font-size: var(--fs-h1);  line-height: var(--lh-h);       margin: 0 0 var(--sp-5); }
+h2 { font-size: var(--fs-h2);  line-height: var(--lh-h);       margin: 0 0 var(--sp-4); }
+h3 { font-size: var(--fs-h3);  line-height: var(--lh-tight);   margin: 0 0 var(--sp-3); font-weight: 500; }
+h4 { font-size: var(--fs-h4);  line-height: var(--lh-tight);   margin: 0 0 var(--sp-2); font-weight: 500; }
+
+.display {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0 0 var(--sp-4);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--dur-fast) var(--ease);
+}
+a:hover { color: var(--link-hover); text-decoration-thickness: 2px; }
+
+small, .meta {
+  font-size: var(--fs-meta);
+  color: var(--fg-3);
+  font-feature-settings: "tnum";
+}
+
+code, kbd, pre, samp, .mono {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+hr {
+  border: 0;
+  border-top: var(--hairline);
+  margin: var(--sp-6) 0;
+}
+
+/* Editorial primitives ----------------------------------------------------*/
+
+.eyebrow {
+  font-family: var(--sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+
+.lede {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.5;
+  color: var(--fg);
+  max-width: var(--measure);
+}
+
+.callout {
+  font-family: var(--mono);
+  font-size: var(--fs-body-sm);
+  color: var(--fg-2);
+  border-left: 2px solid var(--accent);
+  padding: var(--sp-3) var(--sp-5);
+  background: transparent;
+}
+
+blockquote {
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1.45;
+  margin: var(--sp-6) 0;
+  padding-left: var(--sp-5);
+  border-left: 2px solid var(--accent);
+  max-width: var(--measure);
+}
+
+::selection { background: var(--accent); color: var(--paper); }
+
+/* Layout helpers ----------------------------------------------------------*/
+.container { max-width: var(--content-max); margin-inline: auto; padding-inline: var(--page-pad); }
+.rule      { border-top: var(--hairline); }
+.rule-strong { border-top: var(--hairline-2); }

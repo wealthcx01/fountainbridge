@@ -1,0 +1,23 @@
+data-screen-label="Rail" style="border-right:1px solid var(--rule); padding:26px 22px 22px; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; box-sizing:border-box; overflow-y:auto;">
+BRUNTSFIELD
+FOUNDRY STUDIO
+ARCA
+· Active
+{{ nv.label }}
+[IF nv.badge]
+{{ nv.badge }}
+[/IF]
+The office · live
+[IF anyWaiting]
+{{ queueN }} on you
+[/IF]
+{{ officeLine }}
+Budgets, month
+Build £140/£500
+Sell   £80/£200
+Scale not open
+Engine running · checked 2 min ago
+The pocket studio (mobile)
+Sign out
+[IF isFirstrun]
+<div

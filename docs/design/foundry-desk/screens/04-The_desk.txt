@@ -1,0 +1,94 @@
+data-screen-label="The desk" style="padding:32px 36px 64px; max-width:1080px;">
+[IF asFounder]
+← All ventures
+You are seeing exactly what this founder sees.
+[/IF]
+ARCA
+· {{ vEyebrow }}
+The desk
+{{ deskMeta }}
+{{ deskSummary }}
+[IF anyWaiting]
+{{ blockerLine }}
+Decide now →
+[/IF]
+[IF noneWaiting]
+Nothing is waiting on you. Your team runs on.
+[/IF]
+[IF degradedOn]
+One workstream is catching up.
+GitHub is rate-limiting reads from arca-site; this desk fills in as reads succeed. Nothing for you to do; it clears on its own.
+refresh
+[/IF]
+Send
+Try:
+“{{ pc.label }}”
+The office
+Live from Arca's machine
+Build
+Sell
+Scale · not open
+{{ plateBuild }}
+{{ plateRead }}
+[IF sellWaiting]
+needs you
+[/IF]
+{{ sellLabel }}
+opens with your first Scale ticket
+Each character is 1 agent on Arca's machine; a raised hand is a wait on you. The studio embeds it read-only.
+Agent
+Doing, right now
+{{ lg.who }}
+{{ lg.text }}
+[IF lg.act]
+{{ lg.act }}
+[/IF]
+The office is the feeling; this ledger is the record. Same events, so they cannot disagree.
+What the engine did
+every wake writes a report; nothing is swallowed
+[IF runsOn]
+The engine is running; last heartbeat 2 minutes ago.
+{{ rn.t }}
+{{ rn.text }}
+[IF rn.showBtn]
+Go ahead with this
+Releases the lane to start; every real check still happens after.
+[/IF]
+[IF rn.showRel]
+Told your team; it starts on the next wake.
+[/IF]
+{{ rn.lane }}
+Showing the 4 most recent of 31 runs · this desk re-reads itself once a minute while something is being worked.
+[/IF]
+[IF runsEmpty]
+No runs yet. The engine wakes when there is a ticket to work; every wake will be written down here.
+[/IF]
+Waiting on you
+all tickets →
+{{ q.ref }}
+{{ q.title }}
+{{ q.meta }}
+waiting {{ q.waiting }} →
+[IF noneWaiting]
+Queue clear. Finished work lands here first.
+[/IF]
+[IF runsOn]
+The company, by surface
+Build · the product
+14 tickets · preview of the app running from the venture VM.
+Open the app ↗
+·
+changes on the VM ↗
+Sell · the pipeline
+Last send: 41 delivered · 29 opened · 3 replied, September update.
+Open your outbox ↗
+Scale · paid growth
+Not connected. The ad account is a Bruntsfield setup step; platform tbd.
+1 ticket waiting on it
+[/IF]
+[IF notesOn]
+Wireframe: the desk is the always-open monitor. Everything is live: the prompt bar files through the composer, rows open the ticket, the amber banner is your blocker count. ↗ marks external hops (VM, outbox, ads) that need the real venture.
+[/IF]
+[/IF]
+[IF isTickets]
+<div

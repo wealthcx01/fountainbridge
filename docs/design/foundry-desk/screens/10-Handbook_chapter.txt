@@ -1,0 +1,13 @@
+data-screen-label="Handbook chapter" style="padding:32px 36px 64px; max-width:720px;">
+← Handbook
+Handbook · Chapter {{ chNum }}
+{{ chTitle }}
+{{ chMins }} min read · rendered from
+content/handbook
+; copy untouched
+[IF notesOn]
+Wireframe: chapter prose is greeked. The build renders the existing markdown unchanged, at 62ch measure.
+[/IF]
+[/IF]
+[IF isPocket]
+<div

@@ -1,0 +1,86 @@
+data-screen-label="Composer" style="padding:32px 36px 64px; display:grid; grid-template-columns:minmax(0,3fr) minmax(300px,2fr); gap:48px; max-width:1160px;">
+ARCA
+· Composer
+[IF ctxOn]
+· about
+{{ ctxRef }}
+[/IF]
+{{ composerHead }}
+{{ composerSub }}
+{{ m.wl }}
+[IF m.pre]
+{{ m.pre }}
+[/IF]
+{{ m.body }}
+[IF noMsgs]
+{{ emptyLine }}
+[/IF]
+[IF canFile]
+{{ fileLabel }}
+Change something
+Nothing is built until you press it.
+[/IF]
+Send
+Add a document
+Start again
+[IF ctxOn]
+The ticket under discussion
+{{ dt.stateLabel }}
+{{ dt.ref }} · {{ dt.surface }}
+{{ dt.title }}
+{{ dt.p1 }}
+← Back to the ticket and its trail
+Agreed changes file as a revision the lane picks up; the trail records this conversation as its source.
+[/IF]
+[IF ctxOff]
+{{ railTitle }}
+{{ draftTag }}
+[IF planOn]
+{{ pl.ref }}
+{{ pl.title }}
+{{ pl.meta }}
+{{ pl.act }}
+Smallest shippable first; the order is dependency order. Strike anything, or say what to change. Nothing is filed until you press it.
+[/IF]
+[IF planFiled]
+After you pressed it
+{{ filedAt }}
+Filed: {{ planFiledLine }}, each waiting to be picked up
+next
+The Build agent picks up the first; the rest queue in dependency order
+later
+Each finishes into your queue; the desk banner counts them one by one
+See them in Tickets →
+[/IF]
+[IF draftEmpty]
+Nothing on the table. As you talk, the ticket takes shape here: every line from the conversation, nothing added beyond it.
+[/IF]
+[IF draftOn]
+ARCA-16 · Build · Product
+{{ draftTitle }}
+Why
+In your words, from this conversation. Arca's notes were read before drafting.
+Scope
+{{ s }}
+Done when
+You can see it running, and approve or refuse it from the desk.
+Approval
+You review the finished work before anything ships. No external actions, no spend.
+Every line came from the conversation. Press File this and it lands in Tickets as
+Waiting to be picked up
+.
+[/IF]
+[IF filed]
+After you pressed it
+{{ filedAt }}
+Filed: ARCA-16, waiting to be picked up
+next
+The Build agent walks to its desk; watch the office
+later
+Finished work waits on you; the desk banner counts it
+See the ticket →
+[/IF]
+[/IF]
+[/IF]
+[IF isActivity]
+<div
