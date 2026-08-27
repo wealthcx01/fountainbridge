@@ -3,6 +3,7 @@ import { TEAM_TITLE } from '@/lib/glossary';
 import type { RunReport } from '@/lib/runreports';
 import { describeRun } from '@/lib/runreports';
 import { toneColor, type Tone } from '@/lib/status';
+import { ReleasePlanButton } from './ReleasePlanButton';
 
 /**
  * What the agent lanes have actually been doing (FB-042).
@@ -19,12 +20,19 @@ export function LaneActivity({
   total,
   engine,
   hasComposer = true,
+  ventureId,
 }: {
   reports: RunReport[];
   total: number;
   engine: { state: string; text: string };
   /** FB-066: a venture with no box has no composer to be told, so the empty state offers no action. */
   hasComposer?: boolean;
+  /**
+   * FB-122: needed only to release a held plan. Optional so every existing caller and test keeps
+   * working; without it the report still renders, it just cannot be answered — which is exactly the
+   * state this feature exists to end, so it is passed everywhere it can be.
+   */
+  ventureId?: string;
 }) {
   const engineTone: Tone = engine.state === 'stalled' ? 'blocked' : engine.state === 'unknown' ? 'idle' : 'working';
 
@@ -102,6 +110,18 @@ export function LaneActivity({
                     </>
                   ) : null}
                 </p>
+                {/* FB-122: the one run outcome that is a question rather than a statement. The lane
+                    read the ticket, wrote what it would do, and stopped — and before this there was
+                    no way to answer it from anywhere. The heartbeat is excluded: it reports that the
+                    QUEUE is held, which is not one plan anyone can say yes to. */}
+                {r.outcome === 'awaiting-approval' && !r.isHeartbeat && ventureId && r.ticketsTouched[0] ? (
+                  <ReleasePlanButton
+                    ventureId={ventureId}
+                    repo={r.repo}
+                    ticket={r.ticketsTouched[0]}
+                    testId={`run-${r.laneId}-${i}-release`}
+                  />
+                ) : null}
               </li>
             );
           })}

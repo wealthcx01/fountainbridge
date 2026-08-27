@@ -76,6 +76,9 @@ lane holds no credential and cannot forge anything.
 ## Acceptance criteria
 
 - [x] A founder can release a parked plan from the studio, without SSH and without GitHub.
+      **This was marked done before it was true.** The server action shipped in #146 and nothing
+      called it, so the capability existed and no founder could reach it — which is the same as not
+      having it. The control is in the activity feed, on the run report that carries the plan.
 - [x] With no release marker, the lane behaves exactly as it does today. Proved live on ARCA:
       `skip ARCA-057-pricing-sources-always-zero-synced — waiting on your go (held)`, and the scan
       carried on to ARCA-058 in the same wake.
