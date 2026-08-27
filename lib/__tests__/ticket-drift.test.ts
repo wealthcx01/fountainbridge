@@ -143,3 +143,56 @@ describe('reading a ticket file', () => {
     expect(idFromFilename('README.md')).toBeNull();
   });
 });
+
+/**
+ * A ticket-id range is not evidence (FB-145).
+ *
+ * `main` went red the moment the desk-redesign planning PR merged: its subject said
+ * "…and FB-124…FB-142", the matcher read both endpoints, and ticket-drift demanded FB-142 be set to
+ * Done for work that had not started.
+ *
+ * The rule's own comment already stated the intent — "a ticket-filing commit naming five tickets is
+ * evidence about none of them" — so this is the implementation catching up with it.
+ */
+describe('a range names a set the string does not enumerate (FB-145)', () => {
+  const paths = ['lib/anything.ts'];   // a shipping commit by the existing rule
+
+  it('yields nothing for the exact subject that broke main', () => {
+    expect(
+      ticketsShippedBy({
+        subject: 'The desk redesign: design bundle, two decision memos, and FB-124…FB-142 (#150)',
+        paths,
+      }),
+    ).toEqual([]);
+  });
+
+  it('handles every way someone writes a range', () => {
+    for (const subject of [
+      'Planning FB-124...FB-142',
+      'Planning FB-124..FB-142',
+      'Planning FB-124 – FB-142',
+      'Planning FB-124 — FB-142',
+      'Planning FB-124 to FB-142',
+    ]) {
+      expect(ticketsShippedBy({ subject, paths }), subject).toEqual([]);
+    }
+  });
+
+  it('still counts a single id, which is the case this check exists for', () => {
+    expect(
+      ticketsShippedBy({ subject: 'FB-123: stop opening every run report ever written (#148)', paths }),
+    ).toEqual(['FB-123']);
+  });
+
+  it('still counts two ids named individually', () => {
+    // The fix must not quietly disable the check by swallowing anything with two ids in it.
+    expect(ticketsShippedBy({ subject: 'FB-121 and FB-122: two real ships', paths })).toEqual([
+      'FB-121',
+      'FB-122',
+    ]);
+  });
+
+  it('still ignores a commit that shipped no code, whatever its subject says', () => {
+    expect(ticketsShippedBy({ subject: 'FB-123: ticket only', paths: ['docs/tickets/FB-123-x.md'] })).toEqual([]);
+  });
+});
