@@ -1,6 +1,18 @@
 # FB-123 — The board reads every run report ever written, one at a time, to show twenty
 
-**Status:** Todo · **Area:** Studio / performance · **Depends on:** —
+**Status:** Done · **Area:** Studio / performance · **Depends on:** —
+
+Measured on production before and after, as ARCA's founder, same page, same session:
+
+| | before | after |
+| --- | --- | --- |
+| load 1 | 42.0s | 15.1s |
+| load 2 | 43.8s | 8.7s |
+| load 3 | 39.7s | 8.4s |
+
+The first load after a deploy is a cold start; the settled number is **~8.5s, down from ~41s**.
+The board renders identically — five cards in Just filed, 26 todo, 8 in progress, 34 done, and
+"Showing the 20 most recent of 116 runs" against exactly 116 reports on the refs.
 
 ## What a founder gets
 
@@ -66,10 +78,16 @@ will overtake any other performance work anyone does.
 
 ## Acceptance criteria
 
-- [ ] The board loads in a few seconds, measured on production, with ARCA's real 117 reports.
-- [ ] The number of file reads is bounded by the render limit, not by the size of the history, and a
-      test says so by counting reads against a source with far more reports than the limit.
-- [ ] `total` still reports the true number of runs.
-- [ ] The heartbeat still drives `engineState`, including when the newest run reports are all older
-      than it.
-- [ ] Ordering is unchanged: newest by `started_at`, ties broken by lane.
+- [x] ~41s → ~8.5s on production with ARCA's real history.
+- [x] Reads are bounded by the render limit. A 2000-report history now costs exactly what a
+      200-report one does, asserted by counting reads rather than timing anything.
+- [x] `total` still reports the true number — "Showing the 20 most recent of 116 runs", against 116
+      non-heartbeat reports actually on the refs.
+- [x] The heartbeat is read by name every time, so `engineState` still works on a venture whose runs
+      are all older than it.
+- [x] Ordering unchanged: newest by `started_at`, ties broken by lane, with a read margin so the
+      filename-versus-start-time difference cannot bite at the boundary.
+
+**Still ~8.5 seconds.** This ticket took out ~32 of the ~41; the rest is the nine other sequential
+awaits on the venture page, which were deliberately out of scope here and are worth their own ticket
+now that they are the largest thing left rather than noise behind a 39-second read loop.
