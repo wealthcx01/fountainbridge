@@ -42,22 +42,28 @@ conversation as its source."* That sentence is only true with this built.
 
 ## The contract this adds (CLAUDE.md #7)
 
-`Thread` is a **rendered entity**, and CLAUDE.md #7 is unambiguous: every rendered entity is a
-bcap-contracts type, schemas win on conflict, and the change happens **in that repo** (FB-002), not
-here. None of the first-draft tickets said this and all three of the new entities need it.
+`Thread` is a **rendered entity**, so CLAUDE.md #7 applies: it is a contract type, and schemas win
+on conflict.
 
-How the studio consumes contracts today, so this is not guessed: types are **hand-mirrored** with the
-vendored schema beside them — see `tools/ticket-parser/src/types.ts`, whose header says exactly that
-and whose `test/schema.test.ts` enforces lock-step.
+**Where that contract lives, checked rather than assumed.** The first draft of this ticket said "add
+it to bcap-contracts, in that lane". That repo is not reachable from this account — the org has
+`grassmarket` and `bcap-lseg` and no contracts repo — so a ticket blocking on a lane nobody here can
+open would have blocked on nothing.
 
-So this ticket carries a cross-repo dependency:
+What actually exists is the pattern already in use: schemas are **vendored in this repo** under
+`schema/` (`Venture`, `Department`, `RunReport`, `Ticket`, "pinned to bcap-contracts 0.1.0"), with the
+type hand-mirrored beside them and a test holding the two in lock-step —
+`tools/ticket-parser/test/schema.test.ts` is the worked example.
 
-1. Add `Thread` to bcap-contracts, in that lane.
-2. Vendor the schema here and mirror the type, with a test holding them in lock-step.
-3. Only then build against it.
+So this ticket:
 
-**Do not invent the shape here and reconcile later.** That is the thing the contracts rule exists to
-prevent, and a shape that ships before the schema is a shape the schema then has to accept.
+1. Adds `schema/Thread.schema.json` here, in the same shape as its neighbours.
+2. Mirrors the type, with a lock-step test.
+3. Only then builds against it.
+
+**Do not invent the shape in application code and reconcile later.** That is what the contracts rule
+exists to prevent, and a shape that ships before its schema is a shape the schema then has to accept.
+Publishing it upstream to bcap-contracts is FB-002's lane and does not block this.
 
 ## Out of scope
 
@@ -91,4 +97,4 @@ On the ARCA box, before review — the FB-119 rule, since this touches the compo
 - [ ] Nothing files without an explicit press, asserted by a test.
 - [ ] A session scoped to one venture cannot read another venture's threads, asserted by a test.
 - [ ] Driven end to end on the ARCA box before the PR is opened.
-- [ ] `Thread` exists in bcap-contracts, is vendored and mirrored here, and a test holds the two in lock-step — before anything is built against it.
+- [ ] `schema/Thread.schema.json` exists, the type is mirrored from it, and a test holds the two in lock-step — before anything is built against it.
