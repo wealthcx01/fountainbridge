@@ -139,11 +139,44 @@ export interface RunReportSource {
   read(repo: string, name: string): Promise<unknown | null>;
 }
 
+/** The liveness beacon's filename, fixed by the lane (`foundry-lib.sh`). */
+const HEARTBEAT_FILE = '_heartbeat.json';
+
+/**
+ * How many extra reports to open beyond the render limit (FB-123).
+ *
+ * The listing is ordered by the timestamp in the FILENAME, which is when a report was written. The
+ * display is ordered by `started_at`, which is when its run began. Those are not the same, and a run
+ * that starts before another and finishes after it swaps places between the two orderings.
+ *
+ * So the newest N by filename is a very good guess at the newest N by start time, and not a proof.
+ * Opening a margin above the limit makes the guess safe: for the true newest-20-by-start to fall
+ * outside the newest-60-by-write, forty reports would have to be written between one run starting
+ * and finishing. Cheap insurance against an ordering that would otherwise be subtly wrong only at
+ * the boundary, which is the worst place for it to be wrong and the least likely to be noticed.
+ */
+const READ_MARGIN = 3;
+
 /**
  * Load a venture's run history, newest first, across every department repo.
  *
  * `limit` bounds the render, not the truth — `total` says how many there were, so a capped list
  * never reads as the whole story.
+ *
+ * ## Why this reads a bounded number of files (FB-123)
+ *
+ * It used to open every report that had ever been written, one at a time, and then throw all but the
+ * newest twenty away. Measured on ARCA: 117 files, 339ms per read, a board that took 40 seconds every
+ * single load. `/api/health` answered in 0.3s on the same deployment, so it was this and not the
+ * infrastructure.
+ *
+ * The number was the smaller half of the problem. It grew with every wake of the lane — 76 reports
+ * one day, 105 the next, once FB-121 got the lane working again — so the board got slower the more
+ * the product actually worked. Any amount of tuning elsewhere would have been overtaken by it.
+ *
+ * The listing already carries everything needed to choose: reports are named
+ * `<slug>-YYYYMMDDTHHMMSSZ.json` and the beacon is `_heartbeat.json`. So the newest are picked from
+ * names, opened in parallel, and the total is counted rather than read.
  */
 export async function loadRunReports(
   venture: VentureSummary,
@@ -151,12 +184,33 @@ export async function loadRunReports(
   limit = 20,
 ): Promise<{ reports: RunReport[]; heartbeats: RunReport[]; total: number }> {
   const all: RunReport[] = [];
+  let total = 0;
   for (const repo of approvalRepos(venture)) {
     const names = await source.list(repo);
-    for (const name of names) {
-      const parsed = fromLaneRecord(await source.read(repo, name), repo);
-      if (parsed) all.push(parsed);
-    }
+
+    // The beacon is always read, by name. It is the only positive evidence a lane is alive
+    // (`engineState`), and on a quiet venture it is older than nothing else — so choosing it by
+    // recency would drop exactly the venture that most needs to be told its engine is stalled.
+    const heartbeatNames = names.filter((n) => n === HEARTBEAT_FILE);
+    const reportNames = names.filter((n) => n !== HEARTBEAT_FILE);
+    total += reportNames.length;
+
+    // Lexicographic on `...-YYYYMMDDTHHMMSSZ.json` is chronological — the timestamp is fixed-width,
+    // zero-padded and UTC, which is the whole reason the lane writes it that way.
+    const newest = reportNames.sort().reverse().slice(0, limit * READ_MARGIN);
+
+    const read = await Promise.all(
+      [...heartbeatNames, ...newest].map(async (name) => {
+        try {
+          return fromLaneRecord(await source.read(repo, name), repo);
+        } catch {
+          // One unreadable report must not lose the other nineteen. Sequential reads used to fail
+          // the whole load; parallel ones must not turn that into a worse failure.
+          return null;
+        }
+      }),
+    );
+    for (const parsed of read) if (parsed) all.push(parsed);
   }
   // Newest first by start time. Ties broken by lane so the order is stable between renders.
   const byRecency = (a: RunReport, b: RunReport) =>
@@ -164,7 +218,9 @@ export async function loadRunReports(
 
   const heartbeats = all.filter((r) => r.isHeartbeat).sort(byRecency);
   const reports = all.filter((r) => !r.isHeartbeat).sort(byRecency);
-  return { reports: reports.slice(0, limit), heartbeats, total: reports.length };
+  // `total` is counted from the listing, not from what was opened — the point of this function is
+  // that those two numbers are now deliberately different, and "showing 20 of 117" has to stay true.
+  return { reports: reports.slice(0, limit), heartbeats, total };
 }
 
 /**

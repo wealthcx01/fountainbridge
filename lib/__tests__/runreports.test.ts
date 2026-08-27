@@ -184,3 +184,105 @@ describe('describeRun — one owner for the words', () => {
       .toContain('Your team could not get typecheck to pass on lib/work.ts. Parked.');
   });
 });
+
+/**
+ * The board must not open every report ever written (FB-123).
+ *
+ * It used to. Measured on ARCA: 117 files, one GitHub read each at 339ms, sequential — a board that
+ * took 40 seconds on every single load, to display twenty of them. And it grew with every wake of
+ * the lane (76 reports one day, 105 the next), so the studio got slower the more the product worked.
+ *
+ * These count READS rather than assert a duration: a timing test would be flaky and would not say
+ * what was wrong. The read count is the thing that was broken and the thing that must stay bounded.
+ */
+describe('what the board opens to render twenty runs', () => {
+  /** A source that records every read, so the cost is a fact in the test rather than a hope. */
+  const countingSource = (byRepo: Record<string, Record<string, unknown>>) => {
+    const reads: string[] = [];
+    const src: RunReportSource = {
+      async list(repo) { return Object.keys(byRepo[repo] ?? {}); },
+      async read(repo, name) { reads.push(`${repo}/${name}`); return byRepo[repo]?.[name] ?? null; },
+    };
+    return { src, reads };
+  };
+
+  /** ARCA's real shape: a lot of history, named the way the lane names it. */
+  const manyReports = (n: number) => {
+    const files: Record<string, unknown> = {
+      '_heartbeat.json': { ticket: 'heartbeat', lane: 'arca', status: 'idle', started: '2026-08-27T11:00:00Z', finished: '2026-08-27T11:00:00Z' },
+    };
+    for (let i = 0; i < n; i++) {
+      // `<slug>-YYYYMMDDTHHMMSSZ.json`, fixed width and zero padded, exactly as foundry-lib.sh writes it.
+      const stamp = `202608${String(10 + Math.floor(i / 100)).padStart(2, '0')}T${String(i % 24).padStart(2, '0')}0000Z`;
+      files[`ARCA-${String(i).padStart(3, '0')}-thing-${stamp}.json`] = {
+        ticket: `ARCA-${String(i).padStart(3, '0')}`, lane: 'arca', status: 'opened_pr',
+        summary: 'did a thing', started: `2026-08-${String(10 + Math.floor(i / 100)).padStart(2, '0')}T${String(i % 24).padStart(2, '0')}:00:00Z`,
+        finished: `2026-08-${String(10 + Math.floor(i / 100)).padStart(2, '0')}T${String(i % 24).padStart(2, '0')}:30:00Z`,
+      };
+    }
+    return files;
+  };
+
+  it('opens a bounded number of files, not one per report in the history', async () => {
+    const { src, reads } = countingSource({ arca: manyReports(117) });
+    await loadRunReports(venture, src, 20);
+    // The exact bound is limit × margin + the beacon; what matters is that 117 files did not become
+    // 117 reads, and that adding a thousand more reports would not change this number.
+    expect(reads.length).toBeLessThanOrEqual(20 * 3 + 1);
+    expect(reads.length).toBeLessThan(117);
+  });
+
+  it('does not read more as the history grows, which was the real fault', async () => {
+    // 76 reports one day, 105 the next, 117 the day after. The old code got slower each time.
+    // Both above the bound: below it, reading everything IS reading the newest N, and comparing
+    // 40-vs-400 would only prove the cap exists, not that growth stops costing.
+    const small = countingSource({ arca: manyReports(200) });
+    const large = countingSource({ arca: manyReports(2000) });
+    await loadRunReports(venture, small.src, 20);
+    await loadRunReports(venture, large.src, 20);
+    expect(large.reads.length).toBe(small.reads.length);
+  });
+
+  it('still reports the true total, so "showing 20 of N" stays honest', async () => {
+    const { src } = countingSource({ arca: manyReports(117) });
+    const out = await loadRunReports(venture, src, 20);
+    expect(out.total).toBe(117);
+    expect(out.reports).toHaveLength(20);
+  });
+
+  it('always opens the heartbeat, even on a venture whose runs are all older than it', async () => {
+    // The case that would break engineState: pick by recency alone and a quiet venture loses the one
+    // file that says whether its engine is alive.
+    const { src, reads } = countingSource({ arca: manyReports(117) });
+    const out = await loadRunReports(venture, src, 5);
+    expect(reads).toContain('arca/_heartbeat.json');
+    expect(out.heartbeats).toHaveLength(1);
+    expect(engineState(out.heartbeats, new Date('2026-08-27T11:05:00Z')).state).not.toBe('unknown');
+  });
+
+  it('still orders by when a run STARTED, not by the timestamp in its filename', async () => {
+    const files = {
+      // Written last, started first — the case the read margin exists for.
+      'ARCA-001-a-20260827T120000Z.json': { ticket: 'ARCA-001', lane: 'arca', status: 'opened_pr', started: '2026-08-27T09:00:00Z', finished: '2026-08-27T12:00:00Z' },
+      'ARCA-002-b-20260827T100000Z.json': { ticket: 'ARCA-002', lane: 'arca', status: 'opened_pr', started: '2026-08-27T10:00:00Z', finished: '2026-08-27T10:00:00Z' },
+    };
+    const { src } = countingSource({ arca: files });
+    const out = await loadRunReports(venture, src, 20);
+    expect(out.reports.map((r) => r.ticketsTouched[0])).toEqual(['ARCA-002', 'ARCA-001']);
+  });
+
+  it('loses one unreadable report rather than the whole board', async () => {
+    // Only the product repo has reports; the venture also declares arca-marketing, and a source that
+    // answered for every repo would double-count.
+    const src: RunReportSource = {
+      async list(repo) { return repo === 'arca' ? ['_heartbeat.json', 'ARCA-001-a-20260827T120000Z.json', 'ARCA-002-b-20260827T110000Z.json'] : []; },
+      async read(_repo, name) {
+        if (name.startsWith('ARCA-001')) throw new Error('unreadable');
+        if (name === '_heartbeat.json') return { ticket: 'heartbeat', lane: 'arca', status: 'idle', started: '2026-08-27T11:00:00Z', finished: '2026-08-27T11:00:00Z' };
+        return { ticket: 'ARCA-002', lane: 'arca', status: 'opened_pr', started: '2026-08-27T11:00:00Z', finished: '2026-08-27T11:00:00Z' };
+      },
+    };
+    const out = await loadRunReports(venture, src, 20);
+    expect(out.reports.map((r) => r.ticketsTouched[0])).toEqual(['ARCA-002']);
+  });
+});
