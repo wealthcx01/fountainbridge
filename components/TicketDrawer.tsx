@@ -93,8 +93,9 @@ export function TicketDrawer({
           height: '100%',
           overflowY: 'auto',
           background: 'var(--color-paper-raised)',
+          // FB-124: the left rule already carried this edge; the shadow was doing nothing a
+          // hairline was not already doing better.
           borderLeft: '1px solid var(--color-border-strong)',
-          boxShadow: 'var(--shadow-lg)',
           padding: '1.75rem',
         }}
       >
@@ -203,7 +204,7 @@ export function TicketDrawer({
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                   style={{ width: '100%', fontFamily: 'inherit', fontSize: 'var(--fs-body-sm)', padding: '0.5rem',
-                           border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}
+                           border: '1px solid var(--color-border)' }}
                 />
                 <button
                   type="button"

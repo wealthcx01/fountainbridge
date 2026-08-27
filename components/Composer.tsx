@@ -282,7 +282,7 @@ export function Composer({
           disabled={sending}
           style={{
             width: '100%', padding: '0.7rem', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
-            border: '1px solid var(--color-rule)', borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--color-rule)',
             background: 'var(--color-surface)', color: 'var(--color-ink)', resize: 'vertical',
           }}
         />
@@ -370,7 +370,7 @@ function Reply({ text, mine }: { text: string; mine: boolean }) {
                   style={{
                     fontSize: 'var(--fs-meta-lg)', whiteSpace: 'pre-wrap', overflowX: 'auto',
                     background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
-                    borderRadius: 'var(--radius-sm)', padding: '0.7rem', margin: '0.5rem 0 0',
+                    padding: '0.7rem', margin: '0.5rem 0 0',
                   }}
                 >
                   {b.text}

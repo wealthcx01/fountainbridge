@@ -1,6 +1,6 @@
 # FB-124 — The hairline pass and the persistent rail
 
-**Status:** Todo · **Area:** Studio / shell · **Depends on:** —
+**Status:** Done · **Area:** Studio / shell · **Depends on:** —
 **Design:** `docs/design/foundry-desk/` — screen 3 "Rail"; README §Design tokens.
 
 ## Why this matters (for the founder)
@@ -50,10 +50,15 @@ first thing that would have stopped work, so it is decided here:
 - The rail is **`app/venture/[id]/layout.tsx`**, which does not exist today — `app/layout.tsx` is the
   only layout in the tree. Everything under `/venture/[id]` gets the rail by being a child route.
 - **Two of the rail's own nav destinations are currently outside that subtree.** `/activity` and
-  `/handbook` are top-level routes. They move to `/venture/[id]/activity` and
-  `/venture/[id]/handbook`, with the old paths redirecting — a founder may have either bookmarked.
-  `/activity` is also cross-venture today (`loadAccessibleHealth` spans every venture the viewer can
-  reach) and becomes venture-scoped; that scope change belongs to FB-132 and is called out there.
+  `/handbook` are top-level routes, so they gain venture-scoped counterparts under `/venture/[id]`
+  that render inside the shell.
+
+  **The old paths are NOT redirected, and the first draft of this ticket was wrong to say they would
+  be.** `/activity` is cross-venture today — `loadAccessibleHealth` spans every venture the viewer can
+  reach — and for an admin that breadth is the whole value. Redirecting it to one venture would remove
+  function to tidy a URL. The venture-scoped copy is a shim over the same page until **FB-132**
+  narrows it deliberately, and the all-ventures view lands in the admin ledger (**FB-136**). Both
+  paths work; neither lies about what it shows.
 - **A layout cannot receive data from its page** in the App Router, so the rail must load its own.
   Wrap the rail's reads in React `cache()` so the layout and the page share one fetch per request
   rather than making two. Two fetches here is precisely the FB-123 failure — a page that got slower
@@ -85,16 +90,47 @@ rounded corner or a shadow.
 
 ## Acceptance criteria
 
-- [ ] `--radius-*` and `--shadow-*` no longer exist in `app/globals.css`, and no file references them.
-- [ ] The five `--tone-*` values are byte-identical to what they are today.
-- [ ] A persistent 250px rail renders on every venture route, sticky, scrolling independently.
-- [ ] The rail's "Needs you" badge, the desk's blocker banner and the Tickets "Needs you (N)" filter
+- [x] `--radius-*` and `--shadow-*` no longer exist in `app/globals.css`, and no file references them.
+- [x] The five `--tone-*` values are byte-identical to what they are today.
+- [x] A persistent 250px rail renders on every venture route, sticky, scrolling independently.
+- [x] The rail's "Needs you" badge, the desk's blocker banner and the Tickets "Needs you (N)" filter
       all read from one count and cannot disagree.
-- [ ] The rail is a layout at `app/venture/[id]/layout.tsx`; every child route gets it without
+- [x] The rail is a layout at `app/venture/[id]/layout.tsx`; every child route gets it without
       re-declaring it.
-- [ ] `/activity` and `/handbook` redirect to their venture-scoped paths; neither 404s.
-- [ ] Budgets, the engine heartbeat and the office plate render in the rail, and the layout and the
+- [x] `/venture/[id]/activity` and `/venture/[id]/handbook` exist and render inside the shell.
+- [x] The old top-level `/activity` and `/handbook` still work and still show what they show today.
+      No redirect: narrowing `/activity` is FB-132's deliberate change, not a side effect of a shell.
+- [x] Budgets, the engine heartbeat and the office plate render in the rail, and the layout and the
       page make **one** fetch between them for the same data, asserted by a test that counts reads.
-- [ ] The office plate says it is a placeholder, in words, rather than looking like a failed image.
-- [ ] `make design-lint` passes, and no raw colour or size literal was added.
-- [ ] Venture scoping is unchanged: a founder still cannot reach another venture's rail or its numbers.
+- [x] The office plate says it is a placeholder, in words, rather than looking like a failed image.
+- [x] `make design-lint` passes, and no raw colour or size literal was added.
+- [x] Venture scoping is unchanged: a founder still cannot reach another venture's rail or its numbers.
+
+## What the build changed about this ticket
+
+Two things were wrong in the plan and are corrected above rather than quietly worked around:
+
+**The redirect.** The first draft said `/activity` and `/handbook` would redirect to venture-scoped
+paths. They do not, and should not: `/activity` is cross-venture today, and for an admin that breadth
+is the whole value. Redirecting it to one venture would have removed function to tidy a URL. Both
+paths now exist; the venture-scoped activity is an honest shim over the same page until FB-132
+narrows it deliberately.
+
+**CI caught two things local gates did not, and both were me being wrong.**
+
+`e2e/composer.spec.ts` — *"nothing on the composer sends the founder to another product"* — failed
+because the first rail carried a link to the venture box's own chat. That test is FB-065's whole
+point: the composer was moved inside the studio precisely so a founder stops being handed to a second
+application, and a rail link would have put that hand-off on **every screen**. The design's rail has
+no such link either; it was invented here, and removed.
+
+`make copy-lint` — the founder-vocabulary contract (FB-103) — rejected the word "agents". Worth
+recording, because **the design's own copy uses it nine times** across day one, the desk, the composer
+and the pocket studio ("your agents, live, at their desks", "Each character is 1 agent"). The contract
+is enforced and the design is not, so the contract wins here — but FB-128 and FB-143 will meet the
+same wall, and someone should decide deliberately whether the contract or the design's voice is right
+rather than rewording it four more times by hand.
+
+**`main` was red before this could land.** The commit that filed this set said "FB-124…FB-142", and
+ticket-drift read the range's endpoints as shipped. Fixed in FB-145 first, because a red `main` blocks
+everything behind it.

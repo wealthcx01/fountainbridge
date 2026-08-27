@@ -152,7 +152,7 @@ function TheRecord({ body }: { body: string }) {
           style={{
             fontSize: 'var(--fs-meta-lg)', overflowX: 'auto',
             background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
-            borderRadius: 'var(--radius-sm)', padding: '0.7rem', margin: '0.5rem 0 0',
+            padding: '0.7rem', margin: '0.5rem 0 0',
           }}
         >
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{showAngleBrackets(e.record)}</ReactMarkdown>
@@ -195,7 +195,7 @@ function SendBack({
         onChange={(e) => setNote(e.target.value)}
         rows={3}
         style={{ width: '100%', fontFamily: 'inherit', fontSize: 'var(--fs-body-sm)', padding: '0.5rem',
-                 border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}
+                 border: '1px solid var(--color-border)' }}
       />
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
         <button
