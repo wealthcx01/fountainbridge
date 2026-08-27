@@ -361,7 +361,7 @@ export function VentureBoard({
         </div>
       ) : null}
 
-      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} /> : null}
+      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} /> : null}
 
       {/* The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately. */}
