@@ -135,7 +135,7 @@ function Reader({ doc, onClose }: { doc: KnowledgeDoc; onClose: () => void }) {
       <aside style={{
         position: 'relative', width: 'min(40rem, 100%)', height: '100%', overflowY: 'auto',
         background: 'var(--color-paper-raised)', borderLeft: '1px solid var(--color-border-strong)',
-        boxShadow: 'var(--shadow-lg)', padding: '1.75rem',
+        border: '1px solid var(--color-border-strong)', padding: '1.75rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
           <h2 style={{ margin: 0, flex: 1 }} data-testid="knowledge-reader-title">{doc.title}</h2>

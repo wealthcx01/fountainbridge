@@ -68,7 +68,7 @@ export default async function LoginPage({
             autoComplete="username"
             placeholder="email"
             data-testid="password-email"
-            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius)' }}
+            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-input)' }}
           />
           <input
             name="password"
@@ -77,7 +77,7 @@ export default async function LoginPage({
             autoComplete="current-password"
             placeholder="password"
             data-testid="password-password"
-            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius)' }}
+            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-input)' }}
           />
           <button className="btn" type="submit" data-testid="password-submit">Sign in</button>
           {error === 'password' ? (
@@ -106,7 +106,7 @@ export default async function LoginPage({
               still fails without the matching E2E_TEST_LOGIN_SECRET. */}
           <input type="hidden" name="secret" value={process.env.E2E_TEST_LOGIN_SECRET ?? ''} />
           <input name="email" type="email" placeholder="test email" data-testid="e2e-email"
-            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius)' }} />
+            style={{ padding: '0.5rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-input)' }} />
           <button className="btn" type="submit" data-testid="e2e-submit">Test sign in</button>
         </form>
       ) : null}

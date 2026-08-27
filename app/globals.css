@@ -71,13 +71,13 @@
   --topbar-height: 3.75rem;
   --content-max: 64rem;
   --content-narrow: 46rem;
-  --radius: 7px;
-  --radius-sm: 5px;
-  --radius-lg: 10px;
-  --radius-pill: 999px;
-  --shadow-sm: 0 1px 2px rgba(23, 25, 31, 0.04);
-  --shadow-md: 0 2px 8px rgba(23, 25, 31, 0.06);
-  --shadow-lg: 0 8px 28px rgba(23, 25, 31, 0.09);
+  /* FB-124 — the hairline system. Square corners, no shadows, 1px rules as structure, so the studio
+   * reads as one brand with the main Bruntsfield site.
+   *
+   * There is no --radius-* and no --shadow-* here on purpose, and design-lint keeps it that way. The
+   * one exception the design allows is an input, where a hairline square edge reads as a disabled
+   * field rather than a typable one. */
+  --radius-input: 2px;
   --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
   --dur: 140ms;
 }
@@ -181,7 +181,6 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
   font-size: var(--fs-body-sm);
   font-weight: 500;
   padding: 0.55rem 1rem;
-  border-radius: var(--radius);
   border: 1px solid var(--color-border-strong);
   background: var(--color-paper-raised);
   color: var(--color-ink);
@@ -204,7 +203,6 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
   font-size: var(--fs-body-sm);
   font-weight: 500;
   padding: 0.4rem 0.8rem;
-  border-radius: var(--radius-pill);
   color: var(--color-ink-soft);
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
@@ -212,21 +210,21 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
 .pill[data-active='true'] { background: var(--color-accent-tint); color: var(--color-accent); }
 
 /* Cards */
+/* A card is a hairline box. Elevation is the rule and the sunken inset, never a shadow — and hover
+ * shifts colour only. The design is explicit: "No scale, no shadow, no parallax." A card that lifts
+ * under the cursor is the one thing on a page that behaves like a different product. */
 .card {
   background: var(--color-paper-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
   padding: 1.25rem 1.4rem;
-  box-shadow: var(--shadow-sm);
 }
 .card-link {
   display: block;
-  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 .card-link:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
   border-color: var(--color-border-strong);
+  background: var(--color-paper-sunken);
 }
 
 /* Tag / chip */
@@ -237,7 +235,6 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-sm);
   background: var(--color-paper-sunken);
   color: var(--color-ink-muted);
 }
