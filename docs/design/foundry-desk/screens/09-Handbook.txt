@@ -1,0 +1,9 @@
+data-screen-label="Handbook" style="padding:32px 36px 64px; max-width:1080px;">
+Handbook
+How we start, build, sell and scale: the method your team already follows. Copy untouched, rendered from the venture repo.
+{{ ch.num }}
+{{ ch.title }}
+{{ ch.mins }} min read
+[/IF]
+[IF isChapter]
+<div

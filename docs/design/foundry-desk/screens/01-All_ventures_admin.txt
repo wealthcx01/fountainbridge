@@ -1,0 +1,35 @@
+data-screen-label="All ventures (admin)" style="min-height:100vh;">
+BRUNTSFIELD
+FOUNDRY STUDIO
+Studio administration
+Sign out
+Bruntsfield
+· All ventures
+{{ adminHead }}
+Every founder's desk, in one ledger. A row is amber when its founder is the bottleneck, red when its engine is. Open a venture to see exactly what its founder sees.
+Venture
+Founder
+Needs them
+Underway
+Engine
+Spend, month
+{{ r.name }}
+{{ r.ref }}
+{{ r.founder }}
+{{ r.needs }}
+{{ r.underway }}
+{{ r.engine }}
+{{ r.spend }}
+{{ r.action }}
+Wiring
+Caldera's composer key is not set; its founder meets a dead button on day one. Fix before invite.
+Founder response time
+Median 9 hours from needs-you to decided, across 31 decisions this month.
+Onboarding
+The Arca account is the template. Provision a new founder from it.
+[IF notesOn]
+Wireframe: Arca and The Reset open the founder desk; Modernisation Engine opens its fault in What happened; Caldera opens day one.
+[/IF]
+[/IF]
+[IF signedIn]
+<div

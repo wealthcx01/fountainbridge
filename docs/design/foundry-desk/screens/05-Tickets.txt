@@ -1,0 +1,68 @@
+data-screen-label="Tickets" style="padding:32px 36px 64px;">
+Tickets
+{{ tb.label }}
+{{ ticketsSummary }}
+{{ tk.title }}
+{{ tk.ref }}
+· {{ tk.meta }}
+[IF listEmpty]
+Nothing here. The queue is clear.
+[/IF]
+[IF degradedOn]
+2 pieces of work have no card here; their ticket files are missing from docs/tickets. The queue still counts them.
+[/IF]
+{{ dt.ref }}
+· {{ dt.surface }} ·
+{{ dt.stateLabel }}
+{{ dt.title }}
+{{ p }}
+{{ dt.traceLabel }}
+Discuss in the composer →
+{{ dt.recordLine }} ·
+see where this is written down ↗
+[IF dtHasDeps]
+Depends on:
+{{ dp.ref }}
+[/IF]
+[IF dtDecide]
+Your decision · {{ dPosLine }}
+Reaches
+{{ dt.reaches }}
+Costs
+{{ dt.costs }}
+Proven
+{{ dt.proven }}
+{{ dt.approveLabel }}
+{{ dt.refuseLabel }}
+[IF refusing]
+Send it back
+Never mind
+[/IF]
+Approving signs the grant Arca's executor verifies. You never leave the studio.
+[/IF]
+[IF dtApproved]
+Approved and verified
+{{ dt.approvedNote }}
+[IF hasNext]
+Next decision →
+[/IF]
+Back to the desk
+[/IF]
+[IF dtRefused]
+Sent back with your note
+Nothing went out. The lane re-opens it, reads your note, and returns with a revision.
+[IF hasNext]
+Next decision →
+[/IF]
+Back to the desk
+[/IF]
+Follow the change · the ActiveGraph trail
+{{ tr.t }}
+{{ tr.text }}
+[IF tr.link]
+{{ tr.link }}
+[/IF]
+Every hop is the same event ActiveGraph recorded: nothing shown here can disagree with what ran.
+[/IF]
+[IF isComposer]
+<div

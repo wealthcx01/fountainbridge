@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/bruntsfield-capital-design-system-019e0ae5-b783-7e8b-980a-17f7efcd29ec/colors_and_type.css">
+  <script src="_ds/bruntsfield-capital-design-system-019e0ae5-b783-7e8b-980a-17f7efcd29ec/_ds_bundle.js"></script>
+  <script src="./doc-page.js"></script>
+  <style>
+    body{margin:0;}
+    doc-page:not(:defined){visibility:hidden;}
+    a{color:var(--accent);} a:hover{color:var(--accent-deep);}
+  </style>
+</helmet>
+<doc-page>
+  <p style="font-family:var(--sans); font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-mute); margin:0 0 14px;"><span style="color:var(--accent);">Bruntsfield Capital</span> · Foundry · 27 August 2026</p>
+  <h1 style="font-family:var(--serif); font-weight:400; font-size:38px; line-height:1.1; letter-spacing:-.012em; margin:0 0 10px; color:var(--ink);">Foundry Studio: the back-end gaps</h1>
+  <p style="font-family:var(--sans); font-size:15px; line-height:1.7; color:var(--ink-soft); margin:0 0 6px;">The full-scale wireframe (Foundry Studio Full Wireframe) is designed to be built on the fountainbridge front end as it stands at <span style="font-family:var(--mono); font-size:13px;">main</span>. This paper lists what the back end must add, gap by gap, with what already exists and a suggested ticket for each. 10 gaps; 4 need only the studio, 3 need the venture box, 3 wait on a decision.</p>
+
+  <h2 style="font-family:var(--serif); font-weight:400; font-size:24px; margin:28px 0 6px; border-top:1px solid var(--rule-strong); padding-top:18px;">1 — Already in the build</h2>
+  <p style="font-family:var(--sans); font-size:14px; line-height:1.75; color:var(--ink-soft); margin:0;">The wireframe leans on machinery that exists and works today: tickets as git files with a parser and status inference (<span style="font-family:var(--mono); font-size:12px;">lib/tickets.ts</span>); the attention queue and ticket joining (<span style="font-family:var(--mono); font-size:12px;">lib/attention.ts</span>); signed ActiveGraph approvals, attestation and per-approval histories (<span style="font-family:var(--mono); font-size:12px;">lib/approvals.ts, lib/activegraph-log.ts, lib/provenance.ts</span>); budgets read from the studio repo (<span style="font-family:var(--mono); font-size:12px;">lib/budgets.ts</span>); run reports, engine heartbeats and the held-plan release (<span style="font-family:var(--mono); font-size:12px;">lib/runreports.ts, app/actions/release-plan.ts</span>); the composed brief (<span style="font-family:var(--mono); font-size:12px;">lib/brief.ts</span>); knowledge and routines (<span style="font-family:var(--mono); font-size:12px;">lib/knowledge.ts, lib/routines.ts</span>); the streaming composer with document reads (<span style="font-family:var(--mono); font-size:12px;">lib/composer.ts</span>); Google and password sign-in; the FB-009 mobile pass; and the budgeted board polling of <span style="font-family:var(--mono); font-size:12px;">WhileWorking.tsx</span>. None of these are gaps. The desk is a re-arrangement of them.</p>
+
+  <h2 style="font-family:var(--serif); font-weight:400; font-size:24px; margin:28px 0 10px; border-top:1px solid var(--rule-strong); padding-top:18px;">2 — The gaps</h2>
+
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G1</span>&nbsp; The per-ticket trail</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> every ticket followable to where it changed things; a single ordered trail of filed, picked up, commits, checks, preview, approval, deploy or send. <strong>Exists:</strong> the events, scattered; <span style="font-family:var(--mono); font-size:12px;">historyFor</span> joins them per approval only. <strong>Build:</strong> one endpoint joining ActiveGraph events, run reports and the repo's commits/checks per ticket id, with resolvable links to the diff on the venture VM and the running preview. <strong>Suggest:</strong> FB-130. Studio-side only.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G2</span>&nbsp; The Sell trace</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> "follow it to your outbox"; per-send reports (delivered, opened, replied) on the desk. <strong>Exists:</strong> the send gate (signed approvals); the GTM architecture is ratified in <span style="font-family:var(--mono); font-size:12px;">docs/research-gtm.md</span> §7 with Phase 4b tickets drafted. <strong>Build:</strong> the email service integration, per-campaign report storage, and a deep link into the venture Workspace outbox. <strong>Suggest:</strong> the drafted FB-02x set, plus FB-131 for the report surface.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G3</span>&nbsp; The Scale connector</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> Scale honestly not connected; ARCA-16 blocked at the gate with "ad account not connected, platform tbd". <strong>Exists:</strong> the gate behaviour. <strong>Build:</strong> the platform decision first (Meta or equivalent), then the connector, spend reporting into budgets, and the account link-through. <strong>Suggest:</strong> a decision memo before any ticket; FB-132 once decided. Waits on a decision.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G4</span>&nbsp; Per-ticket composer threads</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> "Discuss in the composer" on every ticket; the thread pinned beside it; agreed changes filed as revisions the trail cites. <strong>Exists:</strong> the <span style="font-family:var(--mono); font-size:12px;">?about=</span> seed (FB-105) and the one gated write path; transcripts live only in the browser (FB-065, by design). <strong>Build:</strong> server-side threads keyed by ticket in the venture repo's <span style="font-family:var(--mono); font-size:12px;">context/</span> (D8), and a file-revision action that records the conversation as source. <strong>Suggest:</strong> FB-133. Studio plus venture repo.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G5</span>&nbsp; Plan objects: a PRD becomes a ticket set</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> one conversation producing N draft tickets in dependency order, struck or kept per line, filed atomically as a set. <strong>Exists:</strong> <span style="font-family:var(--mono); font-size:12px;">depends_on</span> in the ticket schema and parser; <span style="font-family:var(--mono); font-size:12px;">release-plan.ts</span> (a different plan: releasing a held lane). <strong>Build:</strong> a composer plan draft type, a batch filing action (one branch, N ticket files, one PR), and per-ticket source citations back into the PRD's sections. <strong>Suggest:</strong> FB-134.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G6</span>&nbsp; The pixel-agents feed</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> the office, live, on every screen: agents at desks while working, reading while researching, a raised hand when waiting on the founder. <strong>Exists:</strong> run reports per wake and heartbeats; nothing live, nothing visual. <strong>Build:</strong> a read-only state feed from the venture box (lane state to office scene mapping) and the pixel-agents renderer embed; the studio consumes, never writes. <strong>Suggest:</strong> FB-135. Venture box plus studio embed.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G7</span>&nbsp; A live desk</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> a desk a founder keeps open all day; the blocker count, office and run log move on their own. <strong>Exists:</strong> <span style="font-family:var(--mono); font-size:12px;">WhileWorking</span> re-reads once a minute, only while something is in flight and visible; the request budget that makes this affordable is FB-083's. <strong>Build:</strong> extend the same discipline to the desk's panels, or replace polling with the G6 event stream once it exists. <strong>Suggest:</strong> fold into FB-135; no separate ticket if the stream lands first.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G8</span>&nbsp; The pocket studio</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> the one-column mobile companion; a push the moment the founder becomes the blocker. <strong>Exists:</strong> the FB-009 mobile pass (usable at 390×844); no notifications of any kind. <strong>Build:</strong> a PWA shell and one push event, founder-became-blocker, from the attention queue. Nothing else pushes; the queue is the only thing that waits on a person. <strong>Suggest:</strong> FB-136.</p>
+  </div>
+  <div style="break-inside:avoid; border-bottom:1px solid var(--rule); padding:0 0 14px; margin:0 0 14px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G9</span>&nbsp; The memory library write path</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> add a document from the desk; it lands in what the venture knows, with "last used" citations per document. <strong>Exists:</strong> the composer reads a document per message (FB-078) and forgets it; D8 defines <span style="font-family:var(--mono); font-size:12px;">context/</span> and <span style="font-family:var(--mono); font-size:12px;">library/</span> in the venture repo. <strong>Build:</strong> a persistent upload path into the venture repo (heavy binaries to object storage per D8), gbrain indexing on write, and usage citations surfaced back. <strong>Suggest:</strong> FB-137.</p>
+  </div>
+  <div style="break-inside:avoid; padding:0 0 4px; margin:0 0 8px;">
+    <p style="font-family:var(--sans); font-size:15px; font-weight:600; margin:0 0 4px;"><span style="font-family:var(--mono); font-size:13px; color:var(--accent);">G10</span>&nbsp; Per-surface outcomes</p>
+    <p style="font-family:var(--sans); font-size:14px; line-height:1.7; color:var(--ink-soft); margin:0;"><strong>The design shows:</strong> the company by surface: the app running, the last send's numbers, paid growth once connected. <strong>Exists:</strong> nothing; there is no analytics source. <strong>Build:</strong> decide the source (venture app events, or the G2/G3 connectors' own reporting) before any ticket; the desk renders whatever reports exist and shows nothing invented. <strong>Suggest:</strong> a decision memo; FB-138 after.</p>
+  </div>
+
+  <h2 style="font-family:var(--serif); font-weight:400; font-size:24px; margin:24px 0 6px; border-top:1px solid var(--rule-strong); padding-top:18px;">3 — Suggested order</h2>
+  <p style="font-family:var(--sans); font-size:14px; line-height:1.8; color:var(--ink-soft); margin:0 0 10px;">1. <strong>G1 and G4</strong> first: they are studio-side, built on events that already exist, and they are what makes the desk honest.<br>2. <strong>G5</strong> next: the PRD flow is the founder's highest-leverage act and needs only the studio and git.<br>3. <strong>G6 with G7</strong>: the venture box work; the office is the product's feeling and the desk's reason to stay open.<br>4. <strong>G2</strong> per the ratified research; <strong>G8 and G9</strong> alongside, they are small.<br>5. <strong>G3 and G10</strong> last: both wait on decisions, and the design already tells the truth while they do.</p>
+  <p style="font-family:var(--sans); font-size:12px; line-height:1.7; color:var(--ink-mute); border-top:1px solid var(--rule); padding-top:12px; margin:18px 0 0;">Grounded in wealthcx01/fountainbridge at main, 27 August 2026. Screen map in github.md. One ticket, one branch, one PR; discovered work becomes a new ticket, never scope creep.</p>
+</doc-page>
+</x-dc>
+</body>
+</html>

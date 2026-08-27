@@ -1,0 +1,24 @@
+data-screen-label="Memory" style="padding:32px 36px 64px; max-width:1080px;">
+What Arca knows
+{{ memorySummary }}
+Everything you have handed over or your team has learned. The composer reads all of it before it drafts anything.
+Add
+Document
+From
+Added
+Last used
+{{ dc.name }}
+{{ dc.from }}
+{{ dc.added }}
+{{ dc.used }}
+[IF docsEmpty]
+Nothing yet. Hand over what you already have: research, notes, a deck. It becomes what Arca knows, and every ticket will cite it.
+[/IF]
+What happens without you asking
+{{ rt.name }}
+{{ rt.when }}
+{{ rt.status }}
+{{ rt.note }}
+[/IF]
+[IF isHandbook]
+<div

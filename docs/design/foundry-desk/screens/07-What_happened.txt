@@ -1,0 +1,10 @@
+data-screen-label="What happened" style="padding:32px 36px 64px; max-width:1080px;">
+What happened
+{{ activitySummary }}
+Everything Arca did, newest first. Sent, failed, refused: it stays here with its state. Your decisions appear the moment you make them.
+{{ a.t }}
+{{ a.text }}
+{{ a.meta }}
+[/IF]
+[IF isMemory]
+<div

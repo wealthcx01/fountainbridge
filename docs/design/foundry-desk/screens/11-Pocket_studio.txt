@@ -1,0 +1,445 @@
+data-screen-label="Pocket studio" style="padding:32px 36px 64px; display:flex; gap:48px; align-items:flex-start; flex-wrap:wrap;">
+BRUNTSFIELD
+FOUNDRY STUDIO
+ARCA
+{{ blockerShort }}
+→
+needs you
+live · 16:40
+{{ q.title }}
+{{ q.ref }}
+· waiting {{ q.waiting }}
+Decide →
+Tell the studio what you want…
+Send
+The pocket studio
+The same events, one column: the blocker banner, the live office, the queue, the prompt. A founder keeps this open all day; a push arrives the moment they become the blocker.
+Decisions work exactly as on the desk: read it, one press, grant signed. Filing and discussion open the same composer.
+← Back to the desk
+[/IF]
+[/IF]
+class Component extends DCLogic {
+T = [
+{ ref: 'ARCA-5', title: 'Founders can share their deck as a link', surface: 'Build · Product', state: 'needs', waiting: '3 days', kind: 'work', branch: 'foundry/deck-share-link',
+paras: ['A deck now has a share link. It always serves the latest version, and an open log records who looked and when. Nothing changes for founders who still attach the PDF.', 'No automatic checks on this part of Arca; the running preview is the evidence. Signed by your Build lane, unchanged since filing.'],
+traceLabel: 'Follow it to the VM: 3 commits · preview running ↗',
+reaches: 'Anyone a founder sends their link to', costs: 'Nothing; no spend attached', proven: 'Signed by your Build lane; unchanged since you last read it',
+approveLabel: 'Approve', refuseLabel: 'Refuse, and say why',
+approvedNote: 'The grant is signed; Arca\u2019s executor verified it, and the change is live on the VM. The trail below now ends in a deploy.',
+trail: [
+{ t: '21 Aug 10:42', dot: 'var(--ink-mute)', text: 'Filed by you in the composer; this conversation is its source', link: 'read it \u2192' },
+{ t: '22 Aug 09:02', dot: 'var(--accent)', text: 'Picked up by the Build lane on Arca\u2019s VM' },
+{ t: '22 Aug 12:14', dot: 'var(--accent)', text: '3 commits on foundry/deck-share-link, +412 \u221238', link: 'diff on the VM \u2197' },
+{ t: '22 Aug 12:20', dot: 'var(--accent)', text: 'Preview built and running from the VM', link: 'see it running \u2197' },
+{ t: '24 Aug', dot: '#8A5A00', text: 'Finished; waiting on your approval since' }
+] },
+{ ref: 'ARCA-9', title: 'Pricing page copy, rewritten for advisers', surface: 'Sell · Marketing', state: 'needs', waiting: '6 hours', kind: 'work', branch: 'site/pricing-advisers',
+paras: ['The pricing page now leads with what an adviser pays, in plain figures, and moves the comparison table above the fold. The old copy survives at /pricing/archive.', 'The page builds cleanly and every link was followed once; normal for the Sell surface.'],
+traceLabel: 'Follow it to the site: staged page ↗',
+reaches: 'Anyone who visits the pricing page', costs: 'Nothing; no spend attached', proven: 'Signed by your Sell lane; unchanged since filing',
+approveLabel: 'Approve', refuseLabel: 'Refuse, and say why',
+approvedNote: 'The grant is signed and verified; the new copy is live on the site.',
+trail: [
+{ t: 'Mon', dot: 'var(--ink-mute)', text: 'Filed by you in the composer' },
+{ t: 'Tue', dot: 'var(--accent)', text: '2 drafts written; the second kept', link: 'staged page \u2197' },
+{ t: 'Today', dot: '#8A5A00', text: 'Finished this morning; waiting on you' }
+] },
+{ ref: 'ACT-3', title: 'October investor email to 41 people', surface: 'Sell · Marketing', state: 'needs', waiting: '1 hour', kind: 'external', deps: ['ARCA-5'],
+paras: ['The email announces the deck link to your investor list: 3 short paragraphs, one link, no attachments. It cites ARCA-5 as its source.', 'Sending is the only thing this decision does; it sends once, to the 41 people on the list in memory.'],
+traceLabel: 'Follow it to your outbox: draft, not sent ↗',
+reaches: '41 investors on your list', costs: '\u00a34, email service, metered', proven: 'Cited from ARCA-5 \u00b7 provenance verified \u00b7 2 stated checks passed',
+approveLabel: 'Approve and send', refuseLabel: 'Refuse',
+approvedNote: 'Sent once, to 41 investors; \u00a34 from the Sell budget. Your outbox holds the sent copy; opens and replies will report on the desk.',
+trail: [
+{ t: '24 Aug', dot: 'var(--accent)', text: 'ARCA-5 finished and cited as the source', link: 'the ticket \u2192' },
+{ t: 'Today 15:40', dot: 'var(--accent)', text: 'Proposed by the Sell lane; 2 checks stated, both passed' },
+{ t: 'Today', dot: '#8A5A00', text: 'Waiting on your approval; nothing sends without it' }
+] },
+{ ref: 'ARCA-12', title: 'Synthetic price history, replaced with real feed data', surface: 'Build · Product', state: 'underway', waiting: null, kind: 'work',
+paras: ['Replaces the demo data with the live feed, backfilled 5 years. The lane is at the desk now.'],
+traceLabel: 'Follow it to the VM: 2 commits so far ↗',
+trail: [
+{ t: 'Tue', dot: 'var(--ink-mute)', text: 'Filed by you in the composer' },
+{ t: 'Today 08:00', dot: 'var(--accent)', text: 'Picked up; 2 commits so far on foundry/real-feed', link: 'diff on the VM \u2197' },
+{ t: 'now', dot: 'var(--accent)', text: 'The Build agent is at its desk; 3 hours in', link: 'watch the office \u2192' }
+] },
+{ ref: 'ARCA-14', title: 'Bulk daily price feed, planned', surface: 'Build · Product', state: 'waiting', waiting: null, kind: 'work', deps: ['ARCA-12'],
+paras: ['Planned from your conversation yesterday; waits its turn behind ARCA-12.'],
+traceLabel: 'Nothing to follow yet; not started',
+trail: [ { t: 'Yesterday', dot: 'var(--ink-mute)', text: 'Filed from your conversation; waiting to be picked up' } ] },
+{ ref: 'ARCA-16', title: 'First paid campaign, \u00a3150 monthly cap', surface: 'Scale · Growth', state: 'blocked', waiting: null, kind: 'external',
+paras: ['A small paid test against the adviser audience. It cannot start: no ad account is connected to Arca yet.', 'Connecting one is a Bruntsfield setup step; the platform is still to be decided.'],
+traceLabel: 'Follow it to the ad account: not connected · tbd',
+trail: [
+{ t: 'Mon', dot: 'var(--ink-mute)', text: 'Filed by you in the composer' },
+{ t: 'Mon', dot: '#8A2020', text: 'Stopped at the gate: no ad account connected; Bruntsfield notified' }
+] },
+{ ref: 'ARCA-11', title: 'Investor update email, September', surface: 'Sell · Marketing', state: 'done', waiting: null, kind: 'external',
+paras: ['Sent to 41 investors after your approval on Monday. 29 opened; 3 replied, all logged.'],
+traceLabel: 'Follow it to your outbox: 41 sent · 29 opened · 3 replied ↗',
+trail: [
+{ t: 'Mon 09:14', dot: 'var(--accent)', text: 'Approved by you; grant signed and verified' },
+{ t: 'Mon 09:31', dot: 'var(--accent)', text: 'Sent once to 41 investors; every send verified', link: 'in your outbox \u2197' },
+{ t: 'since', dot: 'var(--accent)', text: '29 opens, 3 replies; the report is on the desk' }
+] },
+{ ref: 'ARCA-8', title: 'Onboarding flow, first pass', surface: 'Build · Product', state: 'stopped', waiting: null, kind: 'work',
+paras: ['Your team stopped after 3 attempts and wrote down why: the flow depends on the broker connection ARCA-15 later removed.'],
+traceLabel: 'Follow it to the reason: on file →',
+trail: [
+{ t: '18 Aug', dot: 'var(--ink-mute)', text: 'Filed by you in the composer' },
+{ t: '19\u201320 Aug', dot: '#8A2020', text: '3 attempts, each failing the same broker step' },
+{ t: '20 Aug', dot: '#8A2020', text: 'Stopped; the reason written to What happened', link: 'read why \u2192' }
+] },
+{ ref: 'ARCA-7', title: 'Competitor pricing research', surface: 'Research', state: 'done', waiting: null, kind: 'work',
+paras: ['3 notes on competitor pricing, saved to what Arca knows and cited by the pricing copy.'],
+traceLabel: 'Follow it to memory: 3 notes →',
+trail: [
+{ t: 'Last week', dot: 'var(--accent)', text: 'Researched by the Research agent' },
+{ t: 'Monday', dot: 'var(--accent)', text: '3 notes saved to what Arca knows', link: 'in memory \u2192' }
+] }
+];
+chapters = [
+{ num: '01', title: 'How to start', mins: '40' }, { num: '02', title: 'How to build', mins: '55' },
+{ num: '03', title: 'How to sell', mins: '55' }, { num: '04', title: 'How to scale', mins: '40' },
+{ num: '05', title: 'The founder egoist', mins: '20' }, { num: '06', title: 'Disciplined entrepreneurship', mins: '60' },
+{ num: '07', title: 'Seven powers', mins: '40' }, { num: '08', title: 'The Bruntsfield playbook', mins: '35' },
+{ num: '09', title: 'Using your studio', mins: '10' }
+];
+greek = [96, 100, 92, 88, 100, 97, 64, 0, 90, 100, 95, 100, 86, 42, 0, 98, 100, 91, 100, 73].map(w => ({ w: w === 0 ? '0%' : w + '%' }));
+fresh() { return { msgs: [], stage: 0, firstMsg: '', secondMsg: '', input: '', canFile: false, filed: false, ctx: null, plan: null, planFiled: false, refusing: false, filedTickets: [], decided: {}, trailExtra: {}, planReleased: false, sel: 'ARCA-5', filter: 'needs' }; }
+state = {
+screen: null, mode: 'run', asFounder: false, chapterIdx: 0, planReleased: false, filter: 'needs', sel: 'ARCA-5', decided: {}, trailExtra: {}, refusing: false, refuseText: '',
+filedTickets: [], plan: null, planFiled: false,
+activity: [
+{ t: 'Today 08:00', dot: 'var(--accent)', text: 'ARCA-12 picked up by your Build lane; 2 commits so far', meta: 'Build · Product' },
+{ t: 'Yesterday', dot: 'var(--ink-mute)', text: 'ARCA-14, bulk daily price feed, filed from your conversation', meta: 'Build · Product' },
+{ t: 'Yesterday', dot: '#8A2020', text: 'Stopped: ARCA-8, onboarding flow; 3 attempts, reason on file', meta: 'Build · Product' },
+{ t: 'Monday', dot: 'var(--accent)', text: 'ARCA-11, the September investor email, approved by you and sent to 41 investors', meta: 'Sell · Marketing' },
+{ t: 'Monday', dot: '#8A2020', text: 'ARCA-16, first paid campaign, stopped at the gate: no ad account connected', meta: 'Scale · Growth' },
+{ t: 'Monday', dot: 'var(--accent)', text: '3 competitor pricing notes added to what Arca knows', meta: 'Research' }
+],
+docs: [
+{ name: 'Data room v2 PRD, 9 sections', from: 'Uploaded by you', added: 'Today', used: 'Not cited yet' },
+{ name: 'The thesis: who Arca is for, what it replaces, the moat', from: 'Your founding conversation', added: 'June', used: 'Every ticket cites it' },
+{ name: 'Onboarding drop-off notes', from: 'You, via the composer', added: '12 Aug', used: 'Today; drafting' },
+{ name: 'Competitor pricing research', from: 'Your team, ARCA-7', added: 'Monday', used: 'Yesterday; pricing copy' },
+{ name: 'Customer interviews, 14 recordings transcribed', from: 'Uploaded by you', added: 'July', used: 'Last week' }
+],
+docInput: '', dsk: '',
+ctx: null, msgs: [], stage: 0, firstMsg: '', secondMsg: '', input: '', canFile: false, filed: false, filedAt: ''
+};
+tm() { return new Date().toTimeString().slice(0, 5); }
+cap(t, n) { t = t.trim().replace(/\.\s*$/, ''); t = t.charAt(0).toUpperCase() + t.slice(1); return t.length > n ? t.slice(0, n - 1) + '\u2026' : t; }
+tk(ref) { return this.T.concat(this.state.filedTickets).find(t => t.ref === ref); }
+planSet() {
+return [
+{ ref: 'ARCA-17', title: 'Data room v2: one page per company, latest deck inline', surface: 'Build · Product', kind: 'work', gate: 'review gate' },
+{ ref: 'ARCA-18', title: 'Access grants: investors sign in with a link, no accounts', surface: 'Build · Product', kind: 'work', gate: 'review gate' },
+{ ref: 'ARCA-19', title: 'Open log: who viewed what, surfaced to you', surface: 'Build · Product', kind: 'work', gate: 'review gate' },
+{ ref: 'ARCA-20', title: 'Announce data room v2 to the investor list', surface: 'Sell · Marketing', kind: 'external', gate: 'send gate; waits for your approval' },
+{ ref: 'ARCA-21', title: 'Measure drop-off through the new room for 2 weeks', surface: 'Research', kind: 'work', gate: 'read-only; reports to memory' }
+].map(t => Object.assign({ keep: true }, t));
+}
+stateOf(t) { return this.state.decided[t.ref] || t.state; }
+go(s) { this.setState({ screen: s, refusing: false }); }
+openTicket(ref, filter) { this.setState({ screen: 'tickets', sel: ref, filter: filter || this.state.filter, refusing: false, refuseText: '' }); }
+needsRefs() { return this.T.filter(t => this.stateOf(t) === 'needs').map(t => t.ref); }
+decide(verdict) {
+const t = this.tk(this.state.sel), ext = t.kind === 'external', time = this.tm();
+const extra = verdict === 'approved'
+? [{ t: 'Now ' + time, dot: 'var(--accent)', text: t.approveLabel === 'Approve and send' ? 'Approved by you; grant signed, verified, sent once' : 'Approved by you; grant signed, verified, deployed from the VM' }]
+: [{ t: 'Now ' + time, dot: '#8A2020', text: 'Refused by you; your note went to the lane, nothing went out' }];
+this.setState(s => ({
+decided: Object.assign({}, s.decided, { [t.ref]: verdict === 'approved' ? 'done' : 'sentback' }),
+trailExtra: Object.assign({}, s.trailExtra, { [t.ref]: extra }),
+activity: [{ t: 'Now', dot: verdict === 'approved' ? 'var(--accent)' : 'var(--ink-mute)', text: verdict === 'approved' ? ('You approved ' + t.ref + (ext ? '; the send went out, every delivery verified' : '; the change is live')) : ('You refused ' + t.ref + ' and sent it back with a note'), meta: t.surface }, ...s.activity],
+refusing: false
+}));
+}
+openComposer(ctx, seedText) {
+const time = this.tm();
+let msgs = [], stage = 0, firstMsg = '';
+if (!ctx && seedText && /\bprd\b|break|plan|spec/i.test(seedText)) {
+msgs = [
+{ wl: 'You · ' + time, wc: 'var(--ink-mute)', pre: null, body: seedText },
+{ wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Read the PRD from memory: 9 sections · read what Arca knows: 2 notes touch it · checked the tickets: nothing open overlaps', body: 'The PRD breaks into 5 tickets, smallest shippable first; they are on the right in dependency order. 4 are yours to review, 1 is an external send that will wait for your approval. One question: the access-grant section names 2 sign-in routes; should I split that per route, or keep it one ticket?' }
+];
+this.setState({ screen: 'composer', ctx: null, msgs, stage: 2, firstMsg: seedText, secondMsg: '', input: '', canFile: true, filed: false, refusing: false, plan: this.planSet(), planFiled: false });
+return;
+}
+if (ctx) {
+const t = this.tk(ctx);
+msgs = [{ wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Read the ' + ctx + ' trail and what Arca knows', body: 'This is the ' + ctx + ' thread: ' + t.title.toLowerCase() + '. Ask anything about it, or tell me what should change; an agreed change files as a revision the lane picks up, and the trail records this conversation as its source.' }];
+} else if (seedText) {
+firstMsg = seedText; stage = 1;
+msgs = [
+{ wl: 'You · ' + time, wc: 'var(--ink-mute)', pre: null, body: seedText },
+{ wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Read what Arca knows: 2 notes touch this · checked the tickets: nothing open overlaps', body: 'Understood. Watch the right side; the ticket is taking shape as we talk. One question: should your team file the smallest version first and come back for the rest, or wait and do it in one piece?' }
+];
+}
+this.setState({ screen: 'composer', ctx: ctx || null, msgs, stage, firstMsg, secondMsg: '', input: '', canFile: false, filed: false, refusing: false });
+}
+send() {
+const t = this.state.input.trim(); if (!t) return;
+const time = this.tm();
+const msgs = [...this.state.msgs, { wl: 'You · ' + time, wc: 'var(--ink-mute)', pre: null, body: t }];
+let { stage, firstMsg, secondMsg, canFile } = this.state;
+let reply;
+if (this.state.ctx) {
+reply = { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: null, body: 'Noted against ' + this.state.ctx + '. Here is the revision I would file: ' + t + '. In your words, nothing added beyond it. Press File the revision and the lane re-opens the ticket with it.' };
+canFile = true; stage = 2; if (!firstMsg) firstMsg = t;
+} else if (this.state.plan) {
+reply = { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: null, body: 'Adjusted where your note touches the set; the plan on the right is current. File it when it reads right.' };
+canFile = true;
+} else if (stage === 0 && /\bprd\b|break|plan|spec/i.test(t)) {
+firstMsg = t; stage = 2; canFile = true;
+this.setState({ plan: this.planSet(), planFiled: false });
+reply = { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Read the PRD from memory: 9 sections · read what Arca knows: 2 notes touch it · checked the tickets: nothing open overlaps', body: 'The PRD breaks into 5 tickets, smallest shippable first; they are on the right in dependency order. 4 are yours to review, 1 is an external send that will wait for your approval. One question: the access-grant section names 2 sign-in routes; should I split that per route, or keep it one ticket?' };
+} else if (stage === 0) {
+firstMsg = t; stage = 1;
+reply = { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Read what Arca knows: 2 notes touch this · checked the tickets: nothing open overlaps', body: 'Understood. Watch the right side; the ticket is taking shape as we talk. One question: should your team file the smallest version first and come back for the rest, or wait and do it in one piece?' };
+} else {
+if (stage === 1) secondMsg = t;
+stage = 2; canFile = true;
+reply = { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: null, body: 'Done. The draft on the right is complete; read it, then file it or change it. Nothing is built until you press File this.' };
+}
+msgs.push(reply);
+this.setState({ msgs, stage, firstMsg, secondMsg, canFile, input: '', filed: false });
+}
+fileThis() {
+const time = this.tm();
+if (this.state.plan) {
+const kept = this.state.plan.filter(p => p.keep);
+const made = kept.map(p => ({ ref: p.ref, title: p.title, surface: p.surface, state: 'waiting', waiting: null, kind: p.kind,
+paras: ['Filed from your PRD plan; waiting to be picked up. ' + (p.kind === 'external' ? 'Sending will wait for your approval.' : 'Finished work will wait for your review.')],
+traceLabel: 'Nothing to follow yet; not started',
+trail: [{ t: 'Now ' + time, dot: 'var(--ink-mute)', text: 'Filed from the PRD plan; this conversation and the PRD are its sources' }] }));
+this.setState(s => ({
+filedTickets: [...s.filedTickets, ...made],
+msgs: [...s.msgs, { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Filed ' + made.length + ' tickets to the board', body: made.map(m => m.ref).join(', ') + ' are in Tickets, in dependency order. The PRD stays in memory; every ticket cites it. I will tell you as each one finishes.' }],
+activity: [{ t: 'Now', dot: 'var(--ink-mute)', text: 'You filed ' + made.length + ' tickets from the data room PRD, ' + made[0].ref + ' to ' + made[made.length - 1].ref, meta: 'Composer' }, ...s.activity],
+canFile: false, planFiled: true, filedAt: time
+}));
+return;
+}
+if (this.state.ctx) {
+const ref = this.state.ctx;
+const extra = [...(this.state.trailExtra[ref] || []), { t: 'Now ' + time, dot: 'var(--ink-mute)', text: 'Revision filed from your composer discussion; the lane re-opens the ticket', link: null }];
+this.setState(s => ({
+trailExtra: Object.assign({}, s.trailExtra, { [ref]: extra }),
+msgs: [...s.msgs, { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Filed the revision against ' + ref, body: 'The lane re-opens the ticket with your words attached. The trail records this conversation as the source.' }],
+activity: [{ t: 'Now', dot: 'var(--ink-mute)', text: 'You filed a revision against ' + ref + ' from the composer', meta: this.tk(ref).surface }, ...s.activity],
+canFile: false, filed: false
+}));
+return;
+}
+const title = this.cap(this.state.firstMsg, 64);
+const ticket = { ref: 'ARCA-16b', title, surface: 'Build · Product', state: 'waiting', waiting: null, kind: 'work',
+paras: ['Filed just now from your conversation; waiting to be picked up.'],
+traceLabel: 'Nothing to follow yet; not started',
+trail: [{ t: 'Now ' + time, dot: 'var(--ink-mute)', text: 'Filed by you in the composer; this conversation is its source' }] };
+this.setState(s => ({
+filedTicket: ticket,
+msgs: [...s.msgs, { wl: 'The composer · ' + time, wc: 'var(--accent)', pre: 'Filed ' + ticket.ref + ' to Tickets', body: 'It is in Tickets, waiting to be picked up. I will tell you when it is finished; the desk banner counts it the moment it waits on you.' }],
+activity: [{ t: 'Now', dot: 'var(--ink-mute)', text: 'You filed ' + ticket.ref + ' in the composer: ' + title.toLowerCase(), meta: 'Build · Product' }, ...s.activity],
+canFile: false, filed: true, filedAt: time
+}));
+}
+renderVals() {
+const s = this.state;
+const scr = s.screen || (this.props.startScreen != null ? this.props.startScreen : 'signin');
+const newMode = s.mode === 'new';
+const all = (newMode ? [] : this.T).concat(s.filedTickets);
+const moving = all.filter(t => { const st = this.stateOf(t); return st === 'underway' || st === 'waiting'; }).length;
+const docsShown = newMode ? s.docs.filter(d => d.added === 'Now') : s.docs;
+const planOn = !!s.plan && !s.planFiled && !s.ctx;
+const planKept = s.plan ? s.plan.filter(p => p.keep).length : 0;
+const planRows = (s.plan || []).map((p, i) => ({
+ref: p.ref, title: p.title, meta: p.surface + ' · ' + p.gate,
+c: p.keep ? 'var(--ink)' : 'var(--ink-mute)', deco: p.keep ? 'none' : 'line-through',
+act: p.keep ? 'Strike' : 'Keep',
+toggle: () => this.setState(st => ({ plan: st.plan.map((q, j) => j === i ? Object.assign({}, q, { keep: !q.keep }) : q) }))
+}));
+const stMap = { needs: ['Waiting on you', '#8A5A00'], underway: ['In progress', 'var(--accent)'], waiting: ['Waiting to be picked up', 'var(--ink-mute)'], done: ['Done', 'var(--accent)'], stopped: ['Stopped', '#8A2020'], blocked: ['Blocked at the gate', '#8A2020'], sentback: ['Sent back by you', '#8A2020'] };
+const needs = all.filter(t => this.stateOf(t) === 'needs');
+const n = needs.length;
+const navDefs = [
+{ label: 'The desk', key: 'desk', match: ['desk', 'pocket'] },
+{ label: 'Tickets', key: 'tickets', match: ['tickets', 'composer'] },
+{ label: 'Needs you', key: 'needsnav', match: [], badge: n > 0 ? String(n) : null },
+{ label: 'What happened', key: 'activity', match: ['activity'] },
+{ label: 'Memory', key: 'memory', match: ['memory'] },
+{ label: 'Handbook', key: 'handbook', match: ['handbook'] }
+];
+const navs = navDefs.map(nv => {
+const active = nv.match.indexOf(scr) >= 0;
+return { label: nv.label, badge: nv.badge || null, fw: active ? '600' : '400', c: active ? 'var(--ink)' : 'var(--ink-soft)', bg: active ? 'var(--paper-deep)' : 'transparent',
+go: nv.key === 'needsnav' ? () => this.openTicket(this.needsRefs()[0] || s.sel, 'needs') : () => this.go(nv.key) };
+});
+const filters = [
+{ key: 'needs', label: 'Needs you (' + n + ')' }, { key: 'all', label: 'All' },
+{ key: 'moving', label: 'Underway' }, { key: 'settled', label: 'Done and stopped' }
+];
+const tabs = filters.map(f => ({ label: f.label, go: () => this.setState({ filter: f.key }),
+fw: s.filter === f.key ? '600' : '500', c: s.filter === f.key ? 'var(--ink)' : 'var(--ink-mute)', bb: s.filter === f.key ? '2px solid var(--accent)' : '2px solid transparent' }));
+const inFilter = t => {
+const st = this.stateOf(t);
+if (s.filter === 'needs') return st === 'needs';
+if (s.filter === 'moving') return st === 'underway' || st === 'waiting';
+if (s.filter === 'settled') return st === 'done' || st === 'stopped' || st === 'blocked' || st === 'sentback';
+return true;
+};
+const list = all.filter(inFilter).map(t => {
+const st = this.stateOf(t), m = stMap[st];
+return { ref: t.ref, title: t.title, dot: m[1], fw: t.ref === s.sel ? '600' : '400',
+meta: t.surface + ' · ' + m[0] + (t.waiting && st === 'needs' ? ', ' + t.waiting : ''),
+bg: t.ref === s.sel ? 'var(--paper-deep)' : 'transparent', bl: t.ref === s.sel ? '2px solid var(--accent)' : '2px solid transparent',
+click: () => this.setState({ sel: t.ref, refusing: false }) };
+});
+const curReal = newMode ? (s.filedTickets.find(t => t.ref === s.sel) || s.filedTickets[0] || null) : (this.tk(s.sel) || this.T[0]);
+const cur = curReal || { ref: 'ARCA', title: 'Nothing filed yet', surface: 'Your venture', state: 'waiting', kind: 'work',
+paras: ['Your first conversation files the first ticket. It appears here with its trail, followable to where it changes things.'],
+traceLabel: 'Nothing to follow yet', trail: [], deps: [], branch: null };
+const curSt = this.stateOf(cur), curM = stMap[curSt];
+const dt = Object.assign({}, cur, { stateLabel: curM[0], stateC: curM[1], p1: cur.paras[0],
+recordLine: (cur.branch ? 'branch ' + cur.branch + ' · ' : '') + 'docs/tickets/' + cur.ref.toLowerCase() + '.md' });
+const dtDeps = (cur.deps || []).map(ref => ({ ref, go: () => this.setState({ sel: ref, refusing: false }) }));
+const dtTrail = (cur.trail || []).concat(s.trailExtra[cur.ref] || []).map(tr => ({ t: tr.t, dot: tr.dot, text: tr.text, link: tr.link || null }));
+const needsIdx = needs.findIndex(t => t.ref === cur.ref);
+const deskQueue = needs.map(t => ({ ref: t.ref, title: t.title, waiting: t.waiting, meta: t.surface + (t.kind === 'external' ? ' · external send' : ''), open: () => this.openTicket(t.ref, 'needs') }));
+const sellWaiting = needs.some(t => t.surface.indexOf('Sell') === 0);
+const ledger = [
+{ who: 'Build lane', c: 'var(--ink-soft)', text: 'writing code for ARCA-12, real feed data · 3h at the desk', act: null, cur: 'default', open: null },
+{ who: 'Research', c: 'var(--ink-soft)', text: 'reading what Arca knows, preparing the bulk feed plan', act: null, cur: 'default', open: null },
+sellWaiting
+? { who: 'Sell lane', c: '#8A5A00', text: 'waiting on you; finished work is in the queue.', act: 'Read it and decide \u2192', cur: 'pointer', open: () => this.openTicket(needs.filter(t => t.surface.indexOf('Sell') === 0)[0].ref, 'needs') }
+: { who: 'Sell lane', c: 'var(--ink-soft)', text: 'idle; nothing waiting on this lane', act: null, cur: 'default', open: null }
+];
+const draftScope = [];
+if (s.secondMsg) draftScope.push(this.cap(s.secondMsg, 90));
+draftScope.push('The smallest change that does what you asked');
+draftScope.push('Anything unclear comes back as a question, not a guess');
+return {
+notesOn: this.props.showNotes != null ? this.props.showNotes : true,
+isSignin: scr === 'signin', signedIn: scr !== 'signin' && scr !== 'admin', isFirstrun: scr === 'firstrun',
+isAdmin: scr === 'admin', asFounder: s.asFounder,
+signIn: () => this.setState(Object.assign({ screen: 'desk', mode: 'run', asFounder: false }, this.fresh())),
+signinKey: e => { if (e.key === 'Enter') this.setState(Object.assign({ screen: 'desk', mode: 'run', asFounder: false }, this.fresh())); },
+signOut: () => this.setState(Object.assign({ screen: 'signin', mode: 'run', asFounder: false }, this.fresh())),
+goFirstrun: () => this.setState(Object.assign({ screen: 'firstrun', mode: 'new', asFounder: false }, this.fresh())),
+goAdmin: () => this.go('admin'),
+adminHead: '4 ventures, ' + (n + 4) + ' decisions waiting.',
+adminRows: [
+{ name: 'Arca', ref: 'ARCA', founder: 'John Gallagher', needs: n ? n + ' · oldest 3 days' : '0', needsC: n ? '#8A5A00' : 'var(--ink-mute)', underway: '2 tickets', engine: 'Running', engineC: 'var(--accent)', spend: '£220 / £700', spendC: 'var(--ink-soft)', action: 'Open as founder →', go: () => this.setState({ asFounder: true, mode: 'run', screen: 'desk' }) },
+{ name: 'The Reset', ref: 'RESET', founder: 'Mairi Fraser', needs: '4 · oldest 6 days', needsC: '#8A5A00', underway: '2 tickets', engine: 'Running', engineC: 'var(--accent)', spend: '£410 / £400 over', spendC: '#8A2020', action: 'Open as founder →', go: () => this.setState({ asFounder: true, mode: 'run', screen: 'desk' }) },
+{ name: 'Modernisation Engine', ref: 'MODE', founder: 'In-house', needs: '0', needsC: 'var(--ink-mute)', underway: '3 tickets', engine: 'Stopped 2h ago', engineC: '#8A2020', spend: '£95 / £300', spendC: 'var(--ink-soft)', action: 'Read the fault →', go: () => this.setState({ asFounder: true, mode: 'run', screen: 'activity' }) },
+{ name: 'Caldera', ref: 'CALD', founder: 'Onboarding', needs: '1 · first run', needsC: '#8A5A00', underway: '0', engine: 'Not provisioned', engineC: 'var(--ink-mute)', spend: 'no budget set', spendC: 'var(--ink-mute)', action: 'Preview day one →', go: () => this.setState(Object.assign({ mode: 'new', asFounder: false, screen: 'firstrun' }, this.fresh())) }
+],
+vEyebrow: newMode ? 'Venture · Day one' : 'Venture · Active',
+deskMeta: newMode ? 'Founder: you · nothing has run yet' : 'Founder: you · updated just now',
+deskSummary: newMode
+? 'Arca is new. Nothing waits on you and nothing has run; your first conversation files the first ticket, and everything on this desk fills in from it.'
+: 'Arca gives founders one place to raise: deck, data room and investor updates, run by your studio team. ' + (n > 0 ? n + (n === 1 ? ' decision waits' : ' decisions wait') + ' on you; ' : 'Nothing waits on you; ') + 'your team is on ' + moving + ' moving tickets, and £220 of £700 is spent this month.',
+ticketsSummary: newMode
+? (all.length ? all.length + ' tickets, all from your first conversation, waiting to be picked up.' : 'No tickets yet. Your first conversation files the first one; each will be followable to where it changed things.')
+: all.length + ' tickets: ' + n + ' waiting on you, ' + moving + ' moving, ' + (all.length - n - moving) + ' settled. Every one can be followed to where it changed things.',
+activitySummary: newMode
+? 'Arca is new. Provisioning is done; everything else appears here the moment it happens.'
+: 'This week your team finished 3 tickets, stopped 1 after 3 attempts, and sent 1 investor email.' + (Object.keys(s.decided).length ? ' Today you made ' + Object.keys(s.decided).length + (Object.keys(s.decided).length === 1 ? ' decision.' : ' decisions.') : ' You have made no decisions today.'),
+memorySummary: newMode
+? 'Nothing here yet. What you hand over becomes what Arca knows, and the composer reads it before drafting anything.'
+: docsShown.length + ' documents and 3 routines. The composer reads all of it before it drafts anything, and every ticket cites what it used.',
+plateBuild: newMode ? 'idle' : 'ARCA-12 ▮▮', plateBuildC: newMode ? 'var(--ink-mute)' : 'var(--accent)',
+plateRead: newMode ? 'idle' : 'reading brief',
+runsOn: !newMode, runsEmpty: newMode,
+promptChips: (newMode ? ['Here is my thesis; plan the first tickets', 'What should we do first?'] : ['Break the data room PRD into tickets', 'Rewrite the pricing page for advisers']).map(label => ({ label, go: () => this.openComposer(null, label) })),
+degradedOn: this.props.degraded != null ? this.props.degraded : false,
+runs: [
+{ t: '07:10', dot: '#8A5A00', c: 'var(--ink)', fw: '500', lane: 'build', text: 'Read ARCA-13, flagged it high-impact, wrote a plan and stopped to show you', held: true },
+{ t: '06:58', dot: 'var(--accent)', c: 'var(--ink-soft)', fw: '400', lane: 'sell', text: 'Finished ARCA-9 and opened the work for your review' },
+{ t: 'Yesterday', dot: '#8A2020', c: 'var(--ink-soft)', fw: '400', lane: 'build', text: 'Gave up on ARCA-8 after 3 attempts and wrote down why' },
+{ t: 'Yesterday', dot: 'var(--ink-mute)', c: 'var(--ink-mute)', fw: '400', lane: 'research', text: 'Woke, found nothing useful to do, went back to sleep' }
+].map(r => Object.assign({}, r, {
+showBtn: !!r.held && !s.planReleased, showRel: !!r.held && s.planReleased,
+release: () => this.setState(st => ({ planReleased: true, activity: [{ t: 'Now', dot: 'var(--accent)', text: 'You told the team to go ahead with the ARCA-13 plan; it starts on the next wake', meta: 'Build · Product' }, ...st.activity] }))
+})),
+isDesk: scr === 'desk', isTickets: scr === 'tickets', isComposer: scr === 'composer',
+isActivity: scr === 'activity', isMemory: scr === 'memory', isHandbook: scr === 'handbook', isPocket: scr === 'pocket',
+navs, queueN: String(n), anyWaiting: n > 0, noneWaiting: n === 0,
+officeLine: n > 0 ? '3 agents at work · ' + n + ' waiting on you' : '3 agents at work · nothing waiting on you',
+blockerLine: 'You are the blocker on ' + n + (n === 1 ? ' item' : ' items') + '; the oldest has waited ' + (needs[0] ? needs[0].waiting : '') + '.',
+blockerShort: n > 0 ? 'You are the blocker on ' + n : 'All clear',
+goDesk: () => this.go('desk'), goNeeds: () => this.openTicket(this.needsRefs()[0] || s.sel, 'needs'),
+goActivity: () => this.go('activity'), goMemory: () => this.go('memory'), goHandbook: () => this.go('handbook'), goPocket: () => this.go('pocket'),
+dsk: s.dsk, onDsk: e => this.setState({ dsk: e.target.value }),
+dskKey: e => { if (e.key === 'Enter' && this.state.dsk.trim()) { const t = this.state.dsk; this.setState({ dsk: '' }); this.openComposer(null, t); } },
+dskSend: () => { if (this.state.dsk.trim()) { const t = this.state.dsk; this.setState({ dsk: '' }); this.openComposer(null, t); } else this.openComposer(null, null); },
+sellWaiting, sellLabel: sellWaiting ? (needs.filter(t => t.surface.indexOf('Sell') === 0)[0].ref + ' waiting') : 'idle', sellLabelC: sellWaiting ? '#8A5A00' : 'var(--ink-mute)',
+ledger: newMode ? [
+{ who: 'Build lane', c: 'var(--ink-soft)', text: 'idle; waiting for the first ticket', act: null, cur: 'default', open: null },
+{ who: 'Research', c: 'var(--ink-soft)', text: 'idle; reading begins with the first document', act: null, cur: 'default', open: null },
+{ who: 'Sell lane', c: 'var(--ink-soft)', text: 'idle; opens with the first Sell ticket', act: null, cur: 'default', open: null }
+] : ledger, deskQueue,
+tabs, list, listEmpty: list.length === 0,
+dt, dtTrail, dtHasDeps: dtDeps.length > 0, dtDeps,
+dtDecide: curSt === 'needs', dtApproved: s.decided[cur.ref] === 'done', dtRefused: s.decided[cur.ref] === 'sentback',
+dPosLine: needsIdx >= 0 ? 'decision ' + (needsIdx + 1) + ' of ' + n : '',
+hasNext: n > 0 && (s.decided[cur.ref] === 'done' || s.decided[cur.ref] === 'sentback'),
+openNext: () => this.openTicket(this.needsRefs()[0], 'needs'),
+approve: () => this.decide('approved'), startRefuse: () => this.setState({ refusing: true }),
+cancelRefuse: () => this.setState({ refusing: false, refuseText: '' }),
+onRefuseText: e => this.setState({ refuseText: e.target.value }),
+sendBack: () => { if (this.state.refuseText.trim()) this.decide('refused'); },
+refusing: s.refusing, refuseText: s.refuseText,
+discuss: () => this.openComposer(cur.ref, null),
+backToTicket: () => this.openTicket(s.ctx || cur.ref),
+ctxOn: !!s.ctx, ctxOff: !s.ctx, ctxRef: s.ctx || '',
+composerHead: s.ctx ? 'The conversation behind the ticket.' : 'Say it loosely. It files precisely.',
+composerSub: s.ctx ? 'Full discussion, before anything is refined or completed. Agreed changes file as revisions; nothing changes without your yes.' : 'Plain English is enough. It asks a question or two, reads the work back, and files nothing until you say yes.',
+emptyLine: s.ctx ? 'Ask anything about this ticket.' : 'Nothing yet. Describe what you want for Arca: a change, research, a thing that is bothering you.',
+msgs: s.msgs, noMsgs: s.msgs.length === 0,
+input: s.input, inputPh: s.ctx ? 'Ask, or say what should change…' : 'What do you want for Arca?',
+onInput: e => this.setState({ input: e.target.value }),
+onInputKey: e => { if (e.key === 'Enter') this.send(); },
+send: () => this.send(),
+canFile: s.canFile && !(planOn && planKept === 0), filed: s.filed, filedAt: s.filedAt,
+railTitle: planOn || s.planFiled ? 'The plan, taking shape' : 'The ticket, taking shape',
+planOn, planRows, planFiled: s.planFiled && !s.ctx,
+planFiledLine: s.filedTickets.length > 0 ? s.filedTickets.length + ' tickets, ' + s.filedTickets[0].ref + ' to ' + s.filedTickets[s.filedTickets.length - 1].ref : '',
+openPlanTickets: () => this.openTicket(s.filedTickets.length ? s.filedTickets[0].ref : s.sel, 'moving'),
+fileLabel: s.ctx ? 'File the revision' : planOn ? 'File all ' + planKept : 'File this',
+fileThis: () => this.fileThis(),
+changeSomething: () => this.setState(st => ({ canFile: false, msgs: [...st.msgs, { wl: 'The composer · ' + this.tm(), wc: 'var(--accent)', pre: null, body: 'Tell me what to change and the draft will follow. Nothing is filed until you press it.' }] })),
+resetComposer: () => this.setState({ msgs: [], stage: 0, firstMsg: '', secondMsg: '', input: '', canFile: false, filed: false, ctx: null, plan: null, planFiled: false }),
+openFiled: () => this.openTicket('ARCA-16b', 'moving'),
+draftEmpty: s.stage === 0 && !s.plan, draftOn: s.stage > 0 && !s.plan,
+draftTag: s.filed ? 'filed' : s.stage === 0 ? 'empty' : 'draft; nothing filed',
+draftTagColor: s.filed ? 'var(--accent)' : s.stage === 0 ? 'var(--ink-mute)' : '#8A5A00',
+draftTitle: s.firstMsg ? this.cap(s.firstMsg, 72) : '', draftScope,
+activityRows: newMode ? [...s.activity.filter(a => a.t === 'Now'), { t: 'Monday', dot: 'var(--accent)', text: 'Arca was provisioned; its machine, lanes and budgets set up by Bruntsfield', meta: 'Studio' }] : s.activity,
+docs: docsShown, docsEmpty: newMode && docsShown.length === 0, docInput: s.docInput,
+onDocInput: e => this.setState({ docInput: e.target.value }),
+docKey: e => { if (e.key === 'Enter') this.addDoc(); },
+addDoc: () => this.addDoc(),
+routines: newMode ? [
+{ name: 'Morning check: is anything stuck, is anything waiting', when: 'Every day, 07:00', status: 'Installs with the first ticket', c: 'var(--ink-mute)', note: 'nothing to check yet' }
+] : [
+{ name: 'Morning check: is anything stuck, is anything waiting', when: 'Every day, 07:00', status: 'Ran this morning', c: 'var(--accent)', note: 'wrote today\u2019s desk brief' },
+{ name: 'Weekly digest to your inbox', when: 'Fridays, 16:00', status: 'Sent Friday', c: 'var(--accent)', note: 'opened by you, Saturday' },
+{ name: 'Refresh what Arca knows from its own records', when: 'Nightly', status: 'Skipped last night', c: '#8A5A00', note: 'machine was busy; retries tonight' }
+],
+chapters: this.chapters.map((c, i) => Object.assign({}, c, { open: () => this.setState({ screen: 'chapter', chapterIdx: i }) })),
+isChapter: scr === 'chapter',
+chNum: this.chapters[s.chapterIdx].num, chTitle: this.chapters[s.chapterIdx].title, chMins: this.chapters[s.chapterIdx].mins,
+greek: this.greek
+};
+}
+addDoc() {
+const t = this.state.docInput.trim(); if (!t) return;
+this.setState(s => ({
+docs: [{ name: this.cap(t, 80), from: 'Uploaded by you', added: 'Now', used: 'Not yet; indexed tonight' }, ...s.docs],
+activity: [{ t: 'Now', dot: 'var(--accent)', text: 'You added a document to what Arca knows: ' + this.cap(t, 60).toLowerCase(), meta: 'Memory' }, ...s.activity],
+docInput: ''
+}));
+}
+}

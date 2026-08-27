@@ -1,0 +1,19 @@
+data-screen-label="Sign in" style="min-height:100vh; display:flex; align-items:center; justify-content:center;">
+BRUNTSFIELD
+FOUNDRY STUDIO
+Sign in
+Sign in with your venture account: Google, or the email and password you were given.
+Continue with Google
+Or with email and password:
+Sign in
+A Bruntsfield Capital venture · Edinburgh
+[IF notesOn]
+Wireframe: either door signs you in; no credentials are checked. Roles:
+a new founder's day one
+·
+Bruntsfield admin
+.
+[/IF]
+[/IF]
+[IF isAdmin]
+<div
