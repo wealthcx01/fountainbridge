@@ -18,6 +18,13 @@ means nothing happened.
 paragraph (FB-108). FB-123 made the reads cheap. Approvals and refusals are recorded in ActiveGraph
 but do not appear in this feed.
 
+**A scope change nobody flagged on the first draft:** `/activity` is **cross-venture** today —
+`loadAccessibleHealth` spans every venture the viewer can reach. The design puts "What happened"
+inside a venture's rail, showing that venture's events. So this route becomes venture-scoped, moving
+to `/venture/[id]/activity` (FB-124 does the move and the redirect). For an admin that is a
+narrowing, and the all-ventures view they lose is the admin ledger's job (FB-136) rather than this
+screen's.
+
 ## Scope
 
 - A live summary sentence, then dated, tone-dotted sentences, newest first.
@@ -30,6 +37,7 @@ but do not appear in this feed.
 ## Out of scope
 
 - Sends and spend as events — FB-142 and G3.
+- A cross-venture feed. That was this route's old behaviour and is now the admin ledger's (FB-136).
 - Any new writer. This reads what is recorded.
 
 ## Validation gates
@@ -42,6 +50,7 @@ make design-lint && make ticket-drift
 
 ## Acceptance criteria
 
+- [ ] The feed is venture-scoped, and a founder cannot see another venture's events through it.
 - [ ] Summary sentence, then dated tone-dotted sentences, newest first.
 - [ ] A founder's approval or refusal appears in the feed immediately after they make it.
 - [ ] Failed and refused items remain visible with their state.

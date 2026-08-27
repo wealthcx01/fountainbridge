@@ -29,6 +29,10 @@ five status groups are `lib/tickets.ts` — including `filed` from FB-120.
   a founder may have it bookmarked.
 - **The detail**: state eyebrow, title, prose paragraphs, the trace line, "Discuss in the composer →",
   the branch and `docs/tickets/<id>.md` line, and clickable Depends-on chips from `depends_on`.
+- **The selected ticket and the filter live in the URL.** Not component state: "Discuss in the
+  composer →" leaves this screen and the founder comes back, dependency chips link ticket-to-ticket,
+  and "Next decision →" is a navigation. All three break if the selection cannot be addressed. It is
+  also what makes a ticket linkable at all — from the desk's queue, from a run report, from Slack.
 - **The decision panel**, for items needing one: Reaches / Costs / Proven, Approve (or Approve-and-send),
   "Refuse, and say why" with a required note, and **"decision N of M"**.
 - **Chaining.** After deciding, the panel becomes "Approved and verified" or "Sent back with your note",
@@ -53,6 +57,7 @@ curl -s -o /dev/null -w "%{http_code}\n" "$BASE/attention"   # expect a redirect
 ## Acceptance criteria
 
 - [ ] Master-detail renders with the four filters and the live summary sentence.
+- [ ] The selected ticket and the active filter are in the URL, and a link to one restores both.
 - [ ] `/attention` redirects to the Needs-you filter; no bookmark breaks.
 - [ ] The decision panel shows Reaches / Costs / Proven and "decision N of M".
 - [ ] Approve signs the grant through the existing attested path — the approvals tests still pass unchanged.

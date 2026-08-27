@@ -24,6 +24,13 @@ blocker — it is the number in the rail's badge.
 ## Scope
 
 - **A PWA shell**: manifest, icons, service worker, installable on iOS and Android.
+- **Decide the push transport first, in the ticket.** Web Push with VAPID keys direct from the studio,
+  or a service. This is unspecified on the first draft and it determines where subscriptions live,
+  what secret the studio holds, and whether iOS is even reachable — Safari requires the PWA to be
+  installed to the home screen before it will accept a subscription at all, which changes the
+  onboarding copy. Confirm that on a real iPhone before designing the flow around it.
+- **Subscriptions are venture-scoped state and need a home.** They are not venture repo content (they
+  are per-device secrets), so D8 does not cover them. Say where they live and who can read them.
 - **One push event: founder-became-blocker**, fired from the attention queue's transition from zero
   to non-zero. Not per item — per transition, or a founder with nine decisions gets nine buzzes and
   turns them off, which loses the one notification that mattered.

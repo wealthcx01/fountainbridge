@@ -16,6 +16,13 @@ nobody reads.
 `app/handbook/` renders the markdown chapters (FB-023, FB-024). The content is correct and the copy is
 not to be touched.
 
+**One discrepancy between the design and the code, resolved here.** The design says the handbook is
+*"rendered from the venture repo"*. It is not: `lib/handbook.ts` reads `content/handbook/*.md` from
+the **studio** repo. That is the right place for it — the method is one method across every venture,
+and a per-venture copy is a per-venture drift. The design's phrase describes an aspiration, not the
+build, and this ticket keeps the studio as the source. If the handbook should ever become
+venture-specific, that is a decision with D8 consequences and its own ticket.
+
 ## Scope
 
 - A 3×3 chapter grid: number, title, minutes to read.

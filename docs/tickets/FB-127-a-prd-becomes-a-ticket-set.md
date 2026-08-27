@@ -41,6 +41,25 @@ filer handing out the same id five times (FB-117).
 - **A struck line is gone, not hidden.** If a founder strikes a ticket it is not filed, and the
   remaining set's dependencies are recomputed rather than left pointing at nothing.
 
+## The contract this adds (CLAUDE.md #7)
+
+`PlanDraft` is a **rendered entity**, and CLAUDE.md #7 is unambiguous: every rendered entity is a
+bcap-contracts type, schemas win on conflict, and the change happens **in that repo** (FB-002), not
+here. None of the first-draft tickets said this and all three of the new entities need it.
+
+How the studio consumes contracts today, so this is not guessed: types are **hand-mirrored** with the
+vendored schema beside them — see `tools/ticket-parser/src/types.ts`, whose header says exactly that
+and whose `test/schema.test.ts` enforces lock-step.
+
+So this ticket carries a cross-repo dependency:
+
+1. Add `PlanDraft` to bcap-contracts, in that lane.
+2. Vendor the schema here and mirror the type, with a test holding them in lock-step.
+3. Only then build against it.
+
+**Do not invent the shape here and reconcile later.** That is the thing the contracts rule exists to
+prevent, and a shape that ships before the schema is a shape the schema then has to accept.
+
 ## Out of scope
 
 - The composer rail's layout — FB-131.
@@ -75,3 +94,4 @@ On the ARCA box before review, with a real document:
 - [ ] `depends_on` across the filed set is acyclic and resolvable while every ticket is still unmerged.
 - [ ] Nothing is filed without the explicit press, asserted by a test.
 - [ ] Driven end to end on the ARCA box with a real document before the PR is opened.
+- [ ] `PlanDraft` exists in bcap-contracts, is vendored and mirrored here, and a test holds the two in lock-step — before anything is built against it.

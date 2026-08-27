@@ -44,9 +44,22 @@ vocabulary, machine values in mono, no dead UI. That stays; this changes what so
 The mini-office is a **placeholder drawing** in this ticket. The live plate is FB-139 (G6). It must
 read as deliberately not-yet-live rather than as a broken image.
 
-**The scoping rule is unchanged.** Every route keeps server-side venture scoping (CLAUDE.md #6). The
-rail renders from data the page already loads; it must not become an eleventh sequential fetch — see
-FB-123 for what that costs.
+**Where the rail lives, and how it gets its data.** This was hand-waved on the first draft and is the
+first thing that would have stopped work, so it is decided here:
+
+- The rail is **`app/venture/[id]/layout.tsx`**, which does not exist today — `app/layout.tsx` is the
+  only layout in the tree. Everything under `/venture/[id]` gets the rail by being a child route.
+- **Two of the rail's own nav destinations are currently outside that subtree.** `/activity` and
+  `/handbook` are top-level routes. They move to `/venture/[id]/activity` and
+  `/venture/[id]/handbook`, with the old paths redirecting — a founder may have either bookmarked.
+  `/activity` is also cross-venture today (`loadAccessibleHealth` spans every venture the viewer can
+  reach) and becomes venture-scoped; that scope change belongs to FB-132 and is called out there.
+- **A layout cannot receive data from its page** in the App Router, so the rail must load its own.
+  Wrap the rail's reads in React `cache()` so the layout and the page share one fetch per request
+  rather than making two. Two fetches here is precisely the FB-123 failure — a page that got slower
+  because something else needed the same data.
+
+**The scoping rule is unchanged.** Every route keeps server-side venture scoping (CLAUDE.md #6).
 
 ## Out of scope
 
@@ -77,8 +90,11 @@ rounded corner or a shadow.
 - [ ] A persistent 250px rail renders on every venture route, sticky, scrolling independently.
 - [ ] The rail's "Needs you" badge, the desk's blocker banner and the Tickets "Needs you (N)" filter
       all read from one count and cannot disagree.
-- [ ] Budgets, the engine heartbeat and the office plate render in the rail from data already loaded
-      by the page — no additional round trip per render.
+- [ ] The rail is a layout at `app/venture/[id]/layout.tsx`; every child route gets it without
+      re-declaring it.
+- [ ] `/activity` and `/handbook` redirect to their venture-scoped paths; neither 404s.
+- [ ] Budgets, the engine heartbeat and the office plate render in the rail, and the layout and the
+      page make **one** fetch between them for the same data, asserted by a test that counts reads.
 - [ ] The office plate says it is a placeholder, in words, rather than looking like a failed image.
 - [ ] `make design-lint` passes, and no raw colour or size literal was added.
 - [ ] Venture scoping is unchanged: a founder still cannot reach another venture's rail or its numbers.

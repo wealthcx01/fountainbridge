@@ -29,6 +29,14 @@ drafted from it. What does not exist is the email service integration and any re
 
 - **The email service integration** for the ratified architecture, per `docs/research-gtm.md` §7. The
   research is ratified; this ticket implements it and does not reopen it.
+
+  **But the provider is not named anywhere.** `research-gtm.md` names Postmark as *Cofounder's*
+  transactional choice and AgentMail as their inbox layer; it ratifies our architecture — venture
+  Workspace domains, interest-based only, split by stream — without choosing a service. Sends go from
+  the venture's Workspace, so the primary path may be the Gmail API rather than a provider at all,
+  with a provider needed only for the bulk subdomain stream. **Settle that before building**, in one
+  paragraph in this ticket or a short memo if it turns out to be contentious. Do not let it be decided
+  by whichever SDK gets installed first.
 - **Per-campaign report storage**: delivered, opened, replied, per send.
 - **A deep link into the venture Workspace outbox** — the design's `Open your outbox ↗`.
 - **Send hops on the trail** (FB-125/FB-130), so a send is followable like any other change.

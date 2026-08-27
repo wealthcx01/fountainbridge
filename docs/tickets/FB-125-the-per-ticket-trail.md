@@ -53,6 +53,25 @@ One studio-side reader that, given a venture, a repo and a ticket id, returns th
 - **Bounded reads,** per FB-083 and the lesson of FB-123: cost is a function of the trail's length,
   not of the venture's history. A test counts reads.
 
+## The contract this adds (CLAUDE.md #7)
+
+`Trail` is a **rendered entity**, and CLAUDE.md #7 is unambiguous: every rendered entity is a
+bcap-contracts type, schemas win on conflict, and the change happens **in that repo** (FB-002), not
+here. None of the first-draft tickets said this and all three of the new entities need it.
+
+How the studio consumes contracts today, so this is not guessed: types are **hand-mirrored** with the
+vendored schema beside them — see `tools/ticket-parser/src/types.ts`, whose header says exactly that
+and whose `test/schema.test.ts` enforces lock-step.
+
+So this ticket carries a cross-repo dependency:
+
+1. Add `Trail` to bcap-contracts, in that lane.
+2. Vendor the schema here and mirror the type, with a test holding them in lock-step.
+3. Only then build against it.
+
+**Do not invent the shape here and reconcile later.** That is the thing the contracts rule exists to
+prevent, and a shape that ships before the schema is a shape the schema then has to accept.
+
 ## Out of scope
 
 - Rendering. FB-130 owns the component and its copy.
@@ -86,3 +105,4 @@ Against real data, before review — ARCA has tickets in every state:
 - [ ] Read count is bounded by trail length, asserted by a test that gives the source far more history
       than the trail needs — the FB-123 shape.
 - [ ] Proven against ARCA's real tickets in three states: fully worked, filed-not-started, and parked.
+- [ ] `Trail` exists in bcap-contracts, is vendored and mirrored here, and a test holds the two in lock-step — before anything is built against it.
