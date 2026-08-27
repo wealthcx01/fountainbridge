@@ -1,6 +1,6 @@
 # The desk redesign — screen map and ticket index
 
-The design bundle in this directory is the contract for FB-124…FB-142. This file is the index: which
+The design bundle in this directory is the contract for FB-124…FB-144. This file is the index: which
 screen maps to which route, which ticket builds it, and which back-end gap it waits on.
 
 **How to view the reference.** The wireframe fetches its own source, so `file://` will not work.
@@ -27,7 +27,7 @@ microcopy, interaction behaviour, state transitions, empty and degraded states.
 | # | Screen | Route | Ticket | Waits on |
 | --- | --- | --- | --- | --- |
 | 1 | Sign in | `/login` | FB-135 | — |
-| 2 | Day one / first run | `/venture/[id]` (`first-run`) | FB-135 | — |
+| 2 | Day one / first run | `/venture/[id]` (`first-run`) | **FB-143** | — |
 | 3 | The desk | `/venture/[id]` | FB-128 | G6/G7 for the live office |
 | 4 | Tickets (absorbs `/attention`) | `/venture/[id]/tickets` | FB-129 | — |
 | 5 | The trail, on a ticket | same | FB-130 | **G1** (FB-125) |
@@ -38,6 +38,14 @@ microcopy, interaction behaviour, state transitions, empty and degraded states.
 | 10 | Admin ledger | `/` (admins) | FB-136 | — |
 | 11 | Pocket studio | responsive | FB-138 | **G8** (FB-141) for push |
 | — | Empty + degraded, everywhere | all | FB-137 | — |
+
+Two tickets sit outside the screen table:
+
+- **FB-143 — a founder's first morning.** Split out of FB-135. Day one is the venture's whole first
+  impression and the only screen whose job is to make absence feel deliberate.
+- **FB-144 — two doors to one conversation.** Research and a decision memo: what the studio composer
+  is for and what LibreChat is for, and how a founder does loose exploratory work that still comes out
+  as structure. **FB-131 should not merge before that memo is agreed** — see the ticket.
 
 ## The gaps, and what they became
 

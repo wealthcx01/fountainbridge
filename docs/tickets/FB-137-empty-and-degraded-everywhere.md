@@ -1,6 +1,6 @@
 # FB-137 — Every screen tells the truth when it has nothing, or cannot read
 
-**Status:** Todo · **Area:** Studio / honesty · **Depends on:** FB-128, FB-129, FB-130, FB-131, FB-132, FB-133, FB-134, FB-135, FB-136
+**Status:** Todo · **Area:** Studio / honesty · **Depends on:** FB-128, FB-129, FB-130, FB-131, FB-132, FB-133, FB-134, FB-135, FB-136, FB-143
 **Design:** `docs/design/foundry-desk/` — the `firstrun`, `degraded`, `*Empty` states throughout; the
 wireframe's own props expose `degraded` as a switch precisely so every screen can be checked in it.
 
@@ -31,7 +31,7 @@ It is applied unevenly, which is why this is one ticket rather than a line in te
 
 ## Scope
 
-- Every screen from FB-128 to FB-136 gets both states, with the design's copy.
+- Every screen from FB-128 to FB-136, and FB-143's day one, gets both states, with the design's copy.
 - **The degraded strip is grouped by cause and sits below anything the founder must act on.** A
   rate-limit notice above the blocker banner is a studio telling a founder about its own problems
   before theirs.
@@ -59,10 +59,10 @@ Every screen, in three states, by eye — the checklist goes in the PR:
 
 ## Acceptance criteria
 
-- [ ] Every screen FB-128…FB-136 has a distinct empty state and a distinct degraded state.
+- [ ] Every screen FB-128…FB-136 and FB-143 has a distinct empty state and a distinct degraded state.
 - [ ] Empty reads as an invitation; degraded says what failed, in plain words, and that it clears itself.
 - [ ] The degraded strip groups by cause and never sits above something the founder must act on.
 - [ ] No screen renders a zero, a dash or a blank where the honest answer is "we could not read".
 - [ ] Degraded state can be induced deliberately for testing, and there is a test that every screen
       renders something truthful in it.
-- [ ] The three-state checklist for all nine screens is in the PR, with what was seen.
+- [ ] The three-state checklist for all ten screens is in the PR, with what was seen.
