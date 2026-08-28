@@ -219,6 +219,21 @@ describe('deciding who gives up a shared number', () => {
     expect(mustRenumber('ARCA-068', 'mine', ['ARCA-680-something-else.md'])).toBe(null);
   });
 
+  it('still catches a clash on an id that is not a plain number (FB-147)', () => {
+    // `ARCA-68a` and `ARCA-NEW` are shapes the rest of this file still recognises — `withTicketId`
+    // and `idOf` both match a trailing letter, `isUnnumbered` matches -NEW. Comparing by parsed
+    // number turned collision detection OFF for them rather than reporting a clash.
+    expect(mustRenumber('ARCA-68a', 'zzz', ['ARCA-68a-aaa.md'])).toBe('arca-68a-aaa.md');
+    expect(mustRenumber('ARCA-NEW', 'zzz', ['ARCA-NEW-aaa.md'])).toBe('arca-new-aaa.md');
+  });
+
+  it('does not make ARCA-68a a clash with ARCA-68', () => {
+    // A lettered id is a different ticket, and was before FB-118 too. Widening the comparison must
+    // not start renumbering tickets that never collided.
+    expect(mustRenumber('ARCA-68', 'mine', ['ARCA-68a-other.md'])).toBe(null);
+    expect(mustRenumber('ARCA-68a', 'mine', ['ARCA-68-other.md'])).toBe(null);
+  });
+
   it('holds the number when nobody else has it', () => {
     expect(mustRenumber('ARCA-69', 'mine', ['ARCA-68-other.md'])).toBe(null);
   });
