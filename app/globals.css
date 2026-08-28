@@ -172,12 +172,14 @@ body:has([data-testid='rail']) .topbar { display: none; }
   padding: 3rem 1.5rem 5rem;
 }
 
-/* Beside a rail the main column carries its own width and padding, so the centred marketing-page
- * measure would fight it. */
+/* Beside a rail the column is left-aligned rather than centred — the rail is the left edge — but it
+ * still needs a measure and its own padding. The first version set `padding: 0; max-width: none`,
+ * which was too blunt: text ran from the rail's rule to the far edge of a 1440px window at line
+ * lengths nobody can read. The design's own figures are 32px/36px/64px against a ~1080px column. */
 body:has([data-testid='rail']) .main {
-  max-width: none;
+  max-width: 68rem;
   margin: 0;
-  padding: 0;
+  padding: 2rem 2.25rem 4rem;
 }
 
 /* Eyebrow kicker */
