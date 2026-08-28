@@ -55,6 +55,7 @@ export default async function VentureLayout({
         ventureName={venture.name}
         ventureStatus={venture.status}
         data={data}
+        departmentIds={venture.departments.map((d) => d.id)}
       />
       <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
     </div>

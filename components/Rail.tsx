@@ -22,11 +22,14 @@ export function Rail({
   ventureName,
   ventureStatus,
   data,
+  departmentIds,
 }: {
   ventureId: string;
   ventureName: string;
   ventureStatus: string;
   data: RailData;
+  /** In the venture's declared order, so a department with no envelope still has a name to show. */
+  departmentIds: string[];
 }) {
   return (
     <nav
@@ -82,31 +85,37 @@ export function Rail({
 
       <div style={{ marginTop: '1.6rem' }}>
         <div className="eyebrow">Budgets, month</div>
+        {/* A department with no envelope renders "not set", never a blank line and never "£0".
+            The first version rendered an empty <li> for it, so ARCA's Build surface — the one with
+            all the work in it — simply was not there, and nothing said why. A budget nobody has set
+            and a budget of nothing are different facts. */}
         <ul data-testid="rail-budgets" style={{ listStyle: 'none', margin: '0.4rem 0 0', padding: 0 }}>
-          {data.budgets.map((b, i) => (
-            <li
-              key={b?.department ?? `none-${i}`}
-              className="mono"
-              style={{
-                fontSize: 'var(--fs-meta)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                color: b?.overLimit ? toneColor('blocked') : 'var(--color-ink-muted)',
-              }}
-            >
-              {b ? (
-                <>
-                  <span>{b.department}</span>
-                  {/* Reported plus queued, against the limit — the same figure the desk shows, so a
-                      founder never meets two numbers for one budget. */}
+          {departmentIds.map((departmentId, i) => {
+            const b = data.budgets[i] ?? null;
+            return (
+              <li
+                key={departmentId}
+                className="mono"
+                style={{
+                  fontSize: 'var(--fs-meta)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '0.5rem',
+                  color: b?.overLimit ? toneColor('blocked') : 'var(--color-ink-muted)',
+                }}
+              >
+                <span>{departmentId}</span>
+                {b ? (
                   <span>
                     {formatMoney(b.reportedMinor + b.queuedMinor, b.currency)}/
                     {formatMoney(b.limitMinor, b.currency)}
                   </span>
-                </>
-              ) : null}
-            </li>
-          ))}
+                ) : (
+                  <span>not set</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
 
