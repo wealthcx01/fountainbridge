@@ -1,0 +1,110 @@
+{
+  "$defs": {
+    "TrailSource": {
+      "description": "Which record a hop came from.\n\nKept on every hop because the trail's whole claim is that it agrees with what ran. A reader who\ncannot tell which system said a thing cannot check it, and a trail nobody can check is a\nnarrative rather than a record.",
+      "enum": [
+        "activegraph",
+        "run",
+        "repo",
+        "preview"
+      ],
+      "title": "TrailSource",
+      "type": "string"
+    },
+    "TrailLink": {
+      "additionalProperties": false,
+      "description": "Where a hop can be followed to.\n\nA hop carries a link or it carries none; it never carries a dead one. ``external`` distinguishes\nleaving the studio (the VM diff, the running preview, the outbox) from staying inside it — the\ndesign renders those as ``↗`` and ``→`` respectively, and a founder learns that distinction in one\nscreen.",
+      "properties": {
+        "external": {
+          "description": "True when following this leaves the studio.",
+          "title": "External",
+          "type": "boolean"
+        },
+        "href": {
+          "description": "An absolute URL, or a studio-relative path beginning with ``/``.",
+          "minLength": 1,
+          "title": "Href",
+          "type": "string"
+        },
+        "label": {
+          "description": "What the link says. In the founder's language, never a URL.",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": ["href", "label", "external"],
+      "title": "TrailLink",
+      "type": "object"
+    },
+    "TrailHop": {
+      "additionalProperties": false,
+      "description": "One thing that happened to a ticket.\n\n``verified`` is deliberately three-valued. ``true`` and ``false`` mean the signature was checked\nand the answer is known; **absent** means verification does not apply to this kind of hop — a\ncommit is not signed by the approval secret and never was. Collapsing absent into ``false`` would\nmark every commit as suspicious, which is how a warning stops being read.",
+      "properties": {
+        "at": {
+          "description": "When it happened, ISO-8601. The trail is ordered by this and by nothing else.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "link": {
+          "anyOf": [{ "$ref": "#/$defs/TrailLink" }, { "type": "null" }],
+          "default": null,
+          "description": "Where to follow it, when there is somewhere real to go."
+        },
+        "source": { "$ref": "#/$defs/TrailSource" },
+        "text": {
+          "description": "What happened, in a founder's language. A sentence, not a status word.",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "verified": {
+          "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+          "default": null,
+          "description": "Whether this hop's signature verified. Null when signing does not apply to its source."
+        }
+      },
+      "required": ["at", "text", "source"],
+      "title": "TrailHop",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Everything that happened to one ticket, in order, joined from the records that already exist\n(fountainbridge FB-125, gap G1).\n\nThe events are not new. ActiveGraph approvals, lane run reports, the repository's commits and\nchecks, and the venture box's preview all record their own part already — and none of them can be\nreached by the founder whose work it is. This joins them so a ticket can be followed from the\nfounder's own words to something running.\n\nIts claim, and the standard it is held to: *nothing shown here can disagree with what ran*. So a\ntrail never invents a hop, never renders a link it cannot resolve, and says when a source could not\nbe read rather than quietly returning a shorter story.",
+  "properties": {
+    "degraded": {
+      "default": false,
+      "description": "True when a source could not be read. The trail is then incomplete and must say so — a\nshort trail and an unreadable one look identical otherwise, and one of them is a lie.",
+      "title": "Degraded",
+      "type": "boolean"
+    },
+    "hops": {
+      "description": "Every hop, oldest first. May legitimately hold exactly one: a ticket filed and not yet\npicked up has a real, complete, one-entry history.",
+      "items": { "$ref": "#/$defs/TrailHop" },
+      "title": "Hops",
+      "type": "array"
+    },
+    "repo": {
+      "description": "The venture repository the ticket lives in. Two repos in one venture may share an id\nnamespace, so a trail is only identified by both.",
+      "minLength": 1,
+      "title": "Repo",
+      "type": "string"
+    },
+    "ticket_id": {
+      "description": "The ticket this is the history of, e.g. ``ARCA-068``.",
+      "minLength": 1,
+      "title": "Ticket Id",
+      "type": "string"
+    },
+    "venture_id": {
+      "description": "The venture, from its manifest.",
+      "minLength": 1,
+      "title": "Venture Id",
+      "type": "string"
+    }
+  },
+  "required": ["venture_id", "repo", "ticket_id", "hops"],
+  "title": "Trail",
+  "type": "object"
+}
