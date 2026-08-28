@@ -6,7 +6,9 @@ import {
   formatInline, parseReply, reduceChunk, visibleActions, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
+import { extractPlanDraft, parsePlanDraft } from '@/lib/plan-draft';
 import { toneColor } from '@/lib/status';
+import { PlanPanel } from './PlanPanel';
 
 /**
  * The conversation, inside the studio (FB-065).
@@ -82,7 +84,12 @@ export function Composer({
   // What, if anything, is on the table right now — the title of the draft in the newest reply. Null
   // when the composer has not drafted anything, which is most turns.
   const last = messages[messages.length - 1];
-  const decision = last?.role === 'assistant' ? draftTitle(parseReply(last.content)) : null;
+  const lastBlocks = last?.role === 'assistant' ? parseReply(last.content) : null;
+  // A whole set proposed from a document (FB-127) is a different decision from a single ticket: it
+  // is read line by line and filed on one press, so it gets its own control and suppresses the
+  // single-ticket one. Otherwise a founder would meet two buttons over one proposal.
+  const plan = lastBlocks ? extractPlanDraft(lastBlocks) : null;
+  const decision = lastBlocks && !plan ? draftTitle(lastBlocks) : null;
 
   const send = useCallback(async (override?: string) => {
     const text = override ?? withDocument(draft, doc);
@@ -238,6 +245,9 @@ export function Composer({
         </p>
       ) : null}
 
+      {/* FB-127: a document became a set. Read line by line, struck or kept, filed on one press. */}
+      {plan && !sending ? <PlanPanel key={`${plan.source_title}:${messages.length}`} plan={plan} /> : null}
+
       {/* FB-075: the decision the whole surface exists for, as a control rather than a sentence the
           founder has to guess. Shown only when there is a real draft on the table, so it is never a
           button that means nothing. */}
@@ -352,6 +362,10 @@ function Reply({ text, mine }: { text: string; mine: boolean }) {
   return (
     <div style={{ margin: '0.4rem 0 0' }}>
       {blocks.map((b, i) => {
+        // FB-127: a plan's block is JSON, and the panel below is its rendering. Offering "show me
+        // exactly what will be filed" over it would open a data structure at a founder — the same
+        // mistake as the four thousand characters of markdown this control exists to fold away.
+        if (b.kind === 'draft' && parsePlanDraft(b.text)) return null;
         if (b.kind === 'draft') {
           return (
             <div key={i} data-testid="composer-draft" style={{ margin: '0.6rem 0' }}>

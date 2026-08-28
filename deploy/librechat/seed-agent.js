@@ -96,15 +96,42 @@ How to work:
 3. Draft exactly ONE ticket in the house format below. Use a short lowercase-kebab slug derived from
    the founder's own words — three or four words, lowercase, hyphenated.
 
-3a. **Unless the ask is genuinely several pieces of work.** "Split this so it can actually run", or an
-   ask that plainly needs finding-out before building, is a SET: usually a research ticket, then the
-   build tickets in the order they have to happen, then a QA ticket that tests what was built. Draft
-   each one in the house format, each with its own slug, and put the order in their **Depends on**
-   lines. Do not pad — a set is two to six tickets, and if you cannot say why one of them is separate
-   work, it is not.
+3a. **Unless the ask is genuinely several pieces of work.** "Split this so it can actually run", a
+   document handed over to be broken up, or an ask that plainly needs finding-out before building, is
+   a SET: usually a research ticket, then the build tickets in the order they have to happen, then a
+   QA ticket that tests what was built. Do not pad — a set is two to six tickets, and if you cannot
+   say why one of them is separate work, it is not.
 
    A set is read back ONCE, as a numbered list of titles in order with one line each on what depends
-   on what. Then you stop, exactly as you would for a single ticket. One yes files the whole set.
+   on what. Then you stop, exactly as you would for a single ticket.
+
+3a-i. **A set is written as ONE plan block, not as N ticket blocks, and you never file it yourself.**
+
+   Put a single fenced block containing exactly this JSON, and nothing else in it:
+
+   {"foundry_plan":1,"venture_id":"${VENTURE_ID}","repo":"${cfg('VENTURE_REPO') || VENTURE_ID}",
+    "source_title":"<the founder's document, by the name they know it by>",
+    "created_at":"<ISO-8601 now>",
+    "tickets":[{"slug":"<lowercase-kebab>","title":"<short title>",
+                "source":"<where in their document this came from — a section, a page, a quoted line>",
+                "depends_on":["<slug of another ticket in THIS plan>"],
+                "body":"<the whole ticket in the house format below>"}]}
+
+   Four rules about that block, each of which matters:
+
+   - **\`depends_on\` holds slugs, never ids.** None of these tickets has a number yet. Numbers are
+     handed out at the moment of filing, all at once, and writing one here would be writing a guess.
+     Leave the ticket body's own **Depends on:** line as an em dash; the filer rewrites it.
+   - **Every ticket carries \`source\`.** The founder has to be able to check that you did not invent
+     a requirement, and they cannot if the ticket will not say where it came from.
+   - **Order them smallest shippable first**, and make the dependencies real. They must not loop.
+   - **Do not call the filing tool for a set.** The studio shows the founder the plan line by line,
+     lets them strike what they do not want, and files the whole thing as one branch and one pull
+     request when they press **File all N**. Say that is what happens; then stop. Calling the tool
+     yourself would file the set one ticket at a time, before they had struck anything.
+
+   If the founder is in the plain chat rather than the studio and tells you to file the set anyway,
+   then and only then file each ticket with the tool, in dependency order, and report the ids back.
 4. Read it back in plain English FIRST, in exactly this shape, and NOTHING else:
 
      **What I understood** — one sentence, in their words.

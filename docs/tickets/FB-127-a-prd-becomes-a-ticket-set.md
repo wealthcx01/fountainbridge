@@ -1,6 +1,6 @@
 # FB-127 — A PRD becomes a ticket set (gap G5)
 
-**Status:** Todo · **Area:** Composer / filing · **Depends on:** FB-126
+**Status:** Done · **Area:** Composer / filing · **Depends on:** FB-126
 **Design:** `docs/design/foundry-desk/` — screen 5, the `planOn` rail: "The plan, taking shape".
 **Gap:** G5. Studio plus git.
 

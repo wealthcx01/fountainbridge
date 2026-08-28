@@ -150,9 +150,23 @@ describe('the composer cannot file in the reply that reads a ticket back', () =>
   it('tells the composer what to do with a set, so it does not have to improvise one', () => {
     // It improvised the split well and the gate badly. A normal ask the prompt does not cover is a
     // gate written by whichever model is answering.
-    expect(PROMPT).toMatch(/is a SET/);
+    expect(PROMPT).toMatch(/is\s+a SET/);
     expect(PROMPT).toMatch(/read back ONCE/i);
-    expect(PROMPT).toMatch(/one yes files the whole set/i);
+  });
+
+  it('writes a set as one plan block and does not file it itself (FB-127)', () => {
+    // This replaced "one yes files the whole set", and the change is the point. A yes to the
+    // composer filed a set one ticket at a time — five branches, five pull requests, and on
+    // 2026-08-23 five tickets sharing one id. The set is filed by the studio now, on one press,
+    // after the founder has struck what they do not want. So the composer must NOT reach for the
+    // filing tool when it has drafted a set, and the prompt has to say so out loud.
+    expect(PROMPT).toMatch(/foundry_plan/);
+    expect(PROMPT).toMatch(/Do not call the filing tool for a set/i);
+    expect(PROMPT).toMatch(/File all N/);
+    // Slugs, not ids: an id written into a draft is a guess about a backlog nobody has read yet.
+    expect(PROMPT).toMatch(/holds slugs, never ids/i);
+    // And every ticket says where it came from, or a founder cannot check it was not invented.
+    expect(PROMPT).toMatch(/Every ticket carries/i);
   });
 
   it('still refuses to name a ticket the filing tool did not name', () => {

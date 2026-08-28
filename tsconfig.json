@@ -16,6 +16,6 @@
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "lib/**/*.ts", "components/**/*.tsx", "auth.ts", "middleware.ts", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "deploy/librechat/ticket-mcp/ids.d.mts", "app/**/*.ts", "app/**/*.tsx", "lib/**/*.ts", "components/**/*.tsx", "auth.ts", "middleware.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules", "tools", "e2e"]
 }
