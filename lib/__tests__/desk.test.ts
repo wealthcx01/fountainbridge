@@ -16,6 +16,7 @@ const facts = (over: Partial<DeskFacts> = {}): DeskFacts => ({
   movingTickets: 2,
   spentMinor: 22000,
   limitMinor: 70000,
+  queuedMinor: 0,
   currency: 'GBP',
   period: 'monthly',
   degraded: false,
@@ -76,6 +77,17 @@ describe('the summary sentence', () => {
   it('says nothing about money when no limit is set', () => {
     expect(deskSummary(facts({ limitMinor: 0 }))).not.toContain('spent this month');
     expect(deskSummary(facts({ currency: null }))).not.toContain('spent this month');
+  });
+
+  it('names money awaiting the founder rather than leaving it out', () => {
+    // The rail totals reported AND queued. A desk saying "£0 is spent" beside a rail reading
+    // "£5,200/£4,800" is two numbers for one budget on one screen.
+    expect(deskSummary(facts({ spentMinor: 0, queuedMinor: 520000 })))
+      .toContain('£0 of £700 is spent this month, with £5,200 awaiting your OK');
+  });
+
+  it('says nothing about waiting money when none is', () => {
+    expect(deskSummary(facts())).not.toContain('awaiting your OK');
   });
 
   it('names the window it is actually reporting on', () => {
