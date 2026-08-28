@@ -16,3 +16,9 @@ worth today.
 
 - [ ] The card page shows a price line for the last twelve months.
 - [ ] A card with no history says so rather than drawing an empty chart.
+
+## Sources we looked at
+
+The Browse API is the one that carries live listings, and its reference is long enough to be worth
+naming as the thing that broke the page:
+<https://developer.ebay.com/develop/api/buy/browse_api/resources/item_summary/methods/search_by_image>
