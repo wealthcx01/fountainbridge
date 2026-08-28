@@ -1,6 +1,13 @@
 # FB-125 — The per-ticket trail (gap G1)
 
-**Status:** Todo · **Area:** Studio / provenance · **Depends on:** —
+**Status:** Shipped in part · **Area:** Studio / provenance · **Depends on:** —
+
+**Shipped in part:** the contract, the join and the read budget are done and tested. The live
+`TrailSources` implementation — the adapters that actually read ActiveGraph, run reports, the PR and
+the preview from GitHub and the venture box — is **not** built, and neither is the check against
+ARCA's real tickets. Both belong with FB-130, which is the first thing that renders a trail and
+therefore the first thing that can prove one against real data. Building adapters now, with nothing
+rendering them, would be shipping something nobody has seen work.
 **Design:** `docs/design/foundry-desk/` — screen 4, "Follow the change · the ActiveGraph trail".
 **Gap:** G1. Studio-side only.
 
@@ -103,12 +110,15 @@ Against real data, before review — ARCA has tickets in every state:
 
 ## Acceptance criteria
 
-- [ ] Given a venture, repo and ticket id, one call returns the trail, ordered by time.
-- [ ] The trail joins all four sources: ActiveGraph events, run reports, commits/checks, preview/diff links.
-- [ ] A ticket with no runs returns a one-entry trail, not an error and not an empty result.
-- [ ] A hop with no resolvable link carries no link. There is a test that no hop can render a dead one.
-- [ ] An ActiveGraph hop that fails verification is shown as unverified, not dropped and not shown as verified.
-- [ ] Read count is bounded by trail length, asserted by a test that gives the source far more history
-      than the trail needs — the FB-123 shape.
-- [ ] Proven against ARCA's real tickets in three states: fully worked, filed-not-started, and parked.
-- [ ] `schema/Trail.schema.json` exists, the type is mirrored from it, and a test holds the two in lock-step — before anything is built against it.
+- [x] Given a venture, repo and ticket id, one call returns the trail, ordered by time.
+- [x] The join takes all four sources and orders them by time. The live adapters are FB-130's.
+- [x] A ticket with no runs returns a one-entry trail, not an error and not an empty result.
+- [x] A hop with no resolvable link carries no link — tested against empty, whitespace, relative,
+      `javascript:` and `about:` hrefs. A label is never a URL.
+- [x] An unverified hop is shown, and shown as unverified. `verified` is three-valued: null means
+      signing does not apply, so a commit is not marked suspicious for not being signed.
+- [x] Read count is bounded by the ticket's own events. A venture with 2000 runs and 400 approvals
+      costs exactly what one with 20 and 10 costs, asserted by counting reads.
+- [ ] Proven against ARCA's real tickets in three states. Needs the live adapters — FB-130.
+- [x] `schema/Trail.schema.json` exists, the type is mirrored from it, and every trail the join can
+      produce — including the empty one — is validated against it.
