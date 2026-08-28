@@ -17,13 +17,19 @@ test.describe('run reports and the founder brief', () => {
     await page.goto('/venture/arca');
   });
 
-  test('the brief leads with what needs the founder, not with what is newest', async ({ page }) => {
-    const brief = page.getByTestId('founder-brief');
-    await expect(brief).toBeVisible();
+  test('the desk leads with what needs the founder, not with what is newest', async ({ page }) => {
+    await expect(page.getByTestId('founder-brief')).toBeVisible();
     // arca's fixtures have proposals awaiting the gate and work awaiting a read, so the count of
     // what is waiting outranks everything else on the board.
-    await expect(page.getByTestId('brief-headline')).toContainText('waiting for your OK');
-    await expect(page.getByTestId('brief-headline')).toContainText('outside the company');
+    //
+    // FB-128 moved this claim from the brief's headline to the desk's amber banner. The brief said
+    // the number, the banner said the number, and the new serif summary said it a third time —
+    // three blocks in a row stating one fact. The banner keeps the breakdown, which is the part
+    // that was actually worth reading, and the brief keeps its lines, which are the ways in.
+    const banner = page.getByTestId('blocker-banner');
+    await expect(banner).toContainText('finished work to read');
+    await expect(banner).toContainText('outside the company');
+    await expect(page.getByTestId('brief-headline')).toHaveCount(0);
   });
 
   test('the whole board reads as four sentences, not as a log (FB-104)', async ({ page }) => {
@@ -44,7 +50,20 @@ test.describe('run reports and the founder brief', () => {
 
   test('every sentence in the brief is a way in (FB-104)', async ({ page }) => {
     const brief = page.getByTestId('founder-brief');
-    await expect(brief.getByRole('link').first()).toHaveAttribute('href', '/attention');
+    // Asserted over the LINES rather than over the first link. FB-128 removed the headline from the
+    // desk, and the first link used to be its `/attention` one — an assertion about position, where
+    // the property that matters is that a sentence stating a number does not cost a founder a
+    // search for it. Every line, not one of them.
+    const lines = brief.getByTestId('brief-lines').locator('li');
+    const count = await lines.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      // The honesty line is the one that never links, because there is nowhere to send someone
+      // whose picture is incomplete. Everything else is a door.
+      const text = (await lines.nth(i).textContent()) ?? '';
+      if (/could not|cannot tell/i.test(text)) continue;
+      await expect(lines.nth(i).getByRole('link')).toHaveCount(1);
+    }
     // The link down to the activity strip must land on the strip, not under the sticky bar.
     await expect(page.locator('#what-your-team-is-doing')).toBeVisible();
   });

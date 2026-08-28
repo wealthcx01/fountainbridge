@@ -11,6 +11,7 @@ import {
   type ActiveGraphApproval,
 } from './approvals';
 import { loadRunReports, engineState, type EngineState } from './runreports';
+import { waitingOnFounder } from './desk';
 import { githubRunReportSource, fixtureRunReportSource } from './runreports-load';
 import { GitHubClient } from './github';
 
@@ -43,7 +44,13 @@ import { GitHubClient } from './github';
  * render nothing.
  */
 export interface RailData {
-  /** How much finished work is waiting on this founder — the one number the badge shows. */
+  /**
+   * How much waits on this founder — the one number the badge shows.
+   *
+   * Computed by `waitingOnFounder` (FB-128), which is also what composes the desk's summary sentence
+   * and its blocker banner. Three renderings of one number is how a badge comes to say 15 over
+   * columns saying 0 (FB-099); one function is the mechanism that stops it.
+   */
   needsYou: number;
   /** Per-department budgets. `null` where a department declares no envelope; the rail says so. */
   budgets: (BudgetDisclosure | null)[];
@@ -100,7 +107,13 @@ export const loadRailData = cache(async (venture: VentureSummary, nowMs: number)
   const engine = engineState(runs?.heartbeats ?? [], new Date(nowMs));
 
   return {
-    needsYou: attention?.approvals.length ?? 0,
+    needsYou: waitingOnFounder({
+      openWork: attention?.approvals.length ?? 0,
+      // External actions proposed and waiting on a human. A badge that counted finished work and
+      // quietly left out a proposed send would tell a founder they were clear while an email sat
+      // waiting for their word (CLAUDE.md #4).
+      awaitingApproval: approvals.filter((a) => a.status === 'proposed').length,
+    }),
     budgets,
     engine: { state: engine.state, text: engine.text, ageMinutes: engine.ageMinutes },
     degraded,

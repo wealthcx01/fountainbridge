@@ -1,6 +1,6 @@
 # FB-128 — The desk
 
-**Status:** Todo · **Area:** Studio / desk · **Depends on:** FB-124
+**Status:** Done · **Area:** Studio / desk · **Depends on:** FB-124
 **Design:** `docs/design/foundry-desk/` — screen 3 "The desk"; `screens/04-The_desk.txt` for exact copy.
 
 ## Why this matters (for the founder)

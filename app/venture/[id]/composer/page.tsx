@@ -25,8 +25,14 @@ export default async function ComposerPage({
   // FB-105: arriving from a ticket. The drawer's "Ask for changes to this" opens the composer with
   // the first words already written, so changing the ask is a sentence rather than a git edit — and
   // it still goes through the one write path that is already gated.
-  const about = (await searchParams)?.about;
+  const query = await searchParams;
+  const about = query?.about;
   const ticketId = typeof about === 'string' && /^[A-Za-z][\w-]{0,40}$/.test(about) ? about : null;
+  // FB-128: arriving from the desk's prompt bar, with the founder's own words already typed. Capped
+  // and stripped of control characters — it is a URL, so it is somebody's input until it is checked,
+  // and it lands in a textarea a founder is about to send.
+  const askRaw = query?.ask;
+  const ask = typeof askRaw === 'string' ? askRaw.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 500) : '';
 
   const session = await auth();
   const email = session?.user?.email;
@@ -45,7 +51,11 @@ export default async function ComposerPage({
         <Link href={`/venture/${id}`} data-testid="composer-back">← Back to {venture.name}</Link>
       </p>
       {composerEndpoint(venture.vpsHost) ? (
-        <Composer ventureId={id} ventureName={venture.name} seed={ticketId ? `About ${ticketId}: ` : null} />
+        <Composer
+          ventureId={id}
+          ventureName={venture.name}
+          seed={ticketId ? `About ${ticketId}: ` : ask || null}
+        />
       ) : (
         <section data-testid="composer-pending">
           <p className="eyebrow"><span className="eyebrow-id">Composer</span> — {venture.name}</p>
