@@ -90,6 +90,12 @@ function friendlyError(e) {
 // slug guard so a model can't inject a path or a huge blob.
 const slugRe = /^[a-z0-9][a-z0-9-]{1,60}$/;
 
+/** The id a ticket filename carries, for this venture's prefix — `ARCA-074-x.md` → `ARCA-074`. */
+function idOf(filename, prefix) {
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return filename.match(new RegExp(`^(${escaped}-\\d+[a-z]?)(?:[-.]|$)`, 'i'))?.[1] ?? null;
+}
+
 /** The ticket filenames currently on a ref. Empty when the folder is missing or unreadable. */
 async function listTicketNames(ref) {
   const dir = await ghMaybe(`/repos/${REPO}/contents/docs/tickets?ref=${encodeURIComponent(ref)}`);
@@ -173,12 +179,23 @@ async function fileTicket({ slug, title, body }) {
   // FB-117: allocate against everything in flight, not just what has merged. Reading the default
   // branch alone gave five tickets filed in one sitting the same number, because none of them had
   // merged and the directory the allocator read never changed.
+  //
+  // The id is carried, never read back out of the path it was just used to build. The version this
+  // replaces round-tripped it through `/([A-Za-z]+-\d+[a-z]?)-/`, which cannot match a hyphenated
+  // prefix — so the launch venture `the-reset` fell through to a default on every single filing, and
+  // once ids were padded (FB-118) that default was `THE-RESET-001`: the number the venture's own
+  // first ticket already carries, stamped into the heading of a file named something else.
   const onBranch = await listTicketNames(branch);
   const alreadyFiled = existingTicketFile(onBranch, slug);
-  let path = alreadyFiled
-    ? `docs/tickets/${alreadyFiled}`
-    : ticketPath(nextTicketId(PREFIX, await listTicketNamesInFlight(base)), slug);
-  let id = path.match(/\/([A-Za-z]+-\d+[a-z]?)-/)?.[1] ?? nextTicketId(PREFIX, []);
+  let id;
+  let path;
+  if (alreadyFiled) {
+    path = `docs/tickets/${alreadyFiled}`;
+    id = idOf(alreadyFiled, PREFIX) ?? nextTicketId(PREFIX, await listTicketNamesInFlight(base));
+  } else {
+    id = nextTicketId(PREFIX, await listTicketNamesInFlight(base));
+    path = ticketPath(id, slug);
+  }
 
   // The id goes in the heading as well as the filename, so it has to be an argument — the previous
   // version closed over `id` and would have written the retry's filename with the losing number.
