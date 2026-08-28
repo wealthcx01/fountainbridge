@@ -19,7 +19,7 @@
  * exists, invent nothing.
  */
 
-import { formatMoney } from './budgets';
+import { formatMoney, periodLabel, type Period } from './budgets';
 
 /** Finished work waiting to be read, plus external actions proposed and waiting on a human. */
 export interface WaitingInput {
@@ -41,10 +41,15 @@ export const waitingOnFounder = (w: WaitingInput): number => w.openWork + w.awai
 export interface DeskFacts extends WaitingInput {
   /** Tickets the engine has actually moved on — work in flight, not work filed. */
   movingTickets: number;
-  /** This period's committed spend and limit, summed across departments that declare one. */
+  /**
+   * This period's committed spend and limit — summed ONLY across departments that agree on both
+   * currency and period. Null when they do not, because there is no honest single figure then.
+   */
   spentMinor: number | null;
   limitMinor: number | null;
   currency: string | null;
+  /** The window those figures cover, so the sentence can name it instead of assuming a month. */
+  period: Period | null;
   /** True when a read failed. The sentence says so rather than sounding calm over a partial picture. */
   degraded: boolean;
 }
@@ -67,8 +72,14 @@ export function deskSummary(f: DeskFacts): string {
     clauses.push(`your team is on ${plural(f.movingTickets, 'moving ticket')}`);
   }
 
-  if (f.spentMinor !== null && f.limitMinor !== null && f.currency && f.limitMinor > 0) {
-    clauses.push(`${formatMoney(f.spentMinor, f.currency)} of ${formatMoney(f.limitMinor, f.currency)} is spent this month`);
+  // Named by its actual window. `Period` is monthly, quarterly, yearly or all-time, and asserting
+  // "this month" over a quarterly envelope is a false statement about a founder's own burn on the
+  // lead sentence of the screen. `lib/budgets.ts` already refuses to add up mismatched currencies
+  // per department; the caller applies the same rule before it gets here.
+  if (f.spentMinor !== null && f.limitMinor !== null && f.currency && f.period && f.limitMinor > 0) {
+    // `periodLabel` already reads "this month" / "this quarter"; only all-time needs its own words.
+    const window = f.period === 'all-time' ? 'in total' : periodLabel(f.period);
+    clauses.push(`${formatMoney(f.spentMinor, f.currency)} of ${formatMoney(f.limitMinor, f.currency)} is spent ${window}`);
   }
 
   // Joined with a semicolon and a final "and", the way the design writes it — one sentence a founder
@@ -89,7 +100,15 @@ export function deskSummary(f: DeskFacts): string {
  * status; "you are the blocker on 3 items" is the same fact addressed to the person who can end it,
  * and the age is what turns it from a number into a reason to act now.
  */
-export function blockerLine(input: WaitingInput & { oldestMs: number | null }): string | null {
+export function blockerLine(input: WaitingInput & {
+  /**
+   * How long the oldest piece of finished WORK has waited. There is no such figure for a proposed
+   * external action: `committedAt` is the grant timestamp and a proposal has not been granted, so
+   * the studio genuinely does not know when it was raised. Rather than quietly attribute a pull
+   * request's age to a set that includes approvals, the sentence names what the age is of.
+   */
+  oldestMs: number | null;
+}): string | null {
   const waiting = waitingOnFounder(input);
   if (waiting === 0) return null;
 
@@ -106,15 +125,17 @@ export function blockerLine(input: WaitingInput & { oldestMs: number | null }): 
   const kinds = parts.length > 1 ? ` — ${parts.join(' and ')}` : '';
 
   const head = `You are the blocker on ${plural(waiting, 'item')}${kinds}`;
+  // "the oldest" only when the age covers everything counted; otherwise it says which oldest.
+  const subject = input.awaitingApproval > 0 && input.openWork > 0 ? 'the oldest piece of work' : 'the oldest';
   const days = input.oldestMs === null ? null : Math.floor(input.oldestMs / 86_400_000);
   if (days === null) return `${head}.`;
   if (days < 1) {
     const hours = Math.floor((input.oldestMs ?? 0) / 3_600_000);
     return hours < 1
-      ? `${head}; the oldest arrived just now.`
-      : `${head}; the oldest has waited ${plural(hours, 'hour')}.`;
+      ? `${head}; ${subject} arrived just now.`
+      : `${head}; ${subject} has waited ${plural(hours, 'hour')}.`;
   }
-  return `${head}; the oldest has waited ${plural(days, 'day')}.`;
+  return `${head}; ${subject} has waited ${plural(days, 'day')}.`;
 }
 
 export interface ReadFailure {
@@ -182,28 +203,38 @@ function causeOf(text: string): string {
  * No zeroes standing in for unknowns. A surface with no source says so in words.
  */
 export interface SurfaceOutcomeInput {
+  /** The department's own id, from the manifest. Consulted last and for one named reason. */
   departmentId: string;
   /** Tickets on this surface's own repository. Real, from the backlog. */
   ticketCount: number;
-  /** The running thing, when the manifest declares one. */
-  hasPreview: boolean;
+  /** The manifest declares somewhere this surface's work can be opened and seen running. */
+  hasLaunch: boolean;
+  /** The surface is set up at all. */
+  provisioned: boolean;
 }
 
+/**
+ * Read from what the manifest declares, not from what the id is called.
+ *
+ * The first version switched on the literal ids `build` / `sell` / `scale` and hard-coded a claim
+ * about each. The concrete cost, which is the one that matters: a venture that later connects a
+ * Scale surface would still be told, in the studio's own voice, that it is not connected — because
+ * the sentence was never sourced from anything the venture said.
+ *
+ * So `hasLaunch` and `provisioned` decide it. The one id that survives is `scale`, and it names a
+ * **platform** decision rather than a venture: no ad platform has been chosen (G3,
+ * `docs/decision-scale-platform.md`), and that is true of the Foundry, not of any one venture. It is
+ * reached only when the venture has declared nothing to the contrary — the moment a Scale surface
+ * declares somewhere to open, it gets the real line like any other.
+ */
 export function surfaceOutcome(input: SurfaceOutcomeInput): string {
   const tickets = input.ticketCount === 0 ? 'No tickets yet' : plural(input.ticketCount, 'ticket');
 
-  switch (input.departmentId) {
-    case 'build':
-      return input.hasPreview
-        ? `${tickets} · preview of the app running from the venture machine.`
-        : `${tickets}. The running app appears here once this venture declares one.`;
-    case 'sell':
-      // Deliberately not "0 delivered". Nothing has reported, which is a different fact from nothing
-      // having happened, and only one of them is true.
-      return `${tickets}. Nothing reported yet — send outcomes appear here once your first send goes out.`;
-    case 'scale':
-      return `Not connected · platform tbd. ${tickets} waiting on it.`;
-    default:
-      return `${tickets}.`;
-  }
+  if (input.hasLaunch) return `${tickets} · preview of the app running from the venture machine.`;
+  if (!input.provisioned) return `Not set up yet. ${tickets} waiting on it.`;
+  if (input.departmentId === 'scale') return `Not connected · platform tbd. ${tickets} waiting on it.`;
+
+  // Nothing has reported, which is a different fact from nothing having happened — and only one of
+  // them is true. There is no analytics source anywhere in the studio yet.
+  return `${tickets}. Nothing reported yet — outcomes appear here once this surface reports.`;
 }

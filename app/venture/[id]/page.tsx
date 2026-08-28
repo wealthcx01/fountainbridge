@@ -4,7 +4,7 @@ import { loadVentures, ventureChatUrl, type VentureSummary } from '@/lib/venture
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureTickets, applyStatusInference } from '@/lib/tickets';
 import { loadFiledForLanes, defaultBranchFileReader, type FiledTicket } from '@/lib/filed-tickets';
-import { ticketsByRepo } from '@/lib/venture-tickets-index';
+import { ticketsByRepoFrom } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { loadApprovals, attachBudgetDisclosure, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
@@ -131,9 +131,13 @@ export default async function VenturePage({
   // `runsDegraded` is tracked separately from "no reports": an unreadable state ref and a genuinely
   // idle venture look identical from here, and the brief must not compose a calm summary out of the
   // first.
-  const [data, ticketIndex, health, approvalsRead, runsRead] = await Promise.all([
+  //
+  // `ticketsByRepo` is deliberately NOT in this round. It wraps `loadVentureTickets`, and running
+  // the two together means neither has finished when the other starts: both miss the per-venture
+  // cache and the venture pays for two full backlog reads per repository, as a burst, against the
+  // secondary rate limit FB-083 exists to avoid. The index is derived from the lanes instead.
+  const [data, health, approvalsRead, runsRead] = await Promise.all([
     loadVentureTickets(venture, { refresh: refreshing }),
-    ticketsByRepo(venture, { refresh: refreshing }),
     loadVentureHealth(venture, { refresh: refreshing }),
     loadApprovals(venture, approvalSource).catch((): ActiveGraphApproval[] => []),
     loadRunReports(venture, runSource)
@@ -154,7 +158,7 @@ export default async function VenturePage({
   // rather than walked: it was a `for` loop awaiting one approval at a time, which on a venture with
   // a real queue was most of this page's time on its own.
   const [attention, historyEntries] = await Promise.all([
-    loadVentureAttention(venture, { refresh: refreshing, tickets: ticketIndex }),
+    loadVentureAttention(venture, { refresh: refreshing, tickets: ticketsByRepoFrom(data.lanes) }),
     loadApprovalHistories(venture, approvalsRead, testRig),
   ]);
   const histories: Record<string, ApprovalHistory> = Object.fromEntries(historyEntries);
@@ -301,16 +305,22 @@ export default async function VenturePage({
   // a team "on" anything, and saying so would be the most flattering possible reading of an idle
   // venture.
   const movingTickets = lanes.reduce((n, l) => n + l.groups['in-progress'].length, 0);
-  const money = budgets.reduce(
-    (acc, b) => (b ? { spent: acc.spent + b.reportedMinor, limit: acc.limit + b.limitMinor, currency: acc.currency ?? b.currency } : acc),
-    { spent: 0, limit: 0, currency: null as string | null },
-  );
+  // One figure only when there IS one. `lib/budgets.ts` deliberately refuses to add up spend across
+  // currencies per department, and summing them here would undo that: a venture with a GBP Build
+  // envelope and a USD Sell envelope would get their arithmetic total, formatted in GBP — a number
+  // wrong in both. Periods too: a quarterly envelope added to a monthly one covers no window that
+  // can be named. When the departments disagree, the clause is simply not said.
+  const declared = budgets.filter((b): b is NonNullable<typeof b> => b !== null && b.limitMinor > 0);
+  const oneCurrency = declared.length > 0 && declared.every((b) => b.currency === declared[0].currency);
+  const onePeriod = declared.length > 0 && declared.every((b) => b.period === declared[0].period);
+  const comparable = oneCurrency && onePeriod;
   const summarySentence = deskSummary({
     ...waiting,
     movingTickets,
-    spentMinor: money.limit > 0 ? money.spent : null,
-    limitMinor: money.limit > 0 ? money.limit : null,
-    currency: money.currency,
+    spentMinor: comparable ? declared.reduce((n, b) => n + b.reportedMinor, 0) : null,
+    limitMinor: comparable ? declared.reduce((n, b) => n + b.limitMinor, 0) : null,
+    currency: comparable ? declared[0].currency : null,
+    period: comparable ? declared[0].period : null,
     degraded: readFailures.length > 0,
   });
   const blocker = blockerLine({ ...waiting, oldestMs });
@@ -371,6 +381,7 @@ export default async function VenturePage({
       fetchedAt={data.fetchedAt}
       org={org}
       brief={brief}
+      openWorkQueue={attention.approvals}
       summary={summarySentence}
       blocker={blocker}
       degraded={degraded}

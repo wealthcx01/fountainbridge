@@ -23,7 +23,7 @@ test.describe('the desk', () => {
     // The order is the argument: what is happening, what waits on me, what my team did, is any of
     // it working. A dashboard that shuffles those is a dashboard that answers a different question.
     const order = await page.evaluate(() => {
-      const ids = ['desk-summary', 'prompt-bar', 'office-plate', 'lane-activity', 'dept-surfaces'];
+      const ids = ['desk-summary', 'prompt-bar', 'office-plate', 'lane-activity', 'waiting-on-you', 'dept-surfaces'];
       return ids
         .map((id) => {
           const el = document.querySelector(`[data-testid="${id}"]`);
@@ -31,28 +31,34 @@ test.describe('the desk', () => {
         })
         .filter((x): x is { id: string; top: number } => x !== null);
     });
-    expect(order.map((o) => o.id)).toEqual(['desk-summary', 'prompt-bar', 'office-plate', 'lane-activity', 'dept-surfaces']);
+    expect(order.map((o) => o.id)).toEqual(['desk-summary', 'prompt-bar', 'office-plate', 'lane-activity', 'waiting-on-you', 'dept-surfaces']);
     expect(order.map((o) => o.top)).toEqual([...order.map((o) => o.top)].sort((a, b) => a - b));
 
     await page.screenshot({ path: `${SHOTS}/20-desk.png`, fullPage: true });
   });
 
-  test('the summary, the banner and the rail’s badge are one count', async ({ page }) => {
-    // FB-099 is what happens when they are not: a badge saying 15 over columns saying 0.
+  test('the summary and the banner are one count', async ({ page }) => {
+    // FB-099 is what happens when two surfaces answer "how much is waiting?" from different
+    // knowledge: a badge saying 15 over columns saying 0.
     const summary = (await page.getByTestId('desk-summary').textContent()) ?? '';
     const inSummary = summary.match(/(\d+)\s+decisions?\s+waits?\s+on you/)?.[1] ?? '0';
 
-    // Absent at zero rather than showing "0" — so an absent badge asserts the count is zero.
-    const badge = page.getByTestId('rail-needs-badge');
-    if (await badge.count()) expect(((await badge.textContent()) ?? '').trim()).toBe(inSummary);
-    else expect(inSummary).toBe('0');
-
     const banner = page.getByTestId('blocker-banner');
-    if (await banner.count()) {
-      expect((await banner.textContent()) ?? '').toContain(`${inSummary} item`);
-    } else {
-      expect(inSummary).toBe('0');
-    }
+    if (await banner.count()) expect((await banner.textContent()) ?? '').toContain(`${inSummary} item`);
+    else expect(inSummary).toBe('0');
+  });
+
+  test('the rail’s badge states the number its own destination lists', async ({ page }) => {
+    // The badge counts open work; the desk's sentence counts external actions awaiting the gate as
+    // well, because the desk shows both and `/attention` does not. Unifying them needs a destination
+    // that can list an external action, which is FB-149 with FB-129. What must NOT happen meanwhile
+    // is a badge asserting a number the page it links to contradicts.
+    const badge = page.getByTestId('rail-needs-badge');
+    const shown = (await badge.count()) ? ((await badge.textContent()) ?? '').trim() : '0';
+
+    await page.goto('/attention');
+    const there = ((await page.getByTestId('attention-count').textContent()) ?? '').trim();
+    expect(shown).toBe(there);
   });
 
   test('what could not be read sits below what must be acted on', async ({ page }) => {
@@ -69,6 +75,22 @@ test.describe('the desk', () => {
       return { strip: y('[data-testid="degraded-strip"]'), brief: y('[data-testid="founder-brief"]') };
     });
     if (tops.brief !== null && tops.strip !== null) expect(tops.strip).toBeGreaterThan(tops.brief);
+  });
+
+  test('“Decide now” lands on the work it just counted', async ({ page }) => {
+    // The banner used to link to an anchor sitting above the external-approval cards alone. On a
+    // venture whose waiting items are all open pull requests — the common case — a founder pressed
+    // it and was scrolled past the office to an empty space.
+    const banner = page.getByTestId('blocker-banner');
+    if ((await banner.count()) === 0) return;
+    await expect(page.getByTestId('blocker-decide')).toHaveAttribute('href', /#waiting-on-you$/);
+
+    const section = page.getByTestId('waiting-on-you');
+    await expect(section).toBeVisible();
+    // It holds the work, not an empty heading.
+    const rows = section.getByTestId('waiting-queue').locator('li');
+    const empty = section.getByTestId('waiting-queue-empty');
+    expect((await rows.count()) + (await empty.count())).toBeGreaterThan(0);
   });
 
   test('a prompt chip seeds the composer and files nothing', async ({ page }) => {

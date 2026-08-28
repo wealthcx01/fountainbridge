@@ -11,7 +11,6 @@ import {
   type ActiveGraphApproval,
 } from './approvals';
 import { loadRunReports, engineState, type EngineState } from './runreports';
-import { waitingOnFounder } from './desk';
 import { githubRunReportSource, fixtureRunReportSource } from './runreports-load';
 import { GitHubClient } from './github';
 
@@ -45,11 +44,16 @@ import { GitHubClient } from './github';
  */
 export interface RailData {
   /**
-   * How much waits on this founder — the one number the badge shows.
+   * How much finished work is waiting on this founder — the one number the badge shows.
    *
-   * Computed by `waitingOnFounder` (FB-128), which is also what composes the desk's summary sentence
-   * and its blocker banner. Three renderings of one number is how a badge comes to say 15 over
-   * columns saying 0 (FB-099); one function is the mechanism that stops it.
+   * **Open work only, deliberately.** The desk's summary and its amber banner count external actions
+   * awaiting the gate as well, because the desk shows both. This badge's row goes to `/attention`,
+   * which lists open work and nothing else — so counting more here would put a badge saying 8 over a
+   * page whose own count says 4. That is the FB-099 badge/destination mismatch, one level up, and
+   * introducing it while closing it below would be a poor trade.
+   *
+   * Unifying the two is FB-149, and it belongs with FB-129, where "Needs you" stops being a link to
+   * a cross-venture page and becomes a filter that can show both kinds.
    */
   needsYou: number;
   /** Per-department budgets. `null` where a department declares no envelope; the rail says so. */
@@ -107,13 +111,7 @@ export const loadRailData = cache(async (venture: VentureSummary, nowMs: number)
   const engine = engineState(runs?.heartbeats ?? [], new Date(nowMs));
 
   return {
-    needsYou: waitingOnFounder({
-      openWork: attention?.approvals.length ?? 0,
-      // External actions proposed and waiting on a human. A badge that counted finished work and
-      // quietly left out a proposed send would tell a founder they were clear while an email sat
-      // waiting for their word (CLAUDE.md #4).
-      awaitingApproval: approvals.filter((a) => a.status === 'proposed').length,
-    }),
+    needsYou: attention?.approvals.length ?? 0,
     budgets,
     engine: { state: engine.state, text: engine.text, ageMinutes: engine.ageMinutes },
     degraded,

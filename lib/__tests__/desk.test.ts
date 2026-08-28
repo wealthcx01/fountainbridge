@@ -17,6 +17,7 @@ const facts = (over: Partial<DeskFacts> = {}): DeskFacts => ({
   spentMinor: 22000,
   limitMinor: 70000,
   currency: 'GBP',
+  period: 'monthly',
   degraded: false,
   ...over,
 });
@@ -76,6 +77,20 @@ describe('the summary sentence', () => {
     expect(deskSummary(facts({ limitMinor: 0 }))).not.toContain('spent this month');
     expect(deskSummary(facts({ currency: null }))).not.toContain('spent this month');
   });
+
+  it('names the window it is actually reporting on', () => {
+    // "this month" over a quarterly envelope is a false statement about a founder's own burn, on
+    // the lead sentence of the screen.
+    expect(deskSummary(facts({ period: 'quarterly' }))).toContain('is spent this quarter');
+    expect(deskSummary(facts({ period: 'yearly' }))).toContain('is spent this year');
+    expect(deskSummary(facts({ period: 'all-time' }))).toContain('is spent in total');
+  });
+
+  it('says nothing about money when the departments do not agree on one', () => {
+    // The caller passes nulls when currencies or periods differ, because adding two currencies
+    // produces a number that is wrong in both — which lib/budgets.ts already refuses to do.
+    expect(deskSummary(facts({ period: null }))).not.toContain('spent');
+  });
 });
 
 describe('the blocker banner', () => {
@@ -90,12 +105,22 @@ describe('the blocker banner', () => {
     // one amber line carrying it beats a second block restating the same number.
     expect(blockerLine({ openWork: 4, awaitingApproval: 4, oldestMs: 44 * 86_400_000 })).toBe(
       'You are the blocker on 8 items — 4 pieces of finished work to read and 4 actions that would '
-      + 'go outside the company; the oldest has waited 44 days.',
+      + 'go outside the company; the oldest piece of work has waited 44 days.',
     );
   });
 
   it('does not spell out a breakdown of one kind', () => {
     expect(blockerLine({ openWork: 3, awaitingApproval: 0, oldestMs: null })).not.toContain('—');
+  });
+
+  it('says which oldest, when the age cannot describe everything it counts', () => {
+    // A proposed external action has no raise-time the studio can read — `committedAt` is the grant
+    // timestamp and it has not been granted. Attributing a pull request's age to a set that
+    // includes approvals would be quietly wrong, so the sentence names what the age is of.
+    expect(blockerLine({ openWork: 2, awaitingApproval: 1, oldestMs: 86_400_000 }))
+      .toContain('the oldest piece of work has waited 1 day');
+    expect(blockerLine({ openWork: 2, awaitingApproval: 0, oldestMs: 86_400_000 }))
+      .toContain('the oldest has waited 1 day');
   });
 
   it('does not appear when nothing is waiting', () => {
@@ -151,32 +176,44 @@ describe('the degraded strip', () => {
 });
 
 describe('the company, by surface', () => {
-  it('says what Build actually has, because Build’s line is true today', () => {
-    expect(surfaceOutcome({ departmentId: 'build', ticketCount: 14, hasPreview: true }))
-      .toBe('14 tickets · preview of the app running from the venture machine.');
+  const surface = (over: Partial<Parameters<typeof surfaceOutcome>[0]> = {}) =>
+    surfaceOutcome({ departmentId: 'build', ticketCount: 14, hasLaunch: false, provisioned: true, ...over });
+
+  it('says what a surface with something running actually has', () => {
+    expect(surface({ hasLaunch: true })).toBe('14 tickets · preview of the app running from the venture machine.');
   });
 
   it('does not promise a preview a venture has not declared', () => {
-    expect(surfaceOutcome({ departmentId: 'build', ticketCount: 14, hasPreview: false }))
-      .not.toContain('preview of the app running');
+    expect(surface()).not.toContain('preview of the app running');
   });
 
-  it('says Sell has reported nothing rather than “0 delivered”', () => {
+  it('says a surface has reported nothing rather than “0 delivered”', () => {
     // Nothing having reported and nothing having happened are different facts, and only one of them
     // is true. There is no analytics source in the studio at all (decision-surface-outcomes.md).
-    const line = surfaceOutcome({ departmentId: 'sell', ticketCount: 2, hasPreview: false });
+    const line = surface({ departmentId: 'sell', ticketCount: 2 });
     expect(line).toContain('Nothing reported yet');
     expect(line).not.toMatch(/\b0 (delivered|opened|replied)/);
   });
 
   it('says Scale is not connected, and counts what waits on it', () => {
-    expect(surfaceOutcome({ departmentId: 'scale', ticketCount: 1, hasPreview: false }))
+    expect(surface({ departmentId: 'scale', ticketCount: 1 }))
       .toBe('Not connected · platform tbd. 1 ticket waiting on it.');
+  });
+
+  it('stops saying Scale is not connected the moment a venture connects one', () => {
+    // The line was hard-coded against the id. A venture that later declares somewhere to open would
+    // have gone on being told, in the studio's voice, that it is not connected.
+    expect(surface({ departmentId: 'scale', hasLaunch: true })).toContain('preview of the app running');
+  });
+
+  it('reads a surface that is not set up from the manifest, not from its name', () => {
+    expect(surface({ departmentId: 'anything-at-all', provisioned: false, ticketCount: 3 }))
+      .toBe('Not set up yet. 3 tickets waiting on it.');
   });
 
   it('never renders a zero as though it were a measurement', () => {
     for (const departmentId of ['build', 'sell', 'scale']) {
-      expect(surfaceOutcome({ departmentId, ticketCount: 0, hasPreview: false })).toContain('No tickets yet');
+      expect(surface({ departmentId, ticketCount: 0 })).toContain('No tickets yet');
     }
   });
 });

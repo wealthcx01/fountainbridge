@@ -7,6 +7,7 @@ import Link from 'next/link';
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import type { PrApproval } from '@/lib/attention';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { STATUS_LABEL, TEAM_INTRO, TEAM_TITLE } from '@/lib/glossary';
 import { ago } from '@/lib/when';
@@ -19,6 +20,7 @@ import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
+import { WaitingQueue } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
 import { LaneActivity } from './LaneActivity';
@@ -122,6 +124,7 @@ export function VentureBoard({
   fetchedAt,
   org,
   openWork = {},
+  openWorkQueue = [],
   filedRefs = {},
   unmatchedWork = {},
   viewerIsFounder = false,
@@ -138,6 +141,8 @@ export function VentureBoard({
   /** The ActiveGraph story per approval, keyed `repo/id` (FB-071). Narrated server-side. */
   histories?: Record<string, ApprovalHistory>;
   budgets?: (BudgetDisclosure | null)[];
+  /** Finished work waiting to be read, newest-waiting first — the desk's section 7 (FB-128). */
+  openWorkQueue?: PrApproval[];
   /** The venture in a paragraph (FB-042) — composed server-side so the ordering has one owner. */
   brief?: Brief | null;
   /** The desk's one sentence (FB-128). Composed server-side from the same count the banner uses. */
@@ -374,8 +379,15 @@ export function VentureBoard({
 
       {/* ---- 6. What the engine did -------------------------------------------------------------- */}
       {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} /> : null}
-      {/* ---- 7. Waiting on you ------------------------------------------------------------------- */}
-      <span id="waiting-on-you" />
+      {/* ---- 7. Waiting on you -------------------------------------------------------------------
+          Where "Decide now →" lands, so it has to hold the work the banner just counted. The
+          external-approval cards alone were not that: on a venture whose waiting items are all open
+          pull requests — the common case — the anchor sat above three empty sections and a founder
+          was scrolled past the office to nothing. */}
+      <section id="waiting-on-you" data-testid="waiting-on-you" style={{ marginTop: '1.5rem' }}>
+        <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Waiting on you</p>
+        <WaitingQueue work={openWorkQueue} ventureId={venture.id} />
+      </section>
       {/* FB-046: external actions awaiting the founder's OK (the ActiveGraph gate). The founder
           approves here — never on github.com; Approve signs the grant the executor verifies. */}
       {pendingApprovals.length > 0 ? (
@@ -473,7 +485,8 @@ export function VentureBoard({
                   {surfaceOutcome({
                     departmentId: d.id,
                     ticketCount: lanes.find((l) => l.repo === d.repo)?.total ?? 0,
-                    hasPreview: Boolean(d.launch),
+                    hasLaunch: Boolean(d.launch),
+                    provisioned: d.provisioned,
                   })}
                 </p>
                 {/* One string owner: `describe` returns a whole sentence, so the view adds no

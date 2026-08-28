@@ -22,7 +22,10 @@ export function PromptBar({ ventureId, ventureName }: { ventureId: string; ventu
   const open = (ask: string) => {
     const trimmed = ask.trim();
     if (!trimmed) return;
-    router.push(`/venture/${ventureId}/composer?ask=${encodeURIComponent(trimmed)}`);
+    // Capped here as well as on the input, so a paste cannot exceed it. The composer route caps at
+    // the same number; without this the founder's tail would be cut off between the two screens
+    // with nothing said about it, and they would send a half sentence.
+    router.push(`/venture/${ventureId}/composer?ask=${encodeURIComponent(trimmed.slice(0, MAX_ASK))}`);
   };
 
   return (
@@ -37,10 +40,16 @@ export function PromptBar({ ventureId, ventureName }: { ventureId: string; ventu
           onChange={(e) => setText(e.target.value)}
           placeholder="Tell the studio what you want…"
           aria-label={`Tell the studio what you want for ${ventureName}`}
+          maxLength={MAX_ASK}
+          // `--color-rule` and `--color-surface` do not exist. An undefined custom property makes
+          // the whole declaration invalid at computed-value time, so `border: 1px solid var(--color-rule)`
+          // resolves to no border at all and the background falls through to the page — which is how
+          // the desk's headline control came to be an unbordered strip on the ground colour. Four
+          // other components carry the same two names (FB-150); these are the real tokens.
           style={{
             flex: '1 1 16rem', minWidth: 0, padding: '0.65rem 0.75rem', fontSize: 'var(--fs-body)',
-            fontFamily: 'inherit', border: '1px solid var(--color-rule)',
-            background: 'var(--color-surface)', color: 'var(--color-ink)',
+            fontFamily: 'inherit', border: '1px solid var(--color-border)',
+            background: 'var(--color-paper-raised)', color: 'var(--color-ink)',
           }}
         />
         <button type="submit" className="btn btn-primary" data-testid="prompt-bar-send" disabled={!text.trim()}>
@@ -70,6 +79,13 @@ export function PromptBar({ ventureId, ventureName }: { ventureId: string; ventu
     </section>
   );
 }
+
+/**
+ * The most a sentence carried across a URL may be. The same number the composer route enforces —
+ * two caps that disagree is a silent truncation, which is the one thing this must not do to words a
+ * founder is about to send.
+ */
+export const MAX_ASK = 500;
 
 /** Three real asks. The first one is a thing the studio genuinely does now (FB-127). */
 const CHIPS = [
