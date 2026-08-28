@@ -154,11 +154,30 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
 .topbar-spacer { margin-left: auto; }
 .topnav { display: flex; gap: 0.25rem; align-items: center; }
 
+/* FB-124 — the rail IS the navigation, wherever there is one.
+ *
+ * The first version of this shipped the rail without taking the top bar away, so a venture screen
+ * carried two navigations, two wordmarks, two "Needs you" badges and two ways to sign out. It looked
+ * exactly as bad as that sounds, and no unit test could have noticed.
+ *
+ * Stated as a rule rather than a route list: a page with a rail does not also get a top bar. Routes
+ * with no rail yet — the ventures index, /attention, /lanes — keep theirs until FB-129 and FB-136
+ * replace them, and this needs no edit when they do. */
+body:has([data-testid='rail']) .topbar { display: none; }
+
 /* Main content column */
 .main {
   max-width: var(--content-max);
   margin: 0 auto;
   padding: 3rem 1.5rem 5rem;
+}
+
+/* Beside a rail the main column carries its own width and padding, so the centred marketing-page
+ * measure would fight it. */
+body:has([data-testid='rail']) .main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Eyebrow kicker */

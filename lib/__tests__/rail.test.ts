@@ -16,7 +16,6 @@ describe('which rail row is the current screen', () => {
   });
 
   it('marks each section from its own route', () => {
-    expect(activeKey('/venture/arca/tickets', base)).toBe('tickets');
     expect(activeKey('/venture/arca/activity', base)).toBe('activity');
     expect(activeKey('/venture/arca/knowledge', base)).toBe('memory');
     expect(activeKey('/venture/arca/handbook', base)).toBe('handbook');
@@ -26,7 +25,6 @@ describe('which rail row is the current screen', () => {
     // The desk's href is the empty string and therefore a prefix of everything. Longest match wins,
     // which is why the desk is the fallback rather than the first hit.
     expect(activeKey('/venture/arca/handbook/how-we-build', base)).toBe('handbook');
-    expect(activeKey('/venture/arca/tickets/ARCA-068', base)).toBe('tickets');
   });
 
   it('is not confused by a venture id that contains another route name', () => {
@@ -41,11 +39,18 @@ describe('which rail row is the current screen', () => {
 });
 
 describe('a shortcut is not a section', () => {
-  it('marks Tickets, not Needs you, on the needs-you filter', () => {
-    // "Needs you" is /tickets?filter=needs — a filtered view. `usePathname()` carries no query, so a
-    // path-based match would tie with Tickets and win on raw length, highlighting the shortcut on
-    // every ticket route. The section a founder is in is Tickets; Needs you is how they got there.
-    expect(activeKey('/venture/arca/tickets', '/venture/arca')).toBe('tickets');
-    expect(activeKey('/venture/arca/tickets/ARCA-068', '/venture/arca')).toBe('tickets');
+  it('never marks Needs you, which leaves the venture subtree entirely', () => {
+    // "Needs you" points at /attention today — a real screen that works, and the one FB-129 will
+    // absorb. It is a shortcut, not a section, so no venture route may highlight it.
+    for (const p of ['/venture/arca', '/venture/arca/activity', '/venture/arca/knowledge', '/attention']) {
+      expect(activeKey(p, '/venture/arca'), p).not.toBe('needs');
+    }
+  });
+
+  it('every row goes somewhere that exists today', () => {
+    // The defect this locks out: the first rail listed Tickets, whose screen is FB-129 and does not
+    // exist. The link 404'd, and Next's prefetch fired that 404 on every venture page load before a
+    // founder clicked anything. design-lint did not catch it because it only sees buttons.
+    expect(activeKey('/venture/arca/tickets', '/venture/arca')).toBe('desk');
   });
 });

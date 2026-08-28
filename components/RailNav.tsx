@@ -14,12 +14,26 @@ import { toneColor } from '@/lib/status';
  * It carries no state and fetches nothing. `usePathname` is the whole reason it is here.
  */
 
-type NavKey = 'desk' | 'tickets' | 'needs' | 'activity' | 'memory' | 'handbook';
+/** `tickets` returns with FB-129, which builds the screen. A key with no row is a dead control. */
+type NavKey = 'desk' | 'needs' | 'activity' | 'memory' | 'handbook';
 
-const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; badge?: boolean }> = [
+/**
+ * The rows, and only rows that go somewhere.
+ *
+ * **Tickets is absent, deliberately.** `/venture/[id]/tickets` is FB-129 and does not exist yet. The
+ * first version of this rail listed it anyway: the link 404'd, and Next's prefetch fired that 404 on
+ * every venture page load before a founder had clicked anything. A nav row to a screen that is not
+ * built is a dead control — the design contract forbids them, and `design-lint` did not catch this
+ * one because it only sees buttons.
+ *
+ * **Needs you points at `/attention`**, which is that queue, works today, and is what FB-129 will
+ * absorb. Pointing it at the real thing is better than pointing it at the eventual thing.
+ *
+ * FB-129 adds Tickets and repoints Needs you. Until then every row here goes somewhere real.
+ */
+const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; absolute?: boolean; badge?: boolean }> = [
   { key: 'desk', label: 'The desk', href: '' },
-  { key: 'tickets', label: 'Tickets', href: '/tickets' },
-  { key: 'needs', label: 'Needs you', href: '/tickets?filter=needs', badge: true },
+  { key: 'needs', label: 'Needs you', href: '/attention', absolute: true, badge: true },
   { key: 'activity', label: 'What happened', href: '/activity' },
   { key: 'memory', label: 'Memory', href: '/knowledge' },
   { key: 'handbook', label: 'Handbook', href: '/handbook' },
@@ -32,16 +46,14 @@ const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; badge?: boo
  * through to the desk. The desk is the empty suffix and therefore matches everything, which is why it
  * is chosen last rather than first.
  *
- * **Rows with a query are shortcuts, not sections, and never match.** "Needs you" is
- * `/tickets?filter=needs` — a filtered view of Tickets. `usePathname()` carries no query, so matching
- * on its path would make it tie with Tickets and win on raw length, highlighting the shortcut on every
- * ticket route. On `/tickets?filter=needs` the section a founder is in is Tickets; Needs you is how
- * they got there.
+ * Rows outside the venture subtree (`absolute`) and rows with a query are shortcuts, not sections, and
+ * never match. "Needs you" is one: it leaves `/venture/[id]` for `/attention` today, and becomes a
+ * filter on Tickets with FB-129. Either way the section a founder is *in* is never "Needs you".
  */
 export function activeKey(pathname: string, base: string): NavKey {
   const rest = pathname.startsWith(base) ? pathname.slice(base.length) : '';
   const match = NAV
-    .filter((n) => n.href !== '' && !n.href.includes('?') && rest.startsWith(n.href))
+    .filter((n) => n.href !== '' && !n.absolute && !n.href.includes('?') && rest.startsWith(n.href))
     .sort((a, b) => b.href.length - a.href.length)[0];
   return match?.key ?? 'desk';
 }
@@ -56,7 +68,7 @@ export function RailNav({ ventureId, needsYou }: { ventureId: string; needsYou: 
       {NAV.map((n) => (
         <li key={n.key}>
           <Link
-            href={`${base}${n.href}`}
+            href={n.absolute ? n.href : `${base}${n.href}`}
             data-testid={`rail-nav-${n.key}`}
             data-active={active === n.key ? 'true' : undefined}
             style={{
