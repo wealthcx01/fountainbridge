@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "ThreadRole": {
+      "description": "Who said it.\n\n``founder`` and ``composer`` only. There is no ``system`` role: a thread is the record of a\nconversation a person had, and anything the studio injected into the model's context is not part\nof that conversation. Recording it here would put words in a founder's history they never saw.",
+      "enum": ["founder", "composer"],
+      "title": "ThreadRole",
+      "type": "string"
+    },
+    "ThreadMessage": {
+      "additionalProperties": false,
+      "description": "One turn.",
+      "properties": {
+        "at": {
+          "description": "When it was said, ISO-8601.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "role": { "$ref": "#/$defs/ThreadRole" },
+        "text": {
+          "description": "What was said, verbatim. Never summarised — the thread is cited as the source of a\nrevision, and a summary cannot be a source.",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": ["at", "role", "text"],
+      "title": "ThreadMessage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A founder's conversation about one ticket (fountainbridge FB-126, gap G4).\n\nEvery ticket in the desk design carries \"Discuss in the composer\". A founder reads what their team\nproposes, disagrees with one line, says so in their own words, and the change files as a revision\nthe lane picks up. That only works if the conversation outlives the browser tab — transcripts lived\nin ``localStorage`` until this (FB-065, deliberately), so the reasoning behind a revision was gone\nthe moment the tab closed and the trail could never answer *why* a ticket changed.\n\nLives on the venture repo's ``foundry-state`` ref under ``threads/``, beside ``approvals/``,\n``prps/`` and ``runreports/`` — machine-written venture state the studio and the lanes both read.\nNot ``context/``: that is reviewed content behind a pull request, and a pull request per message is\nnot a conversation.",
+  "properties": {
+    "messages": {
+      "description": "The conversation, oldest first.",
+      "items": { "$ref": "#/$defs/ThreadMessage" },
+      "title": "Messages",
+      "type": "array"
+    },
+    "repo": {
+      "description": "The venture repository the ticket lives in. Two repos in one venture may share an id\nnamespace, so a thread is only identified by both.",
+      "minLength": 1,
+      "title": "Repo",
+      "type": "string"
+    },
+    "ticket_id": {
+      "description": "The ticket this conversation is about, e.g. ``ARCA-068``.",
+      "minLength": 1,
+      "title": "Ticket Id",
+      "type": "string"
+    },
+    "updated_at": {
+      "description": "When the last message was added, ISO-8601.",
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "venture_id": {
+      "description": "The venture, from its manifest.",
+      "minLength": 1,
+      "title": "Venture Id",
+      "type": "string"
+    }
+  },
+  "required": ["venture_id", "repo", "ticket_id", "messages", "updated_at"],
+  "title": "Thread",
+  "type": "object"
+}
