@@ -8,11 +8,11 @@ import remarkGfm from 'remark-gfm';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/lib/markdown';
 import { toneColor } from '@/lib/status';
-import { howLong } from '@/lib/when';
+import { howLongMs } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
 import {
   FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition, filterTickets,
-  nextDecision, ticketsSummary, type TicketFilter, type TicketRow,
+  nextDecision, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
 } from '@/lib/tickets-view';
 
 /**
@@ -41,6 +41,7 @@ export function TicketsView({
   filter,
   selectedId,
   refs,
+  filedBranches = {},
   org,
   errors = [],
 }: {
@@ -51,6 +52,13 @@ export function TicketsView({
   selectedId: string | null;
   /** Each repo's default ref, so the "written down" link points at the branch the file is on. */
   refs: Record<string, string>;
+  /**
+   * Where a FILED ticket actually lives, keyed `repo id` (FB-120).
+   *
+   * A ticket filed minutes ago is on its own `foundry/<slug>` branch and provably not on the default
+   * one — which is exactly where the link would otherwise point, and 404.
+   */
+  filedBranches?: Record<string, string>;
   org: string;
   errors?: string[];
 }) {
@@ -62,8 +70,15 @@ export function TicketsView({
   const shown = useMemo(() => filterTickets(rows, filter), [rows, filter]);
   const order = useMemo(() => decisionOrder(rows), [rows]);
 
-  const selected = shown.find((r) => r.id === selectedId) ?? rows.find((r) => r.id === selectedId) ?? shown[0] ?? null;
-  const position = selected ? decisionPosition(order, selected.id) : null;
+  // Addressed by repo AND id. `lib/tickets-view.ts` says two repos in one venture may share an id
+  // namespace, and the page keys its own maps that way for exactly that reason — dropping the repo
+  // here made the second `FB-001` unreachable, highlighted both rows at once, and let approving one
+  // mark the other decided.
+  const selected = shown.find((r) => rowKey(r) === selectedId)
+    ?? rows.find((r) => rowKey(r) === selectedId)
+    ?? shown.find((r) => r.id === selectedId)          // a link written before repos were in the key
+    ?? shown[0] ?? null;
+  const position = selected ? decisionPosition(order, rowKey(selected)) : null;
   const next = nextDecision(order, decided);
 
   // The URL is the state. Replace rather than push for the filter, so a founder browsing filters
@@ -73,7 +88,11 @@ export function TicketsView({
     const q = new URLSearchParams();
     if (nextFilter !== 'all') q.set('filter', nextFilter);
     if (id) q.set('t', id);
-    const href = `/venture/${ventureId}/tickets${q.size ? `?${q}` : ''}`;
+    // `.toString()`, not `.size`: the latter is recent enough that on an older browser it is
+    // `undefined`, the query is dropped silently, and every filter tab and row click navigates to
+    // the bare route with no error and no selection.
+    const query = q.toString();
+    const href = `/venture/${ventureId}/tickets${query ? `?${query}` : ''}`;
     if (mode === 'replace') router.replace(href); else router.push(href);
   };
 
@@ -125,18 +144,23 @@ export function TicketsView({
               <button
                 type="button"
                 data-testid={`tickets-row-${r.id}`}
-                aria-current={selected?.id === r.id ? 'true' : undefined}
-                onClick={() => go(filter, r.id)}
+                aria-current={selected && rowKey(selected) === rowKey(r) ? 'true' : undefined}
+                onClick={() => go(filter, rowKey(r))}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 0.5rem',
-                  background: selected?.id === r.id ? 'var(--color-paper-sunken)' : 'none',
+                  background: selected && rowKey(selected) === rowKey(r) ? 'var(--color-paper-sunken)' : 'none',
                   border: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer',
                 }}
               >
                 <span style={{ display: 'block' }}>{r.title}</span>
                 <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>
                   <span className="mono">{r.id}</span> · {STATUS_LABEL[r.group]}
-                  {r.waiting ? <> · waiting {howLong(new Date(Date.now() - r.waiting.ageMs).toISOString())}</> : null}
+                  {r.waiting ? (
+                    <>
+                      {' '}· waiting {howLongMs(r.waiting.ageMs)}
+                      {r.waiting.also ? <> · {r.waiting.also + 1} pieces of work on this one</> : null}
+                    </>
+                  ) : null}
                 </span>
               </button>
             </li>
@@ -146,20 +170,28 @@ export function TicketsView({
         <div data-testid="tickets-detail">
           {selected ? (
             <Detail
+              // Keyed, or the panel keeps its own state across tickets. Concretely: refuse ticket A,
+              // type a note, send it back, press "Next decision →" — and B renders already in
+              // refusal mode with A's note prefilled and the button enabled. One click would send
+              // A's words to B's pull request. Keyed by repo AND id because two repositories in one
+              // venture may share an id namespace.
+              key={`${selected.repo}/${selected.id}`}
               row={selected}
               ventureId={ventureId}
               org={org}
-              gitRef={refs[selected.repo] ?? 'main'}
+              gitRef={filedBranches[`${selected.repo} ${selected.id}`] ?? refs[selected.repo] ?? 'main'}
               position={position}
-              knownIds={new Set(rows.map((r) => r.id))}
-              onSelectId={(id) => go(filter, id)}
-              outcome={outcome?.id === selected.id ? outcome : null}
-              next={next && next.id !== selected.id ? next : null}
+              // Dependency chips resolve within this repository: `FB-001` in one repo is not the
+              // `FB-001` in another, and linking across would open the wrong ticket.
+              knownIds={new Set(rows.filter((r) => r.repo === selected.repo).map((r) => r.id))}
+              onSelectId={(id) => go(filter, `${selected.repo}/${id}`)}
+              outcome={outcome?.id === rowKey(selected) ? outcome : null}
+              next={next && rowKey(next) !== rowKey(selected) ? next : null}
               onDecided={(kind, message) => {
-                setDecided((d) => new Set([...d, selected.id]));
-                setOutcome({ id: selected.id, kind, message });
+                setDecided((d) => new Set([...d, rowKey(selected)]));
+                setOutcome({ id: rowKey(selected), kind, message });
               }}
-              onNext={(id) => go(filter, id)}
+              onNext={(r) => go(filter, rowKey(r))}
             />
           ) : (
             <p className="card muted" data-testid="tickets-detail-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
@@ -185,7 +217,7 @@ function Detail({
   outcome: { kind: 'approved' | 'refused'; message: string } | null;
   next: TicketRow | null;
   onDecided: (kind: 'approved' | 'refused', message: string) => void;
-  onNext: (id: string) => void;
+  onNext: (row: TicketRow) => void;
 }) {
   const ticket = row.item?.ticket ?? null;
   const warnings = row.item?.warnings ?? [];
@@ -281,7 +313,7 @@ function Detail({
           </p>
           <p style={{ margin: '0.75rem 0 0', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
             {next ? (
-              <button type="button" className="btn btn-primary" data-testid="detail-next" onClick={() => onNext(next.id)}>
+              <button type="button" className="btn btn-primary" data-testid="detail-next" onClick={() => onNext(next)}>
                 Next decision →
               </button>
             ) : null}
@@ -363,7 +395,10 @@ function Detail({
                 disabled={pending}
                 onClick={() => startTransition(async () => {
                   setError(null);
-                  const r = await acceptWork(ventureId, row.waiting!.repo, row.waiting!.number);
+                  // The commit they were shown. `acceptWork` refuses if something has been pushed
+                  // since this page rendered — a founder deciding from a list, without opening the
+                  // work, must not merge a change that landed after they looked.
+                  const r = await acceptWork(ventureId, row.waiting!.repo, row.waiting!.number, row.waiting!.headSha ?? undefined);
                   if (r.ok) onDecided('approved', r.message);
                   else setError(r.message);
                 })}

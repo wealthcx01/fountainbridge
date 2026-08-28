@@ -59,11 +59,47 @@ export default async function TicketsPage({
 
   // What is actually waiting, keyed the same way the board keys it, so this screen and the desk
   // cannot disagree about which tickets need the founder.
-  const waitingFor = new Map<string, { repo: string; number: number; ageMs: number }>();
+  //
+  // The OLDEST per ticket, not the last one seen. A ticket can carry more than one open pull request
+  // — a lane retries, or files a revision — and a `Map` that took whichever came last would drop the
+  // other from the list while the rail's badge went on counting it. Every waiting item is still
+  // counted; they are just gathered under the ticket they belong to.
+  const waitingFor = new Map<string, { repo: string; number: number; ageMs: number; also: number; headSha: string | null }>();
   for (const pr of attention.approvals) {
-    if (pr.linkedTicketId) waitingFor.set(`${pr.repo} ${pr.linkedTicketId}`, { repo: pr.repo, number: pr.number, ageMs: pr.ageMs });
+    if (!pr.linkedTicketId) continue;
+    const key = `${pr.repo} ${pr.linkedTicketId}`;
+    const held = waitingFor.get(key);
+    if (!held) waitingFor.set(key, { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, also: 0, headSha: pr.headSha });
+    else if (pr.ageMs > held.ageMs) waitingFor.set(key, { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, also: held.also + 1, headSha: pr.headSha });
+    else held.also += 1;
   }
   const surfaceOf = new Map((venture.departments ?? []).map((d) => [d.repo, d.name]));
+
+  // FB-120: a ticket the composer just filed arrives as a pull request on a `foundry/<slug>` branch
+  // whose title carries no ticket id, so it links to nothing — and would be appended below as work
+  // "not tied to anything you asked for", beside the very ticket it carries.
+  //
+  // ATTACHED to its own row rather than dropped. A filing is genuinely waiting on the founder — the
+  // ticket does not join the backlog until it is merged (CLAUDE.md #2) — and the rail's badge counts
+  // it. Excluding it here would have fixed the duplicate row and reopened the badge/filter
+  // disagreement in the same change.
+  const ageOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.ageMs]));
+  const shaOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.headSha]));
+  const filedPrs = new Set(
+    [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => `${repo}#${f.prNumber}`)),
+  );
+  for (const [repo, fs] of filedByRepo) {
+    for (const f of fs) {
+      const age = ageOfPr.get(`${repo}#${f.prNumber}`);
+      if (age === undefined) continue;   // its pull request is not open, so nothing waits
+      waitingFor.set(`${repo} ${f.ticket.id}`, { repo, number: f.prNumber, ageMs: age, also: 0, headSha: shaOfPr.get(`${repo}#${f.prNumber}`) ?? null });
+    }
+  }
+  // Where a filed ticket actually LIVES — its own branch, not the default one. Without this the
+  // "see where this is written down" link points at the one branch the file is provably not on.
+  const filedBranch = new Map(
+    [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => [`${repo} ${f.ticket.id}`, f.branch] as const)),
+  );
 
   const rows: TicketRow[] = [];
   for (const lane of inferred) {
@@ -91,13 +127,14 @@ export default async function TicketsPage({
   const onBoard = new Set(rows.map((r) => `${r.repo} ${r.id}`));
   for (const pr of attention.approvals) {
     if (pr.linkedTicketId && onBoard.has(`${pr.repo} ${pr.linkedTicketId}`)) continue;
+    if (filedPrs.has(`${pr.repo}#${pr.number}`)) continue;
     rows.push({
       id: `${pr.repo}#${pr.number}`,
       title: pr.ticketTitle ?? pr.title,
       repo: pr.repo,
       group: 'pr-open',
       item: null,
-      waiting: { repo: pr.repo, number: pr.number, ageMs: pr.ageMs },
+      waiting: { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, headSha: pr.headSha },
       surface: surfaceOf.get(pr.repo) ?? null,
     });
   }
@@ -112,6 +149,7 @@ export default async function TicketsPage({
       filter={parseFilter(filter)}
       selectedId={typeof t === 'string' ? t : null}
       refs={Object.fromEntries(refs)}
+      filedBranches={Object.fromEntries(filedBranch)}
       org={process.env.GITHUB_ORG ?? 'wealthcx01'}
       errors={[...data.lanes.filter((l) => l.error).map((l) => l.error as string), ...attention.errors]}
     />

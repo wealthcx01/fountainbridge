@@ -45,22 +45,30 @@ const DAY = 86_400_000;
  */
 export function howLong(iso: string, now = studioNow()): string | null {
   const at = Date.parse(iso);
-  if (!Number.isFinite(at)) return null;
-  const ms = Math.max(0, now - at);
-  if (ms >= DAY) {
-    const days = Math.floor(ms / DAY);
-    return `${days} day${days === 1 ? '' : 's'}`;
-  }
-  if (ms >= HOUR) {
-    const hours = Math.floor(ms / HOUR);
-    return `${hours} hour${hours === 1 ? '' : 's'}`;
-  }
-  if (ms >= MINUTE) {
-    const mins = Math.floor(ms / MINUTE);
-    return `${mins} minute${mins === 1 ? '' : 's'}`;
-  }
+  return Number.isFinite(at) ? howLongMs(now - at) : null;
+}
+
+/**
+ * The same vocabulary, from a duration rather than a timestamp (FB-129).
+ *
+ * `howLong` takes an instant and compares it against `studioNow()`, which honours the pinned test
+ * clock. A caller holding an *age* — the attention queue reports `ageMs`, already computed — had to
+ * fake a timestamp with `Date.now() - ageMs`, which mixes the real clock into a comparison against
+ * the pinned one and reads "a few seconds" for a pull request that has waited forty-four days.
+ *
+ * It is also the half that can run in a browser. `E2E_NOW` is not a `NEXT_PUBLIC_` variable, so the
+ * server and the client disagree about "now" and the row hydrates with different words than were
+ * rendered. A duration has no such argument with itself.
+ */
+export function howLongMs(ms: number): string | null {
+  if (!Number.isFinite(ms)) return null;
+  const d = Math.max(0, ms);
+  if (d >= DAY) { const n = Math.floor(d / DAY); return `${n} day${n === 1 ? '' : 's'}`; }
+  if (d >= HOUR) { const n = Math.floor(d / HOUR); return `${n} hour${n === 1 ? '' : 's'}`; }
+  if (d >= MINUTE) { const n = Math.floor(d / MINUTE); return `${n} minute${n === 1 ? '' : 's'}`; }
   return 'a few seconds';
 }
+
 
 /** When something happened — `3 days ago`. Null when the timestamp cannot be read. */
 export function ago(iso: string, now = studioNow()): string | null {

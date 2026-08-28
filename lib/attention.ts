@@ -34,6 +34,16 @@ export interface RawPr {
   ciStatus?: PrCiStatus;
   previewUrl?: string | null;
   /**
+   * The head commit, when the query carried one (FB-129).
+   *
+   * It rides on the GraphQL query that was already being made — `commits(last: 1) { commit { oid } }`
+   * was fetched for the check rollup and thrown away. It exists so a founder deciding from the
+   * Tickets screen accepts the commit they were shown: `acceptWork`'s `seenHeadSha` refuses when
+   * something has been pushed since the page rendered, and without this that guard was simply not
+   * passed from the one screen that is now the primary place decisions are made.
+   */
+  headSha?: string | null;
+  /**
    * Paths this pull request changes (FB-120). Open PRs only, and capped — it exists to tell a
    * ticket FILING (one file under docs/tickets) from everything else, not to describe a diff. It
    * rides on the query that was already being made, so it costs nothing.
@@ -66,6 +76,8 @@ export interface PrApproval {
   ciStatus: PrCiStatus;
   /** Vercel preview — the primary click target when present (parity §3). Wired in FB-009. */
   previewUrl: string | null;
+  /** The commit the founder is being shown, so accepting can refuse a push that landed since. */
+  headSha: string | null;
 }
 
 export interface RepoPrs {
@@ -104,6 +116,7 @@ function toApproval(
     ticketTitle: ticket?.title ?? null,
     ciStatus: pr.ciStatus ?? 'unknown',
     previewUrl: pr.previewUrl ?? null,
+    headSha: pr.headSha ?? null,
   };
 }
 
@@ -221,6 +234,7 @@ function toRawPr(p: GqlPr, ciStatus?: PrCiStatus, previewUrl?: string | null): R
     ...(ciStatus ? { ciStatus } : {}),
     ...(p.files ? { files: p.files.nodes.map((f) => f.path) } : {}),
     previewUrl: previewUrl ?? null,
+    headSha: p.commits?.nodes?.[0]?.commit?.oid ?? null,
   };
 }
 

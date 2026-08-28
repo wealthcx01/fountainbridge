@@ -14,28 +14,24 @@ import { toneColor } from '@/lib/status';
  * It carries no state and fetches nothing. `usePathname` is the whole reason it is here.
  */
 
-/** `tickets` returns with FB-129, which builds the screen. A key with no row is a dead control. */
 type NavKey = 'desk' | 'needs' | 'tickets' | 'activity' | 'memory' | 'handbook';
 
 /**
  * The rows, and only rows that go somewhere.
  *
- * **Tickets is absent, deliberately.** `/venture/[id]/tickets` is FB-129 and does not exist yet. The
- * first version of this rail listed it anyway: the link 404'd, and Next's prefetch fired that 404 on
- * every venture page load before a founder had clicked anything. A nav row to a screen that is not
- * built is a dead control — the design contract forbids them, and `design-lint` did not catch this
- * one because it only sees buttons.
+ * **Every row must point at a screen that exists.** The first version of this rail listed Tickets
+ * before FB-129 built it: the link 404'd, and Next's prefetch fired that 404 on every venture page
+ * load before a founder had clicked anything. A nav row to a screen that is not built is a dead
+ * control — the design contract forbids them, and `design-lint` did not catch it because it only
+ * sees buttons.
  *
- * **Needs you points at `/attention`**, which is that queue, works today, and is what FB-129 will
- * absorb. Pointing it at the real thing is better than pointing it at the eventual thing.
+ * So this list is **exported**, and `lib/__tests__/rail.test.ts` walks it and asserts each row's
+ * route file exists. The guard has to read this list rather than a copy of it, or it goes stale the
+ * first time the two disagree — which is what the version of that test this replaced did.
  *
- * FB-129 adds Tickets and repoints Needs you. Until then every row here goes somewhere real.
- */
-/**
- * The rows, exported so a test can assert each one points at a route that exists.
- *
- * FB-124 shipped a Tickets row whose screen did not exist; Next prefetched the 404 on every venture
- * page load. The guard for that has to read this list, not a copy of it.
+ * **Needs you is a filter on Tickets** since FB-129, not a link to the cross-venture `/attention`.
+ * It pointed there while that was the only screen showing the work; the badge then stated a number
+ * its destination could contradict, and did (FB-149).
  */
 export const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; absolute?: boolean; badge?: boolean }> = [
   { key: 'desk', label: 'The desk', href: '' },

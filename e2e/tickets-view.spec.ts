@@ -42,7 +42,9 @@ test.describe('tickets', () => {
     const first = page.getByTestId('tickets-list').locator('li button').first();
     const id = ((await first.textContent()) ?? '').match(/([A-Z]+-\d+)/)?.[1];
     await first.click();
-    await expect(page).toHaveURL(new RegExp(`t=${id}`));
+    // Addressed by repository AND id — two repos in one venture may share an id namespace, so an id
+    // alone is not a name. The `/` is percent-encoded in the query.
+    await expect(page).toHaveURL(new RegExp(`t=[^&]*${id}`));
 
     // The whole point: paste the link somewhere and it comes back to the same ticket.
     const url = page.url();
@@ -106,7 +108,7 @@ test.describe('tickets', () => {
     if ((await deps.count()) === 0) test.skip();
     const id = (await deps.first().textContent())?.trim();
     await deps.first().click();
-    await expect(page).toHaveURL(new RegExp(`t=${id}`));
+    await expect(page).toHaveURL(new RegExp(`t=[^&]*${id}`));
   });
 
   test('the rail’s badge and this screen’s "Needs you" filter are the same number', async ({ page }) => {

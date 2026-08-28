@@ -23,6 +23,22 @@ export interface WaitingOn {
   number: number;
   /** How long it has waited. Drives the decision order: oldest first, because it has waited longest. */
   ageMs: number;
+  /**
+   * Further pull requests open on the SAME ticket — a lane retried, or filed a revision.
+   *
+   * Counted rather than dropped. The row is one row, because it is one piece of work a founder
+   * thinks about; the count is what keeps this screen's total equal to the rail's badge, which
+   * counts pull requests. A `Map` that simply took the last one seen made the two disagree.
+   */
+  also?: number;
+  /**
+   * The commit the founder is being shown.
+   *
+   * Passed to `acceptWork`, which refuses when something has been pushed since the page rendered.
+   * Without it a founder can approve from a list, having never opened the work, and merge a commit
+   * that landed after they looked — which is precisely what that parameter exists to prevent.
+   */
+  headSha?: string | null;
 }
 
 export interface TicketRow {
@@ -47,6 +63,14 @@ export interface TicketRow {
   /** The surface it belongs to (Build / Sell / Scale), when the venture declares one. */
   surface: string | null;
 }
+
+/**
+ * How a row is addressed — by repository AND id.
+ *
+ * Two repositories in one venture may share an id namespace, so an id alone is not a name. Used for
+ * the URL, the selection, the decided set and the decision order, so all four agree.
+ */
+export const rowKey = (r: Pick<TicketRow, 'repo' | 'id'>): string => `${r.repo}/${r.id}`;
 
 export const TICKET_FILTERS = ['needs', 'all', 'underway', 'settled'] as const;
 export type TicketFilter = (typeof TICKET_FILTERS)[number];
@@ -74,9 +98,16 @@ export const FILTER_LABEL: Record<TicketFilter, string> = {
  */
 export const needsFounder = (r: TicketRow): boolean => r.waiting !== null;
 
-/** Work in flight: started, not finished, and not waiting on anyone. */
-export const isUnderway = (r: TicketRow): boolean =>
-  !needsFounder(r) && (r.group === 'in-progress' || r.group === 'todo' || r.group === 'filed');
+/**
+ * Work in flight: started, not finished, and not waiting on anyone.
+ *
+ * Defined as "not waiting and not settled" rather than by listing the columns, because listing them
+ * left a hole: a ticket whose markdown says "In review" is grouped `pr-open`, and if its pull
+ * request has been merged, closed, or simply could not be read (a rate-limited repository returns no
+ * pull requests at all), it waits on nobody and is not done. Under a list of columns it appeared in
+ * no filter but "All", and `needs + underway + settled` quietly stopped adding up to the total.
+ */
+export const isUnderway = (r: TicketRow): boolean => !needsFounder(r) && r.group !== 'done';
 
 /** Finished, one way or another. */
 export const isSettled = (r: TicketRow): boolean => !needsFounder(r) && r.group === 'done';
@@ -99,7 +130,9 @@ export interface TicketCounts {
 
 export const countTickets = (rows: TicketRow[]): TicketCounts => ({
   total: rows.length,
-  needs: rows.filter(needsFounder).length,
+  // Waiting ITEMS, not waiting rows — the rail's badge counts pull requests, and a ticket carrying
+  // two of them is two decisions under one heading.
+  needs: rows.reduce((n, r) => n + (r.waiting ? 1 + (r.waiting.also ?? 0) : 0), 0),
   underway: rows.filter(isUnderway).length,
   settled: rows.filter(isSettled).length,
 });
@@ -144,12 +177,12 @@ export function decisionOrder(rows: TicketRow[]): TicketRow[] {
   return rows
     .filter(needsFounder)
     .slice()
-    .sort((a, b) => (b.waiting?.ageMs ?? 0) - (a.waiting?.ageMs ?? 0) || a.id.localeCompare(b.id));
+    .sort((a, b) => (b.waiting?.ageMs ?? 0) - (a.waiting?.ageMs ?? 0) || rowKey(a).localeCompare(rowKey(b)));
 }
 
 /** "decision 2 of 5", or null when this ticket is not one. */
-export function decisionPosition(order: TicketRow[], id: string): { n: number; of: number } | null {
-  const i = order.findIndex((r) => r.id === id);
+export function decisionPosition(order: TicketRow[], key: string): { n: number; of: number } | null {
+  const i = order.findIndex((r) => rowKey(r) === key);
   return i === -1 ? null : { n: i + 1, of: order.length };
 }
 
@@ -161,5 +194,5 @@ export function decisionPosition(order: TicketRow[], id: string): { n: number; o
  * Reading the stale rows would offer them the ticket they have already answered.
  */
 export function nextDecision(order: TicketRow[], decided: ReadonlySet<string>): TicketRow | null {
-  return order.find((r) => !decided.has(r.id)) ?? null;
+  return order.find((r) => !decided.has(rowKey(r))) ?? null;
 }

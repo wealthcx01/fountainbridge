@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   FILTER_LABEL, countTickets, decisionOrder, decisionPosition, filterTickets, nextDecision,
-  parseFilter, ticketsSummary, type TicketRow,
+  parseFilter, rowKey, ticketsSummary, type TicketRow,
 } from '../tickets-view';
 import type { TicketStatusGroup } from '../tickets';
 
@@ -26,7 +26,7 @@ const row = (over: Partial<TicketRow> & { group?: TicketStatusGroup } = {}): Tic
     item: over.item === null ? null : ({ ticket: { id, title: `Ticket ${id}` }, warnings: [] } as unknown as TicketRow['item']),
   };
 };
-const waiting = (ageMs: number) => ({ repo: 'arca', number: 1, ageMs });
+const waiting = (ageMs: number, also = 0) => ({ repo: 'arca', number: 1, ageMs, also });
 
 describe('which tickets a filter contains', () => {
   const rows = [
@@ -54,8 +54,28 @@ describe('which tickets a filter contains', () => {
     expect(filterTickets(rows, 'all')).toHaveLength(5);
   });
 
+  it('counts two pull requests on one ticket as two decisions under one heading', () => {
+    // The rail's badge counts pull requests. A Map that took whichever came last showed one row and
+    // let the badge say 2 while the filter said 1 — the exact disagreement this screen closed.
+    const doubled = [row({ id: 'TWICE', group: 'pr-open', waiting: waiting(9, 1) })];
+    expect(filterTickets(doubled, 'needs')).toHaveLength(1);
+    expect(countTickets(doubled).needs).toBe(2);
+  });
+
+  it('a ticket in review whose pull request cannot be read still appears somewhere', () => {
+    // Grouped `pr-open` by its own markdown, with no open pull request — merged, closed, or the
+    // repository was rate-limited and returned none. Under a list of columns it appeared in no
+    // filter but "All", and the three counts stopped adding up to the total.
+    const orphaned = [row({ id: 'REVIEW', group: 'pr-open' })];
+    expect(filterTickets(orphaned, 'underway').map((r) => r.id)).toEqual(['REVIEW']);
+    const c = countTickets(orphaned);
+    expect(c.needs + c.underway + c.settled).toBe(c.total);
+  });
+
   it('a ticket waiting on the founder is never also counted as underway', () => {
     // Otherwise the filters add up to more than the list, and a founder counts the same work twice.
+    // (`needs` counts waiting ITEMS, so this holds only while no ticket carries two — which is what
+    // the test above is for.)
     const c = countTickets(rows);
     expect(c.needs + c.underway + c.settled).toBe(c.total);
   });
@@ -100,6 +120,22 @@ describe('what the list says about itself', () => {
   });
 });
 
+describe('two repositories in one venture may share an id namespace', () => {
+  it('addresses a row by repository as well as id', () => {
+    // `FB-001` in one repo is not `FB-001` in another. Dropping the repo made the second one
+    // unreachable, highlighted both rows at once, and let approving one mark the other decided.
+    const a = row({ id: 'FB-001', repo: 'arca', group: 'pr-open', waiting: waiting(9) });
+    const b = row({ id: 'FB-001', repo: 'arca-ops', group: 'pr-open', waiting: waiting(5) });
+    expect(rowKey(a)).not.toBe(rowKey(b));
+
+    const order = decisionOrder([a, b]);
+    expect(decisionPosition(order, rowKey(a))).toEqual({ n: 1, of: 2 });
+    expect(decisionPosition(order, rowKey(b))).toEqual({ n: 2, of: 2 });
+    // Deciding one must not take the other with it.
+    expect(nextDecision(order, new Set([rowKey(a)]))?.repo).toBe('arca-ops');
+  });
+});
+
 describe('clearing three decisions in one sitting', () => {
   const rows = [
     row({ id: 'NEW', group: 'pr-open', waiting: waiting(1_000) }),
@@ -121,8 +157,8 @@ describe('clearing three decisions in one sitting', () => {
   });
 
   it('says which decision this is of how many', () => {
-    expect(decisionPosition(decisionOrder(rows), 'MID')).toEqual({ n: 2, of: 3 });
-    expect(decisionPosition(decisionOrder(rows), 'QUIET')).toBeNull();
+    expect(decisionPosition(decisionOrder(rows), 'arca/MID')).toEqual({ n: 2, of: 3 });
+    expect(decisionPosition(decisionOrder(rows), 'arca/QUIET')).toBeNull();
   });
 
   it('never offers back a ticket the founder just answered', () => {
@@ -130,8 +166,8 @@ describe('clearing three decisions in one sitting', () => {
     // reading the rows alone would hand them the one they have just approved.
     const order = decisionOrder(rows);
     expect(nextDecision(order, new Set())?.id).toBe('OLD');
-    expect(nextDecision(order, new Set(['OLD']))?.id).toBe('MID');
-    expect(nextDecision(order, new Set(['OLD', 'MID']))?.id).toBe('NEW');
-    expect(nextDecision(order, new Set(['OLD', 'MID', 'NEW']))).toBeNull();
+    expect(nextDecision(order, new Set(['arca/OLD']))?.id).toBe('MID');
+    expect(nextDecision(order, new Set(['arca/OLD', 'arca/MID']))?.id).toBe('NEW');
+    expect(nextDecision(order, new Set(['arca/OLD', 'arca/MID', 'arca/NEW']))).toBeNull();
   });
 });
