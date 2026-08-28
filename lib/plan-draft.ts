@@ -222,6 +222,29 @@ export function orderPlan(plan: PlanDraft): { ordered: PlanTicketDraft[]; cycle:
 }
 
 /**
+ * The order the plan is READ in, and therefore the order it is filed in.
+ *
+ * Computed as though nothing were struck, so striking a line never reorders the list under a
+ * founder's eyes. The filed order is this order with the struck lines removed, which keeps the two
+ * identical by construction — before this the panel rendered the composer's proposed order while the
+ * filer wrote `orderPlan`'s, so a set proposed out of dependency order would have been read in one
+ * order and filed in another.
+ *
+ * Restricting a valid topological order to a subset leaves it valid, and striking a line only ever
+ * shortens a chain, so filtering this is safe.
+ */
+export function planOrder(plan: PlanDraft): PlanTicketDraft[] {
+  const nothingStruck = { ...plan, tickets: plan.tickets.map((t) => ({ ...t, struck: false })) };
+  const { ordered, cycle } = orderPlan(nothingStruck);
+  // A cycle has no order. `planProblem` refuses the set; this still has to render something, and
+  // the proposal's own order is the only honest fallback.
+  return cycle.length ? plan.tickets : ordered.map((t) => plan.tickets.find((o) => o.slug === t.slug) as PlanTicketDraft);
+}
+
+/** The kept tickets, in the order they are read and filed. */
+export const planFilingOrder = (plan: PlanDraft): PlanTicketDraft[] => planOrder(plan).filter((t) => !t.struck);
+
+/**
  * The one reason this plan cannot be filed, in a founder's words — or null.
  *
  * One sentence rather than a list, and about the plan rather than about the schema. A founder who
@@ -233,9 +256,15 @@ export function planProblem(plan: PlanDraft): string | null {
 
   const keptSlugs = new Set(kept.map((t) => t.slug));
   const known = new Set(plan.tickets.map((t) => t.slug));
-  for (const t of kept) {
+  // Every ticket, not only the kept ones: a struck ticket's dependencies are inherited by whatever
+  // depended on it, so a slug naming nothing in the plan reaches a filed ticket through a struck
+  // one. `effectiveDependsOn` drops it silently, which would leave a founder with a `Depends on: —`
+  // where a real dependency had been declared and discarded.
+  for (const t of plan.tickets) {
     const unknown = t.depends_on.find((d) => !known.has(d));
     if (unknown) return `“${t.title}” depends on something that is not in this plan. Nothing was filed.`;
+  }
+  for (const t of kept) {
     const dangling = effectiveDependsOn(plan, t.slug).find((d) => !keptSlugs.has(d));
     if (dangling) return `“${t.title}” depends on a line that is not being filed. Nothing was filed.`;
   }
@@ -262,7 +291,9 @@ export function planProblem(plan: PlanDraft): string | null {
 export function ticketPrefixFor(repo: string, filenames: string[]): string {
   const counts = new Map<string, number>();
   for (const name of filenames) {
-    const m = name.match(/^([A-Za-z][A-Za-z0-9]*)-\d+(?:[-.]|$)/);
+    // Lazy, so `ARCA-12-2024-notes.md` reads its prefix as ARCA and not ARCA-12, and non-greedy
+    // across hyphens so `THE-RESET-001-x.md` reads THE-RESET rather than matching nothing at all.
+    const m = name.match(/^([A-Za-z][A-Za-z0-9-]*?)-\d+(?:[-.]|$)/);
     if (!m) continue;
     const prefix = m[1].toUpperCase();
     counts.set(prefix, (counts.get(prefix) ?? 0) + 1);
@@ -328,6 +359,11 @@ export function withDependsOn(body: string, ids: string[]): string {
  * prefixed `foundry/plan-` so it never collides with the single-ticket filer's `foundry/<slug>`.
  */
 export function planBranch(plan: PlanDraft): string | null {
-  const first = keptTickets(plan)[0];
-  return first ? `foundry/plan-${first.slug}` : null;
+  if (keptTickets(plan).length === 0) return null;
+  // Named from the FIRST PROPOSED ticket, not the first kept one — striking a line must not rename
+  // the branch. It did: a founder whose first press half-failed, who then struck the line they no
+  // longer wanted and pressed again, got a second branch cut from base, a second set of numbers and
+  // a second pull request, while the first still held the originals. Exactly the retry this is
+  // written for.
+  return `foundry/plan-${plan.tickets[0].slug}`;
 }

@@ -101,6 +101,21 @@ test.describe('a PRD becomes a ticket set', () => {
     await expect(page.getByTestId('plan-file-all')).toBeEnabled();
   });
 
+  test('a press that never reaches the studio is not a button stuck on Filing', async ({ page }) => {
+    // The action returns its refusals, so only something OUTSIDE it can throw — a dropped
+    // connection, a 500, a manifest that will not load. Without a finally the button stayed on
+    // "Filing…" for ever, disabled, with no message, and a founder had no way to tell whether
+    // their work existed. CLAUDE.md #10.
+    await proposePlan(page);
+    await page.route('**/venture/arca/composer', (route) =>
+      route.request().method() === 'POST' ? route.abort('failed') : route.continue());
+
+    await page.getByTestId('plan-file-all').click();
+    await expect(page.getByTestId('plan-error')).toContainText('Nothing was filed');
+    await expect(page.getByTestId('plan-file-all')).toBeEnabled();
+    await expect(page.getByTestId('plan-file-all')).toHaveText('File all 5');
+  });
+
   test('it fits a phone, and the whole set is reachable there', async ({ page }) => {
     // FB-124's lesson: a 250px rail on a 393px screen was green in every check that could not see a
     // screen. Anything new gets measured on a phone before it is called done.

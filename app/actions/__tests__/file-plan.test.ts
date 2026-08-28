@@ -82,7 +82,10 @@ function wireGitHub({ existingBranch = false }: { existingBranch?: boolean } = {
  * The state after a first press: the branch exists, the pull request is open, and the set's own
  * tickets are on that branch and therefore in the in-flight union.
  */
-function pressedOnce({ filed = ['ARCA-068-auction-source-research.md', 'ARCA-069-auction-feed-ingestion.md', 'ARCA-070-auction-live-view.md'] }: { filed?: string[] } = {}) {
+function pressedOnce({
+  filed = ['ARCA-068-auction-source-research.md', 'ARCA-069-auction-feed-ingestion.md', 'ARCA-070-auction-live-view.md'],
+  merged = BACKLOG,
+}: { filed?: string[]; merged?: Array<{ name: string; type: string }> } = {}) {
   const branch = 'foundry/plan-auction-source-research';
   request.mockImplementation(async (path: string, init?: { method?: string }) => {
     if (/^\/repos\/[^/]+\/[^/]+$/.test(path)) return { default_branch: 'main' };
@@ -92,7 +95,7 @@ function pressedOnce({ filed = ['ARCA-068-auction-source-research.md', 'ARCA-069
     return {};
   });
   listDir.mockImplementation(async (_r: string, _p: string, ref: string) =>
-    ref === 'main' ? BACKLOG : filed.map((name) => ({ name, type: 'file' })));
+    ref === 'main' ? merged : filed.map((name) => ({ name, type: 'file' })));
   getFileWithSha.mockImplementation(async (_r: string, path: string) =>
     filed.some((f) => path.endsWith(f)) ? { text: '', sha: 'old' } : null);
 }
@@ -283,6 +286,65 @@ describe('nothing files without the press', () => {
   });
 });
 
+describe('the plan is untrusted input, because it comes from a browser', () => {
+  it('refuses a slug that would climb out of docs/tickets', async () => {
+    // The finding that mattered. `ticketPath` builds `docs/tickets/<id>-<slug>.md`, `encodeURI`
+    // leaves every `/` and `.` in it, and the URL normalises the dot segments away — so this slug
+    // writes into `.github/workflows/` with the studio's token, which is far more privileged than
+    // the founder holding it. The client validated slugs; the server did not.
+    //
+    // Deliberately the LAST ticket, which nothing depends on: rename one in the middle and the set
+    // is refused for a dangling dependency instead, which would make this test pass without the
+    // guard it exists to prove. It was written that way first.
+    const evil = plan();
+    evil.tickets[2].slug = '../../../../.github/workflows/pwn';
+    const r = await filePlan('arca', 'arca', evil, 3);
+    expect(r.ok).toBe(false);
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('refuses every other shape the surface would have refused', async () => {
+    for (const broken of [
+      { ...plan(), tickets: [] },
+      { ...plan(), tickets: [{ ...plan().tickets[0], body: '' }] },
+      { ...plan(), tickets: [{ ...plan().tickets[0], source: '' }] },
+      { ...plan(), tickets: [{ ...plan().tickets[0], depends_on: ['../etc'] }] },
+      { ...plan(), tickets: [plan().tickets[0], plan().tickets[0]] },
+    ] as PlanDraft[]) {
+      const r = await filePlan('arca', 'arca', broken, broken.tickets.length);
+      expect(r.ok, JSON.stringify(broken).slice(0, 50)).toBe(false);
+    }
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('never writes outside docs/tickets, whatever it is handed', async () => {
+    await filePlan('arca', 'arca', plan(), 3);
+    for (const w of written()) expect(w.path).toMatch(/^docs\/tickets\/[A-Za-z0-9-]+\.md$/);
+  });
+});
+
+describe('never writing over work that already exists', () => {
+  it('refuses a plan whose slug is already in the backlog, and names it', async () => {
+    // The branch is cut from the default branch on a first press, so everything merged is on it. A
+    // matching slug read as "already filed" and the reuse path replaced a real ticket's whole body
+    // — status, notes, ticked criteria — while reporting the set as filed.
+    listDir.mockResolvedValue([...BACKLOG, { name: 'ARCA-042-auction-live-view.md', type: 'file' }]);
+    const r = await filePlan('arca', 'arca', plan(), 3);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('One page showing every live auction');
+    expect(r.message).toContain('Nothing was filed');
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('reuses an id from the plan’s own branch even when the prefix has a hyphen', async () => {
+    // `existingTicketFile`'s `[A-Za-z]+` cannot cross the hyphen in THE-RESET, so the second-press
+    // guarantee quietly did not hold on the launch venture (FB-146).
+    pressedOnce({ filed: ['THE-RESET-068-auction-source-research.md'], merged: [{ name: 'THE-RESET-067-x.md', type: 'file' }] });
+    await filePlan('arca', 'arca', plan(), 3);
+    expect(written().map((w) => w.path)[0]).toBe('docs/tickets/THE-RESET-068-auction-source-research.md');
+  });
+});
+
 describe('who may file into a venture’s backlog', () => {
   it('refuses a signed-out visitor', async () => {
     auth.mockResolvedValue(null);
@@ -319,6 +381,19 @@ describe('who may file into a venture’s backlog', () => {
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/not set up/i);
     expect(putFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('finding the pull request that is already open', () => {
+  it('looks it up under the repository’s own owner, not the studio’s default org', async () => {
+    // `fullRepoName` passes an already-qualified `owner/slug` through untouched, so a head filter
+    // built from GITHUB_ORG matches nothing — the open pull request is missed and an ordinary
+    // second press becomes "something went wrong".
+    loadVentures.mockReturnValue([{ ...VENTURE, repos: ['someoneelse/arca'] }]);
+    pressedOnce();
+    await filePlan('arca', 'someoneelse/arca', { ...plan(), repo: 'someoneelse/arca' }, 3);
+    const lookups = request.mock.calls.map(([p]) => p).filter((p: string) => p.includes('/pulls?state=open'));
+    expect(lookups[0]).toContain(encodeURIComponent('someoneelse:foundry/plan-auction-source-research'));
   });
 });
 

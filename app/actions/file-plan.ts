@@ -30,10 +30,10 @@ import { GitHubClient, GitHubError } from '@/lib/github';
 import { fullRepoName } from '@/lib/venture-repos';
 import { requireVentureRepo } from '@/lib/venture-access';
 import {
-  allocatePlanIds, effectiveDependsOn, keptTickets, orderPlan, planBranch, planProblem,
-  ticketPrefixFor, withDependsOn, type PlanDraft,
+  PLAN_MARKER, allocatePlanIds, effectiveDependsOn, keptTickets, parsePlanDraft, planBranch,
+  planFilingOrder, planProblem, ticketPrefixFor, withDependsOn, type PlanDraft,
 } from '@/lib/plan-draft';
-import { existingTicketFile, ticketPath, withTicketId } from '@/deploy/librechat/ticket-mcp/ids.mjs';
+import { ticketPath, withTicketId } from '@/deploy/librechat/ticket-mcp/ids.mjs';
 
 export interface FiledTicket {
   slug: string;
@@ -61,7 +61,7 @@ export interface FilePlanResult {
  * is waiting rather than by the size of the backlog, and paid once on a press rather than on a page
  * load or a timer.
  */
-async function ticketNamesInFlight(client: GitHubClient, full: string, base: string): Promise<string[]> {
+async function ticketNamesInFlight(client: GitHubClient, full: string, base: string): Promise<{ merged: string[]; all: string[] }> {
   const names = (await client.listDir(full, 'docs/tickets', base)).filter((e) => e.type === 'file').map((e) => e.name);
 
   let refs: Array<{ ref?: string }> = [];
@@ -71,9 +71,9 @@ async function ticketNamesInFlight(client: GitHubClient, full: string, base: str
     // No branches, or the listing failed. Allocating from the merged backlog alone is the FB-117 bug,
     // so this is said out loud rather than swallowed — and the settle check below is what catches it.
     console.warn('[file-plan] could not list in-flight ticket branches', { full });
-    return names;
+    return { merged: names, all: names };
   }
-  if (!Array.isArray(refs)) return names;
+  if (!Array.isArray(refs)) return { merged: names, all: names };
   if (refs.length >= 100) {
     console.warn('[file-plan] 100+ foundry branches; the id union may be incomplete', { full });
   }
@@ -85,18 +85,48 @@ async function ticketNamesInFlight(client: GitHubClient, full: string, base: str
   const perBranch = await Promise.all(
     branches.map((b) => client.listDir(full, 'docs/tickets', b).catch(() => [])),
   );
-  return names.concat(...perBranch.flat().filter((e) => e.type === 'file').map((e) => e.name));
+  return { merged: names, all: names.concat(...perBranch.flat().filter((e) => e.type === 'file').map((e) => e.name)) };
+}
+
+/** The file this slug already has under this venture's prefix, or null. Hyphen-safe, unlike FB-146. */
+function fileForSlug(names: string[], prefix: string, slug: string): string | null {
+  const escape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^${escape(prefix)}-\\d+[a-z]?-${escape(slug)}\\.md$`, 'i');
+  return names.find((n) => re.test(n)) ?? null;
 }
 
 export async function filePlan(
   ventureId: string,
   repo: string,
   plan: PlanDraft,
-  /** How many tickets the founder was looking at when they pressed. A disagreement is a refusal. */
+  /**
+   * The number on the button that was pressed.
+   *
+   * A cheap assertion that the label and the payload agree, and honestly no more than that: both
+   * come from the same client, so it is not a tamper check. What actually keeps a set from filing
+   * unasked is that this function is the only writer and only the button calls it — and that
+   * everything above is pure.
+   */
   confirmedCount: number,
 ): Promise<FilePlanResult> {
   const access = await requireVentureRepo(ventureId, repo);
   if (!access.ok) return { ok: false, message: access.error };
+
+  // The plan arrives from a browser. Everything below it turns a slug into a repository path with a
+  // token far more privileged than the founder holding it, so the shape is checked HERE and not
+  // taken on trust from the surface that sent it.
+  //
+  // This is not belt-and-braces. `parsePlanDraft` — which enforces the slug pattern — ran only in
+  // the client component, and `ticketPath` builds `docs/tickets/<id>-<slug>.md`, which `encodeURI`
+  // leaves every `/` and `.` in. A slug of `../../../.github/workflows/x` normalises out of
+  // `docs/tickets/` on the way to GitHub. That turns "may file a ticket" into "may write any file in
+  // the venture's repository", which is not a thing a founder may do.
+  //
+  // Round-tripped rather than spot-checked, so the server and the surface agree by construction
+  // instead of by two lists of rules that have to be kept the same.
+  const checked = parsePlanDraft(JSON.stringify({ [PLAN_MARKER]: 1, ...plan }));
+  if (!checked) return { ok: false, message: 'That plan could not be read. Nothing was filed.' };
+  plan = checked;
 
   if (plan.venture_id !== ventureId || plan.repo !== repo) {
     // The plan names where it belongs. A press that redirected it somewhere else would file a set of
@@ -107,7 +137,7 @@ export async function filePlan(
   const problem = planProblem(plan);
   if (problem) return { ok: false, message: problem };
 
-  const { ordered } = orderPlan(plan);
+  const ordered = planFilingOrder(plan);
   if (ordered.length !== confirmedCount) {
     return {
       ok: false,
@@ -140,8 +170,23 @@ export async function filePlan(
       });
     }
 
-    const inFlight = await ticketNamesInFlight(client, full, base);
+    const { merged, all: inFlight } = await ticketNamesInFlight(client, full, base);
     const prefix = ticketPrefixFor(repo, inFlight);
+
+    // Never write over a ticket that is already in the backlog.
+    //
+    // On a first press the branch is cut from the default branch, so everything merged is on it. A
+    // plan slug matching a ticket that already exists would have been read as "this one is already
+    // filed", and the reuse below would have replaced a real ticket's whole body — status, notes,
+    // ticked criteria and all — while reporting the set as filed. Refused instead, by name, because
+    // a founder can act on that and cannot act on a silent overwrite.
+    const collision = ordered.map((t) => [t, fileForSlug(merged, prefix, t.slug)] as const).find(([, f]) => f);
+    if (collision) {
+      return {
+        ok: false,
+        message: `“${collision[0].title}” is already in your backlog. Rename it or strike it, then press again. Nothing was filed.`,
+      };
+    }
 
     // A second press must UPDATE this set, not double it.
     //
@@ -151,12 +196,14 @@ export async function filePlan(
     // twice under two sets of numbers. The single-ticket filer has had this since FB-097; the set
     // filer needs it for the same reason and did not have it.
     //
-    // A ticket already here keeps the number the founder has already been told.
+    // A ticket already here keeps the number the founder has already been told. Matched with a
+    // hyphen-safe regex rather than `existingTicketFile`, whose `[A-Za-z]+` cannot cross the hyphen
+    // in `THE-RESET` — so on the launch venture this guarantee would have quietly not held (FB-146).
     const onBranch = (await client.listDir(full, 'docs/tickets', branch)).filter((e) => e.type === 'file').map((e) => e.name);
     const already = new Map<string, string>();
     for (const t of ordered) {
-      const file = existingTicketFile(onBranch, t.slug);
-      const id = file?.match(new RegExp(`^(${prefix}-\\d+[a-z]?)(?:[-.]|$)`, 'i'))?.[1];
+      const file = fileForSlug(onBranch, prefix, t.slug);
+      const id = file?.match(new RegExp(`^(.+?-\\d+[a-z]?)-`))?.[1];
       if (id) already.set(t.slug, id);
     }
 
@@ -199,9 +246,13 @@ export async function filePlan(
       'picks any of it up until it is.',
     ].join('\n');
 
-    const org = process.env.GITHUB_ORG ?? 'wealthcx01';
+    // The owner comes from the repository path, not from GITHUB_ORG: a manifest may declare a repo
+    // already qualified with a different owner, and `fullRepoName` passes that through untouched. A
+    // head filter built from the wrong owner matches nothing, misses the open pull request, and
+    // turns an ordinary second press into "something went wrong".
+    const owner = full.split('/')[0];
     const open = await client.request<Array<{ html_url: string }>>(
-      `/repos/${full}/pulls?state=open&head=${encodeURIComponent(`${org}:${branch}`)}`,
+      `/repos/${full}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
     );
     if (Array.isArray(open) && open.length) {
       return { ok: true, message: `Updated all ${filed.length} tickets. They are still one piece of work.`, url: open[0].html_url, filed };

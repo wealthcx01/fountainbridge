@@ -5,8 +5,8 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
   PLAN_MARKER, allocatePlanIds, effectiveDependsOn, extractPlanDraft, keptTickets, orderPlan,
-  parsePlanDraft, planBranch, planProblem, strikeTicket, withDependsOn,
-  type PlanDraft,
+  parsePlanDraft, planBranch, planFilingOrder, planOrder, planProblem, strikeTicket,
+  ticketPrefixFor, withDependsOn, type PlanDraft,
 } from '../plan-draft';
 import { parseReply } from '../composer';
 
@@ -205,6 +205,14 @@ describe('when a plan must not be filed at all', () => {
     expect(planProblem(stray)).toMatch(/not in this plan/i);
   });
 
+  it('refuses one that reaches a filed ticket through a struck line', () => {
+    // `effectiveDependsOn` drops a slug it cannot find, so this filed happily with the dependency
+    // silently gone — a founder left with `Depends on: —` where they had declared one.
+    const stray = plan();
+    stray.tickets[1].depends_on = ['a-ticket-that-does-not-exist'];
+    expect(planProblem(strikeTicket(stray, 'auction-feed-ingestion', true))).toMatch(/not in this plan/i);
+  });
+
   it('refuses a loop, and says which tickets are in it', () => {
     const looped = plan();
     looped.tickets[0].depends_on = ['auction-aggregator-qa'];
@@ -218,6 +226,51 @@ describe('when a plan must not be filed at all', () => {
     const stray = plan();
     stray.tickets[1].depends_on = ['nope-not-here'];
     for (const p of [looped, stray]) expect(planProblem(p)).toContain('Nothing was filed.');
+  });
+});
+
+describe('one order for reading and for filing', () => {
+  it('is the same list the filer writes', () => {
+    // The panel rendered the composer's proposed order while the filer wrote the topological one.
+    // A set proposed out of dependency order would have been read in one order and filed in another.
+    const out = plan();
+    out.tickets.reverse();
+    expect(planFilingOrder(out).map((t) => t.slug)).toEqual(planOrder(out).map((t) => t.slug));
+    expect(planOrder(out)[0]?.slug).toBe('auction-source-research');
+  });
+
+  it('does not reshuffle the list when a line is struck', () => {
+    // A list that reorders under a founder's eyes when they strike something is a list they stop
+    // trusting. Struck lines hold their place; only the filed set shortens.
+    const before = planOrder(plan()).map((t) => t.slug);
+    const after = planOrder(strikeTicket(plan(), 'auction-feed-ingestion', true)).map((t) => t.slug);
+    expect(after).toEqual(before);
+    expect(planFilingOrder(strikeTicket(plan(), 'auction-feed-ingestion', true)).map((t) => t.slug))
+      .toEqual(before.filter((s) => s !== 'auction-feed-ingestion'));
+  });
+
+  it('still renders something when the plan loops', () => {
+    // The set is refused; the panel still has to show the founder what it refused.
+    const looped = plan();
+    looped.tickets[0].depends_on = ['auction-aggregator-qa'];
+    expect(planOrder(looped)).toHaveLength(5);
+  });
+});
+
+describe('reading a venture’s own ticket prefix', () => {
+  it('reads a hyphenated prefix, which the launch venture has', () => {
+    // THE-RESET. The first version matched letters only, so it silently fell back to the repo name
+    // — right by luck, and wrong the moment a box set a prefix of its own.
+    expect(ticketPrefixFor('the-reset', ['THE-RESET-001-onboarding.md', 'THE-RESET-002-x.md'])).toBe('THE-RESET');
+  });
+
+  it('is not confused by a date in a ticket name', () => {
+    expect(ticketPrefixFor('arca', ['ARCA-12-2024-notes.md'])).toBe('ARCA');
+  });
+
+  it('falls back to the repo when the backlog is empty', () => {
+    expect(ticketPrefixFor('the-reset', [])).toBe('THE-RESET');
+    expect(ticketPrefixFor('wealthcx01/arca', [])).toBe('ARCA');
   });
 });
 
@@ -276,6 +329,14 @@ describe('writing the real dependencies into the ticket', () => {
 describe('where the set lands', () => {
   it('is one branch for the whole plan', () => {
     expect(planBranch(plan())).toBe('foundry/plan-auction-source-research');
+  });
+
+  it('does not change its name when a line is struck', () => {
+    // It did, and the cost was a second branch and a second pull request on the retry the
+    // idempotency is written for: strike the first line, press again, get a fresh set of numbers
+    // while the first pull request still holds the originals.
+    const struck = strikeTicket(plan(), 'auction-source-research', true);
+    expect(planBranch(struck)).toBe('foundry/plan-auction-source-research');
   });
 
   it('never collides with the single-ticket filer’s branch names', () => {

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { filePlan } from '@/app/actions/file-plan';
 import {
-  effectiveDependsOn, keptTickets, orderPlan, planProblem, strikeTicket, type PlanDraft,
+  effectiveDependsOn, keptTickets, planFilingOrder, planOrder, planProblem, strikeTicket,
+  type PlanDraft,
 } from '@/lib/plan-draft';
 import { toneColor } from '@/lib/status';
 
@@ -35,7 +36,10 @@ export function PlanPanel({ plan: proposed }: { plan: PlanDraft }) {
   const [error, setError] = useState<string | null>(null);
   const [filed, setFiled] = useState<{ url?: string; message: string } | null>(null);
 
-  const { ordered } = orderPlan(plan);
+  // One order for reading and for filing, computed as though nothing were struck — so striking a
+  // line never reshuffles the list under the founder's eyes, and what they read is what lands.
+  const lines = planOrder(plan);
+  const ordered = planFilingOrder(plan);
   const problem = planProblem(plan);
   const titleOf = (slug: string) => plan.tickets.find((t) => t.slug === slug)?.title ?? slug;
 
@@ -66,7 +70,7 @@ export function PlanPanel({ plan: proposed }: { plan: PlanDraft }) {
       </p>
 
       <ol data-testid="plan-lines" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-        {plan.tickets.map((ticket) => {
+        {lines.map((ticket) => {
           const struck = ticket.struck === true;
           const deps = struck ? [] : (ordered.find((t) => t.slug === ticket.slug) ? dependencyTitles(plan, ticket.slug, titleOf) : []);
           return (
@@ -125,12 +129,19 @@ export function PlanPanel({ plan: proposed }: { plan: PlanDraft }) {
           onClick={async () => {
             setFiling(true);
             setError(null);
-            // The count is what this surface is showing right now. The action refuses a disagreement,
-            // so a strike that landed between reading and pressing cannot file a set nobody read.
-            const r = await filePlan(plan.venture_id, plan.repo, plan, keptTickets(plan).length);
-            setFiling(false);
-            if (r.ok) setFiled({ url: r.url, message: r.message });
-            else setError(r.message);
+            try {
+              const r = await filePlan(plan.venture_id, plan.repo, plan, keptTickets(plan).length);
+              if (r.ok) setFiled({ url: r.url, message: r.message });
+              else setError(r.message);
+            } catch {
+              // The action returns its refusals; anything that THROWS happened outside it — a
+              // dropped connection, a 500, a manifest that would not load. Without this the button
+              // stayed on "Filing…" for ever, disabled, with no message, and a founder had no way
+              // to tell whether their work existed. CLAUDE.md #10.
+              setError('That did not reach the studio. Nothing was filed — try pressing again.');
+            } finally {
+              setFiling(false);
+            }
           }}
         >
           {filing ? 'Filing…' : `File all ${ordered.length}`}
