@@ -78,6 +78,25 @@ function wireGitHub({ existingBranch = false }: { existingBranch?: boolean } = {
   putFile.mockResolvedValue('sha');
 }
 
+/**
+ * The state after a first press: the branch exists, the pull request is open, and the set's own
+ * tickets are on that branch and therefore in the in-flight union.
+ */
+function pressedOnce({ filed = ['ARCA-068-auction-source-research.md', 'ARCA-069-auction-feed-ingestion.md', 'ARCA-070-auction-live-view.md'] }: { filed?: string[] } = {}) {
+  const branch = 'foundry/plan-auction-source-research';
+  request.mockImplementation(async (path: string, init?: { method?: string }) => {
+    if (/^\/repos\/[^/]+\/[^/]+$/.test(path)) return { default_branch: 'main' };
+    if (path.includes('/git/ref/heads/foundry/')) return { object: { sha: 'branch-sha' } };
+    if (path.includes('/git/matching-refs/')) return [{ ref: `refs/heads/${branch}` }];
+    if (path.includes('/pulls?state=open')) return [{ html_url: 'https://github.com/wealthcx01/arca/pull/9' }];
+    return {};
+  });
+  listDir.mockImplementation(async (_r: string, _p: string, ref: string) =>
+    ref === 'main' ? BACKLOG : filed.map((name) => ({ name, type: 'file' })));
+  getFileWithSha.mockImplementation(async (_r: string, path: string) =>
+    filed.some((f) => path.endsWith(f)) ? { text: '', sha: 'old' } : null);
+}
+
 /** Every file the action wrote, as `{ path, body }`. */
 const written = () => putFile.mock.calls.map(([, path, params]) => ({ path, body: params.content, branch: params.branch }));
 const createdBranches = () =>
@@ -122,17 +141,34 @@ describe('one press, one branch, one pull request', () => {
   });
 
   it('updates the same branch and reuses the pull request when pressed twice', async () => {
-    request.mockImplementation(async (path: string, init?: { method?: string }) => {
-      if (/^\/repos\/[^/]+\/[^/]+$/.test(path)) return { default_branch: 'main' };
-      if (path.includes('/git/ref/heads/foundry/')) return { object: { sha: 'branch-sha' } };
-      if (path.includes('/git/matching-refs/')) return [];
-      if (path.includes('/pulls?state=open')) return [{ html_url: 'https://github.com/wealthcx01/arca/pull/9' }];
-      return {};
-    });
+    pressedOnce();
     const r = await filePlan('arca', 'arca', plan(), 3);
     expect(r.ok, r.message).toBe(true);
     expect(openedPulls()).toHaveLength(0);
     expect(createdBranches()).toEqual([]);
+  });
+
+  it('a second press updates the set rather than doubling it', async () => {
+    // Pressing twice is ordinary — a founder who is not sure the first press landed presses again.
+    // Without this the first press's tickets are on the branch, the union counts them, the allocator
+    // steps past them, and the branch carries every ticket twice under two sets of numbers.
+    pressedOnce();
+    await filePlan('arca', 'arca', plan(), 3);
+    expect(written().map((w) => w.path)).toEqual([
+      'docs/tickets/ARCA-068-auction-source-research.md',
+      'docs/tickets/ARCA-069-auction-feed-ingestion.md',
+      'docs/tickets/ARCA-070-auction-live-view.md',
+    ]);
+  });
+
+  it('gives a line added after the first press a fresh number, and leaves the others alone', async () => {
+    pressedOnce({ filed: ['ARCA-068-auction-source-research.md', 'ARCA-069-auction-feed-ingestion.md'] });
+    await filePlan('arca', 'arca', plan(), 3);
+    expect(written().map((w) => w.path)).toEqual([
+      'docs/tickets/ARCA-068-auction-source-research.md',
+      'docs/tickets/ARCA-069-auction-feed-ingestion.md',
+      'docs/tickets/ARCA-070-auction-live-view.md',
+    ]);
   });
 });
 

@@ -33,7 +33,7 @@ import {
   allocatePlanIds, effectiveDependsOn, keptTickets, orderPlan, planBranch, planProblem,
   ticketPrefixFor, withDependsOn, type PlanDraft,
 } from '@/lib/plan-draft';
-import { ticketPath, withTicketId } from '@/deploy/librechat/ticket-mcp/ids.mjs';
+import { existingTicketFile, ticketPath, withTicketId } from '@/deploy/librechat/ticket-mcp/ids.mjs';
 
 export interface FiledTicket {
   slug: string;
@@ -142,7 +142,27 @@ export async function filePlan(
 
     const inFlight = await ticketNamesInFlight(client, full, base);
     const prefix = ticketPrefixFor(repo, inFlight);
-    const ids = allocatePlanIds(prefix, inFlight, ordered.map((t) => t.slug));
+
+    // A second press must UPDATE this set, not double it.
+    //
+    // Pressing twice is ordinary — a founder who is not sure the first press landed presses again —
+    // and without this it was ruinous: the first press's tickets are on this branch, so the union
+    // counts them, the allocator steps past them, and the branch ends up carrying every ticket
+    // twice under two sets of numbers. The single-ticket filer has had this since FB-097; the set
+    // filer needs it for the same reason and did not have it.
+    //
+    // A ticket already here keeps the number the founder has already been told.
+    const onBranch = (await client.listDir(full, 'docs/tickets', branch)).filter((e) => e.type === 'file').map((e) => e.name);
+    const already = new Map<string, string>();
+    for (const t of ordered) {
+      const file = existingTicketFile(onBranch, t.slug);
+      const id = file?.match(new RegExp(`^(${prefix}-\\d+[a-z]?)(?:[-.]|$)`, 'i'))?.[1];
+      if (id) already.set(t.slug, id);
+    }
+
+    const fresh = allocatePlanIds(prefix, inFlight, ordered.filter((t) => !already.has(t.slug)).map((t) => t.slug));
+    let next = 0;
+    const ids = ordered.map((t) => already.get(t.slug) ?? fresh[next++]);
     const idBySlug = new Map(ordered.map((t, i) => [t.slug, ids[i]]));
 
     const filed: FiledTicket[] = [];
