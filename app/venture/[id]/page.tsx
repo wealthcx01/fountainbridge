@@ -319,6 +319,7 @@ export default async function VenturePage({
     movingTickets,
     spentMinor: comparable ? declared.reduce((n, b) => n + b.reportedMinor, 0) : null,
     limitMinor: comparable ? declared.reduce((n, b) => n + b.limitMinor, 0) : null,
+    queuedMinor: comparable ? declared.reduce((n, b) => n + b.queuedMinor, 0) : null,
     currency: comparable ? declared[0].currency : null,
     period: comparable ? declared[0].period : null,
     degraded: readFailures.length > 0,

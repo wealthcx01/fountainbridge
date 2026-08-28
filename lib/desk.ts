@@ -47,6 +47,8 @@ export interface DeskFacts extends WaitingInput {
    */
   spentMinor: number | null;
   limitMinor: number | null;
+  /** Spend proposed and awaiting this founder. Counted separately: it has not been spent. */
+  queuedMinor: number | null;
   currency: string | null;
   /** The window those figures cover, so the sentence can name it instead of assuming a month. */
   period: Period | null;
@@ -79,7 +81,17 @@ export function deskSummary(f: DeskFacts): string {
   if (f.spentMinor !== null && f.limitMinor !== null && f.currency && f.period && f.limitMinor > 0) {
     // `periodLabel` already reads "this month" / "this quarter"; only all-time needs its own words.
     const window = f.period === 'all-time' ? 'in total' : periodLabel(f.period);
-    clauses.push(`${formatMoney(f.spentMinor, f.currency)} of ${formatMoney(f.limitMinor, f.currency)} is spent ${window}`);
+    // Money awaiting the founder is named rather than left out (FB-152). Nothing has been *spent* —
+    // that is what `reportedMinor` counts and the word is accurate — but the rail totals reported
+    // and queued together, so a desk saying "£0 is spent" beside a rail reading "£5,200/£4,800" is
+    // two numbers for one budget on one screen. Both true; only saying both makes them agree.
+    //
+    // Found against production data. The e2e fixtures have committed spend, so both surfaces agreed
+    // there and no gate could see it.
+    const waiting = f.queuedMinor && f.queuedMinor > 0
+      ? `, with ${formatMoney(f.queuedMinor, f.currency)} awaiting your OK`
+      : '';
+    clauses.push(`${formatMoney(f.spentMinor, f.currency)} of ${formatMoney(f.limitMinor, f.currency)} is spent ${window}${waiting}`);
   }
 
   // Joined with a semicolon and a final "and", the way the design writes it — one sentence a founder
