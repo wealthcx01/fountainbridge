@@ -34,6 +34,25 @@ test('mobile: attention queue reachable from nav', async ({ page }) => {
   await page.screenshot({ path: `${SHOTS}/09-mobile-attention.png`, fullPage: true });
 });
 
+test('mobile: the venture shell fits the phone it is on', async ({ page }) => {
+  // FB-124 shipped a 250px rail with no phone handling: 620px of content in a 390px viewport,
+  // horizontal scrolling, and — because the rail hides the top bar — no navigation at all. Every
+  // unit test, every linter and the build were green. Only a browser at 390px could see it.
+  await testLogin(page, JOHN);
+  await page.goto('/venture/arca');
+  await expect(page.getByTestId('lane-arca')).toBeVisible();
+
+  const { scrollW, clientW } = await page.evaluate(() => ({
+    scrollW: document.documentElement.scrollWidth,
+    clientW: document.documentElement.clientWidth,
+  }));
+  expect(scrollW, `horizontal scroll: ${scrollW} > ${clientW}`).toBeLessThanOrEqual(clientW + 1);
+
+  // And there is still a way to move around. A hidden rail with no fallback is worse than no rail.
+  await expect(page.getByTestId('topnav')).toBeVisible();
+  await expect(page.getByTestId('rail')).toBeHidden();
+});
+
 test('mobile: venture board + full-width ticket drawer', async ({ page }) => {
   await testLogin(page, JOHN);
   await page.goto('/venture/arca');
@@ -54,3 +73,7 @@ test('health endpoint is public (uptime monitor path)', async ({ page }) => {
   expect(res.status()).toBe(200);
   expect((await res.json()).status).toBe('ok');
 });
+
+
+
+
