@@ -85,9 +85,11 @@ export function LaneActivity({
                 data-outcome={r.outcome ?? 'in-flight'}
                 style={{ marginBottom: '0.5rem' }}
               >
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', minWidth: 0 }}>
                   <span
                     style={{
+                      // Shrink rather than push the tag off the screen.
+                      minWidth: 0,
                       fontSize: 'var(--fs-body-sm)',
                       color: tone === 'blocked' ? toneColor('blocked') : undefined,
                       fontWeight: tone === 'blocked' ? 600 : undefined,
@@ -96,7 +98,7 @@ export function LaneActivity({
                     <span className="sr-only">{OUTCOME_LABEL[r.outcome ?? 'in-flight']}: </span>
                     {describeRun(r)}
                   </span>
-                  <span className="tag" data-testid={`run-${r.laneId}-${i}-lane`}>{r.laneId}</span>
+                  <span className="tag" style={{ flexShrink: 0 }} data-testid={`run-${r.laneId}-${i}-lane`}>{r.laneId}</span>
                 </div>
                 <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.3rem 0 0' }}>
                   {/* Rendered as the recorded ISO string rather than a relative time: a "3 hours ago"

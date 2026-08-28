@@ -32,23 +32,11 @@ export function Rail({
   departmentIds: string[];
 }) {
   return (
-    <nav
-      data-testid="rail"
-      aria-label="Venture"
-      style={{
-        width: '15.625rem',
-        flex: '0 0 15.625rem',
-        borderRight: '1px solid var(--color-border)',
-        padding: '1.6rem 1.4rem 1.4rem',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'sticky',
-        top: 0,
-        height: '100vh',
-        boxSizing: 'border-box',
-        overflowY: 'auto',
-      }}
-    >
+    // The rail's layout lives in `.rail` in globals.css, not inline. It used to be inline, and
+    // `display: flex` there beat the media query meant to hide it on a phone — so a 250px rail sat on
+    // a 393px screen, the board scrolled sideways, and no unit test could see it. An inline style is
+    // not overridable, which makes it the wrong place for anything responsive.
+    <nav className="rail" data-testid="rail" aria-label="Venture">
       <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'var(--fs-h4)', letterSpacing: '0.04em' }}>
           BRUNTSFIELD

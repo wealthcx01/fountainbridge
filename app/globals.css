@@ -154,6 +154,26 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
 .topbar-spacer { margin-left: auto; }
 .topnav { display: flex; gap: 0.25rem; align-items: center; }
 
+/* FB-124 — the persistent rail.
+ *
+ * Here rather than inline on the component, because an inline style cannot be overridden: the first
+ * version set `display: flex` inline and the phone media query below could not undo it, so a 250px
+ * rail sat on a 393px screen with no way to scroll it out of the way. Anything responsive belongs in
+ * a stylesheet. */
+.rail {
+  width: 15.625rem;
+  flex: 0 0 15.625rem;
+  box-sizing: border-box;
+  border-right: 1px solid var(--color-border);
+  padding: 1.6rem 1.4rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
 /* FB-124 — the rail IS the navigation, wherever there is one.
  *
  * The first version of this shipped the rail without taking the top bar away, so a venture screen
@@ -180,6 +200,24 @@ body:has([data-testid='rail']) .main {
   max-width: 68rem;
   margin: 0;
   padding: 2rem 2.25rem 4rem;
+}
+
+/* On a phone the rail is not navigation, it is 250px of a 390px screen.
+ *
+ * Shipped that way and it was as bad as it sounds: 620px of content in a 390px viewport, horizontal
+ * scrolling, and — because the rail hides the top bar — no navigation at all. A founder on a phone
+ * had a studio they could not move around in.
+ *
+ * Until FB-138 builds the pocket studio properly, a phone keeps the navigation that already works.
+ * This is a holding position and says so; the real answer is one column, not a hidden column. */
+@media (max-width: 60rem) {
+  [data-testid='rail'] { display: none; }
+  body:has([data-testid='rail']) .topbar { display: flex; }
+  body:has([data-testid='rail']) .main {
+    max-width: var(--content-max);
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
 }
 
 /* Eyebrow kicker */

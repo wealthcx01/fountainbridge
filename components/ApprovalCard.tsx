@@ -45,9 +45,14 @@ export function ApprovalCard({ ventureId, approval, history }: { ventureId: stri
 
   return (
     <div className="card" data-testid={`approval-${tid}`} style={{ marginBottom: '0.75rem' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
-        <strong style={{ fontSize: 'var(--fs-subhead)' }}>{approval.summary}</strong>
-        <span className="tag" data-testid={`approval-${tid}-dept`}>{approval.department ?? 'general'}</span>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', minWidth: 0 }}>
+        {/* min-width:0 so a long summary shrinks; flex-shrink:0 so the tag keeps its size and stays
+            inside. A flex item will not shrink below its content without the first, which is what
+            pushed these tags off a phone screen and made the board scroll sideways. */}
+        <strong style={{ fontSize: 'var(--fs-subhead)', minWidth: 0 }}>{approval.summary}</strong>
+        <span className="tag" style={{ flexShrink: 0 }} data-testid={`approval-${tid}-dept`}>
+          {approval.department ?? 'general'}
+        </span>
       </div>
       {/* FB-051 (narrowed): what the studio can PROVE about this approval, and what to DO about it.
           Every lane read-failure on the board carries an explicit next step; this is the highest-
