@@ -1,6 +1,6 @@
 # FB-149 — "Needs you" counts one thing in the rail and another on the desk
 
-**Status:** Todo · **Area:** Studio / attention · **Depends on:** FB-129
+**Status:** Shipped in part · **Area:** Studio / attention · **Depends on:** FB-129
 
 ## What happens
 
@@ -36,3 +36,19 @@ has nowhere to land.
 - [ ] The badge, the desk's sentence, the banner and the destination page all state the same number.
 - [ ] The destination lists external actions awaiting the gate as well as finished work.
 - [ ] A test asserts the badge and its destination's own count cannot differ.
+
+
+## Progress, 2026-08-28 — half of it, with FB-129
+
+FB-129 built the Tickets screen and pointed the rail's "Needs you" row at it, so the badge and its
+destination now count the same things: **finished work waiting on the founder**, including work with
+no ticket file. An e2e asserts they cannot differ.
+
+What is still true: the desk's summary sentence and its amber banner also count **external actions
+awaiting the gate**, and the Tickets screen does not list those. So the desk can say 8 while the rail
+and the Tickets filter say 4.
+
+What remains is therefore smaller and clearer than when this was filed: **put external actions on the
+Tickets screen**, as their own kind of row with their own decision panel (Reaches / Costs / Proven is
+already the shape they want — it was written for them). Then one count covers everything and every
+surface reads it.

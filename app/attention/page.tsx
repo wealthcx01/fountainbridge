@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadAccessibleAttention, type PrApproval } from '@/lib/attention';
+import { loadVentures } from '@/lib/ventures';
+import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { ticketsByRepo } from '@/lib/venture-tickets-index';
 import { APPROVAL_REASSURANCE } from '@/lib/glossary';
 import { prCiTone, toneColor } from '@/lib/status';
@@ -19,9 +21,23 @@ export default async function AttentionPage({
   const session = await auth();
   if (!session?.user?.email) redirect('/login');
   const { refresh } = await searchParams;
+  // FB-129: absorbed as the Tickets screen's "Needs you" filter. A founder with one venture is sent
+  // there, because that screen shows the same work AND lets them decide on it without leaving —
+  // which is the whole point of absorbing it. A bookmark must never 404 (its own acceptance
+  // criterion), so this is a redirect and not a deletion.
+  //
+  // Someone who can see more than one venture keeps this page: it is the only cross-venture view of
+  // what is waiting, and sending John to one venture's list would quietly lose the other ventures.
+  const email = session.user.email;
+  const ventures = loadVentures();
+  const access = authorizeVentures(email, ventures, parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS));
+  const mine = ventures.filter((v) => canAccessVenture(access, v.id));
+  if (mine.length === 1) redirect(`/venture/${mine[0].id}/tickets?filter=needs`);
+
   // FB-099: the queue names work the way the board does. Without the tickets it showed the lane's
   // own branch-speak — "build: bulk-daily-price-feed-plan (Foundry lane)" — for the same items the
   // board listed under their human titles, and a founder had no way to connect the two lists.
+
   const { approvals, ventureNames, errors } = await loadAccessibleAttention(session.user.email, {
     refresh: refresh === '1',
     ticketsFor: (venture) => ticketsByRepo(venture, { refresh: refresh === '1' }),

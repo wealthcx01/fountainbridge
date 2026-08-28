@@ -1,6 +1,6 @@
 # FB-129 — Tickets: master-detail, and deciding without leaving
 
-**Status:** Todo · **Area:** Studio / tickets · **Depends on:** FB-124
+**Status:** Done · **Area:** Studio / tickets · **Depends on:** FB-124
 **Design:** `docs/design/foundry-desk/` — screen 4; `screens/05-Tickets.txt` for exact copy and states.
 
 ## Why this matters (for the founder)
@@ -56,12 +56,33 @@ curl -s -o /dev/null -w "%{http_code}\n" "$BASE/attention"   # expect a redirect
 
 ## Acceptance criteria
 
-- [ ] Master-detail renders with the four filters and the live summary sentence.
-- [ ] The selected ticket and the active filter are in the URL, and a link to one restores both.
-- [ ] `/attention` redirects to the Needs-you filter; no bookmark breaks.
-- [ ] The decision panel shows Reaches / Costs / Proven and "decision N of M".
-- [ ] Approve signs the grant through the existing attested path — the approvals tests still pass unchanged.
-- [ ] Refuse requires a note and goes through `sendBackWork`; the copy reads "Sent back with your note".
-- [ ] "Next decision →" appears after a decision and points at the oldest remaining one.
-- [ ] Depends-on chips are clickable and resolve, including to tickets that are filed but unmerged (FB-120).
-- [ ] A founder can clear three decisions without navigating away once.
+- [x] Master-detail renders with the four filters and the live summary sentence.
+- [x] The selected ticket and the active filter are in the URL, and a link to one restores both.
+- [x] `/attention` redirects to the Needs-you filter; no bookmark breaks.
+- [x] The decision panel shows Reaches / Costs / Proven and "decision N of M".
+- [x] Approve signs the grant through the existing attested path — the approvals tests still pass unchanged.
+- [x] Refuse requires a note and goes through `sendBackWork`; the copy reads "Sent back with your note".
+- [x] "Next decision →" appears after a decision and points at the oldest remaining one.
+- [x] Depends-on chips are clickable and resolve, including to tickets that are filed but unmerged (FB-120).
+- [ ] A founder can clear three decisions without navigating away once. — *not proven; see
+      "the one limit worth naming" below. Needs a real venture and a write token.*
+
+
+## What shipped, and the one limit worth naming
+
+Everything in Scope, plus one thing the screen forced into the open: **finished work with no ticket
+file is a row here.** It has to be — the rail's badge counted everything waiting (4) and the first
+version of this screen counted only what happened to have a ticket (2), so the two disagreed one line
+apart in the same rail. An e2e now asserts the badge and this screen's "Needs you" filter are the
+same number.
+
+**The chaining is not proven end to end, and this is why.** `acceptWork` merges a pull request and
+needs a write token the e2e studio does not have, so pressing Approve there returns "not set up".
+The e2e drives the whole wire to that refusal — which proves the control is connected — and the
+ordering itself (oldest first, never offering back one just answered, stable on ties) is covered by
+`lib/__tests__/tickets-view.test.ts`.
+
+What is deliberately **not** done is giving the accept path a fixture. The most consequential button
+in the product must not have a test double that makes it look like it worked. Proving "a founder can
+clear three decisions without navigating away" needs a real venture with a real token — the same
+thing FB-127's last criterion waits on.

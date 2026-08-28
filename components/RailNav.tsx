@@ -15,7 +15,7 @@ import { toneColor } from '@/lib/status';
  */
 
 /** `tickets` returns with FB-129, which builds the screen. A key with no row is a dead control. */
-type NavKey = 'desk' | 'needs' | 'activity' | 'memory' | 'handbook';
+type NavKey = 'desk' | 'needs' | 'tickets' | 'activity' | 'memory' | 'handbook';
 
 /**
  * The rows, and only rows that go somewhere.
@@ -31,9 +31,19 @@ type NavKey = 'desk' | 'needs' | 'activity' | 'memory' | 'handbook';
  *
  * FB-129 adds Tickets and repoints Needs you. Until then every row here goes somewhere real.
  */
-const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; absolute?: boolean; badge?: boolean }> = [
+/**
+ * The rows, exported so a test can assert each one points at a route that exists.
+ *
+ * FB-124 shipped a Tickets row whose screen did not exist; Next prefetched the 404 on every venture
+ * page load. The guard for that has to read this list, not a copy of it.
+ */
+export const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; absolute?: boolean; badge?: boolean }> = [
   { key: 'desk', label: 'The desk', href: '' },
-  { key: 'needs', label: 'Needs you', href: '/attention', absolute: true, badge: true },
+  // FB-129: the venture's own tickets, filtered. It pointed at `/attention` — a cross-venture page
+  // that lists open work and nothing else — so the badge stated a number its destination could
+  // contradict. Now the row, the badge and the screen it opens count the same things (FB-149).
+  { key: 'needs', label: 'Needs you', href: '/tickets?filter=needs', badge: true },
+  { key: 'tickets', label: 'Tickets', href: '/tickets' },
   { key: 'activity', label: 'What happened', href: '/activity' },
   { key: 'memory', label: 'Memory', href: '/knowledge' },
   { key: 'handbook', label: 'Handbook', href: '/handbook' },
@@ -46,9 +56,9 @@ const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; absolute?: 
  * through to the desk. The desk is the empty suffix and therefore matches everything, which is why it
  * is chosen last rather than first.
  *
- * Rows outside the venture subtree (`absolute`) and rows with a query are shortcuts, not sections, and
- * never match. "Needs you" is one: it leaves `/venture/[id]` for `/attention` today, and becomes a
- * filter on Tickets with FB-129. Either way the section a founder is *in* is never "Needs you".
+ * Rows outside the venture subtree (`absolute`) and rows with a query are shortcuts, not sections,
+ * and never match. "Needs you" is one: since FB-129 it is a *filter* on Tickets, so the section a
+ * founder is in when they follow it is Tickets — which is what the row below it marks.
  */
 export function activeKey(pathname: string, base: string): NavKey {
   const rest = pathname.startsWith(base) ? pathname.slice(base.length) : '';
