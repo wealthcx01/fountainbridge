@@ -1,6 +1,16 @@
 # FB-126 — Per-ticket composer threads, server-side (gap G4)
 
-**Status:** Todo · **Area:** Composer / venture repo · **Depends on:** —
+**Status:** Shipped in part · **Area:** Composer / venture repo · **Depends on:** —
+
+**Shipped in part.** The contract, the store and the two server actions are done and tested: a
+thread lives on `foundry-state`, survives the tab, is scoped server-side, and refuses every way of
+reaching another venture's conversation.
+
+**Not built:** the file-revision action, the one-way migration of an existing `localStorage`
+transcript, and wiring `components/Composer.tsx` to read and write threads instead of the browser.
+All three are coupled to the surface that calls them, which is **FB-131** (the composer rails) — and
+building a revision action with nothing rendering it is the "shipping something nobody has seen work"
+failure that cost FB-119 three attempts. Same judgement as FB-125's adapters, for the same reason.
 **Design:** `docs/design/foundry-desk/` — screen 5, the `ctxOn` rail: "The ticket under discussion".
 **Gap:** G4. Studio plus venture repo.
 
@@ -27,9 +37,17 @@ conversation as its source."* That sentence is only true with this built.
 
 ## Scope
 
-- **Threads on the server, keyed by ticket**, in the venture repo's `context/` per D8. A thread is
-  readable by the agents that plan from it, which is the point: the composer already reads what the
-  venture knows before drafting.
+- **Threads on the server, keyed by ticket**, on the venture repo's `foundry-state` ref.
+
+  **Not `context/`, and the first draft of this ticket was wrong to say so.** `context/` is *reviewed*
+  content: the deposit tool writes it on a branch and opens a pull request a human merges, which is
+  right for a durable fact and absurd for a live transcript — a pull request per message. What a
+  thread actually is is machine-written venture state that the studio and the lanes both read, and
+  `foundry-state` is already exactly that: `approvals/`, `prps/` and `runreports/` all live there,
+  written directly, no review. Threads join them under `threads/`.
+
+  D8 is unaffected. It governs `context/` and `library/`, which is durable background and artifacts —
+  a transcript is neither until a founder decides it is, and that decision is a deposit.
 - **A file-revision action.** Agreed changes update the ticket on its own branch and record the thread
   as the source, so FB-125's trail can cite it (`read it →` on the "filed by you" hop).
 - **Migration from localStorage is one-way and lossy, and must say so.** A founder's existing local
@@ -88,13 +106,18 @@ On the ARCA box, before review — the FB-119 rule, since this touches the compo
 
 ## Acceptance criteria
 
-- [ ] A composer thread opened about a ticket survives a browser close and a different machine.
-- [ ] Threads live in the venture repo under `context/`, per D8, and are readable by the venture's agents.
-- [ ] A revision filed from a thread lands on the ticket's own branch and records the thread as its source.
-- [ ] FB-125's trail can cite the conversation on the ticket's "filed" hop.
+- [x] A composer thread opened about a ticket survives a browser close and a different machine.
+- [x] Threads live on the venture repo's `foundry-state` ref under `threads/<repo>/<id>.json`,
+      beside `approvals/`, `prps/` and `runreports/` — readable by the venture's agents, written
+      without a pull request. **Not `context/`**; see Scope for why the first draft was wrong.
+- [ ] A revision filed from a thread lands on the ticket's own branch and records the thread as its
+      source. **With FB-131.**
+- [ ] FB-125's trail can cite the conversation on the ticket's "filed" hop. **With FB-130.**
 - [ ] An existing localStorage transcript is offered for migration in plain words, once, and never
-      moved without a press.
-- [ ] Nothing files without an explicit press, asserted by a test.
-- [ ] A session scoped to one venture cannot read another venture's threads, asserted by a test.
-- [ ] Driven end to end on the ARCA box before the PR is opened.
+      moved without a press. **With FB-131**, which owns the surface that would offer it.
+- [x] Appending to a thread files nothing — no pull request, no ticket change, no lane instruction.
+      Asserted by a test on the write paths, not by a comment.
+- [x] A session scoped to one venture cannot read another venture's threads, and a repo the venture
+      does not declare is refused. Both asserted.
+- [ ] Driven end to end on the ARCA box. **With FB-131**, when there is a surface to drive.
 - [ ] `schema/Thread.schema.json` exists, the type is mirrored from it, and a test holds the two in lock-step — before anything is built against it.
