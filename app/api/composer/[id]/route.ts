@@ -53,7 +53,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // one well-known test switch, never on the variable alone. This surface reaches a founder's real
   // venture engine, so a stray environment variable must not be able to substitute a script for it.
   if (process.env.COMPOSER_FIXTURE && process.env.E2E_TEST_LOGIN === '1') {
-    return new Response(readFileSync(process.env.COMPOSER_FIXTURE, 'utf8'), {
+    // FB-127: two scripts, not one. The plan surface and the single-ticket surface are different
+    // decisions with different controls, and a fixture that can only say one thing can only ever
+    // exercise one of them. Chosen by what was asked, exactly as the real composer would choose.
+    const asked = ((await req.json().catch(() => null)) as Body | null)?.messages?.at(-1)?.content ?? '';
+    const script = /break .{0,40}\binto tickets\b|\bas a plan\b/i.test(asked)
+      ? process.env.COMPOSER_FIXTURE.replace(/[^/]+$/, 'plan.sse')
+      : process.env.COMPOSER_FIXTURE;
+    return new Response(readFileSync(script, 'utf8'), {
       headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' },
     });
   }

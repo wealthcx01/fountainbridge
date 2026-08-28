@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "PlanTicketDraft": {
+      "additionalProperties": false,
+      "description": "One ticket in a proposed set, before anything is filed.\n\nIt has no id. Ids belong to the backlog and only the filer can see the backlog, so a draft is\nidentified by its slug — which is also what its filename becomes. Dependencies inside a plan are\ntherefore slugs too: ``ARCA-075`` does not exist yet and writing it into a draft would be writing\ndown a guess.",
+      "properties": {
+        "body": {
+          "description": "The full ticket markdown, in the house format. Filed verbatim apart from two lines the\nfiler owns: the id in the heading, and the ``Depends on`` line, which cannot be written\nuntil the ids exist.",
+          "minLength": 1,
+          "title": "Body",
+          "type": "string"
+        },
+        "depends_on": {
+          "description": "Slugs of other tickets in THIS plan that must land first. Slugs, never ids: nothing in\na draft has an id. Must be acyclic and must name tickets present in the same plan.",
+          "items": { "$ref": "#/$defs/PlanSlug" },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "slug": { "$ref": "#/$defs/PlanSlug" },
+        "source": {
+          "description": "Where in the founder's document this came from — a section heading, a page, a quoted\nline. A founder must be able to check that the machine did not invent a requirement, and\nthat check is impossible if the ticket cannot say where it came from.",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "struck": {
+          "default": false,
+          "description": "The founder struck this line. A struck ticket is not filed, and every dependency on it\nis spliced out of the rest of the set rather than left pointing at nothing.",
+          "title": "Struck",
+          "type": "boolean"
+        },
+        "title": {
+          "description": "The ticket title, and its line in the plan.",
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": ["slug", "title", "body", "depends_on", "source"],
+      "title": "PlanTicketDraft",
+      "type": "object"
+    },
+    "PlanSlug": {
+      "description": "A lowercase-kebab name, the same shape the ticket filer already accepts. Bounded and\npunctuation-free because it becomes a path and a git branch.",
+      "maxLength": 61,
+      "minLength": 2,
+      "pattern": "^[a-z0-9][a-z0-9-]{1,60}$",
+      "title": "PlanSlug",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A set of tickets proposed from one document, before a founder has agreed to any of it\n(fountainbridge FB-127, gap G5).\n\nA founder arrives with a PRD, a deck, a page of notes, and watches it become N draft tickets in\ndependency order — smallest shippable first, each line struck or kept, filed as one set on one\npress. Today they would file one ticket, then another, describing the same document from memory\neach time.\n\n**Nothing here is filed.** A plan draft is inert: it opens no branch, writes no file and reserves\nno id. It becomes work only when a founder presses once, and that press is the only thing in the\nsystem that turns a plan into tickets. That is why the shape carries no ids — an id is evidence a\nbacklog was written to, and a draft has written to nothing.\n\nFiled as ONE branch, ONE pull request and N ticket files. The set is one decision and lands as one,\nwhich is also what lets the ids allocate correctly in a single pass (FB-117) and at the backlog's\nown width (FB-118).",
+  "properties": {
+    "created_at": {
+      "description": "When the plan was proposed, ISO-8601.",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "repo": {
+      "description": "The venture repository the set would be filed into. Named in the draft rather than\nchosen at filing time, so the tickets a founder read are the tickets that land, in the\nplace they were told.",
+      "minLength": 1,
+      "title": "Repo",
+      "type": "string"
+    },
+    "source_title": {
+      "description": "The founder's document, by the name they know it by.",
+      "minLength": 1,
+      "title": "Source Title",
+      "type": "string"
+    },
+    "tickets": {
+      "description": "The proposed set. Order here is the order proposed; the filed order is recomputed from\nthe dependency graph, because a proposal's order is a suggestion and a dependency is not.",
+      "items": { "$ref": "#/$defs/PlanTicketDraft" },
+      "minItems": 1,
+      "title": "Tickets",
+      "type": "array"
+    },
+    "venture_id": {
+      "description": "The venture, from its manifest.",
+      "minLength": 1,
+      "title": "Venture Id",
+      "type": "string"
+    }
+  },
+  "required": ["venture_id", "repo", "source_title", "tickets", "created_at"],
+  "title": "PlanDraft",
+  "type": "object"
+}

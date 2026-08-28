@@ -19,10 +19,8 @@
  * ticket, and tells no lane to do anything.
  */
 
-import { auth } from '@/auth';
-import { loadVentures } from '@/lib/ventures';
-import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { GitHubClient } from '@/lib/github';
+import { requireVentureRepo } from '@/lib/venture-access';
 import { fullRepoName } from '@/lib/venture-repos';
 import {
   THREADS_REF,
@@ -41,33 +39,13 @@ export interface ThreadResult {
   thread?: Thread;
 }
 
-/**
- * Everything both entry points must check before touching a venture's state.
- *
- * Returned rather than thrown so each caller decides how to speak about a refusal. Venture isolation
- * is the load-bearing part (CLAUDE.md #6): a session scoped to one venture must never reach another's
- * conversations, and that is enforced here, server-side, not by the surface that calls it.
- */
+/** Everything both entry points must check before touching a venture's state. */
 async function guard(ventureId: string, repo: string, ticketId: string) {
   if (!isSafeTicketId(ticketId)) return { error: 'That is not a ticket.' as const };
-
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) return { error: 'You need to sign in.' as const };
-
-  const admins = parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS);
-  const ventures = loadVentures();
-  const access = authorizeVentures(email, ventures, admins);
-  const venture = ventures.find((v) => v.id === ventureId);
-  if (!venture || !canAccessVenture(access, ventureId)) {
-    return { error: 'You do not have access to this venture.' as const };
-  }
-  // Never take the client's word for the repository. A thread written into a repo nobody scoped this
-  // founder to would be a founder's own words in someone else's venture.
-  if (!(venture.repos ?? []).includes(repo)) {
-    return { error: 'That work is not in one of this venture’s repositories.' as const };
-  }
-  return { venture, email };
+  // Sign-in, venture scope, and the repo actually belonging to this venture — shared with the plan
+  // filer (FB-127) rather than written twice, because the second copy is the one that drifts.
+  const access = await requireVentureRepo(ventureId, repo);
+  return access.ok ? { venture: access.venture, email: access.email } : { error: access.error };
 }
 
 /** The thread for a ticket, or an empty one. Never null: a conversation nobody has started is a real state. */
