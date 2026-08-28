@@ -50,6 +50,13 @@ export const DEFAULT_ID_WIDTH = 3;
  * not ours. **The most common width wins**, ties going to the wider — deterministic, so a mixed
  * backlog does not depend on which file happens to sort first, and biased towards padding because
  * padding is the direction that keeps sorting intact.
+ *
+ * The considered alternative was "match the highest-numbered ticket", which reads the newest
+ * convention rather than the commonest. It is better for a venture MIGRATING to padding and worse
+ * for the case in front of us: ARCA's highest tickets are the two-digit ones the composer filed, so
+ * that rule would have kept writing the narrow ids this exists to stop. A backlog that has genuinely
+ * changed convention outvotes its own history soon enough; one stray narrow file at the top never
+ * does. Live correctness beat the hypothetical.
  */
 export function idWidth(prefix, filenames) {
   const counts = new Map();
@@ -106,8 +113,15 @@ export function nextTicketId(prefix, filenames) {
  */
 export function mustRenumber(id, ourSlug, filenames) {
   const mine = `${id}-${ourSlug}.md`.toLowerCase();
-  const prefix = `${id.toLowerCase()}-`;
-  const sharing = filenames.map((n) => n.toLowerCase()).filter((n) => n.startsWith(prefix));
+  // By NUMBER, not by the id as written (FB-118). Once ids can be padded, `ARCA-74` and `ARCA-074`
+  // are the same ticket number in two spellings, and a string-prefix comparison sees two different
+  // ones — so both filings would keep number 74 and neither would ever know. That is the duplicate
+  // this function exists to catch, wearing a different width.
+  const prefix = id.replace(/-\d+[a-z]?$/, '');
+  const number = idNumber(`${id}.md`, prefix);
+  const sharing = filenames
+    .filter((n) => number !== null && idNumber(n, prefix) === number)
+    .map((n) => n.toLowerCase());
   // Our own file is in the union by construction — we just wrote it — but not if that listing came
   // back short. Assume ourselves present rather than read a partial list as "no clash".
   if (!sharing.includes(mine)) sharing.push(mine);

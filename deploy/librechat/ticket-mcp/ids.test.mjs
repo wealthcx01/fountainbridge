@@ -203,6 +203,22 @@ describe('deciding who gives up a shared number', () => {
     expect(mustRenumber('ARCA-68', 'mine', ['ARCA-680-something-else.md'])).toBe(null);
   });
 
+  it('sees the same number written at two widths as one collision (FB-118)', () => {
+    // A box still running the pre-FB-118 filer allocates ARCA-74 while the studio allocates
+    // ARCA-074 off the same backlog. Compared as strings these are two different tickets and both
+    // sides keep the number — the FB-117 duplicate, silently, in a new coat.
+    // Exactly one side still moves, and the sort happens to move the right one: a leading zero
+    // sorts before a digit, so the ticket written at the backlog's own width is the one that keeps
+    // the number.
+    const mixed = ['ARCA-74-theirs.md', 'ARCA-074-ours.md'];
+    expect(mustRenumber('ARCA-074', 'ours', mixed)).toBe(null);
+    expect(mustRenumber('ARCA-74', 'theirs', mixed)).toBe('arca-074-ours.md');
+  });
+
+  it('still tells ARCA-680 apart from ARCA-68 when both are padded', () => {
+    expect(mustRenumber('ARCA-068', 'mine', ['ARCA-680-something-else.md'])).toBe(null);
+  });
+
   it('holds the number when nobody else has it', () => {
     expect(mustRenumber('ARCA-69', 'mine', ['ARCA-68-other.md'])).toBe(null);
   });
