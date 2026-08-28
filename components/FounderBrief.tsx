@@ -13,7 +13,16 @@ import { toneColor } from '@/lib/status';
  * FB-104 made every sentence a way in rather than a report. A summary that states a number a founder
  * then has to go and find is a summary that costs them a search — so the number is the link.
  */
-export function FounderBrief({ brief }: { brief: Brief }) {
+export function FounderBrief({
+  brief,
+  /**
+   * FB-128: the desk states the count in its own serif sentence and again in the amber banner, with
+   * the breakdown the headline used to carry. A third block saying the same number a third way is
+   * not emphasis, it is noise on the one screen a founder leaves open — so the desk asks for the
+   * lines without the headline. Every other caller still gets both.
+   */
+  headline = true,
+}: { brief: Brief; headline?: boolean }) {
   return (
     <section
       className="card"
@@ -23,12 +32,14 @@ export function FounderBrief({ brief }: { brief: Brief }) {
       aria-label="Where this venture stands"
     >
       <p className="eyebrow" style={{ marginBottom: '0.4rem' }}>Where things stand</p>
-      <p
-        data-testid="brief-headline"
-        style={{ fontSize: 'var(--fs-subhead)', fontWeight: 600, margin: '0 0 0.6rem', maxWidth: 'var(--content-narrow)' }}
-      >
-        <Expanded href={brief.headlineHref}>{brief.headline}</Expanded>
-      </p>
+      {headline ? (
+        <p
+          data-testid="brief-headline"
+          style={{ fontSize: 'var(--fs-subhead)', fontWeight: 600, margin: '0 0 0.6rem', maxWidth: 'var(--content-narrow)' }}
+        >
+          <Expanded href={brief.headlineHref}>{brief.headline}</Expanded>
+        </p>
+      ) : null}
       <ul data-testid="brief-lines" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {brief.lines.map((line, i) => (
           <li

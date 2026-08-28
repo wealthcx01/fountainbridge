@@ -43,7 +43,18 @@ import { GitHubClient } from './github';
  * render nothing.
  */
 export interface RailData {
-  /** How much finished work is waiting on this founder — the one number the badge shows. */
+  /**
+   * How much finished work is waiting on this founder — the one number the badge shows.
+   *
+   * **Open work only, deliberately.** The desk's summary and its amber banner count external actions
+   * awaiting the gate as well, because the desk shows both. This badge's row goes to `/attention`,
+   * which lists open work and nothing else — so counting more here would put a badge saying 8 over a
+   * page whose own count says 4. That is the FB-099 badge/destination mismatch, one level up, and
+   * introducing it while closing it below would be a poor trade.
+   *
+   * Unifying the two is FB-149, and it belongs with FB-129, where "Needs you" stops being a link to
+   * a cross-venture page and becomes a filter that can show both kinds.
+   */
   needsYou: number;
   /** Per-department budgets. `null` where a department declares no envelope; the rail says so. */
   budgets: (BudgetDisclosure | null)[];

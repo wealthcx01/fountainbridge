@@ -7,6 +7,7 @@ import Link from 'next/link';
 import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import type { PrApproval } from '@/lib/attention';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { STATUS_LABEL, TEAM_INTRO, TEAM_TITLE } from '@/lib/glossary';
 import { ago } from '@/lib/when';
@@ -17,6 +18,11 @@ import { isUnnumbered } from '@/lib/ticket-ids';
 import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
+import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
+import { OfficePlate } from './OfficePlate';
+import { WaitingQueue } from './WaitingQueue';
+import { PromptBar } from './PromptBar';
+import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
 import { LaneActivity } from './LaneActivity';
 import { WhileWorking } from './WhileWorking';
 import type { Brief } from '@/lib/brief';
@@ -106,6 +112,9 @@ export function VentureBoard({
   budgets = [],
   budgetsError = null,
   brief = null,
+  summary = null,
+  blocker = null,
+  degraded = [],
   runs = [],
   runsTotal = 0,
   engine = null,
@@ -115,6 +124,7 @@ export function VentureBoard({
   fetchedAt,
   org,
   openWork = {},
+  openWorkQueue = [],
   filedRefs = {},
   unmatchedWork = {},
   viewerIsFounder = false,
@@ -131,8 +141,16 @@ export function VentureBoard({
   /** The ActiveGraph story per approval, keyed `repo/id` (FB-071). Narrated server-side. */
   histories?: Record<string, ApprovalHistory>;
   budgets?: (BudgetDisclosure | null)[];
+  /** Finished work waiting to be read, newest-waiting first — the desk's section 7 (FB-128). */
+  openWorkQueue?: PrApproval[];
   /** The venture in a paragraph (FB-042) — composed server-side so the ordering has one owner. */
   brief?: Brief | null;
+  /** The desk's one sentence (FB-128). Composed server-side from the same count the banner uses. */
+  summary?: string | null;
+  /** The amber banner's line, or null when nothing waits. Never assembled here — see `lib/desk.ts`. */
+  blocker?: string | null;
+  /** What could not be read, grouped by cause (FB-128). Empty when every read succeeded. */
+  degraded?: DegradedGroup[];
   /** What the agent lanes did, newest first (FB-042). */
   runs?: RunReport[];
   runsTotal?: number;
@@ -266,14 +284,25 @@ export function VentureBoard({
 
       {/* FB-103: the one introduction of the one name. Every panel below this line says "your team"
           and none of them explains itself — which only works if the name is introduced above the
-          first thing that uses it, and the brief (immediately below) is that first thing. */}
+          first thing that uses it. */}
       <p className="muted" data-testid="team-intro" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '-0.35rem' }}>
         <strong>{TEAM_TITLE}</strong> — {TEAM_INTRO}
       </p>
 
-      {/* FB-042: the brief goes FIRST. Everything below it is a dashboard, and a dashboard shows you
-          what exists without telling you what to do about it. */}
-      {brief ? <FounderBrief brief={brief} /> : null}
+      {/* ---- 1. The sentence (FB-128) ------------------------------------------------------------
+          Where things stand, in one line, before anything else. Composed server-side from the same
+          count the banner and the rail's badge read, so the three cannot disagree. */}
+      {summary ? <DeskSummary sentence={summary} /> : null}
+
+      {/* ---- 2. The blocker banner --------------------------------------------------------------
+          The founder named as the blocker, in those words. "3 items awaiting review" is a status;
+          this is the same fact addressed to the one person who can end it. */}
+      <BlockerBanner line={blocker} href={`/venture/${venture.id}#waiting-on-you`} />
+
+      {/* FB-042: the brief's own lines — the specifics behind the sentence, each a way in. Kept
+          because they link: a summary that states a number a founder then has to go and find is a
+          summary that costs them a search. */}
+      {brief ? <FounderBrief brief={brief} headline={false} /> : null}
 
       {/* FB-087. The composer was broken in production for weeks and the only way anyone could find
           out was a founder pressing the button and getting an error. This is the same fact, told to
@@ -285,6 +314,16 @@ export function VentureBoard({
         </p>
       ) : null}
 
+      {/* ---- 3. What could not be read ----------------------------------------------------------
+          BELOW the banner and the brief, deliberately. It reports a condition that clears on its
+          own, and a thing that fixes itself must never sit above a thing that does not. */}
+      <DegradedStrip groups={degraded} ventureId={venture.id} />
+
+      {/* ---- 4. The prompt bar -------------------------------------------------------------------
+          The most important thing a founder does, started from the screen they leave open rather
+          than from behind a link. It files nothing: it carries the words to the composer, whose own
+          gate is still the only thing that turns them into work. */}
+      <PromptBar ventureId={venture.id} ventureName={venture.name} />
       {/* Conversational composer entry (FB-025 → in-studio FB-065 → out to the box FB-086 → home
           again FB-102). The full story, because this button has now moved three times and the next
           person deserves the dates: FB-065 put it in-studio (no founder should leave for a
@@ -296,14 +335,16 @@ export function VentureBoard({
           the product (John hit exactly that). FB-086 said "the board is one line away from
           pointing back"; FB-102 is that line. The box's chat stays available below as the
           secondary surface, for whoever wants the full LibreChat screen. */}
-      <Link
-        className="btn btn-primary"
-        href={`/venture/${venture.id}/composer`}
-        data-testid="venture-composer-link"
-        style={{ marginTop: '0.25rem' }}
-      >
-        Tell the studio what you want
-      </Link>
+      {/* FB-128: no longer a primary button. The prompt bar directly above IS this door, with the
+          founder's first sentence already in it — two controls one line apart, both reading "tell
+          the studio what you want", is the doubled navigation FB-124 shipped in a different coat.
+          The link stays because the composer is a place as well as a box, and because
+          `venture-composer-link` is how the board is known to reach it. */}
+      <p style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
+        <Link href={`/venture/${venture.id}/composer`} data-testid="venture-composer-link">
+          Open the whole conversation
+        </Link>
+      </p>
       {/* FB-106: the corpus a founder has been building and could not see. Beside the composer,
           because the composer is where most of it went in. */}
       <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
@@ -331,7 +372,22 @@ export function VentureBoard({
           </a>
         </p>
       ) : null}
+      {/* ---- 5. The office ----------------------------------------------------------------------
+          A placeholder until the venture box reports agent state (FB-139), and it says so. A frozen
+          last-known scene would read as a team sitting still. */}
+      <OfficePlate />
 
+      {/* ---- 6. What the engine did -------------------------------------------------------------- */}
+      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} /> : null}
+      {/* ---- 7. Waiting on you -------------------------------------------------------------------
+          Where "Decide now →" lands, so it has to hold the work the banner just counted. The
+          external-approval cards alone were not that: on a venture whose waiting items are all open
+          pull requests — the common case — the anchor sat above three empty sections and a founder
+          was scrolled past the office to nothing. */}
+      <section id="waiting-on-you" data-testid="waiting-on-you" style={{ marginTop: '1.5rem' }}>
+        <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Waiting on you</p>
+        <WaitingQueue work={openWorkQueue} ventureId={venture.id} />
+      </section>
       {/* FB-046: external actions awaiting the founder's OK (the ActiveGraph gate). The founder
           approves here — never on github.com; Approve signs the grant the executor verifies. */}
       {pendingApprovals.length > 0 ? (
@@ -360,10 +416,8 @@ export function VentureBoard({
           ))}
         </div>
       ) : null}
-
-      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} /> : null}
-
-      {/* The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
+      {/* ---- 8. The company, by surface ----------------------------------------------------------
+          The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately. */}
       {departments.length > 0 ? (
         <div data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
@@ -420,6 +474,21 @@ export function VentureBoard({
                     {queueOf(d.repo)}
                   </p>
                 ) : null}
+                {/* FB-128: what this surface has actually produced — the only place a founder learns
+                    whether any of it worked. Sourced or silent (docs/decision-surface-outcomes.md):
+                    Build's line is true today, Sell has no reporting until FB-142 and says so, and
+                    Scale is not connected and says that too. No zero standing in for an unknown. */}
+                <p
+                  data-testid={`dept-${d.id}-outcome`}
+                  style={{ fontSize: 'var(--fs-body-sm)', margin: '0.35rem 0 0' }}
+                >
+                  {surfaceOutcome({
+                    departmentId: d.id,
+                    ticketCount: lanes.find((l) => l.repo === d.repo)?.total ?? 0,
+                    hasLaunch: Boolean(d.launch),
+                    provisioned: d.provisioned,
+                  })}
+                </p>
                 {/* One string owner: `describe` returns a whole sentence, so the view adds no
                     prefix of its own — "Budget no budget set" came from gluing a word onto a
                     fragment. The sentence names whose figure it is, so no glyph or sr-only twin is
