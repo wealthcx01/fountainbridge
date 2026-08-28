@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { nextTicketId, idNumber, existingTicketFile, mustRenumber, withTicketId, ticketPath, isUnnumbered } from './ids.mjs';
+import {
+  nextTicketId,
+  idNumber,
+  idWidth,
+  formatTicketId,
+  DEFAULT_ID_WIDTH,
+  existingTicketFile,
+  mustRenumber,
+  withTicketId,
+  ticketPath,
+  isUnnumbered,
+} from './ids.mjs';
 
 // ARCA's real backlog shapes, including the four the walkthrough met all called ARCA-NEW.
 const backlog = [
@@ -22,19 +33,67 @@ describe('allocating the next real id', () => {
   });
 
   it('ignores the -NEW files it exists to replace', () => {
-    // Reading one as a number would be reading the bug as data.
-    expect(nextTicketId('ARCA', ['ARCA-NEW-a.md', 'ARCA-NEW-b.md'])).toBe('ARCA-1');
+    // Reading one as a number would be reading the bug as data. Nothing numbered is left, so the
+    // default width applies.
+    expect(nextTicketId('ARCA', ['ARCA-NEW-a.md', 'ARCA-NEW-b.md'])).toBe('ARCA-001');
   });
 
   it('starts at 1 for a venture with nothing filed', () => {
-    expect(nextTicketId('SELL', [])).toBe('SELL-1');
-    expect(nextTicketId('SELL', backlog)).toBe('SELL-1'); // another venture's ids are not ours
+    expect(nextTicketId('SELL', [])).toBe('SELL-001');
+    expect(nextTicketId('SELL', backlog)).toBe('SELL-001'); // another venture's ids are not ours
   });
 
   it('reads a number only from its own prefix', () => {
     expect(idNumber('ARCA-12-x.md', 'ARCA')).toBe(12);
     expect(idNumber('SELL-99-x.md', 'ARCA')).toBeNull();
     expect(idNumber('README.md', 'ARCA')).toBeNull();
+  });
+});
+
+describe('writing an id at the width the backlog already uses (FB-118)', () => {
+  // ARCA-001 through ARCA-067 were filed by hand; ARCA-68 and ARCA-73 by the composer. So the backlog
+  // read in two formats, and which one a ticket had depended on nothing a founder could see.
+  const arca = ['ARCA-001-terminal-setup.md', 'ARCA-066-e2e-smoke-in-ci.md', 'ARCA-067-api-key-in-source.md'];
+
+  it('joins a padded backlog padded', () => {
+    expect(nextTicketId('ARCA', arca)).toBe('ARCA-068');
+  });
+
+  it('joins an unpadded backlog unpadded', () => {
+    // Not our convention to impose. A venture that writes ARCA-7 keeps writing ARCA-7.
+    expect(nextTicketId('ARCA', ['ARCA-7-x.md', 'ARCA-8-y.md'])).toBe('ARCA-9');
+  });
+
+  it('picks a mixed backlog deterministically rather than by whichever file sorts first', () => {
+    // The real ARCA shape after the dogfood run: mostly three digits, a couple of two.
+    const mixed = [...arca, 'ARCA-68-auction-source-research.md', 'ARCA-73-auction-feed.md'];
+    expect(idWidth('ARCA', mixed)).toBe(3);
+    expect(nextTicketId('ARCA', mixed)).toBe('ARCA-074');
+  });
+
+  it('breaks a tie towards the wider, because padding is the direction that keeps sorting intact', () => {
+    expect(idWidth('ARCA', ['ARCA-7-a.md', 'ARCA-008-b.md'])).toBe(3);
+  });
+
+  it('gives a venture with nothing filed the house default', () => {
+    expect(idWidth('SELL', [])).toBe(DEFAULT_ID_WIDTH);
+    expect(DEFAULT_ID_WIDTH).toBe(3);
+  });
+
+  it('rolls past the width rather than truncating to it', () => {
+    // ARCA-099 + 1 is ARCA-100, not ARCA-0100 and not ARCA-00.
+    expect(nextTicketId('ARCA', ['ARCA-098-x.md', 'ARCA-099-y.md'])).toBe('ARCA-100');
+    expect(formatTicketId('ARCA', 1234, 3)).toBe('ARCA-1234');
+  });
+
+  it('reads width only from its own prefix', () => {
+    expect(idWidth('SELL', arca)).toBe(DEFAULT_ID_WIDTH);
+  });
+
+  it('is not confused by a prefix carrying regex punctuation', () => {
+    // Venture prefixes come from a repo name; nothing stops one containing a dot.
+    expect(idNumber('A.B-012-x.md', 'A.B')).toBe(12);
+    expect(idNumber('AXB-012-x.md', 'A.B')).toBeNull();
   });
 });
 

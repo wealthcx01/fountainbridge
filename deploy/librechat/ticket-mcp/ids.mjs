@@ -17,10 +17,54 @@
  * so nothing in it can be tested. The allocation is the part with the edge cases.
  */
 
+/** The digits a filename carries for this prefix, as written — `ARCA-007-x.md` → `"007"`. */
+function idDigits(filename, prefix) {
+  const m = filename.match(new RegExp(`^${escapeRe(prefix)}-(\\d+)(?:[-.]|$)`, 'i'));
+  return m ? m[1] : null;
+}
+
 /** `ARCA-12-price-history.md` / `ARCA-12.md` → 12, for this prefix only. */
 export function idNumber(filename, prefix) {
-  const m = filename.match(new RegExp(`^${prefix}-(\\d+)(?:[-.]|$)`, 'i'));
-  return m ? Number(m[1]) : null;
+  const digits = idDigits(filename, prefix);
+  return digits === null ? null : Number(digits);
+}
+
+/**
+ * The width a venture gets when it has no ticket of its own to copy.
+ *
+ * Three, because that is what every venture repo in the portfolio already writes by hand — the first
+ * ticket the composer files should look like the ones a person would have written after it, not
+ * establish a second convention that the next hundred have to match.
+ */
+export const DEFAULT_ID_WIDTH = 3;
+
+/**
+ * How wide this venture writes its ticket numbers (FB-118).
+ *
+ * Every ticket ARCA has is three digits; every ticket the composer filed was two. So the backlog read
+ * in two formats, and which one a ticket had depended on nothing a founder could see — whether a
+ * person or the machine created it. That is a visible seam in the one artifact meant to make those
+ * two indistinguishable, and `ls docs/tickets/` sorts the narrow ones wrong.
+ *
+ * The width is read from the backlog rather than fixed, because it is the venture's convention and
+ * not ours. **The most common width wins**, ties going to the wider — deterministic, so a mixed
+ * backlog does not depend on which file happens to sort first, and biased towards padding because
+ * padding is the direction that keeps sorting intact.
+ */
+export function idWidth(prefix, filenames) {
+  const counts = new Map();
+  for (const name of filenames) {
+    const digits = idDigits(name, prefix);
+    if (digits === null) continue;
+    counts.set(digits.length, (counts.get(digits.length) ?? 0) + 1);
+  }
+  if (counts.size === 0) return DEFAULT_ID_WIDTH;
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
+}
+
+/** An id, rendered at the backlog's width. Never truncates: `ARCA-099` + 1 is `ARCA-100`. */
+export function formatTicketId(prefix, n, width) {
+  return `${prefix}-${String(n).padStart(width, '0')}`;
 }
 
 /**
@@ -35,7 +79,7 @@ export function nextTicketId(prefix, filenames) {
     const n = idNumber(name, prefix);
     return n !== null && n > max ? n : max;
   }, 0);
-  return `${prefix}-${highest + 1}`;
+  return formatTicketId(prefix, highest + 1, idWidth(prefix, filenames));
 }
 
 /**

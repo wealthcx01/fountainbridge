@@ -1,6 +1,6 @@
 # FB-118 — Filed ticket ids don't match the width of the backlog they join
 
-**Status:** Todo · **Area:** Composer / ticket-filer · **Depends on:** FB-117
+**Status:** Done · **Area:** Composer / ticket-filer · **Depends on:** FB-117
 
 ## What happens
 
