@@ -117,10 +117,16 @@ export function mustRenumber(id, ourSlug, filenames) {
   // are the same ticket number in two spellings, and a string-prefix comparison sees two different
   // ones — so both filings would keep number 74 and neither would ever know. That is the duplicate
   // this function exists to catch, wearing a different width.
-  const prefix = id.replace(/-\d+[a-z]?$/, '');
-  const number = idNumber(`${id}.md`, prefix);
+  //
+  // Only for an id that is a prefix and digits, though (FB-147). `ARCA-68a` and `ARCA-NEW` are ids
+  // this codebase still recognises elsewhere, and neither parses as a number — so the first version
+  // of this returned "no clash" for them, which is not a smaller answer than the old one, it is the
+  // wrong one. They keep the comparison they had.
+  const plain = id.match(/^(.+)-(\d+)$/);
   const sharing = filenames
-    .filter((n) => number !== null && idNumber(n, prefix) === number)
+    .filter((n) => (plain
+      ? idNumber(n, plain[1]) === Number(plain[2])
+      : n.toLowerCase().startsWith(`${id.toLowerCase()}-`)))
     .map((n) => n.toLowerCase());
   // Our own file is in the union by construction — we just wrote it — but not if that listing came
   // back short. Assume ourselves present rather than read a partial list as "no clash".
