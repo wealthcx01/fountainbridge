@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { activeKey } from '../../components/RailNav';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { NAV as RAIL_NAV, activeKey } from '../../components/RailNav';
 
 /**
  * The rail (FB-124).
@@ -40,17 +42,33 @@ describe('which rail row is the current screen', () => {
 
 describe('a shortcut is not a section', () => {
   it('never marks Needs you, which leaves the venture subtree entirely', () => {
-    // "Needs you" points at /attention today — a real screen that works, and the one FB-129 will
-    // absorb. It is a shortcut, not a section, so no venture route may highlight it.
-    for (const p of ['/venture/arca', '/venture/arca/activity', '/venture/arca/knowledge', '/attention']) {
+    // "Needs you" is a filter on Tickets since FB-129 — a shortcut, not a section — so no venture
+    // route may highlight it. Following it highlights Tickets, which is the section it lands in.
+    for (const p of ['/venture/arca', '/venture/arca/activity', '/venture/arca/knowledge', '/venture/arca/tickets']) {
       expect(activeKey(p, '/venture/arca'), p).not.toBe('needs');
     }
   });
 
   it('every row goes somewhere that exists today', () => {
-    // The defect this locks out: the first rail listed Tickets, whose screen is FB-129 and does not
-    // exist. The link 404'd, and Next's prefetch fired that 404 on every venture page load before a
-    // founder clicked anything. design-lint did not catch it because it only sees buttons.
-    expect(activeKey('/venture/arca/tickets', '/venture/arca')).toBe('desk');
+    // The defect this locks out: the first rail listed Tickets, whose screen did not exist. The link
+    // 404'd, and Next's prefetch fired that 404 on every venture page load before a founder clicked
+    // anything. design-lint did not catch it because it only sees buttons.
+    //
+    // It used to assert `activeKey('/venture/arca/tickets') === 'desk'` — that the row was absent.
+    // FB-129 built the screen, so that claim is now false and its REASON is satisfied. Asserting the
+    // route file exists is the check that would have caught the original defect and goes on
+    // catching the next one, which a hard-coded expectation never could.
+    const root = join(__dirname, '..', '..');
+    for (const row of RAIL_NAV) {
+      if (row.href === '' || row.absolute) continue;
+      const route = row.href.split('?')[0];
+      expect(existsSync(join(root, 'app', 'venture', '[id]', route, 'page.tsx')), `rail row "${row.label}" → ${route}`).toBe(true);
+    }
+  });
+
+  it('marks Tickets as the section a founder is in when they follow "Needs you"', () => {
+    // "Needs you" is a filter on Tickets since FB-129, so following it lands them IN Tickets. A rail
+    // that highlighted nothing there would tell a founder they were nowhere.
+    expect(activeKey('/venture/arca/tickets', '/venture/arca')).toBe('tickets');
   });
 });

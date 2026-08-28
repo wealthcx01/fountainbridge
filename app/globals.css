@@ -210,6 +210,22 @@ body:has([data-testid='rail']) .main {
  *
  * Until FB-138 builds the pocket studio properly, a phone keeps the navigation that already works.
  * This is a holding position and says so; the real answer is one column, not a hidden column. */
+/* FB-129: the tickets screen — list beside detail, stacking on a narrow screen.
+   In the stylesheet rather than inline, because a media query cannot override an inline style:
+   FB-124 shipped a 250px rail on a 393px phone for exactly that reason and it took four
+   diagnostics to find. Anything responsive lives here. */
+.tickets-split {
+  display: grid;
+  grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 60rem) {
+  .tickets-split { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (max-width: 60rem) {
   [data-testid='rail'] { display: none; }
   body:has([data-testid='rail']) .topbar { display: flex; }

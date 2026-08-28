@@ -52,11 +52,33 @@ test('open PR moves its ticket to pr-open in the venture board (status inference
 });
 
 test('a founder sees only their own ventures in the queue', async ({ page }) => {
+  // FB-129 absorbed this page into the Tickets screen's "Needs you" filter, so a founder with one
+  // venture is redirected there — the same work, on a screen where they can also decide about it.
+  // The isolation this test exists for is asserted on wherever they land, not on the old route.
   await testLogin(page, 'ross@bruntsfield.capital'); // the-reset only; its repos have no PR fixtures
   await page.goto('/attention');
-  await expect(page.getByTestId('attention-empty')).toBeVisible();
-  // arca's PRs (John's fixture) must NOT leak into Ross's queue.
-  await expect(page.getByTestId('approval-arca#10')).toHaveCount(0);
+  await page.waitForURL(/\/venture\/the-reset\/tickets\?filter=needs/);
+
+  await expect(page.getByTestId('tickets-view')).toBeVisible();
+  // arca's work (John's fixture) must NOT leak into Ross's screen, whichever screen it is.
+  const body = (await page.locator('body').textContent()) ?? '';
+  expect(body).not.toContain('ARCA-');
+  await expect(page.getByTestId('tickets-list-empty')).toBeVisible();
+});
+
+test('a bookmark of the old queue never 404s', async ({ page }) => {
+  // Its own acceptance criterion: absorbed, not deleted.
+  await testLogin(page, 'ross@bruntsfield.capital');
+  const res = await page.goto('/attention');
+  expect(res?.status()).toBeLessThan(400);
+});
+
+test('someone who can see several ventures keeps the cross-venture queue', async ({ page }) => {
+  // Sending John to one venture's list would quietly lose the others. This page is the only place
+  // that answers "what is waiting on me, anywhere".
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/attention');
+  await expect(page.getByTestId('attention-count')).toBeVisible();
 });
 
 test('the queue says what the checks mean, not CI UNKNOWN', async ({ page }) => {
