@@ -47,8 +47,8 @@ export function PlanPanel({ plan: proposed }: { plan: PlanDraft }) {
         <p style={{ margin: 0 }}>{filed.message}</p>
         {filed.url ? (
           <p style={{ margin: '0.5rem 0 0', fontSize: 'var(--fs-body-sm)' }}>
-            <a href={filed.url} target="_blank" rel="noreferrer">Read the set on GitHub</a> — nothing is
-            built until it is merged.
+            <a href={filed.url} target="_blank" rel="noreferrer">Read exactly what was filed</a> — nothing
+            is built until you accept it.
           </p>
         ) : null}
       </div>
@@ -136,7 +136,7 @@ export function PlanPanel({ plan: proposed }: { plan: PlanDraft }) {
           {filing ? 'Filing…' : `File all ${ordered.length}`}
         </button>
         <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>
-          One branch, one pull request. Nothing is built until you press it.
+          They file together, as one piece of work. Nothing is built until you press it.
         </span>
       </div>
     </div>

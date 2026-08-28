@@ -204,7 +204,7 @@ export async function filePlan(
       `/repos/${full}/pulls?state=open&head=${encodeURIComponent(`${org}:${branch}`)}`,
     );
     if (Array.isArray(open) && open.length) {
-      return { ok: true, message: `Updated all ${filed.length} tickets on the one pull request.`, url: open[0].html_url, filed };
+      return { ok: true, message: `Updated all ${filed.length} tickets. They are still one piece of work.`, url: open[0].html_url, filed };
     }
 
     const pr = await client.request<{ html_url: string }>(`/repos/${full}/pulls`, {
@@ -224,7 +224,14 @@ export async function filePlan(
     if (e instanceof GitHubError && e.status === 403) {
       return { ok: false, message: 'The studio is not allowed to write to this venture’s backlog. An admin needs to widen its access.' };
     }
-    return { ok: false, message: `Something went wrong filing that plan. Check the branch \`${branch}\` before pressing again.` };
+    // Safe to press again: a ticket already filed keeps its number, so a second press finishes the
+    // set rather than doubling it. Said plainly, because the alternative is a founder who does not
+    // know whether their work exists.
+    return {
+      ok: false,
+      message: 'Something went wrong partway through filing that set. Some of it may already be filed — '
+        + 'pressing again will finish it rather than file anything twice.',
+    };
   }
 }
 

@@ -323,10 +323,15 @@ describe('who may file into a venture’s backlog', () => {
 });
 
 describe('when it goes wrong', () => {
-  it('never reports a half-filed set as filed, and says where to look', async () => {
+  it('never reports a half-filed set as filed, and says what to do about it', async () => {
+    // A founder whose set half-filed must not be told it filed, and must not be left guessing
+    // whether pressing again would double it. The branch name goes to the log, where someone who
+    // can act on it will look — it is not a sentence a founder can do anything with.
     putFile.mockRejectedValueOnce(new Error('boom'));
     const r = await filePlan('arca', 'arca', plan(), 3);
     expect(r.ok).toBe(false);
-    expect(r.message).toContain('foundry/plan-auction-source-research');
+    expect(r.message).toMatch(/may already be filed/i);
+    expect(r.message).toMatch(/pressing again/i);
+    expect(r.message).not.toMatch(/branch|foundry\//i);
   });
 });
