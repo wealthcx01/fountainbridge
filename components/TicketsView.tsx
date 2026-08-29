@@ -14,7 +14,7 @@ import { TicketTrail } from './TicketTrail';
 import type { Trail } from '@/lib/trail';
 import {
   FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition, filterTickets,
-  nextDecision, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
+  nextDecision, resolveSelected, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
 } from '@/lib/tickets-view';
 
 /**
@@ -81,14 +81,9 @@ export function TicketsView({
   const shown = useMemo(() => filterTickets(rows, filter), [rows, filter]);
   const order = useMemo(() => decisionOrder(rows), [rows]);
 
-  // Addressed by repo AND id. `lib/tickets-view.ts` says two repos in one venture may share an id
-  // namespace, and the page keys its own maps that way for exactly that reason — dropping the repo
-  // here made the second `FB-001` unreachable, highlighted both rows at once, and let approving one
-  // mark the other decided.
-  const selected = shown.find((r) => rowKey(r) === selectedId)
-    ?? rows.find((r) => rowKey(r) === selectedId)
-    ?? shown.find((r) => r.id === selectedId)          // a link written before repos were in the key
-    ?? shown[0] ?? null;
+  // Resolved by the server and passed down already keyed. Both sides used to resolve it, with
+  // different fallbacks, so the history loaded for one ticket could render under another's heading.
+  const selected = resolveSelected(rows, shown, selectedId);
   const position = selected ? decisionPosition(order, rowKey(selected)) : null;
   const next = nextDecision(order, decided);
 

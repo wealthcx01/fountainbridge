@@ -65,6 +65,29 @@ export interface TicketRow {
 }
 
 /**
+ * The row a URL is asking for, resolved ONCE.
+ *
+ * Server and client both need it — the server to load that ticket's history, the client to render
+ * it — and they resolved it separately, with different fallbacks. So landing on `/tickets` with no
+ * `?t=` (which is what the rail's own Tickets row does) rendered a full ticket with **no trail at
+ * all**, and a legacy bare-id link could render one ticket's history under another's heading. On the
+ * one surface whose claim is that nothing shown can disagree with what ran.
+ *
+ * Falls back to the first row of the current filter, which is what the screen shows anyway.
+ */
+export function resolveSelected(rows: TicketRow[], shown: TicketRow[], t: string | null): TicketRow | null {
+  if (t) {
+    const byKey = rows.find((r) => rowKey(r) === t);
+    if (byKey) return byKey;
+    // A link written before repositories were part of the key. Resolved against the whole list, not
+    // the filtered one, so following an old link never silently lands on a different ticket.
+    const byId = rows.find((r) => r.id === t);
+    if (byId) return byId;
+  }
+  return shown[0] ?? null;
+}
+
+/**
  * How a row is addressed — by repository AND id.
  *
  * Two repositories in one venture may share an id namespace, so an id alone is not a name. Used for

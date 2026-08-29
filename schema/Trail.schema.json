@@ -1,12 +1,13 @@
 {
   "$defs": {
     "TrailSource": {
-      "description": "Which record a hop came from.\n\nKept on every hop because the trail's whole claim is that it agrees with what ran. A reader who\ncannot tell which system said a thing cannot check it, and a trail nobody can check is a\nnarrative rather than a record.",
+      "description": "Which record a hop came from.\n\n``composer`` is the founder's own conversation — the first hop, and the only one whose subject is\nthem rather than their team (fountainbridge FB-130).\n\nKept on every hop because the trail's whole claim is that it agrees with what ran. A reader who\ncannot tell which system said a thing cannot check it, and a trail nobody can check is a\nnarrative rather than a record.",
       "enum": [
         "activegraph",
         "run",
         "repo",
-        "preview"
+        "preview",
+        "composer"
       ],
       "title": "TrailSource",
       "type": "string"

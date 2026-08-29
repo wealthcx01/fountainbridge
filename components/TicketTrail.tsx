@@ -39,11 +39,14 @@ export function TicketTrail({ trail }: { trail: Trail }) {
     <section data-testid="ticket-trail" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
       <p className="eyebrow" style={{ marginTop: 0 }}>Follow the change</p>
 
-      {trail.hops.length === 0 ? (
+      {/* Only when the studio actually READ a history and found none. A degraded trail rendered both
+          this and the warning below it, so a ticket with a full approval history was told "nothing
+          has happened to this one yet" directly above "part of this history could not be read". */}
+      {trail.hops.length === 0 && !trail.degraded ? (
         <p className="muted" data-testid="trail-empty" style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
           Nothing has happened to this one yet. Every step your team takes will be written down here.
         </p>
-      ) : (
+      ) : trail.hops.length === 0 ? null : (
         <ol data-testid="trail-hops" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {trail.hops.map((hop, i) => (
             <li

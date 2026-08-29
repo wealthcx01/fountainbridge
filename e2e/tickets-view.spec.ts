@@ -56,6 +56,9 @@ test.describe('tickets', () => {
 
   test('a ticket waiting on the founder can be decided right there', async ({ page }) => {
     await page.getByTestId('tickets-filter-needs').click();
+    // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
+    // list re-renders — clicking straight after could land on the previous filter's DOM.
+    await expect(page).toHaveURL(/filter=needs/);
     await page.getByTestId('tickets-list').locator('li button').first().click();
 
     const decision = page.getByTestId('detail-decision');
@@ -70,6 +73,9 @@ test.describe('tickets', () => {
 
   test('refusing requires a note, because a send-back with no reason is a lane guessing', async ({ page }) => {
     await page.getByTestId('tickets-filter-needs').click();
+    // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
+    // list re-renders — clicking straight after could land on the previous filter's DOM.
+    await expect(page).toHaveURL(/filter=needs/);
     await page.getByTestId('tickets-list').locator('li button').first().click();
     await page.getByTestId('detail-refuse').click();
 
@@ -92,6 +98,9 @@ test.describe('tickets', () => {
     // worked. The chaining itself — oldest first, never offering back one just answered — is
     // covered in `lib/__tests__/tickets-view.test.ts`, and the honest limit is recorded on FB-129.
     await page.getByTestId('tickets-filter-needs').click();
+    // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
+    // list re-renders — clicking straight after could land on the previous filter's DOM.
+    await expect(page).toHaveURL(/filter=needs/);
     await page.getByTestId('tickets-list').locator('li button').first().click();
 
     await page.getByTestId('detail-approve').click();

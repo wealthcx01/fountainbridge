@@ -315,6 +315,15 @@ describe('the conversation a ticket came out of (FB-130)', () => {
   const withThread = (thread: { at: string; kept: boolean } | null) =>
     buildTrail(inputs({ thread }));
 
+  it('is on-contract, like every other source', () => {
+    // The union gained `composer` and the vendored schema did not, so every real trail carrying the
+    // new first hop was off-contract (CLAUDE.md #7) — and the lock-step test passed only because
+    // none of these validated their output.
+    const t = withThread({ at: '2026-08-22T09:00:00.000Z', kept: true });
+    expect(validate(t), JSON.stringify(validate.errors)).toBe(true);
+    expect(t.hops[0].source).toBe('composer');
+  });
+
   it('starts at the founder’s own words', () => {
     // The trail exists so a founder can follow their words to something running, so it has to start
     // at the words.
