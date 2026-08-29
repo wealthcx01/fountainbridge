@@ -8,7 +8,14 @@ import { ticketsByRepoFrom } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { TicketsView } from '@/components/TicketsView';
-import { parseFilter, type TicketRow } from '@/lib/tickets-view';
+import { filterTickets, parseFilter, resolveSelected, rowKey, type TicketRow } from '@/lib/tickets-view';
+import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { loadRunReports, type RunReport } from '@/lib/runreports';
+import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
+import { GitHubClient } from '@/lib/github';
+import { trailSources } from '@/lib/trail-sources';
+import { loadTrail } from '@/lib/trail-load';
+import type { Trail } from '@/lib/trail';
 
 /**
  * Tickets (FB-129) — the list, the ticket, and the decision, on one screen.
@@ -141,13 +148,66 @@ export default async function TicketsPage({
 
   const refs = new Map(inferred.map((lane) => [lane.repo, lane.ref]));
 
+  // FB-130: the trail, for the SELECTED ticket only.
+  //
+  // One ticket, not seventy-seven — the trail's read budget (FB-125) is a function of that ticket's
+  // own events, and building one per row would turn a bounded cost into a per-backlog one.
+  //
+  // **The honest cost, since the first version of this comment understated it.** Two of these reads
+  // are new to this page and are a function of the VENTURE, not the ticket: `loadApprovals` walks
+  // every approval the venture has and is not cached at all, and `loadRunReports` is bounded but not
+  // free. Both re-run on every ticket click, because selecting a ticket is a server navigation.
+  // ETags make that cheap in quota and not in latency. Indexing approvals by ticket is FB-154.
+  //
+  // Skipped entirely for a row that has no ticket file: nothing here can match a `repo#number` id,
+  // so it would render "nothing has happened to this one yet" beside an open pull request the same
+  // screen shows waiting, with an age and a check state.
+  const activeFilter = parseFilter(filter);
+  const selected = resolveSelected(rows, filterTickets(rows, activeFilter), typeof t === 'string' ? t : null);
+  let trail: Trail | null = null;
+  if (selected && selected.item) {
+    const testRig = process.env.E2E_TEST_LOGIN === '1';
+    const [approvals, runs] = await Promise.all([
+      loadApprovals(
+        venture,
+        process.env.APPROVALS_FIXTURE_DIR && testRig
+          ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
+          : githubApprovalSource(new GitHubClient()),
+      ).catch((): ActiveGraphApproval[] => []),
+      loadRunReports(
+        venture,
+        process.env.RUNREPORTS_FIXTURE_DIR && testRig
+          ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
+          : githubRunReportSource(new GitHubClient()),
+        // The default 20 is the DESK's render limit. A trail asks a different question — everything
+        // that ever touched this ticket — and under 20 a ticket older than the venture's twenty most
+        // recent runs showed no run hops at all, with `degraded: false`. A short trail and an
+        // unreadable one looking identical is the one thing this surface must never do.
+        200,
+      ).then((r) => r.reports).catch((): RunReport[] => []),
+    ]);
+    trail = await loadTrail(venture, selected.repo, selected.id, trailSources(venture, {
+      approvals,
+      // Only this ticket's runs. `loadTrail` filters again; doing it here keeps the array it holds
+      // small rather than passing the venture's whole history through the join.
+      runs: runs.filter((r) => !r.isHeartbeat && r.repo === selected.repo && r.ticketsTouched.includes(selected.id)),
+      work: attention.approvals,
+      filedPrNumbers: Object.fromEntries(
+        [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => [`${repo} ${f.ticket.id}`, f.prNumber] as const)),
+      ),
+    }));
+  }
+
   return (
     <TicketsView
       ventureId={venture.id}
       ventureName={venture.name}
       rows={rows}
-      filter={parseFilter(filter)}
-      selectedId={typeof t === 'string' ? t : null}
+      filter={activeFilter}
+      // The RESOLVED key, not the raw query. The client used to resolve it again with different
+      // fallbacks, so the trail loaded here could belong to a different ticket than the one rendered.
+      selectedId={selected ? rowKey(selected) : null}
+      trail={trail}
       refs={Object.fromEntries(refs)}
       filedBranches={Object.fromEntries(filedBranch)}
       org={process.env.GITHUB_ORG ?? 'wealthcx01'}

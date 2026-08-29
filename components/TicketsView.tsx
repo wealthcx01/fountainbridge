@@ -10,9 +10,11 @@ import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/li
 import { toneColor } from '@/lib/status';
 import { howLongMs } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
+import { TicketTrail } from './TicketTrail';
+import type { Trail } from '@/lib/trail';
 import {
   FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition, filterTickets,
-  nextDecision, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
+  nextDecision, resolveSelected, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
 } from '@/lib/tickets-view';
 
 /**
@@ -40,6 +42,7 @@ export function TicketsView({
   rows,
   filter,
   selectedId,
+  trail = null,
   refs,
   filedBranches = {},
   org,
@@ -50,6 +53,14 @@ export function TicketsView({
   rows: TicketRow[];
   filter: TicketFilter;
   selectedId: string | null;
+  /**
+   * The selected ticket's history (FB-130), loaded server-side for that one ticket.
+   *
+   * Null when nothing is selected, or when the studio holds no signing secret and therefore cannot
+   * say whether anything verifies — which is a different thing from a ticket with no history, and
+   * the renderer is not asked to guess between them.
+   */
+  trail?: Trail | null;
   /** Each repo's default ref, so the "written down" link points at the branch the file is on. */
   refs: Record<string, string>;
   /**
@@ -70,14 +81,9 @@ export function TicketsView({
   const shown = useMemo(() => filterTickets(rows, filter), [rows, filter]);
   const order = useMemo(() => decisionOrder(rows), [rows]);
 
-  // Addressed by repo AND id. `lib/tickets-view.ts` says two repos in one venture may share an id
-  // namespace, and the page keys its own maps that way for exactly that reason — dropping the repo
-  // here made the second `FB-001` unreachable, highlighted both rows at once, and let approving one
-  // mark the other decided.
-  const selected = shown.find((r) => rowKey(r) === selectedId)
-    ?? rows.find((r) => rowKey(r) === selectedId)
-    ?? shown.find((r) => r.id === selectedId)          // a link written before repos were in the key
-    ?? shown[0] ?? null;
+  // Resolved by the server and passed down already keyed. Both sides used to resolve it, with
+  // different fallbacks, so the history loaded for one ticket could render under another's heading.
+  const selected = resolveSelected(rows, shown, selectedId);
   const position = selected ? decisionPosition(order, rowKey(selected)) : null;
   const next = nextDecision(order, decided);
 
@@ -185,6 +191,7 @@ export function TicketsView({
               // `FB-001` in another, and linking across would open the wrong ticket.
               knownIds={new Set(rows.filter((r) => r.repo === selected.repo).map((r) => r.id))}
               onSelectId={(id) => go(filter, `${selected.repo}/${id}`)}
+              trail={trail}
               outcome={outcome?.id === rowKey(selected) ? outcome : null}
               next={next && rowKey(next) !== rowKey(selected) ? next : null}
               onDecided={(kind, message) => {
@@ -205,9 +212,10 @@ export function TicketsView({
 }
 
 function Detail({
-  row, ventureId, org, gitRef, position, knownIds, onSelectId, outcome, next, onDecided, onNext,
+  row, ventureId, org, gitRef, position, knownIds, onSelectId, trail, outcome, next, onDecided, onNext,
 }: {
   row: TicketRow;
+  trail: Trail | null;
   ventureId: string;
   org: string;
   gitRef: string;
@@ -416,6 +424,9 @@ function Detail({
           </p>
         </div>
       ) : null}
+
+      {/* Last, per the design: a founder decides on the work, and then follows where it went. */}
+      {trail ? <TicketTrail trail={trail} /> : null}
     </article>
   );
 }

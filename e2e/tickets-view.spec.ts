@@ -56,6 +56,9 @@ test.describe('tickets', () => {
 
   test('a ticket waiting on the founder can be decided right there', async ({ page }) => {
     await page.getByTestId('tickets-filter-needs').click();
+    // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
+    // list re-renders — clicking straight after could land on the previous filter's DOM.
+    await expect(page).toHaveURL(/filter=needs/);
     await page.getByTestId('tickets-list').locator('li button').first().click();
 
     const decision = page.getByTestId('detail-decision');
@@ -70,6 +73,9 @@ test.describe('tickets', () => {
 
   test('refusing requires a note, because a send-back with no reason is a lane guessing', async ({ page }) => {
     await page.getByTestId('tickets-filter-needs').click();
+    // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
+    // list re-renders — clicking straight after could land on the previous filter's DOM.
+    await expect(page).toHaveURL(/filter=needs/);
     await page.getByTestId('tickets-list').locator('li button').first().click();
     await page.getByTestId('detail-refuse').click();
 
@@ -92,6 +98,9 @@ test.describe('tickets', () => {
     // worked. The chaining itself — oldest first, never offering back one just answered — is
     // covered in `lib/__tests__/tickets-view.test.ts`, and the honest limit is recorded on FB-129.
     await page.getByTestId('tickets-filter-needs').click();
+    // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
+    // list re-renders — clicking straight after could land on the previous filter's DOM.
+    await expect(page).toHaveURL(/filter=needs/);
     await page.getByTestId('tickets-list').locator('li button').first().click();
 
     await page.getByTestId('detail-approve').click();
@@ -122,6 +131,68 @@ test.describe('tickets', () => {
     const shown = (await badge.count()) ? ((await badge.textContent()) ?? '').trim() : '0';
     const filter = ((await page.getByTestId('tickets-filter-needs').textContent()) ?? '').match(/(\d+)/)?.[1] ?? '0';
     expect(filter).toBe(shown);
+  });
+
+  test('the trail renders in time order and closes with its claim', async ({ page }) => {
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-1');
+    const trail = page.getByTestId('ticket-trail');
+    await expect(trail).toBeVisible();
+    await expect(page.getByTestId('trail-claim')).toContainText('nothing shown can disagree with what ran');
+
+    const hops = page.getByTestId('trail-hop');
+    if ((await hops.count()) === 0) {
+      // A trail with nothing in it says so; it is never an empty box or an error.
+      await expect(page.getByTestId('trail-empty')).toBeVisible();
+      return;
+    }
+    // Oldest first. The dates are rendered, so the order is checkable on the page rather than
+    // trusted from the join.
+    const order = await hops.evaluateAll((els) => els.map((e) => e.getAttribute('data-at') ?? ''));
+    expect(order).toEqual([...order].sort());
+  });
+
+  test('every link in the trail goes somewhere, and says which way it goes', async ({ page }) => {
+    // The claim the whole studio rests on is only true while no dead link renders. Asserted on the
+    // page rather than trusted from `buildTrail`, because the page is what a founder presses.
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-1');
+    const links = page.getByTestId('ticket-trail').locator('a');
+    for (let i = 0; i < (await links.count()); i++) {
+      const href = await links.nth(i).getAttribute('href');
+      const text = ((await links.nth(i).textContent()) ?? '').trim();
+      expect(href, text).toBeTruthy();
+      // → stays in the studio, ↗ leaves it. A founder learns this once, on this screen.
+      if (href!.startsWith('/')) expect(text, href!).toContain('→');
+      else {
+        expect(href, text).toMatch(/^https?:\/\//);
+        expect(text, href!).toContain('↗');
+      }
+    }
+  });
+
+  test('a one-entry trail is a trail with one entry', async ({ page }) => {
+    // Not an error, not an empty box. ARCA-6 has exactly one thing that has happened to it.
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-6');
+    await expect(page.getByTestId('trail-hop')).toHaveCount(1);
+    await expect(page.getByTestId('trail-empty')).toHaveCount(0);
+    await expect(page.getByTestId('trail-claim')).toBeVisible();
+  });
+
+  test('no hop reads as though a word were missing', async ({ page }) => {
+    // "Work started on " — the attention queue does not carry a branch name, so the trail printed a
+    // preposition with nothing after it, on the one surface whose claim is that it cannot be wrong.
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-1');
+    const texts = await page.getByTestId('trail-hop').allTextContents();
+    for (const t of texts) expect(t.replace(/\s+/g, ' ').trim(), t).not.toMatch(/\b(on|by|from|to)\s*·/);
+  });
+
+  test('an unverified step says so, in words a founder can act on', async ({ page }) => {
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-1');
+    const unverified = page.getByTestId('ticket-trail').locator('[data-verified="false"]');
+    if ((await unverified.count()) === 0) test.skip();
+    // Neither hidden nor shown as verified — and it names who to tell, which is the part a founder
+    // can do something with.
+    await expect(unverified.first()).toContainText('signature does not check out');
+    await expect(unverified.first()).toContainText('Bruntsfield');
   });
 
   test('it fits a phone, and the ticket is reachable there', async ({ page }) => {

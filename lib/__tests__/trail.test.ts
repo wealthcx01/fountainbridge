@@ -228,6 +228,9 @@ describe('the read budget', () => {
       },
       async events(_repo: string, id: string) { reads.push(`events:${id}`); return []; },
       async preview() { reads.push('preview'); return null; },
+      // FB-130: one read for the conversation this ticket came out of, and it is counted here for
+      // the same reason as the others — the budget is per ticket, never per venture.
+      async thread() { reads.push('thread'); return null; },
     };
     // `ventureApprovals` is deliberately unused by the sources: it is the number that must not appear
     // in the read count, and naming it here is the point of the test.
@@ -262,5 +265,93 @@ describe('the read budget', () => {
     expect(t.degraded).toBe(true);
     // The run that touched this ticket is still there: one source failing must not empty the history.
     expect(t.hops.length).toBeGreaterThan(0);
+  });
+});
+
+describe('a hop never reads as though a word were missing (FB-130)', () => {
+  const pr = (branch: string) => ({
+    number: 10, url: 'https://github.com/o/r/pull/10', branch,
+    createdAt: '2026-08-22T10:00:00.000Z', merged: false,
+  });
+
+  it('names the branch when a source carried one', () => {
+    const t = buildTrail(inputs({ pr: pr('arca-1-terminal-setup') }));
+    expect(t.hops[0].text).toBe('Work started on arca-1-terminal-setup');
+  });
+
+  it('does not write "Work started on " when no source carried a branch', () => {
+    // It did. The attention queue does not carry `headRefName`, so the trail printed a preposition
+    // with nothing after it — on the one surface whose whole claim is that nothing on it can be
+    // wrong about what ran.
+    const t = buildTrail(inputs({ pr: pr('') }));
+    expect(t.hops[0].text).toBe('Work started');
+    expect(t.hops[0].text).not.toMatch(/ on\s*$/);
+  });
+
+  it('leaves the branch out of a commit summary rather than trailing it', () => {
+    const t = buildTrail(inputs({
+      pr: { ...pr(''), commits: { count: 2, additions: 30, deletions: 4 } },
+    }));
+    expect(t.hops[0].text).toBe('2 commits, +30 −4');
+  });
+});
+
+describe('a trail with one entry is a trail with one entry (FB-130)', () => {
+  it('renders as one hop, not as an error and not as empty', () => {
+    const t = buildTrail(inputs({ preview: { url: 'https://preview.example', at: '2026-08-22T12:20:00.000Z' } }));
+    expect(t.hops).toHaveLength(1);
+    expect(t.degraded).toBe(false);
+  });
+
+  it('is told apart from a history that could not be read', () => {
+    // A short trail and an unreadable one look identical, and one of them is a lie.
+    const unreadable = buildTrail(inputs({ degraded: true }));
+    expect(unreadable.hops).toHaveLength(0);
+    expect(unreadable.degraded).toBe(true);
+  });
+});
+
+describe('the conversation a ticket came out of (FB-130)', () => {
+  const withThread = (thread: { at: string; kept: boolean } | null) =>
+    buildTrail(inputs({ thread }));
+
+  it('is on-contract, like every other source', () => {
+    // The union gained `composer` and the vendored schema did not, so every real trail carrying the
+    // new first hop was off-contract (CLAUDE.md #7) — and the lock-step test passed only because
+    // none of these validated their output.
+    const t = withThread({ at: '2026-08-22T09:00:00.000Z', kept: true });
+    expect(validate(t), JSON.stringify(validate.errors)).toBe(true);
+    expect(t.hops[0].source).toBe('composer');
+  });
+
+  it('starts at the founder’s own words', () => {
+    // The trail exists so a founder can follow their words to something running, so it has to start
+    // at the words.
+    const t = withThread({ at: '2026-08-22T09:00:00.000Z', kept: true });
+    expect(t.hops[0].source).toBe('composer');
+    expect(t.hops[0].text).toContain('this conversation is its source');
+  });
+
+  it('stays in the studio, so the design renders it →', () => {
+    const t = withThread({ at: '2026-08-22T09:00:00.000Z', kept: true });
+    expect(t.hops[0].link?.external).toBe(false);
+    expect(t.hops[0].link?.href).toMatch(/^\/venture\//);
+  });
+
+  it('says the transcript was not kept rather than linking nowhere', () => {
+    // Transcripts lived in localStorage until FB-126, so a ticket filed before then has a
+    // conversation that genuinely no longer exists. A link to it would be the dead link the whole
+    // trail forbids.
+    const t = withThread({ at: '2026-08-22T09:00:00.000Z', kept: false });
+    expect(t.hops[0].text).toContain('not kept');
+    expect(t.hops[0].link ?? null).toBeNull();
+  });
+
+  it('adds no hop at all when there was no conversation', () => {
+    expect(withThread(null).hops.some((h) => h.source === 'composer')).toBe(false);
+  });
+
+  it('is undateable-safe, like every other source', () => {
+    expect(withThread({ at: 'not a date', kept: true }).hops.some((h) => h.source === 'composer')).toBe(false);
   });
 });
