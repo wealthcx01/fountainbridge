@@ -120,6 +120,27 @@ export interface ActiveGraphApproval {
    * nothing renders is the same defect this ticket condemns about `compliance.recipient`.
    */
   provenance: { text: string; nextStep: string } | null;
+  /**
+   * Who approved it, ONLY when the attestation verifies (FB-132).
+   *
+   * Null for anything unattested, because a name from an unverified grant is a name anyone holding a
+   * copy could have written. The record says "someone" rather than accusing or crediting a person
+   * on evidence it cannot check.
+   *
+   * It exists because the history said "**You** approved" to whoever was reading, and under D7 the
+   * approver is often not the reader — Bruntsfield approves platform changes on a founder's venture.
+   * A founder read their own name on a decision they never made, on the one page whose thesis is
+   * that the record is trustworthy.
+   */
+  approver: string | null;
+  /**
+   * When the studio recorded the grant, only when attested (FB-132).
+   *
+   * Distinct from `committedAt`, which prefers the grant's time and falls back to the execution's.
+   * The record needs both separately: an approval and a send are two things that happened, and
+   * stamping the first with the second's clock files a Monday decision under Thursday.
+   */
+  grantedAt: string | null;
 }
 
 /** Reads the raw JSON files of one approval; returns null for a missing file. Injectable for tests. */
@@ -281,6 +302,8 @@ async function loadApprovalsForRepo(
       committedAt: committedAtOf(grantR?.json ?? null, execR?.json ?? null),
       budget: null,
       grantProvenance: grant.provenance,
+      approver: grant.approver,
+      grantedAt: grant.grantedAt,
       provenance: describeProvenance(grant),
       outcome: (execR?.json as { reason?: string } | null)?.reason
         ?? (execR?.json as { result?: { note?: string } } | null)?.result?.note

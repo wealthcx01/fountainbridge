@@ -24,8 +24,8 @@ import type { ActivityEvent } from './health';
 import type { RunReport } from './runreports';
 import type { ActiveGraphApproval } from './approvals';
 import { describeRun } from './runreports';
-import { classifyActivity, dedupeActivity, MEANING_LABEL } from './activity-kind';
-import type { Tone } from './status';
+import { classifyActivity, MEANING_LABEL } from './activity-kind';
+import { approvalTone, type Tone } from './status';
 
 export interface FeedItem {
   /** ISO-8601. The feed is ordered by this and nothing else. */
@@ -39,10 +39,21 @@ export interface FeedItem {
   source: 'repo' | 'run' | 'decision';
   /** Absolute or studio-relative. Never rendered when absent, never rendered dead. */
   href?: string;
+  /** Survives the render cap. For entries that must never be orderable out of sight. */
+  pinned?: boolean;
 }
 
 export interface FeedInput {
-  /** What the venture's repositories did. */
+  /**
+   * What the venture's repositories did — **already deduplicated and filtered** by the caller.
+   *
+   * Not done here, and the order matters: `health.activity` carries a merged pull request WITH its
+   * paths and a paired commit WITHOUT them. Filtering first drops the pull request as housekeeping
+   * and leaves its twin, which classifies as `unknown` and is founder-visible — so a change to
+   * `.github/workflows/` that `/activity` correctly hides reappeared here as "changed". Dedupe, then
+   * filter, then pass. The summary must be composed from the same list, or the paragraph counts
+   * events the rows below it do not show.
+   */
   activity: ActivityEvent[];
   /** What the lanes did. Heartbeats are not events and are dropped by the caller. */
   runs: RunReport[];
@@ -53,28 +64,70 @@ export interface FeedInput {
 }
 
 /**
- * What a founder's own decision reads as.
+ * The entries one approval produces.
  *
- * Addressed to the person who made it — "You approved it", not "approval.granted" — because this is
- * the one page where they come looking for their own actions. A status word is what the record says;
- * a sentence is what happened.
+ * **Plural, because an approval is not one event.** A send granted on Monday and executed on
+ * Thursday is two things that happened, and the first version emitted one row that was replaced by
+ * the second — so the founder's own yes, the entire point of this ticket, was visible only in the
+ * window between the grant and the execution.
  *
- * Every state appears, including the ones nobody enjoys. `failed` and `rejected` are the entries
- * that make the page trustworthy; a feed showing only successes is a feed nobody can rely on.
+ * Addressed by NAME, never as "you". Under D7 the approver is often not the reader: Bruntsfield
+ * approves platform changes on a founder's venture, and a founder read "You approved" on a decision
+ * they never made. The name comes from the attested grant or not at all — an unverified one could
+ * have been written by anyone.
+ *
+ * Every state appears, including the ones nobody enjoys. `failed` and `unverified-action` are the
+ * entries that make the page trustworthy; a feed showing only successes is one nobody can rely on.
  */
-function decisionOf(a: ActiveGraphApproval): { text: string; tone: Tone } | null {
+function decisionsFor(a: ActiveGraphApproval): Array<{ at: string | null; text: string; tone: Tone; pinned?: boolean }> {
+  const who = a.approver ?? 'Someone';
+  const verb = (t: string) => `${who} ${t}`;
+
   switch (a.status) {
-    case 'granted': return { text: `You approved: ${a.summary}`, tone: 'ok' };
-    case 'rejected': return { text: `You sent back: ${a.summary}`, tone: 'attention' };
-    case 'executed': return { text: `Went out: ${a.summary}`, tone: 'ok' };
-    case 'executing': return { text: `Going out now: ${a.summary}`, tone: 'working' };
-    case 'failed': return { text: `Tried and failed to send: ${a.summary}`, tone: 'blocked' };
+    // `proposed` has not happened yet. It belongs in the queue, where a founder acts on it — putting
+    // it in a history would say something was done when the whole point is that it was not.
+    case 'proposed':
+      return [];
+    case 'granted':
+      return [{ at: a.grantedAt ?? a.committedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }];
+    case 'rejected':
+      return [{ at: a.committedAt, text: verb(`sent back: ${a.summary}`), tone: approvalTone('rejected') }];
+    case 'executing':
+      return [
+        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }] : []),
+        { at: a.committedAt, text: `Going out now: ${a.summary}`, tone: approvalTone('executing') },
+      ];
+    case 'executed':
+      return [
+        // The approval keeps its own entry AND its own time. Stamping it with the execution's clock
+        // filed a Monday decision under Thursday in a feed sold as newest-first.
+        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }] : []),
+        { at: a.committedAt, text: `Went out: ${a.summary}`, tone: approvalTone('executed') },
+      ];
+    case 'failed':
+      return [
+        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }] : []),
+        { at: a.committedAt, text: `Tried and failed to send: ${a.summary}`, tone: approvalTone('failed'), pinned: true },
+      ];
     case 'unverified-action':
-      return { text: `Recorded as approved, but the studio did not issue that approval: ${a.summary}`, tone: 'blocked' };
-    // `proposed` has not happened yet. It belongs in the queue, which is where a founder acts on it —
-    // putting it in the history would say something was done when the whole point is that it was not.
-    case 'proposed': return null;
-    default: return null;
+      return [{
+        at: a.committedAt,
+        text: `Recorded as approved, but the studio did not issue that approval: ${a.summary}`,
+        tone: approvalTone('unverified-action'),
+        // Pinned past the render cap. Its timestamp comes out of the very grant nobody can verify,
+        // so whoever wrote the forgery also chose where it sorts — `granted_at: "2020-01-01"` put it
+        // at the bottom and the cap then cut it from the page entirely. The one entry that must
+        // never be orderable out of sight.
+        pinned: true,
+      }];
+    default: {
+      // Exhaustiveness, deliberately. `failed` and `unverified-action` were both added to this union
+      // after the fact; a silent `return null` meant the next one added would vanish from the record
+      // with a green typecheck — the exact thing "nothing is filtered for tidiness" forbids.
+      const unhandled: never = a.status;
+      return [{ at: a.committedAt, text: `Something happened that this studio does not recognise: ${a.summary}`, tone: 'blocked', pinned: true }];
+      void unhandled;
+    }
   }
 }
 
@@ -108,10 +161,10 @@ function runTone(r: RunReport): Tone {
  * in the same second do not shuffle between renders — a feed that reorders itself on refresh is one
  * a founder stops believing.
  */
-export function buildFeed(input: FeedInput): FeedItem[] {
+export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boolean } {
   const items: FeedItem[] = [];
 
-  for (const event of dedupeActivity(input.activity)) {
+  for (const event of input.activity) {
     const at = iso(event.at);
     if (!at) continue;
     items.push({
@@ -138,16 +191,24 @@ export function buildFeed(input: FeedInput): FeedItem[] {
   }
 
   for (const a of input.approvals) {
-    const decision = decisionOf(a);
-    // Undated decisions are dropped rather than stamped with now. A history whose times are invented
-    // is not a history — the same rule the trail follows.
-    const at = iso(a.committedAt);
-    if (!decision || !at) continue;
-    items.push({ at, text: decision.text, meta: `${a.repo} · your decision`, tone: decision.tone, source: 'decision' });
+    for (const d of decisionsFor(a)) {
+      // Undated entries are dropped rather than stamped with now. A history whose times are invented
+      // is not a history — the same rule the trail follows.
+      const at = iso(d.at);
+      if (!at) continue;
+      items.push({ at, text: d.text, meta: `${a.repo} · a decision`, tone: d.tone, source: 'decision', pinned: d.pinned });
+    }
   }
 
   items.sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
-  return typeof input.limit === 'number' ? items.slice(0, input.limit) : items;
+  if (typeof input.limit !== 'number') return { items, truncated: false };
+
+  // Pinned entries survive the cap. Everything else takes what is left, newest first — so a forged
+  // grant cannot choose a timestamp that sorts itself off the page.
+  const pinned = items.filter((i) => i.pinned);
+  const rest = items.filter((i) => !i.pinned).slice(0, Math.max(0, input.limit - pinned.length));
+  const kept = [...pinned, ...rest].sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
+  return { items: kept, truncated: kept.length < items.length };
 }
 
 function iso(raw: string | null | undefined): string | null {

@@ -19,6 +19,11 @@ test.describe('what happened', () => {
     await page.goto('/venture/arca/activity');
     await expect(page.getByTestId('venture-activity')).toBeVisible();
     await expect(page.getByTestId('activity-summary')).toBeVisible();
+    // The paragraph counts changes in a fourteen-day window; the list carries decisions with no
+    // window at all. A founder read "in the last 14 days" above a decision from June, so each now
+    // says what it covers.
+    await expect(page.getByTestId('activity-summary')).toContainText('Changes to your product');
+    await expect(page.getByTestId('activity-scope')).toContainText(/did since \d/);
 
     const items = page.getByTestId('activity-item');
     expect(await items.count()).toBeGreaterThan(0);
@@ -34,11 +39,17 @@ test.describe('what happened', () => {
     // record, which is a strange omission from a page called "what happened".
     await testLogin(page, JOHN);
     await page.goto('/venture/arca/activity');
-    const decisions = page.getByTestId('activity-item').filter({ has: page.locator('[data-source]') });
     const sources = await page.getByTestId('activity-item').evaluateAll((els) =>
       els.map((e) => e.getAttribute('data-source')));
     expect(sources).toContain('decision');
-    void decisions;
+
+    // BY NAME, never as "you". Under D7 the approver is often not the reader — Bruntsfield approves
+    // platform changes on a founder's venture — so addressing every decision to whoever is looking
+    // put a founder's own name on a decision they never made.
+    const decisions = await page.getByTestId('activity-item').evaluateAll((els) =>
+      els.filter((e) => e.getAttribute('data-source') === 'decision').map((e) => e.textContent ?? ''));
+    expect(decisions.length).toBeGreaterThan(0);
+    for (const d of decisions) expect(d).not.toMatch(/\bYou (approved|sent back)\b/);
   });
 
   test('every entry says its state in words, not only in colour', async ({ page }) => {

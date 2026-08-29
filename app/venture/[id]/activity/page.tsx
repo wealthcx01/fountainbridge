@@ -10,8 +10,9 @@ import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type Active
 import { GitHubClient } from '@/lib/github';
 import { buildFeed } from '@/lib/activity-feed';
 import { composeActivitySummary } from '@/lib/activity-summary';
-import { classifyActivity, isFounderVisible } from '@/lib/activity-kind';
+import { classifyActivity, dedupeActivity, isFounderVisible } from '@/lib/activity-kind';
 import { groupFailures } from '@/lib/read-failures';
+import { onDate } from '@/lib/when';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { ActivityFeed } from '@/components/ActivityFeed';
 
@@ -60,6 +61,13 @@ export default async function VentureActivityPage({
   // Three reads, in parallel, each already bounded by its own loader (FB-123). This screen adds no
   // per-row read: the decisions come out of the approvals the desk already loads, not from walking
   // each one's event history.
+  //
+  // A source that could not be read is SAID, never swallowed. Both of these degraded silently, and
+  // the consequence was specific: a mis-scoped token 403s the approvals read, every decision
+  // disappears, and the page goes on promising "your decisions appear the moment you make them"
+  // with nothing to show it could not see (CLAUDE.md #10). A log that quietly drops failures is
+  // worse than no log — including when what it drops is its own.
+  const unreadable: string[] = [];
   const [health, runs, approvals] = await Promise.all([
     loadVentureHealth(venture, { refresh: refreshing }),
     loadRunReports(
@@ -67,46 +75,73 @@ export default async function VentureActivityPage({
       process.env.RUNREPORTS_FIXTURE_DIR && testRig
         ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
         : githubRunReportSource(new GitHubClient()),
-    ).catch(() => ({ reports: [], heartbeats: [], total: 0 })),
+    ).catch(() => {
+      unreadable.push('what your team has been doing');
+      return { reports: [], heartbeats: [], total: 0 };
+    }),
     loadApprovals(
       venture,
       process.env.APPROVALS_FIXTURE_DIR && testRig
         ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
         : githubApprovalSource(new GitHubClient()),
-    ).catch((): ActiveGraphApproval[] => []),
+    ).catch((): ActiveGraphApproval[] => {
+      unreadable.push('the decisions you have made');
+      return [];
+    }),
   ]);
 
-  // FB-108's filter: the studio's own housekeeping is not the venture's history. Kept here rather
-  // than in `buildFeed` because it is an editorial choice about this screen, and the feed is also
-  // what the desk would use.
-  const activity = health.activity.filter((e) => isFounderVisible(classifyActivity(e)));
+  // Dedupe, THEN filter. `health.activity` carries a merged pull request with its paths and a paired
+  // commit without them: filtering first drops the pull request as housekeeping and leaves its twin,
+  // which classifies as `unknown` and is founder-visible — so a `.github/workflows/` change that
+  // `/activity` correctly hides reappeared here as "changed".
+  const activity = dedupeActivity(health.activity).filter((e) => isFounderVisible(classifyActivity(e)));
 
-  const feed = buildFeed({ activity, runs: runs.reports.filter((r) => !r.isHeartbeat), approvals, limit: FEED_LIMIT });
+  // `loadRunReports` already partitions heartbeats out; they arrive in their own field.
+  const { items: feed, truncated } = buildFeed({ activity, runs: runs.reports, approvals, limit: FEED_LIMIT });
+  // Composed from the SAME list the rows come from. `lib/activity-summary.ts` states that invariant
+  // in its own header — "there is no second pass that could drift" — and composing it from the
+  // undeduplicated events made the paragraph count changes the list below did not show.
   const summary = composeActivitySummary({ events: activity, windowDays: 14, openAreas: [] });
 
   const failures = health.repos.filter((r) => r.error).map((r) => r.error as string);
+  // How far back the list actually reaches, from the list itself rather than from any window.
+  const oldest = feed.length ? onDate(feed[feed.length - 1].at) : null;
 
   return (
     <section data-testid="venture-activity">
       <p className="eyebrow"><span className="eyebrow-id">{venture.name}</span> — What happened</p>
       <h1 style={{ margin: '0 0 0.5rem' }}>What happened</h1>
 
+      {/* The summary counts CHANGES in a fourteen-day window; the record below also carries runs
+          and decisions, which have no window at all. A founder read "in the last 14 days" directly
+          above a decision from June and reasonably took the paragraph as describing the list. So the
+          paragraph says what it counts, and the list says how far back it goes. */}
       <div data-testid="activity-summary" style={{ maxWidth: 'var(--content-narrow)' }}>
         {summary.sentences.map((s, i) => (
-          <p key={i} style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.3rem' }}>{s}</p>
+          <p key={i} style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.3rem' }}>
+            {i === 0 ? <>Changes to your product: {s.charAt(0).toLowerCase()}{s.slice(1)}</> : s}
+          </p>
         ))}
       </div>
 
-      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-        Everything {venture.name} did, newest first. Sent, failed, refused: it stays here with its
-        state. Your decisions appear the moment you make them.
+      <p className="muted" data-testid="activity-scope" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
+        Everything {venture.name} did{oldest ? <> since {oldest}</> : null}, newest first. Sent,
+        failed, refused: it stays here with its state. Decisions appear the moment they are made.
       </p>
 
       <ActivityFeed items={feed} />
 
-      {feed.length >= FEED_LIMIT ? (
+      {truncated ? (
         <p className="muted" data-testid="activity-capped" style={{ fontSize: 'var(--fs-meta-lg)' }}>
           Showing the {FEED_LIMIT} most recent. Older entries are still in your venture’s records.
+        </p>
+      ) : null}
+
+      {unreadable.length ? (
+        <p className="card" data-testid="activity-unreadable" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
+          <span aria-hidden="true">⚠ </span>
+          The studio could not read {unreadable.join(' or ')}, so this record is incomplete. It is not
+          that nothing happened — it is that the studio could not see it. Bruntsfield can look into why.
         </p>
       ) : null}
 
