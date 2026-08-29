@@ -62,13 +62,32 @@ interface Entry { path: string; type: string }
  * founder as "something was recorded here that the studio would not accept", because a log that
  * silently drops what it dislikes cannot be audited either (CLAUDE.md #10).
  */
-export async function readEvents(
+/**
+ * Every event on this approval, each with whether its signature verified (FB-130).
+ *
+ * `readEvents` drops what does not verify and counts it; the **trail** must show it, and show it as
+ * unverified — hiding something that happened is the other way of lying about it. So the parse and
+ * the verification live here once, and each caller decides what to do with a failure.
+ *
+ * Two failures are still dropped rather than surfaced, and the difference matters:
+ *
+ * - **Unparseable or unreadable** — there is no event to show. Nothing was hidden; nothing was there.
+ * - **Filed under the wrong approval** (its own `seq`, `id` or `venture` disagrees with its path) —
+ *   a validly signed event belonging to another story. Showing it here would let a real event be
+ *   read as part of a history it is not part of, which is the substitution the path check exists to
+ *   prevent.
+ *
+ * Only a failed signature comes back as `verified: false`. Everything dropped is COUNTED, because
+ * `readEvents` reports it as refused and a count that quietly shrank would understate how much of a
+ * history could not be trusted.
+ */
+export async function readEventsWithVerdict(
   client: GitHubClient,
   venture: string,
   repo: string,
   id: string,
   secret: string,
-): Promise<{ events: ActiveGraphEvent[]; refused: number }> {
+): Promise<{ events: Array<{ event: ActiveGraphEvent; verified: boolean }>; dropped: number }> {
   const shortRepo = repo.includes('/') ? repo.split('/')[1] : repo;
   const dir = `activegraph/${venture}/${shortRepo}/${id}`;
 
@@ -79,31 +98,42 @@ export async function readEvents(
     );
   } catch {
     // No directory is the normal case for an approval that has no history yet, not an error.
-    return { events: [], refused: 0 };
+    return { events: [], dropped: 0 };
   }
-  if (!Array.isArray(entries)) return { events: [], refused: 0 };
+  if (!Array.isArray(entries)) return { events: [], dropped: 0 };
 
   const files = entries
     .filter((e) => e.type === 'file' && seqFromPath(e.path) !== null)
     .sort((a, b) => (seqFromPath(a.path) ?? 0) - (seqFromPath(b.path) ?? 0));
 
-  const events: ActiveGraphEvent[] = [];
-  let refused = 0;
+  const out: Array<{ event: ActiveGraphEvent; verified: boolean }> = [];
+  let dropped = 0;
   for (const f of files) {
     const raw = await client.getFileContent(EVENT_REPO(), f.path, ACTIVEGRAPH_REF);
-    if (!raw) { refused += 1; continue; }
+    if (!raw) { dropped += 1; continue; }
     let parsed: ActiveGraphEvent;
-    try { parsed = JSON.parse(raw) as ActiveGraphEvent; } catch { refused += 1; continue; }
-    if (!verifyEvent(parsed, secret)) { refused += 1; continue; }
-    // The file's own path must agree with the event inside it, or a valid event could be filed under
-    // another approval's history and read as part of its story.
+    try { parsed = JSON.parse(raw) as ActiveGraphEvent; } catch { dropped += 1; continue; }
     if (parsed.seq !== seqFromPath(f.path) || parsed.id !== id || parsed.venture !== venture) {
-      refused += 1;
+      dropped += 1;
       continue;
     }
-    events.push(parsed);
+    out.push({ event: parsed, verified: verifyEvent(parsed, secret) });
   }
-  return { events, refused };
+  return { events: out, dropped };
+}
+
+export async function readEvents(
+  client: GitHubClient,
+  venture: string,
+  repo: string,
+  id: string,
+  secret: string,
+): Promise<{ events: ActiveGraphEvent[]; refused: number }> {
+  // Unchanged in what it returns: the approval history shows only what verifies. `refused` counts
+  // everything that did not make it through, which is what it counted before.
+  const read = await readEventsWithVerdict(client, venture, repo, id, secret);
+  const events = read.events.filter((r) => r.verified).map((r) => r.event);
+  return { events, refused: read.dropped + (read.events.length - events.length) };
 }
 
 /** The record for one approval, as a founder should read it. */

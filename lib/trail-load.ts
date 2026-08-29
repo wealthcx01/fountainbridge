@@ -34,6 +34,8 @@ export interface TrailSources {
   work(repo: string, ticketId: string): Promise<{ approvalIds: string[]; pr: TrailInputs['pr'] }>;
   /** The running preview from the venture box, when the deploy reported one. */
   preview(repo: string, ticketId: string): Promise<TrailInputs['preview']>;
+  /** The conversation this ticket came out of (FB-130). One read, or none. */
+  thread(repo: string, ticketId: string): Promise<TrailInputs['thread']>;
 }
 
 /**
@@ -52,10 +54,11 @@ export const loadTrail = cache(
       return fallback;
     };
 
-    const [work, allRuns, preview] = await Promise.all([
+    const [work, allRuns, preview, thread] = await Promise.all([
       sources.work(repo, ticketId).catch(fell<{ approvalIds: string[]; pr: TrailInputs['pr'] }>({ approvalIds: [], pr: null })),
       sources.runs().catch(fell<RunReport[]>([])),
       sources.preview(repo, ticketId).catch(fell<TrailInputs['preview']>(null)),
+      sources.thread(repo, ticketId).catch(fell<TrailInputs['thread']>(null)),
     ]);
 
     // One read per approval this ticket actually has — not per approval the venture has.
@@ -75,6 +78,7 @@ export const loadTrail = cache(
       runs: allRuns.filter((r) => !r.isHeartbeat && r.repo === repo && r.ticketsTouched.includes(ticketId)),
       pr: work.pr,
       preview,
+      thread,
       degraded,
     });
   },

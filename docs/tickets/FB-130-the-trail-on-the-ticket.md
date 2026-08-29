@@ -1,6 +1,6 @@
 # FB-130 — The trail, rendered on the ticket
 
-**Status:** Todo · **Area:** Studio / tickets · **Depends on:** FB-125, FB-129
+**Status:** Done · **Area:** Studio / tickets · **Depends on:** FB-125, FB-129
 **Design:** `docs/design/foundry-desk/` — screen 4, "Follow the change · the ActiveGraph trail".
 
 ## Why this matters (for the founder)
@@ -40,8 +40,41 @@ attempt limit.
 
 ## Acceptance criteria
 
-- [ ] The trail renders in time order with the design's copy and the closing sentence.
-- [ ] Every `↗` opens something real; every `→` stays in the studio. A test asserts no dead link renders.
-- [ ] An unverified hop says so; it is neither hidden nor shown as verified.
-- [ ] A one-entry trail renders as one entry, not as an error or an empty box.
-- [ ] Checked by eye against ARCA's real tickets in three states before the PR is opened.
+- [x] The trail renders in time order with the design's copy and the closing sentence — with one
+      deviation, recorded below.
+- [x] Every `↗` opens something real; every `→` stays in the studio. A test asserts no dead link renders.
+- [x] An unverified hop says so; it is neither hidden nor shown as verified.
+- [x] A one-entry trail renders as one entry, not as an error or an empty box.
+- [ ] Checked by eye against ARCA's real tickets in three states. — *checked against the
+      fixtures in three states (three hops, one hop, two hops) before the PR; against ARCA's real
+      backlog only after it deploys, since that is the only place the real data is.*
+
+
+## One deliberate deviation from the design
+
+The design writes the heading as **"Follow the change · the ActiveGraph trail"** and the claim as
+*"Every hop is the same event **ActiveGraph** recorded"*. The copy contract forbids the product name
+in founder-facing text (`lib/glossary.ts`, enforced by `make copy-lint`), and the gate refused both.
+
+The gate is right. ActiveGraph is a system a founder has no reason to have heard of, and the
+sentence's force comes from what it promises rather than from what the system is called. So the claim
+is kept and the name is not:
+
+> Every step here is the record your studio wrote as it happened: nothing shown can disagree with
+> what ran.
+
+The design says copy is contractual, so this is a real deviation rather than a detail — flagged here
+so it can be overruled in one line if the name is wanted.
+
+## What building it turned up
+
+**`readEvents` drops what does not verify.** The trail's whole contract is that an unverified hop is
+shown *as unverified* — hiding something that happened is the other way of lying about it. So the
+parse and the verification now live in one place and each caller decides: the approval history still
+shows only what verifies, and the trail shows everything with its verdict. Its `refused` count is
+unchanged, which three existing tests were there to insist on and did.
+
+**The trail printed "Work started on " with nothing after the preposition** — the attention queue
+carries no branch name. On the one surface whose entire claim is that nothing on it can be wrong
+about what ran, a hop that reads as though a word went missing is worse than most bugs. The branch
+was already in the GraphQL query and thrown away, like the head commit before it.

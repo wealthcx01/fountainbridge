@@ -78,6 +78,8 @@ export interface PrApproval {
   previewUrl: string | null;
   /** The commit the founder is being shown, so accepting can refuse a push that landed since. */
   headSha: string | null;
+  /** The branch the work is on. Carried so the trail can name it instead of saying "Work started on ". */
+  branch: string | null;
 }
 
 export interface RepoPrs {
@@ -117,6 +119,7 @@ function toApproval(
     ciStatus: pr.ciStatus ?? 'unknown',
     previewUrl: pr.previewUrl ?? null,
     headSha: pr.headSha ?? null,
+    branch: pr.branch || null,
   };
 }
 

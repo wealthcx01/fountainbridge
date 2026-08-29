@@ -32,7 +32,7 @@
 import type { ActiveGraphEvent } from './activegraph';
 import type { RunReport } from './runreports';
 
-export type TrailSource = 'activegraph' | 'run' | 'repo' | 'preview';
+export type TrailSource = 'activegraph' | 'run' | 'repo' | 'preview' | 'composer';
 
 export interface TrailLink {
   /** Absolute URL, or a studio-relative path beginning with `/`. */
@@ -88,6 +88,17 @@ export interface TrailInputs {
   } | null;
   /** The running preview on the venture box, when the deploy reported one. */
   preview: { url: string; at: string } | null;
+  /**
+   * The conversation this ticket came out of (FB-126, rendered by FB-130).
+   *
+   * The first hop and the only one whose subject is the founder themselves — the trail exists so
+   * they can follow their own words to something running, and it has to start at the words.
+   *
+   * `kept: false` is a real answer, not a missing one. Transcripts lived in `localStorage` until
+   * FB-126, so a ticket filed before then has a conversation that genuinely no longer exists. The
+   * hop says that rather than linking nowhere, which is the rule the whole trail rests on.
+   */
+  thread?: { at: string; kept: boolean } | null;
   /** Set by the loader when any source threw. */
   degraded?: boolean;
 }
@@ -163,6 +174,25 @@ function runText(r: RunReport): string {
 export function buildTrail(input: TrailInputs): Trail {
   const hops: TrailHop[] = [];
 
+  if (input.thread) {
+    const when = at(input.thread.at);
+    if (when) {
+      hops.push({
+        at: when,
+        text: input.thread.kept
+          ? 'Filed by you in the composer; this conversation is its source'
+          : 'Filed by you in the composer. That conversation was not kept — transcripts only began to be saved recently',
+        source: 'composer',
+        verified: null,
+        // Internal: it stays in the studio, so the design renders it `→`. Absent when the transcript
+        // is gone, because a link to a conversation nobody stored is the dead link this forbids.
+        link: input.thread.kept
+          ? link(`/venture/${input.ventureId}/composer?about=${encodeURIComponent(input.ticketId)}`, 'read it', false)
+          : null,
+      });
+    }
+  }
+
   for (const { event, verified } of input.events) {
     const when = at(event.at);
     if (!when) continue; // undateable: cannot be placed in an ordered history, so it is not a hop
@@ -196,9 +226,14 @@ export function buildTrail(input: TrailInputs): Trail {
     if (when) {
       hops.push({
         at: when,
+        // The branch is named only when there IS one. A source that did not carry it left the
+        // sentence reading "Work started on " with nothing after the preposition — a hop that looks
+        // like the studio lost a word, on the one surface whose whole claim is that it cannot.
         text: c
-          ? `${c.count} commit${c.count === 1 ? '' : 's'} on ${input.pr.branch}, +${c.additions} −${c.deletions}`
-          : `Work started on ${input.pr.branch}`,
+          ? `${c.count} commit${c.count === 1 ? '' : 's'}${input.pr.branch ? ` on ${input.pr.branch}` : ''}, +${c.additions} −${c.deletions}`
+          : input.pr.branch
+            ? `Work started on ${input.pr.branch}`
+            : 'Work started',
         source: 'repo',
         verified: null,
         link: link(c?.diffUrl ?? input.pr.url, 'the changes', true),

@@ -8,7 +8,14 @@ import { ticketsByRepoFrom } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { TicketsView } from '@/components/TicketsView';
-import { parseFilter, type TicketRow } from '@/lib/tickets-view';
+import { parseFilter, rowKey, type TicketRow } from '@/lib/tickets-view';
+import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { loadRunReports, type RunReport } from '@/lib/runreports';
+import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
+import { GitHubClient } from '@/lib/github';
+import { trailSources } from '@/lib/trail-sources';
+import { loadTrail } from '@/lib/trail-load';
+import type { Trail } from '@/lib/trail';
 
 /**
  * Tickets (FB-129) — the list, the ticket, and the decision, on one screen.
@@ -141,6 +148,41 @@ export default async function TicketsPage({
 
   const refs = new Map(inferred.map((lane) => [lane.repo, lane.ref]));
 
+  // FB-130: the trail, for the SELECTED ticket only.
+  //
+  // One ticket, not seventy-seven. The trail's read budget (FB-125) is a function of that ticket's
+  // own events, and building one per row would turn a bounded cost into a per-backlog one — which is
+  // the mistake FB-083 was written about and FB-128 made again in a different shape.
+  //
+  // The sources close over what this page has already read, so the only genuinely new reads are the
+  // signed events for this ticket's approvals and the conversation it came out of.
+  const selected = rows.find((r) => rowKey(r) === t) ?? rows.find((r) => r.id === t) ?? null;
+  let trail: Trail | null = null;
+  if (selected) {
+    const testRig = process.env.E2E_TEST_LOGIN === '1';
+    const [approvals, runs] = await Promise.all([
+      loadApprovals(
+        venture,
+        process.env.APPROVALS_FIXTURE_DIR && testRig
+          ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
+          : githubApprovalSource(new GitHubClient()),
+      ).catch((): ActiveGraphApproval[] => []),
+      loadRunReports(
+        venture,
+        process.env.RUNREPORTS_FIXTURE_DIR && testRig
+          ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
+          : githubRunReportSource(new GitHubClient()),
+      ).then((r) => r.reports).catch((): RunReport[] => []),
+    ]);
+    trail = await loadTrail(venture, selected.repo, selected.id, trailSources(venture, {
+      approvals,
+      // Only this ticket's runs. `loadTrail` filters again; doing it here keeps the array it holds
+      // small rather than passing the venture's whole history through the join.
+      runs: runs.filter((r) => !r.isHeartbeat && r.repo === selected.repo && r.ticketsTouched.includes(selected.id)),
+      work: attention.approvals,
+    }));
+  }
+
   return (
     <TicketsView
       ventureId={venture.id}
@@ -148,6 +190,7 @@ export default async function TicketsPage({
       rows={rows}
       filter={parseFilter(filter)}
       selectedId={typeof t === 'string' ? t : null}
+      trail={trail}
       refs={Object.fromEntries(refs)}
       filedBranches={Object.fromEntries(filedBranch)}
       org={process.env.GITHUB_ORG ?? 'wealthcx01'}

@@ -10,6 +10,8 @@ import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/li
 import { toneColor } from '@/lib/status';
 import { howLongMs } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
+import { TicketTrail } from './TicketTrail';
+import type { Trail } from '@/lib/trail';
 import {
   FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition, filterTickets,
   nextDecision, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
@@ -40,6 +42,7 @@ export function TicketsView({
   rows,
   filter,
   selectedId,
+  trail = null,
   refs,
   filedBranches = {},
   org,
@@ -50,6 +53,14 @@ export function TicketsView({
   rows: TicketRow[];
   filter: TicketFilter;
   selectedId: string | null;
+  /**
+   * The selected ticket's history (FB-130), loaded server-side for that one ticket.
+   *
+   * Null when nothing is selected, or when the studio holds no signing secret and therefore cannot
+   * say whether anything verifies — which is a different thing from a ticket with no history, and
+   * the renderer is not asked to guess between them.
+   */
+  trail?: Trail | null;
   /** Each repo's default ref, so the "written down" link points at the branch the file is on. */
   refs: Record<string, string>;
   /**
@@ -185,6 +196,7 @@ export function TicketsView({
               // `FB-001` in another, and linking across would open the wrong ticket.
               knownIds={new Set(rows.filter((r) => r.repo === selected.repo).map((r) => r.id))}
               onSelectId={(id) => go(filter, `${selected.repo}/${id}`)}
+              trail={trail}
               outcome={outcome?.id === rowKey(selected) ? outcome : null}
               next={next && rowKey(next) !== rowKey(selected) ? next : null}
               onDecided={(kind, message) => {
@@ -205,9 +217,10 @@ export function TicketsView({
 }
 
 function Detail({
-  row, ventureId, org, gitRef, position, knownIds, onSelectId, outcome, next, onDecided, onNext,
+  row, ventureId, org, gitRef, position, knownIds, onSelectId, trail, outcome, next, onDecided, onNext,
 }: {
   row: TicketRow;
+  trail: Trail | null;
   ventureId: string;
   org: string;
   gitRef: string;
@@ -416,6 +429,9 @@ function Detail({
           </p>
         </div>
       ) : null}
+
+      {/* Last, per the design: a founder decides on the work, and then follows where it went. */}
+      {trail ? <TicketTrail trail={trail} /> : null}
     </article>
   );
 }
