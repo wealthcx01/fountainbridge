@@ -1,6 +1,6 @@
 # FB-132 — What happened
 
-**Status:** Todo · **Area:** Studio / activity · **Depends on:** FB-124
+**Status:** Done · **Area:** Studio / activity · **Depends on:** FB-124
 **Design:** `docs/design/foundry-desk/` — screen 6; `screens/07-What_happened.txt`.
 
 ## Why this matters (for the founder)
@@ -50,8 +50,29 @@ make design-lint && make ticket-drift
 
 ## Acceptance criteria
 
-- [ ] The feed is venture-scoped, and a founder cannot see another venture's events through it.
-- [ ] Summary sentence, then dated tone-dotted sentences, newest first.
-- [ ] A founder's approval or refusal appears in the feed immediately after they make it.
-- [ ] Failed and refused items remain visible with their state.
-- [ ] Reads stay bounded by what is rendered, asserted by a test with far more history than the page shows.
+- [x] The feed is venture-scoped, and a founder cannot see another venture's events through it.
+- [x] Summary sentence, then dated tone-dotted sentences, newest first.
+- [x] A founder's approval or refusal appears in the feed immediately after they make it.
+- [x] Failed and refused items remain visible with their state.
+- [x] Reads stay bounded by what is rendered, asserted by a test with far more history than the page shows.
+
+
+## What shipped
+
+**The shim is gone.** `/venture/[id]/activity` was `export default ActivityPage` — the cross-venture
+route, rendered inside a venture's shell. It is a real page now, scoped server-side before any read.
+
+**The founder's own decisions are in the record**, which is the part that was missing. They come out
+of the same `loadApprovals` the desk reads — no per-row read, no second source of truth about what
+was decided. `proposed` is deliberately absent: it belongs in the queue, where a founder acts on it,
+and putting it in a history would say something was done when the point is that it was not.
+
+**Nothing is filtered for tidiness.** A failed send, a lane that gave up, and a grant the studio did
+not issue all keep their entry and their tone. The last is the one nobody wants and everybody needs.
+
+**The narrowing left something standing.** Scoping this screen takes the portfolio view away from
+John. `/activity` still exists and is linked from here for admins only, until FB-136 gives it a
+proper home — taking a view away and replacing it with nothing would have been the worse trade.
+
+**Undateable entries are dropped, never stamped with now.** The same rule the trail follows: a
+history whose times are invented is not a history.
