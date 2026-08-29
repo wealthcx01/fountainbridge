@@ -133,6 +133,18 @@ test.describe('tickets', () => {
     expect(filter).toBe(shown);
   });
 
+  test('the list and the ticket do not wait for the history', async ({ page }) => {
+    // Blocking on the trail took this screen to 23 seconds on ARCA's real backlog against a 6.5s
+    // desk. It streams now: a founder came here to read a ticket and decide on it, and neither
+    // needs the history. Asserted by the ticket being present before the trail resolves — the
+    // pending state and the trail are two different testids, and one of them must always be there.
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-1');
+    await expect(page.getByTestId('detail-title')).toBeVisible();
+    await expect(page.getByTestId('tickets-list')).toBeVisible();
+    const either = page.locator('[data-testid="ticket-trail"], [data-testid="trail-pending"]');
+    await expect(either.first()).toBeVisible();
+  });
+
   test('the trail renders in time order and closes with its claim', async ({ page }) => {
     await page.goto('/venture/arca/tickets?t=arca%2FARCA-1');
     const trail = page.getByTestId('ticket-trail');

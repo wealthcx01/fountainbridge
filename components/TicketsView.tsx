@@ -10,8 +10,7 @@ import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/li
 import { toneColor } from '@/lib/status';
 import { howLongMs } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
-import { TicketTrail } from './TicketTrail';
-import type { Trail } from '@/lib/trail';
+import type { ReactNode } from 'react';
 import {
   FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition, filterTickets,
   nextDecision, resolveSelected, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
@@ -54,13 +53,16 @@ export function TicketsView({
   filter: TicketFilter;
   selectedId: string | null;
   /**
-   * The selected ticket's history (FB-130), loaded server-side for that one ticket.
+   * The selected ticket's history (FB-130), as a **node** rather than as data.
    *
-   * Null when nothing is selected, or when the studio holds no signing secret and therefore cannot
-   * say whether anything verifies — which is a different thing from a ticket with no history, and
-   * the renderer is not asked to guess between them.
+   * The page passes an async server component wrapped in Suspense, so the list and the ticket paint
+   * immediately and the history streams in behind them. Blocking on it cost 23 seconds on ARCA's
+   * real backlog. A client component cannot await anything, so the shape of this prop is what makes
+   * that possible: this file never learns what a trail is.
+   *
+   * Null when there is nothing to show a history for — no selection, or a row with no ticket file.
    */
-  trail?: Trail | null;
+  trail?: ReactNode;
   /** Each repo's default ref, so the "written down" link points at the branch the file is on. */
   refs: Record<string, string>;
   /**
@@ -215,7 +217,7 @@ function Detail({
   row, ventureId, org, gitRef, position, knownIds, onSelectId, trail, outcome, next, onDecided, onNext,
 }: {
   row: TicketRow;
-  trail: Trail | null;
+  trail: ReactNode;
   ventureId: string;
   org: string;
   gitRef: string;
@@ -425,8 +427,9 @@ function Detail({
         </div>
       ) : null}
 
-      {/* Last, per the design: a founder decides on the work, and then follows where it went. */}
-      {trail ? <TicketTrail trail={trail} /> : null}
+      {/* Last, per the design: a founder decides on the work, and then follows where it went.
+          Streamed by the page — this component only decides where it goes. */}
+      {trail}
     </article>
   );
 }

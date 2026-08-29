@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
@@ -8,6 +9,8 @@ import { ticketsByRepoFrom } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { TicketsView } from '@/components/TicketsView';
+import { TicketTrail } from '@/components/TicketTrail';
+import type { VentureSummary } from '@/lib/ventures';
 import { filterTickets, parseFilter, resolveSelected, rowKey, type TicketRow } from '@/lib/tickets-view';
 import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
 import { loadRunReports, type RunReport } from '@/lib/runreports';
@@ -15,7 +18,6 @@ import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-
 import { GitHubClient } from '@/lib/github';
 import { trailSources } from '@/lib/trail-sources';
 import { loadTrail } from '@/lib/trail-load';
-import type { Trail } from '@/lib/trail';
 
 /**
  * Tickets (FB-129) — the list, the ticket, and the decision, on one screen.
@@ -148,55 +150,8 @@ export default async function TicketsPage({
 
   const refs = new Map(inferred.map((lane) => [lane.repo, lane.ref]));
 
-  // FB-130: the trail, for the SELECTED ticket only.
-  //
-  // One ticket, not seventy-seven — the trail's read budget (FB-125) is a function of that ticket's
-  // own events, and building one per row would turn a bounded cost into a per-backlog one.
-  //
-  // **The honest cost, since the first version of this comment understated it.** Two of these reads
-  // are new to this page and are a function of the VENTURE, not the ticket: `loadApprovals` walks
-  // every approval the venture has and is not cached at all, and `loadRunReports` is bounded but not
-  // free. Both re-run on every ticket click, because selecting a ticket is a server navigation.
-  // ETags make that cheap in quota and not in latency. Indexing approvals by ticket is FB-154.
-  //
-  // Skipped entirely for a row that has no ticket file: nothing here can match a `repo#number` id,
-  // so it would render "nothing has happened to this one yet" beside an open pull request the same
-  // screen shows waiting, with an age and a check state.
   const activeFilter = parseFilter(filter);
   const selected = resolveSelected(rows, filterTickets(rows, activeFilter), typeof t === 'string' ? t : null);
-  let trail: Trail | null = null;
-  if (selected && selected.item) {
-    const testRig = process.env.E2E_TEST_LOGIN === '1';
-    const [approvals, runs] = await Promise.all([
-      loadApprovals(
-        venture,
-        process.env.APPROVALS_FIXTURE_DIR && testRig
-          ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
-          : githubApprovalSource(new GitHubClient()),
-      ).catch((): ActiveGraphApproval[] => []),
-      loadRunReports(
-        venture,
-        process.env.RUNREPORTS_FIXTURE_DIR && testRig
-          ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
-          : githubRunReportSource(new GitHubClient()),
-        // The default 20 is the DESK's render limit. A trail asks a different question — everything
-        // that ever touched this ticket — and under 20 a ticket older than the venture's twenty most
-        // recent runs showed no run hops at all, with `degraded: false`. A short trail and an
-        // unreadable one looking identical is the one thing this surface must never do.
-        200,
-      ).then((r) => r.reports).catch((): RunReport[] => []),
-    ]);
-    trail = await loadTrail(venture, selected.repo, selected.id, trailSources(venture, {
-      approvals,
-      // Only this ticket's runs. `loadTrail` filters again; doing it here keeps the array it holds
-      // small rather than passing the venture's whole history through the join.
-      runs: runs.filter((r) => !r.isHeartbeat && r.repo === selected.repo && r.ticketsTouched.includes(selected.id)),
-      work: attention.approvals,
-      filedPrNumbers: Object.fromEntries(
-        [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => [`${repo} ${f.ticket.id}`, f.prNumber] as const)),
-      ),
-    }));
-  }
 
   return (
     <TicketsView
@@ -207,11 +162,108 @@ export default async function TicketsPage({
       // The RESOLVED key, not the raw query. The client used to resolve it again with different
       // fallbacks, so the trail loaded here could belong to a different ticket than the one rendered.
       selectedId={selected ? rowKey(selected) : null}
-      trail={trail}
+      // FB-130: STREAMED, not awaited.
+      //
+      // Blocking the page on it took the tickets screen from usable to **23 seconds** on ARCA's real
+      // backlog — measured, three loads, against a desk that costs 6.5s. The trail is supplementary:
+      // a founder came here to read a ticket and decide on it, and neither needs the history. So the
+      // list and the ticket render immediately and the history arrives when it arrives.
+      //
+      // Skipped entirely for a row with no ticket file: nothing here can match a `repo#number` id.
+      trail={
+        selected?.item ? (
+          <Suspense fallback={<TrailPending />}>
+            <TrailFor venture={venture} row={selected} attention={attention} filedByRepo={filedByRepo} />
+          </Suspense>
+        ) : null
+      }
       refs={Object.fromEntries(refs)}
       filedBranches={Object.fromEntries(filedBranch)}
       org={process.env.GITHUB_ORG ?? 'wealthcx01'}
       errors={[...data.lanes.filter((l) => l.error).map((l) => l.error as string), ...attention.errors]}
     />
+  );
+}
+
+
+/**
+ * The selected ticket's history, loaded off the critical path (FB-130).
+ *
+ * Its own async component so React can stream it: the list and the ticket paint immediately and this
+ * arrives after. Blocking the page on it cost **23 seconds** on ARCA's real backlog against a 6.5s
+ * desk, and a founder came to this screen to read a ticket and decide on it — neither of which needs
+ * the history.
+ *
+ * The read budget, honestly (FB-154 fixes it properly):
+ *
+ * - `loadApprovals` walks every approval the venture has and is not cached. It is here only to learn
+ *   which approvals belong to THIS ticket, which is a question the store cannot currently be asked.
+ * - `loadRunReports` is left at its default 20. Raising it to 200 to stop run hops vanishing turned
+ *   into `200 × READ_MARGIN` = **600 file reads per repository**, which was most of the 23 seconds.
+ *   The cap is honest instead: when there were more reports than were read, the trail says its
+ *   history may be short rather than passing a truncated one off as complete.
+ */
+async function TrailFor({
+  venture,
+  row,
+  attention,
+  filedByRepo,
+}: {
+  venture: VentureSummary;
+  row: TicketRow;
+  attention: Awaited<ReturnType<typeof loadVentureAttention>>;
+  filedByRepo: Map<string, FiledTicket[]>;
+}) {
+  const testRig = process.env.E2E_TEST_LOGIN === '1';
+  const [approvals, runs] = await Promise.all([
+    loadApprovals(
+      venture,
+      process.env.APPROVALS_FIXTURE_DIR && testRig
+        ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
+        : githubApprovalSource(new GitHubClient()),
+    ).catch(() => ({ approvals: [] as ActiveGraphApproval[], capped: false })).then((r) => (Array.isArray(r) ? { approvals: r, capped: false } : r)),
+    loadRunReports(
+      venture,
+      process.env.RUNREPORTS_FIXTURE_DIR && testRig
+        ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
+        : githubRunReportSource(new GitHubClient()),
+    ).catch(() => ({ reports: [] as RunReport[], heartbeats: [] as RunReport[], total: 0 })),
+  ]);
+
+  const trail = await loadTrail(venture, row.repo, row.id, trailSources(venture, {
+    approvals: approvals.approvals,
+    runs: runs.reports.filter((r) => !r.isHeartbeat && r.repo === row.repo && r.ticketsTouched.includes(row.id)),
+    work: attention.approvals,
+    filedPrNumbers: Object.fromEntries(
+      [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => [`${repo} ${f.ticket.id}`, f.prNumber] as const)),
+    ),
+  }));
+
+  // More reports existed than were read, so this history may be missing runs. Exactly what
+  // `degraded` says out loud — "it is not that nothing else happened, it is that the studio could
+  // not see it" — and the alternative is a short trail passing as a complete one.
+  const capped = runs.total > runs.reports.length;
+  return <TicketTrail trail={capped ? { ...trail, degraded: true } : trail} />;
+}
+
+
+/**
+ * What the founder sees while the history is still being read.
+ *
+ * A named state rather than a blank space, because the alternative is a ticket that looks finished
+ * and then grows a section under the reader's hands. It says what is happening and that nothing is
+ * waiting on them.
+ */
+function TrailPending() {
+  return (
+    <section
+      data-testid="trail-pending"
+      style={{ marginTop: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}
+    >
+      <p className="eyebrow" style={{ marginTop: 0 }}>Follow the change</p>
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
+        Reading what happened to this one…
+      </p>
+    </section>
   );
 }
