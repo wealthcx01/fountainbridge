@@ -55,6 +55,7 @@ export default async function ComposerPage({
           ventureId={id}
           ventureName={venture.name}
           seed={ticketId ? `About ${ticketId}: ` : ask || null}
+          aboutTicketId={ticketId}
         />
       ) : (
         <section data-testid="composer-pending">

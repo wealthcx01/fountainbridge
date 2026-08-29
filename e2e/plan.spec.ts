@@ -82,10 +82,15 @@ test.describe('a PRD becomes a ticket set', () => {
     for (const marker of ['foundry_plan', '{"', '```']) expect(shown).not.toContain(marker);
   });
 
-  test('a plan replaces the single-ticket button rather than sitting beside it', async ({ page }) => {
-    // Two buttons over one proposal is two decisions where there is one.
+  test('a plan replaces the single-ticket rail rather than sitting beside it', async ({ page }) => {
+    // Two proposals on one screen is two answers to "what am I about to press".
+    //
+    // It used to assert `composer-decision` had count 0 — a testid FB-131 deleted from the codebase
+    // entirely, so it passed while asserting nothing. Same class as the fixture that could not fail.
     await proposePlan(page);
-    await expect(page.getByTestId('composer-decision')).toHaveCount(0);
+    await expect(page.getByTestId('rail-plan')).toBeVisible();
+    await expect(page.getByTestId('rail-draft')).toHaveCount(0);
+    await expect(page.getByTestId('rail-file')).toHaveCount(0);
   });
 
   test('pressing file reaches the server and says plainly when it cannot', async ({ page }) => {

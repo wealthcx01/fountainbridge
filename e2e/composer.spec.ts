@@ -99,18 +99,138 @@ test.describe('describing what you want', () => {
     // FB-075. The composer asks "want me to file this?" and used to offer only a text box — so the
     // one moment this surface exists for was a guess. It already went wrong once: a founder's yes
     // arrived in a different session and the composer said it had no draft.
+    //
+    // FB-131 moved the press out of the thread and into the rail, beside the draft it is about — so
+    // "what am I agreeing to" is answered by what the founder is looking at rather than by a button
+    // floating under a wall of markdown. The property is unchanged and the location is not.
     await page.goto('/venture/arca/composer');
     await page.getByTestId('composer-input').fill('Show me how fresh prices are');
     await page.getByTestId('composer-send').click();
-    await expect(page.getByTestId('composer-decision')).toBeVisible();
-    await expect(page.getByTestId('composer-file-this')).toHaveText('File this');
-    await expect(page.getByTestId('composer-change')).toBeVisible();
+
+    const rail = page.getByTestId('rail-draft');
+    await expect(rail).toBeVisible();
+    await expect(page.getByTestId('rail-draft-title')).toHaveText('Show how fresh each price is');
+    // All four parts, from a fixture that actually has them. The first version of this test looked
+    // at a draft with only a Scope heading, so Why and Done-when could not have failed (FB-153).
+    for (const part of ['Why', 'Scope', 'Done when', 'Approval']) await expect(rail).toContainText(part);
+    await expect(rail).toContainText('Prices look stale');
+    await expect(rail).toContainText('Every price on the market page shows when it was read');
+    await expect(page.getByTestId('rail-file')).toHaveText('File this');
+    await expect(page.getByTestId('rail-change')).toBeVisible();
+    await expect(rail).toContainText('Nothing is built until you press it.');
+  });
+
+  test('the rail shows exactly one state, never two', async ({ page }) => {
+    // Two things on the table is two answers to "what am I about to press", which is the one
+    // question this screen exists to answer.
+    await page.goto('/venture/arca/composer');
+    const states = ['rail-draft', 'rail-plan', 'rail-discussing', 'rail-filed', 'rail-empty'];
+    const count = async () => {
+      let n = 0;
+      for (const s of states) n += await page.getByTestId(s).count();
+      return n;
+    };
+    expect(await count()).toBe(1);
+
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+    expect(await count()).toBe(1);
+
+    await page.screenshot({ path: 'e2e/__screenshots__/22-composer.png', fullPage: true });
+  });
+
+  test('arriving from a ticket shows that ticket until there is something to press', async ({ page }) => {
+    await page.goto('/venture/arca/composer?about=ARCA-1');
+    await expect(page.getByTestId('rail-discussing')).toContainText('ARCA-1');
+    await expect(page.getByTestId('rail-draft')).toHaveCount(0);
+    // And a way back to where they came from, with its history — by the ticket's own id, so it
+    // resolves on a venture whose id differs from its repository.
+    await expect(page.getByTestId('rail-back-to-ticket')).toHaveAttribute('href', /[?&]t=ARCA-1$/);
+  });
+
+  test('a revision can be filed, which is the whole reason to arrive from a ticket', async ({ page }) => {
+    // The first version of this screen returned `discussing` for the life of the page, and that
+    // state renders no press. The in-thread button had just been deleted — so the FB-105 flow ended
+    // with no way to file at all, and the test written beside it asserted the absence of the draft
+    // and locked the regression in.
+    await page.goto('/venture/arca/composer?about=ARCA-1');
+    await page.getByTestId('composer-input').fill('Change the second line');
+    await page.getByTestId('composer-send').click();
+
+    const rail = page.getByTestId('rail-draft');
+    await expect(rail).toBeVisible();
+    await expect(rail).toHaveAttribute('data-revises', 'ARCA-1');
+    await expect(rail).toContainText('a change to ARCA-1');
+    await expect(page.getByTestId('rail-file')).toBeEnabled();
+  });
+
+  test('the draft stays on screen while the reply is arriving', async ({ page }) => {
+    // `send` appends the founder's own message first, so keying the rail off the newest turn made
+    // the draft they had just agreed to vanish for the whole round-trip and be replaced by
+    // "Nothing on the table" — at the single moment it mattered most.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+
+    await page.getByTestId('composer-input').fill('one more thing');
+    await page.getByTestId('composer-send').click();
+    // Still the draft, never the empty state, whatever the round-trip is doing.
+    await expect(page.getByTestId('rail-empty')).toHaveCount(0);
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+  });
+
+  test('after a real filing the rail says what happened next', async ({ page }) => {
+    // Set from EVIDENCE — the filer actually ran — never from the reply's own words. The composer
+    // once told a founder it had filed a ticket it had not filed (FB-062).
+    //
+    // The first version declared this state, wrote its copy, wrote its precedence, and never called
+    // the setter. It could not render at all, and the PR body claimed it worked.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+
+    await page.getByTestId('rail-file').click();
+    await expect(page.getByTestId('rail-filed')).toBeVisible();
+    await expect(page.getByTestId('rail-filed')).toContainText('waiting to be picked up');
+    await expect(page.getByTestId('rail-filed-link')).toBeVisible();
+    // And the draft is gone, so a second press cannot land on work that already exists.
+    await expect(page.getByTestId('rail-file')).toHaveCount(0);
+  });
+
+  test('on a phone the rail sits between the conversation and the box you type in', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 851 });
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+
+    const m = await page.evaluate(() => {
+      const y = (s: string) => document.querySelector(s)?.getBoundingClientRect().top ?? 0;
+      return {
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        railBelowThread: y('[data-testid=rail-draft]') > y('[data-testid=composer-thread]'),
+        railAboveInput: y('[data-testid=rail-draft]') < y('[data-testid=composer-input]'),
+      };
+    });
+    expect(m.overflow).toBeLessThanOrEqual(0);
+    // A founder on a phone reads the conversation, and the draft follows from it.
+    expect(m.railBelowThread).toBe(true);
+    // And the press is not below the box they type in — nesting the input inside the thread column
+    // made them scroll past Send to find "File this".
+    expect(m.railAboveInput).toBe(true);
+    await page.screenshot({ path: 'e2e/__screenshots__/22-mobile-composer.png', fullPage: true });
   });
 
   test('there is nothing to agree to until there is a draft', async ({ page }) => {
-    // A button that sometimes means nothing teaches a founder to distrust it.
+    // A button that sometimes means nothing teaches a founder to distrust it. The rail says so in
+    // words rather than showing an empty form with a live press over it.
     await page.goto('/venture/arca/composer');
-    await expect(page.getByTestId('composer-decision')).toHaveCount(0);
+    await expect(page.getByTestId('rail-file')).toHaveCount(0);
+    await expect(page.getByTestId('rail-empty')).toBeVisible();
+    await expect(page.getByTestId('rail-empty')).toContainText('the ticket takes shape here');
   });
 
   test('the thread is still there when the founder comes back', async ({ page }) => {

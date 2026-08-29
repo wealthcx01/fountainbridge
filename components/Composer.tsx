@@ -6,7 +6,9 @@ import {
   formatInline, parseReply, reduceChunk, visibleActions, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
-import { extractPlanDraft, parsePlanDraft } from '@/lib/plan-draft';
+import { parsePlanDraft } from '@/lib/plan-draft';
+import { railState } from '@/lib/composer-rail';
+import { ComposerRail } from './ComposerRail';
 import { toneColor } from '@/lib/status';
 import { PlanPanel } from './PlanPanel';
 
@@ -31,15 +33,32 @@ import { PlanPanel } from './PlanPanel';
  */
 
 const STORAGE = (ventureId: string) => `foundry:composer:${ventureId}`;
+
+/** The filer, by its real tool name — mangled by transport, so matched loosely (see `describeTool`). */
+const FILED_TOOL = /file.*ticket|create.*ticket|ticket.?filer/i;
+
+/**
+ * What the filer said it created, out of the reply the tool's result was folded into.
+ *
+ * Read rather than assumed: the tool returns `ARCA-068 — PR #58 — <url>` and the model writes prose
+ * around it. Null when no id is there, and the rail then says "your ticket" rather than inventing a
+ * name — a ticket called something nobody can refer to is the whole of FB-097.
+ */
+function filedName(reply: string): string | null {
+  return reply.match(/\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+[a-z]?)\b/)?.[1] ?? null;
+}
 const MAX_KEPT = 40;
 
 export function Composer({
   ventureId,
   ventureName,
   seed = null,
+  aboutTicketId = null,
 }: {
   ventureId: string;
   ventureName: string;
+  /** FB-131: arrived from a ticket. The rail shows that ticket rather than a draft. */
+  aboutTicketId?: string | null;
   /**
    * First words already in the box (FB-105) — the founder arrived from a ticket wanting to change
    * it. Only the opening: seeding the whole ticket body would hand them a wall of text to edit,
@@ -55,6 +74,17 @@ export function Composer({
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [restored, setRestored] = useState(false);
+  // What the founder filed in this session. Held here rather than derived from the thread: the
+  // composer's own reply naming a ticket is a claim, and FB-062 is what happens when the studio
+  // renders a claim as an event. This is set only when a press actually returned.
+  const [filed, setFiled] = useState<{ what: string; href: string | null } | null>(null);
+  // Whether the founder pressed File this on the turn now in flight.
+  //
+  // Both halves are required before the rail says anything landed: **they pressed**, and **the filer
+  // actually ran**. Either alone is wrong — a reply that calls the filer without a press is the
+  // FB-119 failure, and a press whose reply shows no filing action is the FB-062 one. A ref rather
+  // than state because it is read inside the send that set it, before any re-render.
+  const pressedFile = useRef(false);
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -83,13 +113,19 @@ export function Composer({
 
   // What, if anything, is on the table right now — the title of the draft in the newest reply. Null
   // when the composer has not drafted anything, which is most turns.
-  const last = messages[messages.length - 1];
-  const lastBlocks = last?.role === 'assistant' ? parseReply(last.content) : null;
-  // A whole set proposed from a document (FB-127) is a different decision from a single ticket: it
-  // is read line by line and filed on one press, so it gets its own control and suppresses the
-  // single-ticket one. Otherwise a founder would meet two buttons over one proposal.
-  const plan = lastBlocks ? extractPlanDraft(lastBlocks) : null;
-  const decision = lastBlocks && !plan ? draftTitle(lastBlocks) : null;
+  // The last ASSISTANT message, not the last message.
+  //
+  // `send` appends the founder's own message first, so keying off the newest turn made the rail fall
+  // to "Nothing on the table" for the whole streamed round-trip — the draft they had just agreed to
+  // vanished at the single moment it mattered most, and reappeared when the reply landed.
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant') ?? null;
+  const lastBlocks = lastAssistant ? parseReply(lastAssistant.content) : null;
+  // FB-131: one rail, one state. What is on the table — a draft, a plan, the ticket they arrived to
+  // discuss, what they just filed, or nothing — is decided once in `railState` and rendered once
+  // here. Before this the draft's press was inline in the thread and the plan's was its own panel,
+  // so two proposals could offer two differently-behaved buttons on one screen.
+  const rail = railState({ latestReply: lastAssistant?.content ?? null, aboutTicketId, filed });
+  const decision = lastBlocks && rail.kind === 'draft' ? draftTitle(lastBlocks) : null;
 
   const send = useCallback(async (override?: string) => {
     const text = override ?? withDocument(draft, doc);
@@ -153,6 +189,17 @@ export function Composer({
         setError('The composer answered with nothing. Try asking again.');
       } else {
         setMessages((m) => [...m, { role: 'assistant' as const, content: state.content, actions: state.actions }].slice(-MAX_KEPT));
+
+        // FB-131: "After you pressed it" — set from EVIDENCE, never from the reply's own words.
+        //
+        // The composer once told a founder it had filed a ticket it had not filed (FB-062), so a
+        // sentence saying "filed" is a claim. A tool call is a thing that happened. The rail only
+        // says it landed when the filer actually ran, and it names what the tool returned rather
+        // than what the model wrote around it.
+        if (pressedFile.current && state.actions.some((a) => FILED_TOOL.test(a.tool))) {
+          setFiled({ what: filedName(state.content) ?? 'your ticket', href: `/venture/${ventureId}/tickets` });
+        }
+        pressedFile.current = false;
       }
     } catch {
       setError('The connection to the composer dropped. Nothing was lost — try sending it again.');
@@ -197,6 +244,7 @@ export function Composer({
     <section data-testid="composer">
       <p className="eyebrow">
         <span className="eyebrow-id">Composer</span> — {ventureName}
+        {aboutTicketId ? <> · about <span className="mono">{aboutTicketId}</span></> : null}
       </p>
       <h1 style={{ margin: '0 0 0.5rem' }}>Tell the studio what you want</h1>
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', marginTop: 0, maxWidth: 'var(--content-narrow)' }}>
@@ -204,6 +252,12 @@ export function Composer({
         nothing until you say yes.
       </p>
 
+      {/* FB-131: two panes. The conversation on the left, the thing being made on the right — so a
+          founder watches the ticket take shape out of their own words rather than reading a wall of
+          markdown and hoping. Stacks on a narrow screen, from the stylesheet, because a media query
+          cannot override an inline style (FB-124). */}
+      <div className="composer-split">
+        <div className="composer-thread-pane">
       <div data-testid="composer-thread" style={{ marginTop: '1.25rem' }}>
         {messages.length === 0 && !live ? (
           <p className="card muted" data-testid="composer-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
@@ -245,37 +299,9 @@ export function Composer({
         </p>
       ) : null}
 
-      {/* FB-127: a document became a set. Read line by line, struck or kept, filed on one press. */}
-      {plan && !sending ? <PlanPanel key={`${plan.source_title}:${messages.length}`} plan={plan} /> : null}
-
-      {/* FB-075: the decision the whole surface exists for, as a control rather than a sentence the
-          founder has to guess. Shown only when there is a real draft on the table, so it is never a
-          button that means nothing. */}
-      {decision && !sending ? (
-        <div data-testid="composer-decision" style={{ marginTop: '1rem', display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            data-testid="composer-file-this"
-            onClick={() => void send(fileThisMessage(decision))}
-          >
-            File this
-          </button>
-          <button
-            type="button"
-            className="btn"
-            data-testid="composer-change"
-            onClick={() => inputRef.current?.focus()}
-          >
-            Change something
-          </button>
-          <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>
-            Nothing is built until you press it.
-          </span>
         </div>
-      ) : null}
 
-      <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', maxWidth: 'var(--content-narrow)' }}>
+        <div className="composer-input-pane" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', maxWidth: 'var(--content-narrow)' }}>
         <textarea
           ref={inputRef}
           data-testid="composer-input"
@@ -333,6 +359,21 @@ export function Composer({
             </button>
           </p>
         ) : null}
+        </div>
+
+        <div className="composer-rail-pane">
+          <ComposerRail
+            state={rail}
+            ventureId={ventureId}
+            filing={sending}
+            // Offered whenever there is a draft — including one that revises a ticket the founder
+            // arrived from. The press used to be withheld while `sending`, which meant the disabled
+            // "Filing…" label could never render and the draft lost its button mid-round-trip. It is
+            // present and disabled instead, so the control a founder just pressed stays where it was.
+            onFile={rail.kind === 'draft' ? () => { pressedFile.current = true; void send(fileThisMessage(decision)); } : undefined}
+            onChange={rail.kind === 'draft' ? () => inputRef.current?.focus() : undefined}
+          />
+        </div>
       </div>
     </section>
   );

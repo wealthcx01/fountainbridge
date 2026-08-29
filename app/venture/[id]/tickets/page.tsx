@@ -239,11 +239,21 @@ async function TrailFor({
     ),
   }));
 
-  // More reports existed than were read, so this history may be missing runs. Exactly what
-  // `degraded` says out loud — "it is not that nothing else happened, it is that the studio could
-  // not see it" — and the alternative is a short trail passing as a complete one.
-  const capped = runs.total > runs.reports.length;
-  return <TicketTrail trail={capped ? { ...trail, degraded: true } : trail} />;
+  // More reports existed than were read — so runs for this ticket MAY have been missed.
+  //
+  // Only said when none were found. ARCA has over a hundred run reports and twenty are read, so
+  // marking every trail degraded made the warning fire on every ticket forever, and a warning that
+  // is always on is one nobody reads. When the window did turn up this ticket's runs it plainly
+  // covered it; when it turned up none, "there may be more I could not see" is the honest state and
+  // the difference a founder needs.
+  //
+  // And only for a ticket that shows some evidence of having been worked at all. A ticket nobody has
+  // started has no runs because nothing ran, not because the window missed them — saying "this may
+  // be short" over the whole unstarted backlog is the always-on warning again, one step quieter.
+  const workedOn = trail.hops.some((h) => h.source === 'repo' || h.source === 'preview' || h.source === 'activegraph');
+  const mightHaveMissedRuns =
+    runs.total > runs.reports.length && workedOn && !trail.hops.some((h) => h.source === 'run');
+  return <TicketTrail trail={mightHaveMissedRuns ? { ...trail, degraded: true } : trail} />;
 }
 
 

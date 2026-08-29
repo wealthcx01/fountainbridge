@@ -210,6 +210,32 @@ body:has([data-testid='rail']) .main {
  *
  * Until FB-138 builds the pocket studio properly, a phone keeps the navigation that already works.
  * This is a holding position and says so; the real answer is one column, not a hidden column. */
+/* FB-131: the composer's panes — the conversation, the thing being made, and the box you type in.
+   Three children rather than two, placed explicitly, so a phone can order them thread → rail → input.
+   Nesting the input inside the thread column put "File this" below Send when it stacked: a founder
+   scrolled past the box they type in to find the button they came to press.
+   In the stylesheet, not inline, because a media query cannot override an inline style — which is
+   how FB-124 shipped a 250px rail on a 393px phone. */
+.composer-split {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0 2.5rem;
+  align-items: start;
+}
+.composer-thread-pane { grid-column: 1; grid-row: 1; }
+.composer-input-pane  { grid-column: 1; grid-row: 2; }
+.composer-rail-pane   { grid-column: 2; grid-row: 1 / span 2; }
+
+@media (max-width: 60rem) {
+  .composer-split { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  .composer-thread-pane,
+  .composer-input-pane,
+  .composer-rail-pane { grid-column: 1; grid-row: auto; }
+  .composer-thread-pane { order: 1; }
+  .composer-rail-pane { order: 2; }
+  .composer-input-pane { order: 3; }
+}
+
 /* A rendered ticket, wherever it is read (FB-153).
    `.ticket-body` was a class name with no rule behind it — used by the tickets screen, the work
    view, the drawer and memory, and styled by none of them. So a ticket citing a long URL pushed the
