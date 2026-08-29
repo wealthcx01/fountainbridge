@@ -210,6 +210,22 @@ body:has([data-testid='rail']) .main {
  *
  * Until FB-138 builds the pocket studio properly, a phone keeps the navigation that already works.
  * This is a holding position and says so; the real answer is one column, not a hidden column. */
+/* FB-131: the composer's two panes — the conversation, and the thing being made.
+   In the stylesheet for the same reason the tickets split is: a media query cannot override an
+   inline style, which is what made FB-124 ship a 250px rail on a 393px phone. On a narrow screen the
+   rail drops below the thread rather than beside it, because a founder on a phone is reading the
+   conversation and the draft follows from it. */
+.composer-split {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .composer-split { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+}
+
 /* A rendered ticket, wherever it is read (FB-153).
    `.ticket-body` was a class name with no rule behind it — used by the tickets screen, the work
    view, the drawer and memory, and styled by none of them. So a ticket citing a long URL pushed the

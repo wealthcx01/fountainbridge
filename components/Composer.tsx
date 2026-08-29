@@ -6,7 +6,9 @@ import {
   formatInline, parseReply, reduceChunk, visibleActions, withDocument,
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
-import { extractPlanDraft, parsePlanDraft } from '@/lib/plan-draft';
+import { parsePlanDraft } from '@/lib/plan-draft';
+import { railState } from '@/lib/composer-rail';
+import { ComposerRail } from './ComposerRail';
 import { toneColor } from '@/lib/status';
 import { PlanPanel } from './PlanPanel';
 
@@ -37,9 +39,12 @@ export function Composer({
   ventureId,
   ventureName,
   seed = null,
+  aboutTicketId = null,
 }: {
   ventureId: string;
   ventureName: string;
+  /** FB-131: arrived from a ticket. The rail shows that ticket rather than a draft. */
+  aboutTicketId?: string | null;
   /**
    * First words already in the box (FB-105) — the founder arrived from a ticket wanting to change
    * it. Only the opening: seeding the whole ticket body would hand them a wall of text to edit,
@@ -55,6 +60,10 @@ export function Composer({
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [restored, setRestored] = useState(false);
+  // What the founder filed in this session. Held here rather than derived from the thread: the
+  // composer's own reply naming a ticket is a claim, and FB-062 is what happens when the studio
+  // renders a claim as an event. This is set only when a press actually returned.
+  const [filed, setFiled] = useState<{ what: string; href: string | null } | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -85,11 +94,16 @@ export function Composer({
   // when the composer has not drafted anything, which is most turns.
   const last = messages[messages.length - 1];
   const lastBlocks = last?.role === 'assistant' ? parseReply(last.content) : null;
-  // A whole set proposed from a document (FB-127) is a different decision from a single ticket: it
-  // is read line by line and filed on one press, so it gets its own control and suppresses the
-  // single-ticket one. Otherwise a founder would meet two buttons over one proposal.
-  const plan = lastBlocks ? extractPlanDraft(lastBlocks) : null;
-  const decision = lastBlocks && !plan ? draftTitle(lastBlocks) : null;
+  // FB-131: one rail, one state. What is on the table — a draft, a plan, the ticket they arrived to
+  // discuss, what they just filed, or nothing — is decided once in `railState` and rendered once
+  // here. Before this the draft's press was inline in the thread and the plan's was its own panel,
+  // so two proposals could offer two differently-behaved buttons on one screen.
+  const rail = railState({
+    latestReply: last?.role === 'assistant' ? last.content : null,
+    aboutTicketId,
+    filed,
+  });
+  const decision = lastBlocks && rail.kind === 'draft' ? draftTitle(lastBlocks) : null;
 
   const send = useCallback(async (override?: string) => {
     const text = override ?? withDocument(draft, doc);
@@ -197,6 +211,7 @@ export function Composer({
     <section data-testid="composer">
       <p className="eyebrow">
         <span className="eyebrow-id">Composer</span> — {ventureName}
+        {aboutTicketId ? <> · about <span className="mono">{aboutTicketId}</span></> : null}
       </p>
       <h1 style={{ margin: '0 0 0.5rem' }}>Tell the studio what you want</h1>
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', marginTop: 0, maxWidth: 'var(--content-narrow)' }}>
@@ -204,6 +219,12 @@ export function Composer({
         nothing until you say yes.
       </p>
 
+      {/* FB-131: two panes. The conversation on the left, the thing being made on the right — so a
+          founder watches the ticket take shape out of their own words rather than reading a wall of
+          markdown and hoping. Stacks on a narrow screen, from the stylesheet, because a media query
+          cannot override an inline style (FB-124). */}
+      <div className="composer-split">
+        <div>
       <div data-testid="composer-thread" style={{ marginTop: '1.25rem' }}>
         {messages.length === 0 && !live ? (
           <p className="card muted" data-testid="composer-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
@@ -243,36 +264,6 @@ export function Composer({
           {doc.understood ?? `Attached: ${doc.name}`}{' '}
           <button type="button" className="btn" onClick={() => setDoc(null)}>Remove</button>
         </p>
-      ) : null}
-
-      {/* FB-127: a document became a set. Read line by line, struck or kept, filed on one press. */}
-      {plan && !sending ? <PlanPanel key={`${plan.source_title}:${messages.length}`} plan={plan} /> : null}
-
-      {/* FB-075: the decision the whole surface exists for, as a control rather than a sentence the
-          founder has to guess. Shown only when there is a real draft on the table, so it is never a
-          button that means nothing. */}
-      {decision && !sending ? (
-        <div data-testid="composer-decision" style={{ marginTop: '1rem', display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            data-testid="composer-file-this"
-            onClick={() => void send(fileThisMessage(decision))}
-          >
-            File this
-          </button>
-          <button
-            type="button"
-            className="btn"
-            data-testid="composer-change"
-            onClick={() => inputRef.current?.focus()}
-          >
-            Change something
-          </button>
-          <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>
-            Nothing is built until you press it.
-          </span>
-        </div>
       ) : null}
 
       <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', maxWidth: 'var(--content-narrow)' }}>
@@ -333,6 +324,20 @@ export function Composer({
             </button>
           </p>
         ) : null}
+      </div>
+        </div>
+
+        <div>
+          <ComposerRail
+            state={rail}
+            ventureId={ventureId}
+            filing={sending}
+            // The press is offered only when a reply has finished arriving. Offering it over half a
+            // streamed draft would let a founder file a ticket they have not seen the end of.
+            onFile={rail.kind === 'draft' && !sending ? () => void send(fileThisMessage(decision)) : undefined}
+            onChange={rail.kind === 'draft' && !sending ? () => inputRef.current?.focus() : undefined}
+          />
+        </div>
       </div>
     </section>
   );

@@ -6,7 +6,7 @@ data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":
 
 data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"Here is what I found, "},"finish_reason":null}]}
 
-data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"and what I would file.\n\n```\n# ARCA-NEW — Show how fresh each price is\n## Scope\n- [ ] a last-updated time next to every price\n```\n"},"finish_reason":null}]}
+data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"and what I would file.\n\n```\n# ARCA-NEW — Show how fresh each price is\n\n**Status:** Todo · **Area:** Pricing\n\n## Why this matters (for the founder)\nPrices look stale and a collector cannot tell whether to trust them.\n\n## Scope\n- [ ] a last-updated time next to every price\n- [ ] a quiet warning when a price is over a day old\n\n## Acceptance criteria\n- [ ] Every price on the market page shows when it was read\n```\n"},"finish_reason":null}]}
 
 data: {"id":"c1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"tool_calls":[{"index":2,"id":"toolu_02","type":"function","function":{"name":"file_venture_ticket_mcp_ticket-filer","arguments":"{}"}}]},"finish_reason":null}]}
 

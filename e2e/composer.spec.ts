@@ -99,18 +99,82 @@ test.describe('describing what you want', () => {
     // FB-075. The composer asks "want me to file this?" and used to offer only a text box — so the
     // one moment this surface exists for was a guess. It already went wrong once: a founder's yes
     // arrived in a different session and the composer said it had no draft.
+    //
+    // FB-131 moved the press out of the thread and into the rail, beside the draft it is about — so
+    // "what am I agreeing to" is answered by what the founder is looking at rather than by a button
+    // floating under a wall of markdown. The property is unchanged and the location is not.
     await page.goto('/venture/arca/composer');
     await page.getByTestId('composer-input').fill('Show me how fresh prices are');
     await page.getByTestId('composer-send').click();
-    await expect(page.getByTestId('composer-decision')).toBeVisible();
-    await expect(page.getByTestId('composer-file-this')).toHaveText('File this');
-    await expect(page.getByTestId('composer-change')).toBeVisible();
+
+    const rail = page.getByTestId('rail-draft');
+    await expect(rail).toBeVisible();
+    await expect(page.getByTestId('rail-draft-title')).toHaveText('Show how fresh each price is');
+    // All four parts, from a fixture that actually has them. The first version of this test looked
+    // at a draft with only a Scope heading, so Why and Done-when could not have failed (FB-153).
+    for (const part of ['Why', 'Scope', 'Done when', 'Approval']) await expect(rail).toContainText(part);
+    await expect(rail).toContainText('Prices look stale');
+    await expect(rail).toContainText('Every price on the market page shows when it was read');
+    await expect(page.getByTestId('rail-file')).toHaveText('File this');
+    await expect(page.getByTestId('rail-change')).toBeVisible();
+    await expect(rail).toContainText('Nothing is built until you press it.');
+  });
+
+  test('the rail shows exactly one state, never two', async ({ page }) => {
+    // Two things on the table is two answers to "what am I about to press", which is the one
+    // question this screen exists to answer.
+    await page.goto('/venture/arca/composer');
+    const states = ['rail-draft', 'rail-plan', 'rail-discussing', 'rail-filed', 'rail-empty'];
+    const count = async () => {
+      let n = 0;
+      for (const s of states) n += await page.getByTestId(s).count();
+      return n;
+    };
+    expect(await count()).toBe(1);
+
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+    expect(await count()).toBe(1);
+
+    await page.screenshot({ path: 'e2e/__screenshots__/22-composer.png', fullPage: true });
+  });
+
+  test('arriving from a ticket shows that ticket, not a draft', async ({ page }) => {
+    await page.goto('/venture/arca/composer?about=ARCA-1');
+    await expect(page.getByTestId('rail-discussing')).toContainText('ARCA-1');
+    await expect(page.getByTestId('rail-draft')).toHaveCount(0);
+    // And a way back to where they came from, with its history.
+    await expect(page.getByTestId('rail-back-to-ticket')).toBeVisible();
+  });
+
+  test('the rail fits a phone, below the conversation', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 851 });
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+
+    const m = await page.evaluate(() => {
+      const y = (s: string) => document.querySelector(s)?.getBoundingClientRect().top ?? 0;
+      return {
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        railBelowThread: y('[data-testid=rail-draft]') > y('[data-testid=composer-thread]'),
+      };
+    });
+    expect(m.overflow).toBeLessThanOrEqual(0);
+    // A founder on a phone reads the conversation, and the draft follows from it.
+    expect(m.railBelowThread).toBe(true);
+    await page.screenshot({ path: 'e2e/__screenshots__/22-mobile-composer.png', fullPage: true });
   });
 
   test('there is nothing to agree to until there is a draft', async ({ page }) => {
-    // A button that sometimes means nothing teaches a founder to distrust it.
+    // A button that sometimes means nothing teaches a founder to distrust it. The rail says so in
+    // words rather than showing an empty form with a live press over it.
     await page.goto('/venture/arca/composer');
-    await expect(page.getByTestId('composer-decision')).toHaveCount(0);
+    await expect(page.getByTestId('rail-file')).toHaveCount(0);
+    await expect(page.getByTestId('rail-empty')).toBeVisible();
+    await expect(page.getByTestId('rail-empty')).toContainText('the ticket takes shape here');
   });
 
   test('the thread is still there when the founder comes back', async ({ page }) => {
