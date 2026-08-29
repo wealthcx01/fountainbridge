@@ -125,8 +125,13 @@ test.describe('tickets', () => {
   });
 
   test('it fits a phone, and the ticket is reachable there', async ({ page }) => {
+    // FB-153: this assertion passed on production data that could not fail. ARCA's real backlog has
+    // a ticket citing a 377px URL, which pushed a 393px window to 471px; the fixture had no link
+    // long enough to overflow, so the check was looking at nothing. There is one now.
     await page.setViewportSize({ width: 393, height: 851 });
-    await page.goto('/venture/arca/tickets');
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-6');
+    await expect(page.getByTestId('detail-title')).toContainText('Price history');
+    await expect(page.getByTestId('tickets-detail')).toContainText('developer.ebay.com');
     await expect(page.getByTestId('tickets-list')).toBeVisible();
     await expect(page.getByTestId('tickets-detail')).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

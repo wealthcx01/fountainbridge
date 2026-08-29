@@ -210,6 +210,20 @@ body:has([data-testid='rail']) .main {
  *
  * Until FB-138 builds the pocket studio properly, a phone keeps the navigation that already works.
  * This is a holding position and says so; the real answer is one column, not a hidden column. */
+/* A rendered ticket, wherever it is read (FB-153).
+   `.ticket-body` was a class name with no rule behind it — used by the tickets screen, the work
+   view, the drawer and memory, and styled by none of them. So a ticket citing a long URL pushed the
+   page sideways on a phone: 471px of content in a 393px window, from one link a founder's own team
+   had written into a ticket. Nothing caught it because the e2e fixtures have no long links; it took
+   ARCA's real backlog.
+   `anywhere` rather than `break-word`: only the former breaks a long token when it is the sole thing
+   on the line, which is exactly the case here. */
+.ticket-body { overflow-wrap: anywhere; }
+.ticket-body pre { overflow-x: auto; }
+.ticket-body img { max-width: 100%; height: auto; }
+/* A wide table scrolls inside its own box rather than taking the page with it. */
+.ticket-body table { display: block; overflow-x: auto; max-width: 100%; }
+
 /* FB-129: the tickets screen — list beside detail, stacking on a narrow screen.
    In the stylesheet rather than inline, because a media query cannot override an inline style:
    FB-124 shipped a 250px rail on a 393px phone for exactly that reason and it took four
