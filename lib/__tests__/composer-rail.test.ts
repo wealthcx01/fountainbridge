@@ -57,10 +57,24 @@ describe('exactly one state, never two', () => {
     expect(s.kind).toBe('filed');
   });
 
-  it('shows the ticket they arrived to discuss over a draft', () => {
-    const s = railState(input({ latestReply: replyWith(TICKET), aboutTicketId: 'ARCA-6' }));
+  it('shows the ticket they arrived to discuss when nothing is on the table', () => {
+    const s = railState(input({ aboutTicketId: 'ARCA-6' }));
     expect(s.kind).toBe('discussing');
     if (s.kind === 'discussing') expect(s.ticketId).toBe('ARCA-6');
+  });
+
+  it('shows the DRAFT when one arrives during a discussion, and says what it revises', () => {
+    // The first version returned `discussing` for the life of the page, and that state renders no
+    // press — so the whole revision flow (drawer → "Ask for changes to this" → converse → draft)
+    // ended with no button anywhere and the founder had to type "yes, file it" by hand.
+    const s = railState(input({ latestReply: replyWith(TICKET), aboutTicketId: 'ARCA-6' }));
+    expect(s.kind).toBe('draft');
+    if (s.kind === 'draft') expect(s.revises).toBe('ARCA-6');
+  });
+
+  it('shows a plan proposed during a discussion, which had the same hole', () => {
+    const s = railState(input({ latestReply: replyWith(plan), aboutTicketId: 'ARCA-6' }));
+    expect(s.kind).toBe('plan');
   });
 
   it('shows a plan over a single draft, because a set is the bigger decision', () => {
@@ -121,12 +135,18 @@ describe('the ticket taking shape', () => {
     expect(sections()?.doneWhen).toBe('Every price on the market page shows when it was read');
   });
 
-  it('is nothing at all when a fenced block is not a ticket', () => {
-    // A code sample, or a reply that happened to open with a heading. Drawing an empty form and
-    // inviting a press over it would be worse than saying there is nothing on the table.
+  it('is nothing at all when a fenced block has no heading', () => {
+    // A code sample is not a ticket, and drawing a form over it would invite a press on nothing.
     expect(draftSections(parseReply('```\nnpm run dev\n```'))).toBeNull();
-    expect(draftSections(parseReply('```\n# Just a heading\n```'))).toBeNull();
     expect(draftSections(parseReply('no fenced block here'))).toBeNull();
+  });
+
+  it('is still fileable when the draft is not in the house format', () => {
+    // The composer's prompt lives on a venture box, not in this repository, so the studio cannot
+    // assume `## Scope` and `## Acceptance criteria` hold. Requiring them silently removed the
+    // founder's only way to file. A thin rail is visibly thin; a missing button is invisible.
+    const s = draftSections(parseReply('```\n# Show set names on card pages\n\nJust prose, no headings.\n```'));
+    expect(s?.title).toBe('Show set names on card pages');
   });
 
   it('survives a ticket that is missing sections', () => {

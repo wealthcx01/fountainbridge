@@ -210,20 +210,30 @@ body:has([data-testid='rail']) .main {
  *
  * Until FB-138 builds the pocket studio properly, a phone keeps the navigation that already works.
  * This is a holding position and says so; the real answer is one column, not a hidden column. */
-/* FB-131: the composer's two panes — the conversation, and the thing being made.
-   In the stylesheet for the same reason the tickets split is: a media query cannot override an
-   inline style, which is what made FB-124 ship a 250px rail on a 393px phone. On a narrow screen the
-   rail drops below the thread rather than beside it, because a founder on a phone is reading the
-   conversation and the draft follows from it. */
+/* FB-131: the composer's panes — the conversation, the thing being made, and the box you type in.
+   Three children rather than two, placed explicitly, so a phone can order them thread → rail → input.
+   Nesting the input inside the thread column put "File this" below Send when it stacked: a founder
+   scrolled past the box they type in to find the button they came to press.
+   In the stylesheet, not inline, because a media query cannot override an inline style — which is
+   how FB-124 shipped a 250px rail on a 393px phone. */
 .composer-split {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 2.5rem;
+  gap: 0 2.5rem;
   align-items: start;
 }
+.composer-thread-pane { grid-column: 1; grid-row: 1; }
+.composer-input-pane  { grid-column: 1; grid-row: 2; }
+.composer-rail-pane   { grid-column: 2; grid-row: 1 / span 2; }
 
 @media (max-width: 60rem) {
   .composer-split { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  .composer-thread-pane,
+  .composer-input-pane,
+  .composer-rail-pane { grid-column: 1; grid-row: auto; }
+  .composer-thread-pane { order: 1; }
+  .composer-rail-pane { order: 2; }
+  .composer-input-pane { order: 3; }
 }
 
 /* A rendered ticket, wherever it is read (FB-153).

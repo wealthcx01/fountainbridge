@@ -246,8 +246,13 @@ async function TrailFor({
   // is always on is one nobody reads. When the window did turn up this ticket's runs it plainly
   // covered it; when it turned up none, "there may be more I could not see" is the honest state and
   // the difference a founder needs.
+  //
+  // And only for a ticket that shows some evidence of having been worked at all. A ticket nobody has
+  // started has no runs because nothing ran, not because the window missed them — saying "this may
+  // be short" over the whole unstarted backlog is the always-on warning again, one step quieter.
+  const workedOn = trail.hops.some((h) => h.source === 'repo' || h.source === 'preview' || h.source === 'activegraph');
   const mightHaveMissedRuns =
-    runs.total > runs.reports.length && !trail.hops.some((h) => h.source === 'run');
+    runs.total > runs.reports.length && workedOn && !trail.hops.some((h) => h.source === 'run');
   return <TicketTrail trail={mightHaveMissedRuns ? { ...trail, degraded: true } : trail} />;
 }
 

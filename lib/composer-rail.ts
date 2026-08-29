@@ -39,8 +39,8 @@ export type RailState =
   | { kind: 'discussing'; ticketId: string }
   /** A document became a set (FB-127). */
   | { kind: 'plan'; plan: PlanDraft }
-  /** One ticket, taking shape. */
-  | { kind: 'draft'; draft: DraftSections }
+  /** One ticket, taking shape. `revises` is set when the founder arrived from a ticket. */
+  | { kind: 'draft'; draft: DraftSections; revises: string | null }
   /** Nothing on the table yet, which is most of the time and is not an error. */
   | { kind: 'empty' };
 
@@ -56,29 +56,33 @@ export interface RailInput {
 /**
  * Which one of the five.
  *
- * The order is the argument:
+ * The order is the argument, and it changed once already:
  *
- * 1. **What they just filed** wins over everything. A founder who has pressed needs to know what
- *    happened, and showing them a draft again would invite a second press on work that already
- *    exists. (The design nests "after you pressed it" inside the no-context branch; putting it first
- *    means a founder who files a revision is told so too, which the design's own tree leaves silent.)
- * 2. **The ticket they came to discuss.** They arrived from it; the conversation is about it.
- * 3. **A plan** before a single draft, because a plan block is unambiguous and a set is the bigger
- *    decision. `extractPlanDraft` refuses anything malformed, so this cannot be reached by a fenced
- *    block that merely looks like one.
- * 4. **A draft**, when the reply carries one.
- * 5. **Nothing**, which is most turns.
+ * 1. **What they just filed** wins. A founder who has pressed needs to know what happened, and
+ *    showing them the draft again invites a second press on work that already exists.
+ * 2. **A plan**, then **a draft** — anything actually on the table.
+ * 3. **The ticket they came to discuss**, when nothing is. That is exactly when it is useful:
+ *    orientation before there is anything to press.
+ * 4. **Nothing**, which is most turns.
+ *
+ * The first version put `discussing` above the draft, matching the design's tree — and that removed
+ * the only way to file from the whole revision flow. A founder arriving from a ticket ("Ask for
+ * changes to this"), talking it through and getting a draft back had **no button anywhere**, because
+ * this returned `discussing` for the life of the page and that state renders no press. The design's
+ * tree is about what to show; it was never about where the press lives.
  */
 export function railState(input: RailInput): RailState {
   if (input.filed) return { kind: 'filed', what: input.filed.what, href: input.filed.href };
-  if (input.aboutTicketId) return { kind: 'discussing', ticketId: input.aboutTicketId };
 
   const blocks = input.latestReply ? parseReply(input.latestReply) : [];
   const plan = extractPlanDraft(blocks);
   if (plan) return { kind: 'plan', plan };
 
   const draft = draftSections(blocks);
-  return draft ? { kind: 'draft', draft } : { kind: 'empty' };
+  if (draft) return { kind: 'draft', draft, revises: input.aboutTicketId };
+
+  if (input.aboutTicketId) return { kind: 'discussing', ticketId: input.aboutTicketId };
+  return { kind: 'empty' };
 }
 
 const HEADING = /^\s{0,3}#{1,6}\s+(.*\S)\s*$/;
@@ -143,9 +147,12 @@ export function draftSections(blocks: ReplyBlock[]): DraftSections | null {
     doneWhen: bullets(doneBody)[0] ?? prose(doneBody),
   };
 
-  // A block with a title and nothing else is not a ticket taking shape — it is a fenced code sample,
-  // or a reply that happened to open with a heading. The rail says "nothing on the table" instead of
-  // drawing an empty form and inviting a press.
-  const empty = !sectioned.why && sectioned.scope.length === 0 && !sectioned.doneWhen;
-  return empty ? null : sectioned;
+  // A fenced block with no heading at all is a code sample, not a ticket, and gets no press.
+  //
+  // But a block WITH a heading is fileable even when none of the sections parse. The composer's
+  // prompt lives on a venture box, not in this repository, so the studio cannot assume the
+  // `## Scope` / `## Acceptance criteria` shape holds — and the first version of this returned null
+  // for anything else, which silently removed the founder's only way to file. A thin rail that
+  // shows a title and an empty form is visibly thin; a missing button is invisible (CLAUDE.md #10).
+  return title ? sectioned : null;
 }

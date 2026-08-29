@@ -64,8 +64,13 @@ export function ComposerRail({
           records this conversation as where it came from.
         </p>
         <p style={{ margin: 0, fontSize: 'var(--fs-body-sm)' }}>
+          {/* The BARE id. `?about=` carries one, and the tickets screen resolves a bare id against
+              the whole list. Building `${ventureId}/${id}` looked like a row key and is not one —
+              `rowKey` is `repo/id`, and a venture whose id differs from its repository (the-reset,
+              whose repos are `thereset-platform` and `thereset-marketing`) matched neither branch
+              and silently opened whichever ticket happened to be first. */}
           <Link
-            href={`/venture/${ventureId}/tickets?t=${encodeURIComponent(`${ventureId}/${state.ticketId}`)}`}
+            href={`/venture/${ventureId}/tickets?t=${encodeURIComponent(state.ticketId)}`}
             data-testid="rail-back-to-ticket"
           >
             ← Back to the ticket and its history
@@ -89,8 +94,10 @@ export function ComposerRail({
 
   const { draft } = state;
   return (
-    <aside className="card" data-testid="rail-draft">
-      <p className="eyebrow" style={{ marginTop: 0 }}>The ticket, taking shape</p>
+    <aside className="card" data-testid="rail-draft" data-revises={state.revises ?? undefined}>
+      <p className="eyebrow" style={{ marginTop: 0 }}>
+        {state.revises ? <>A change to <span className="mono">{state.revises}</span></> : 'The ticket, taking shape'}
+      </p>
       <h2 data-testid="rail-draft-title" style={{ fontSize: 'var(--fs-h4)', margin: '0 0 0.75rem' }}>
         {draft.title}
       </h2>
@@ -113,8 +120,18 @@ export function ComposerRail({
       </Part>
 
       <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.75rem 0 0' }}>
-        Every line came from the conversation. Press <strong>File this</strong> and it lands in
-        Tickets, waiting to be picked up.
+        {state.revises ? (
+          <>
+            Every line came from the conversation. Press <strong>File this</strong> and it goes to
+            your team as a change to <span className="mono">{state.revises}</span>, with this
+            conversation recorded as where it came from.
+          </>
+        ) : (
+          <>
+            Every line came from the conversation. Press <strong>File this</strong> and it lands in
+            Tickets, waiting to be picked up.
+          </>
+        )}
       </p>
 
       {onFile ? (

@@ -140,15 +140,67 @@ test.describe('describing what you want', () => {
     await page.screenshot({ path: 'e2e/__screenshots__/22-composer.png', fullPage: true });
   });
 
-  test('arriving from a ticket shows that ticket, not a draft', async ({ page }) => {
+  test('arriving from a ticket shows that ticket until there is something to press', async ({ page }) => {
     await page.goto('/venture/arca/composer?about=ARCA-1');
     await expect(page.getByTestId('rail-discussing')).toContainText('ARCA-1');
     await expect(page.getByTestId('rail-draft')).toHaveCount(0);
-    // And a way back to where they came from, with its history.
-    await expect(page.getByTestId('rail-back-to-ticket')).toBeVisible();
+    // And a way back to where they came from, with its history — by the ticket's own id, so it
+    // resolves on a venture whose id differs from its repository.
+    await expect(page.getByTestId('rail-back-to-ticket')).toHaveAttribute('href', /[?&]t=ARCA-1$/);
   });
 
-  test('the rail fits a phone, below the conversation', async ({ page }) => {
+  test('a revision can be filed, which is the whole reason to arrive from a ticket', async ({ page }) => {
+    // The first version of this screen returned `discussing` for the life of the page, and that
+    // state renders no press. The in-thread button had just been deleted — so the FB-105 flow ended
+    // with no way to file at all, and the test written beside it asserted the absence of the draft
+    // and locked the regression in.
+    await page.goto('/venture/arca/composer?about=ARCA-1');
+    await page.getByTestId('composer-input').fill('Change the second line');
+    await page.getByTestId('composer-send').click();
+
+    const rail = page.getByTestId('rail-draft');
+    await expect(rail).toBeVisible();
+    await expect(rail).toHaveAttribute('data-revises', 'ARCA-1');
+    await expect(rail).toContainText('a change to ARCA-1');
+    await expect(page.getByTestId('rail-file')).toBeEnabled();
+  });
+
+  test('the draft stays on screen while the reply is arriving', async ({ page }) => {
+    // `send` appends the founder's own message first, so keying the rail off the newest turn made
+    // the draft they had just agreed to vanish for the whole round-trip and be replaced by
+    // "Nothing on the table" — at the single moment it mattered most.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+
+    await page.getByTestId('composer-input').fill('one more thing');
+    await page.getByTestId('composer-send').click();
+    // Still the draft, never the empty state, whatever the round-trip is doing.
+    await expect(page.getByTestId('rail-empty')).toHaveCount(0);
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+  });
+
+  test('after a real filing the rail says what happened next', async ({ page }) => {
+    // Set from EVIDENCE — the filer actually ran — never from the reply's own words. The composer
+    // once told a founder it had filed a ticket it had not filed (FB-062).
+    //
+    // The first version declared this state, wrote its copy, wrote its precedence, and never called
+    // the setter. It could not render at all, and the PR body claimed it worked.
+    await page.goto('/venture/arca/composer');
+    await page.getByTestId('composer-input').fill('Show me how fresh prices are');
+    await page.getByTestId('composer-send').click();
+    await expect(page.getByTestId('rail-draft')).toBeVisible();
+
+    await page.getByTestId('rail-file').click();
+    await expect(page.getByTestId('rail-filed')).toBeVisible();
+    await expect(page.getByTestId('rail-filed')).toContainText('waiting to be picked up');
+    await expect(page.getByTestId('rail-filed-link')).toBeVisible();
+    // And the draft is gone, so a second press cannot land on work that already exists.
+    await expect(page.getByTestId('rail-file')).toHaveCount(0);
+  });
+
+  test('on a phone the rail sits between the conversation and the box you type in', async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 851 });
     await page.goto('/venture/arca/composer');
     await page.getByTestId('composer-input').fill('Show me how fresh prices are');
@@ -160,11 +212,15 @@ test.describe('describing what you want', () => {
       return {
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         railBelowThread: y('[data-testid=rail-draft]') > y('[data-testid=composer-thread]'),
+        railAboveInput: y('[data-testid=rail-draft]') < y('[data-testid=composer-input]'),
       };
     });
     expect(m.overflow).toBeLessThanOrEqual(0);
     // A founder on a phone reads the conversation, and the draft follows from it.
     expect(m.railBelowThread).toBe(true);
+    // And the press is not below the box they type in — nesting the input inside the thread column
+    // made them scroll past Send to find "File this".
+    expect(m.railAboveInput).toBe(true);
     await page.screenshot({ path: 'e2e/__screenshots__/22-mobile-composer.png', fullPage: true });
   });
 

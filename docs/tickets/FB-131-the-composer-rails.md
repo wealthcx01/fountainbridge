@@ -73,10 +73,19 @@ On the ARCA box before review — the FB-119 rule applies to anything touching t
 ## What shipped, and what is honest about it
 
 **Five states, decided once.** `railState` returns a discriminated union and the component renders
-what it is given, so "what am I about to press" is answered in one place. The precedence deviates
-from the design's tree in one way, deliberately: **what was just filed wins over everything**,
-including the ticket-under-discussion branch, which the design nests it inside. A founder who files a
-revision would otherwise get no confirmation at all.
+what it is given, so "what am I about to press" is answered in one place.
+
+The precedence deviates from the design's tree twice, and the second one was a bug first. **What was
+just filed wins over everything**, so a founder who files a revision is told so. And **a draft or a
+plan beats the ticket-under-discussion**, because the first version returned `discussing` for the
+life of the page and that state renders no press — the whole FB-105 revision flow (drawer → "Ask for
+changes to this" → converse → draft) ended with no button anywhere. The design's tree is about what
+to show; it was never about where the press lives.
+
+**"After you pressed it" is set from evidence.** Both halves are required: the founder pressed, and
+the filer actually ran. Either alone is wrong — a reply that calls the filer without a press is the
+FB-119 failure, and a press whose reply shows no filing action is the FB-062 one, where the composer
+told a founder it had filed something it had not.
 
 **The press moved out of the thread and into the rail**, beside the draft it is about — so the
 question is answered by what a founder is looking at rather than by a button under a wall of
