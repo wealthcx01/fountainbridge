@@ -13,6 +13,7 @@ import {
 import { loadRunReports, engineState, type EngineState } from './runreports';
 import { githubRunReportSource, fixtureRunReportSource } from './runreports-load';
 import { GitHubClient } from './github';
+import { timed } from './timing';
 
 /**
  * What the rail needs, loaded once per request (FB-124).
@@ -84,19 +85,26 @@ function runReportSource() {
  * situation it would be reporting on, a venture whose reads are failing, is exactly when a founder
  * most needs the page to still render (CLAUDE.md #10).
  */
-export const loadRailData = cache(async (venture: VentureSummary, nowMs: number): Promise<RailData> => {
+export const loadRailData = cache(async (venture: VentureSummary, nowMs: number): Promise<RailData> =>
+  timed('rail: everything', () => railData(venture, nowMs), venture.id));
+
+async function railData(venture: VentureSummary, nowMs: number): Promise<RailData> {
   let degraded = false;
   const fell = <T,>(fallback: T) => (): T => {
     degraded = true;
     return fallback;
   };
 
+  // Timed individually (FB-151). The three run in parallel, so their sum is not the wall clock —
+  // what these readings answer is WHICH of them the wall clock is waiting on, which is the question
+  // two rounds of optimisation have now got wrong by reasoning instead of measuring.
   const [attention, approvals, runs] = await Promise.all([
-    loadVentureAttention(venture).catch(fell<Awaited<ReturnType<typeof loadVentureAttention>> | null>(null)),
-    loadApprovals(venture, approvalSource()).catch(fell<ActiveGraphApproval[]>([])),
-    loadRunReports(venture, runReportSource()).catch(
-      fell<Awaited<ReturnType<typeof loadRunReports>> | null>(null),
-    ),
+    timed('rail: open work', () => loadVentureAttention(venture), venture.id)
+      .catch(fell<Awaited<ReturnType<typeof loadVentureAttention>> | null>(null)),
+    timed('rail: your approvals', () => loadApprovals(venture, approvalSource()), venture.id)
+      .catch(fell<ActiveGraphApproval[]>([])),
+    timed('rail: what your team did', () => loadRunReports(venture, runReportSource()), venture.id)
+      .catch(fell<Awaited<ReturnType<typeof loadRunReports>> | null>(null)),
   ]);
 
   // Envelopes are read from disk in this repo, not over the network — cheap, and synchronous.
@@ -116,4 +124,4 @@ export const loadRailData = cache(async (venture: VentureSummary, nowMs: number)
     engine: { state: engine.state, text: engine.text, ageMinutes: engine.ageMinutes },
     degraded,
   };
-});
+}
