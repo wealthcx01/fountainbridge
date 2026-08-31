@@ -1,6 +1,6 @@
 # FB-158 — "What happened" is the one screen still at six seconds
 
-**Status:** Todo · **Area:** Studio / performance · **Depends on:** FB-157
+**Status:** Done · **Area:** Studio / performance · **Depends on:** FB-157
 
 ## What was measured
 
@@ -53,9 +53,44 @@ single read returns.
 - Making `loadRunReports` itself cheaper. Still the separate question FB-157 named: it reads
   `limit × READ_MARGIN` files per surface, and the rail needs only the heartbeat out of all of it.
 
+## After the fix
+
+Production, signed in as ARCA's founder, three loads each, landing path checked, median TTFB:
+
+| Route | Before | After |
+| --- | --- | --- |
+| `/venture/arca/activity` | 5,986 ms | **238 ms** |
+| `/venture/arca` | 231 ms | 246 ms |
+| `/venture/arca/knowledge` | 230 ms | 238 ms |
+| `/venture/arca/tickets` | 227 ms | 253 ms |
+| `/venture/arca/handbook` | 230 ms | 222 ms |
+
+**Every screen under a venture now answers between 222 and 253 milliseconds.** The record still
+arrives whole: 40 rows, its summary reading *"in the last 14 days your team finished 7 pieces of
+work…"*, one heading, and no waiting shell left in the document.
+
+## A test id was load-bearing layout
+
+The UI gate caught what nothing local did: **horizontal scroll, 498 > 393 on a phone**. The snapshot
+from the failing run showed the rail drawn inside a 393px screen with its budgets reading
+"checking" — the waiting shell, visible.
+
+`app/globals.css` hid the rail on phones with `[data-testid='rail']`. Giving the shell its own id —
+so a test could tell it apart from the real rail — took it straight out of that rule. FB-124's
+defect, returning through a test id, on the one gate that can see a screen.
+
+The rules key on `.rail` now, and `design-lint` gained a **`testid-selector`** rule so it cannot come
+back: no stylesheet rule may key on a `data-testid`.
+
+That rule is deterministic, and the browser check is not. The phone assertion added first **passed
+with the bug restored**, because a warm local server resolves the boundary before the measurement
+happens — it only ever failed on CI. Verified on production: no rail is drawn on a phone at any
+point, and the overflow is 0.
+
 ## Acceptance criteria
 
-- [ ] `/venture/arca/activity` is under 1s, measured on production with the landing path checked.
-- [ ] The feed still arrives, and what it says is unchanged.
-- [ ] Exactly one of every control on the screen; no waiting shell left in the document.
-- [ ] Nothing in the shell states anything about the venture that has not been read.
+- [x] `/venture/arca/activity` is under 1s — **238 ms**, measured on production with the landing path
+      checked.
+- [x] The feed still arrives, and what it says is unchanged — 40 rows and the same summary.
+- [x] Exactly one of every control on the screen; no waiting shell left in the document.
+- [x] Nothing in the shell states anything about the venture that has not been read.
