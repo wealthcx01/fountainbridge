@@ -188,11 +188,23 @@ export function describeOrigin(origin: DocOrigin, day: (iso: string) => string |
   }
 }
 
-/** A corpus row as the Memory table renders it: the document, plus what git says about it. */
+/** A corpus row as the Memory table renders it: the document, plus what its records say about it. */
 export interface KnowledgeRow {
+  /**
+   * Which of the venture's repositories this came from.
+   *
+   * The path alone is NOT an identity. A venture has several surfaces (Build, Sell, Scale) and the
+   * corpus is read from each of them, so two of them can both hold `context/general/price-list.md` —
+   * at which point a path-keyed table renders duplicate React keys and two elements answering to one
+   * test id, and clicking one document opens the other. Same lesson as `rowKey` in tickets-view.ts.
+   */
+  repo: string;
   doc: KnowledgeDoc;
   origin: DocOrigin;
 }
+
+/** The identity of a row: the surface it came from AND its path. Never the path alone. */
+export const docKey = (row: Pick<KnowledgeRow, 'repo' | 'doc'>): string => `${row.repo}/${row.doc.path}`;
 
 /**
  * Newest first, and everything git could not date last.
@@ -202,12 +214,19 @@ export interface KnowledgeRow {
  * where a missing date would otherwise read as "just now".
  */
 export function orderRows(rows: readonly KnowledgeRow[]): KnowledgeRow[] {
-  const when = (r: KnowledgeRow) => (r.origin.kind === 'unknown' ? '' : r.origin.at);
+  // Parsed instants rather than a string compare: these timestamps come from a code host and from
+  // fixtures, and `2026-06-20T09:00:00Z` sorts against `2026-06-20T10:00:00+01:00` correctly only
+  // once both are numbers. The same two moments compared as text put the earlier one first.
+  const when = (r: KnowledgeRow): number | null => {
+    if (r.origin.kind === 'unknown') return null;
+    const at = Date.parse(r.origin.at);
+    return Number.isFinite(at) ? at : null;
+  };
   return [...rows].sort((a, b) => {
     const [x, y] = [when(a), when(b)];
-    if (x && y && x !== y) return y.localeCompare(x);
-    if (x !== y) return x ? -1 : 1;
-    return a.doc.title.localeCompare(b.doc.title);
+    if (x !== null && y !== null && x !== y) return y - x;
+    if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+    return a.doc.title.localeCompare(b.doc.title) || docKey(a).localeCompare(docKey(b));
   });
 }
 
@@ -221,8 +240,23 @@ export function orderRows(rows: readonly KnowledgeRow[]): KnowledgeRow[] {
 export function memorySummary(rows: readonly KnowledgeRow[]): string {
   if (rows.length === 0) return 'Nothing handed over yet.';
   const docs = `${rows.length} document${rows.length === 1 ? '' : 's'}`;
-  const areas = new Set(rows.map((r) => r.doc.area));
-  const depts = new Set(rows.map((r) => r.doc.department));
-  const where = areas.size === 2 ? 'background and artifacts' : AREA_LABEL[[...areas][0]].toLowerCase();
-  return `${docs} across ${depts.size} ${depts.size === 1 ? 'area' : 'areas'} — ${where}.`;
+  // Counted by area, and the sentence names the areas it counted. The first draft said "across N
+  // areas" where N was the number of SURFACES and the words after the dash named the two corpus
+  // areas — two different things in one clause, on the screen whose job is to be exact.
+  const parts = (['context', 'library'] as KnowledgeArea[])
+    .map((area) => ({ area, n: rows.filter((r) => r.doc.area === area).length }))
+    .filter((p) => p.n > 0)
+    .map((p) => `${p.n} ${p.n === 1 ? AREA_SHORT[p.area].one : AREA_SHORT[p.area].many}`);
+  return `${docs} — ${parts.join(', ')}.`;
 }
+
+/**
+ * The short form of each area, for a sentence rather than a section heading.
+ *
+ * Both forms spelled out rather than an `s` appended: "1 piece of backgrounds" is what appending one
+ * produces, and a summary that cannot count to one is not a summary anybody trusts.
+ */
+export const AREA_SHORT: Record<KnowledgeArea, { one: string; many: string }> = {
+  context: { one: 'piece of background', many: 'pieces of background' },
+  library: { one: 'artifact', many: 'artifacts' },
+};

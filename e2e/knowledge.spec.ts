@@ -34,7 +34,7 @@ test.describe('what your venture knows (FB-106)', () => {
   test('a founder reads a document without leaving the studio', async ({ page }) => {
     // The whole point: the only way to see this was GitHub.
     await page.goto('/venture/arca/knowledge');
-    await page.getByTestId('knowledge-doc-context/sell/brand-positioning.md').click();
+    await page.getByTestId('knowledge-doc-arca/context/sell/brand-positioning.md').click();
     const reader = page.getByTestId('knowledge-reader');
     await expect(reader).toBeVisible();
     await expect(reader).toContainText('a trading desk, not a toy aisle');
@@ -85,23 +85,27 @@ test.describe('memory (FB-133)', () => {
     await page.goto('/venture/arca/knowledge');
 
     // The studio's own Add control wrote this one, so it was the founder.
-    await expect(page.getByTestId('memory-from-context/general/price-list.md')).toHaveText('You');
+    await expect(page.getByTestId('memory-from-arca/context/general/price-list.md')).toHaveText('You');
     // The composer deposited this one. Not "You" — the machine made that call mid-conversation.
-    await expect(page.getByTestId('memory-from-context/sell/brand-positioning.md')).toHaveText('Your composer');
+    await expect(page.getByTestId('memory-from-arca/context/sell/brand-positioning.md')).toHaveText('Your composer');
     // Nobody the studio recognises: whoever actually wrote it.
-    await expect(page.getByTestId('memory-from-library/build/set-naming.md')).toHaveText('Ross');
+    await expect(page.getByTestId('memory-from-arca/library/build/set-naming.md')).toHaveText('Ross');
   });
 
   test('a document with a history says Updated, never Added over the date of an edit', async ({ page }) => {
     await page.goto('/venture/arca/knowledge');
-    await expect(page.getByTestId('memory-added-context/general/price-list.md')).toHaveText('Added 20 July 2026');
+    await expect(page.getByTestId('memory-added-arca/context/general/price-list.md')).toHaveText('Added 20 July 2026');
     // Four changes behind it: the date we hold is the last one, and the word has to say so.
-    await expect(page.getByTestId('memory-added-library/build/set-naming.md')).toHaveText('Updated 2 June 2026');
+    await expect(page.getByTestId('memory-added-arca/library/build/set-naming.md')).toHaveText('Updated 2 June 2026');
   });
 
   test('“Last used” is empty and says why, rather than showing a number nobody measured', async ({ page }) => {
     await page.goto('/venture/arca/knowledge');
-    await expect(page.getByTestId('memory-used-context/general/price-list.md')).toHaveText('—');
+    const cell = page.getByTestId('memory-used-arca/context/general/price-list.md');
+    // A dash to the eye AND a text twin for a screen reader — a glyph on its own is state a
+    // screen-reader user does not get (the design contract's own rule).
+    await expect(cell).toContainText('—');
+    await expect(cell.locator('.sr-only')).toHaveText('not recorded');
     await expect(page.getByTestId('memory-used-note')).toContainText('nothing yet records');
   });
 
@@ -111,6 +115,11 @@ test.describe('memory (FB-133)', () => {
     await page.goto('/venture/arca/knowledge');
     const rows = await page.locator('[data-testid^="memory-row-"]').count();
     await expect(page.getByTestId('memory-summary')).toContainText(`${rows} documents`);
+    // And the areas it names add up to the same total.
+    const summary = (await page.getByTestId('memory-summary').textContent()) ?? '';
+    const counted = [...summary.matchAll(/(\d+) (?:pieces? of background|artifacts?)/g)]
+      .reduce((n, m) => n + Number(m[1]), 0);
+    expect(counted).toBe(rows);
   });
 
   test('the recurring work is on the screen, with a way to change it', async ({ page }) => {

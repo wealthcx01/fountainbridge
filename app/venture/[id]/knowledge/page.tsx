@@ -22,10 +22,16 @@ import { KnowledgeView } from '@/components/KnowledgeView';
  *
  * ## The read budget
  *
- * Three reads per repository and not one more, whatever the corpus grows to: two for the corpus
- * (`context/`, `library/`) and one aliased query for every document's provenance, capped at
- * `MAX_PROVENANCE_PATHS`. Plus the routines, which are a directory listing on the state ref. Bounded
- * per load, never on a timer, never a function of how much history the venture has — FB-083's rule.
+ * The corpus costs three reads per surface and not one more, whatever it grows to: two for the
+ * documents (`context/`, `library/`) and one aliased query for every document's provenance, capped
+ * at `MAX_PROVENANCE_PATHS`. Bounded per load, never on a timer, never a function of how much
+ * history the venture has — FB-083's rule.
+ *
+ * The routines are the exception and it is worth stating rather than hiding: `loadRoutines` lists a
+ * directory and then reads each file, so that half grows with the number of routines. It is the same
+ * cost `/venture/[id]/routines` already pays, and a routine is a founder-approved standing order, so
+ * the count is small and human-bounded rather than a function of history. If it ever stops being
+ * small, it wants the same treatment the corpus got here — one query, not one per file.
  *
  * The repos run in parallel, and each one's provenance follows its own corpus rather than waiting
  * for all of them: the paths are not known until the corpus is read, so this is a genuine
@@ -56,6 +62,7 @@ export default async function KnowledgePage({ params }: { params: Promise<{ id: 
         // founder a dash in two columns, never the list of what they have handed over.
         const commits = await provenanceOf(repo, corpus.docs.map((d) => d.path)).catch(() => null);
         const rows: KnowledgeRow[] = corpus.docs.map((doc) => ({
+          repo,
           doc,
           origin: originOf(commits?.get(doc.path) ?? null),
         }));

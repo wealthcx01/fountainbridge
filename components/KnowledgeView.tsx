@@ -8,6 +8,7 @@ import {
   AREA_LABEL,
   describeOrigin,
   describeSize,
+  docKey,
   memorySummary,
   orderRows,
   type KnowledgeDoc,
@@ -107,32 +108,39 @@ export function KnowledgeView({
                 </tr>
               </thead>
               <tbody>
-                {ordered.map(({ doc, origin }) => (
-                  <tr key={doc.path} data-testid={`memory-row-${doc.path}`}>
-                    <td>
-                      <button
-                        type="button"
-                        className="link-button"
-                        data-testid={`knowledge-doc-${doc.path}`}
-                        onClick={() => setOpen(doc)}
-                      >
-                        {doc.title}
-                      </button>
-                      <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-meta)' }}>
-                        {AREA_LABEL[doc.area]} · {doc.department} · {describeSize(doc.bytes)}
-                        {doc.text === null ? ' · too large to show here' : null}
-                      </span>
-                    </td>
-                    <td data-testid={`memory-from-${doc.path}`}>
-                      {origin.kind === 'unknown' ? <Absent /> : origin.who}
-                    </td>
-                    <td data-testid={`memory-added-${doc.path}`}>
-                      {describeOrigin(origin, onDate) ?? <Absent />}
-                    </td>
-                    {/* Deliberately empty. See the note under the table, and the header comment. */}
-                    <td data-testid={`memory-used-${doc.path}`}><Absent /></td>
-                  </tr>
-                ))}
+                {ordered.map((row) => {
+                  const { doc, origin } = row;
+                  // Keyed on the surface AND the path. Two of a venture's surfaces can both hold
+                  // `context/general/price-list.md`, and a path-keyed row renders duplicate React
+                  // keys and two elements answering to one test id.
+                  const key = docKey(row);
+                  return (
+                    <tr key={key} data-testid={`memory-row-${key}`}>
+                      <td>
+                        <button
+                          type="button"
+                          className="link-button"
+                          data-testid={`knowledge-doc-${key}`}
+                          onClick={() => setOpen(doc)}
+                        >
+                          {doc.title}
+                        </button>
+                        <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-meta)' }}>
+                          {AREA_LABEL[doc.area]} · {doc.department} · {describeSize(doc.bytes)}
+                          {doc.text === null ? ' · too large to show here' : null}
+                        </span>
+                      </td>
+                      <td data-testid={`memory-from-${key}`}>
+                        {origin.kind === 'unknown' ? <Absent /> : origin.who}
+                      </td>
+                      <td data-testid={`memory-added-${key}`}>
+                        {describeOrigin(origin, onDate) ?? <Absent />}
+                      </td>
+                      {/* Deliberately empty. See the note under the table, and the header comment. */}
+                      <td data-testid={`memory-used-${key}`}><Absent /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -160,9 +168,20 @@ export function KnowledgeView({
   );
 }
 
-/** A fact the studio does not hold. One shape for it, so an absence never reads as a value. */
+/**
+ * A fact the studio does not hold. One shape for it, so an absence never reads as a value.
+ *
+ * The dash has a text twin rather than an `aria-label`: a label on a plain `<span>` is not reliably
+ * announced, and the design contract's own rule is that state carried by a glyph alone is state a
+ * screen-reader user does not get.
+ */
 function Absent() {
-  return <span className="muted" aria-label="not recorded">—</span>;
+  return (
+    <>
+      <span aria-hidden="true" className="muted">—</span>
+      <span className="sr-only">not recorded</span>
+    </>
+  );
 }
 
 /**

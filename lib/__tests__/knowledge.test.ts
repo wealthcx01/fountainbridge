@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   placeOf, titleOf, toDoc, byArea, describeSize, AREA_LABEL,
-  whoAdded, originOf, describeOrigin, orderRows, memorySummary,
+  whoAdded, originOf, describeOrigin, orderRows, memorySummary, docKey,
   type DocCommit, type KnowledgeRow,
 } from '../knowledge';
 import { onDate } from '../when';
@@ -128,7 +128,8 @@ describe('saying when a document arrived', () => {
 });
 
 describe('ordering the memory table', () => {
-  const row = (path: string, origin: KnowledgeRow['origin']): KnowledgeRow => ({
+  const row = (path: string, origin: KnowledgeRow['origin'], repo = 'arca'): KnowledgeRow => ({
+    repo,
     doc: toDoc(path, null, 10)!,
     origin,
   });
@@ -161,6 +162,21 @@ describe('ordering the memory table', () => {
     expect(orderRows(rows).map((r) => r.doc.title)).toEqual(['Apple', 'Zebra']);
   });
 
+  it('keeps two surfaces’ copies of one path apart', () => {
+    // A venture has several surfaces and the corpus is read from each. Both can hold
+    // `context/general/price-list.md`; keyed on the path alone they are one row, and clicking one
+    // opens the other.
+    const rows = [
+      row('context/general/price-list.md', { kind: 'unknown' }, 'arca-sell'),
+      row('context/general/price-list.md', { kind: 'unknown' }, 'arca'),
+    ];
+    const keys = orderRows(rows).map(docKey);
+    expect(new Set(keys).size).toBe(2);
+    // And the tie-break is reproducible: the same two rows in the other order come out the same way,
+    // so the table does not reshuffle itself between loads.
+    expect(orderRows([...rows].reverse()).map(docKey)).toEqual(keys);
+  });
+
   it('does not mutate what it was given', () => {
     const rows = [
       row('context/sell/b.md', { kind: 'added', who: 'You', at: '2026-01-01T00:00:00Z' }),
@@ -173,16 +189,21 @@ describe('ordering the memory table', () => {
 });
 
 describe('the sentence over the table', () => {
-  const row = (path: string): KnowledgeRow => ({ doc: toDoc(path, null, 10)!, origin: { kind: 'unknown' } });
+  const row = (path: string): KnowledgeRow => ({ repo: 'arca', doc: toDoc(path, null, 10)!, origin: { kind: 'unknown' } });
 
-  it('counts what is on the screen and nothing else', () => {
-    expect(memorySummary([row('context/sell/a.md'), row('library/build/b.md')]))
-      .toBe('2 documents across 2 areas — background and artifacts.');
+  it('counts what is on the screen, by the areas it names', () => {
+    expect(memorySummary([row('context/sell/a.md'), row('context/sell/b.md'), row('library/build/c.md')]))
+      .toBe('3 documents — 2 pieces of background, 1 artifact.');
   });
 
-  it('reads correctly for a single document in a single area', () => {
-    expect(memorySummary([row('context/sell/a.md')]))
-      .toBe(`1 document across 1 area — ${AREA_LABEL.context.toLowerCase()}.`);
+  it('can count to one — in the sentence and in each area', () => {
+    // "1 piece of backgrounds" is what appending an `s` produces, and a summary that cannot count
+    // to one is not a summary anybody trusts.
+    expect(memorySummary([row('context/sell/a.md')])).toBe('1 document — 1 piece of background.');
+  });
+
+  it('names only the areas that have something in them', () => {
+    expect(memorySummary([row('library/build/c.md')])).toBe('1 document — 1 artifact.');
   });
 
   it('says nothing has been handed over rather than "0 documents"', () => {
