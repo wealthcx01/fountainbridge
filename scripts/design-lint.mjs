@@ -23,6 +23,8 @@ export const RULES = {
   'raw-status-colour':
     'a status colour named directly — map the status to a tone in lib/status.ts and use toneColor()',
   'dead-control': 'a <button> that dispatches nothing — give it an onClick, a type="submit", or a form',
+  'testid-selector':
+    'a stylesheet rule keyed on data-testid — style on the class; a test id must never be load-bearing layout',
 };
 
 // --- rule implementations -------------------------------------------------------------------
@@ -37,6 +39,18 @@ const HEX = /#[0-9a-fA-F]{3,8}\b/;
 const PX = /\b(?!1px\b)\d+(?:\.\d+)?px\b/;
 // The three status colours. Any other --color-* (paper, ink, border) is ordinary chrome and fine.
 const STATUS_COLOUR = /var\(\s*--color-(ok|warn|error)\b/;
+/**
+ * A CSS selector that keys on a test id.
+ *
+ * FB-158: the phone media query hid the rail with `[data-testid='rail']`. Renaming the waiting
+ * shell's id — so a test could tell the shell apart from the real rail — took it straight out of
+ * that rule, and a 250px rail appeared on a 393px screen again. That is FB-124's defect, the one
+ * the CLAUDE.md #2 amendment was written about, returning through a test id.
+ *
+ * A test id names a thing for a test. If layout depends on it, renaming it is a visual change that
+ * nothing but a browser at the right width can see.
+ */
+const TESTID_SELECTOR = /\[data-testid[~^$*|]?=/;
 
 /** Strip the things that legitimately contain hex/px so they do not produce false positives. */
 function stripNoise(line) {
@@ -104,6 +118,10 @@ export function lintText(text, relPath) {
     // so it is exempt; a component naming --color-warn is the drift this rule exists to catch.
     if (!isStyleSheet && STATUS_COLOUR.test(s)) {
       violations.push({ line, rule: 'raw-status-colour', snippet: s.trim().slice(0, 80) });
+    }
+    // Only in stylesheets: a `data-testid` in JSX is the test id itself, which is the point of it.
+    if (isStyleSheet && TESTID_SELECTOR.test(s)) {
+      violations.push({ line, rule: 'testid-selector', snippet: s.trim().slice(0, 80) });
     }
   });
 

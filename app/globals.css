@@ -182,8 +182,15 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
  *
  * Stated as a rule rather than a route list: a page with a rail does not also get a top bar. Routes
  * with no rail yet — the ventures index, /attention, /lanes — keep theirs until FB-129 and FB-136
- * replace them, and this needs no edit when they do. */
-body:has([data-testid='rail']) .topbar { display: none; }
+ * replace them, and this needs no edit when they do.
+ *
+ * **Keyed on the CLASS, not the test id** (FB-158). These rules keyed on `[data-testid='rail']` for
+ * four tickets, which made a test id load-bearing layout: renaming the waiting shell's id to tell it
+ * apart from the real rail took it straight out of the phone media query, and a 250px rail appeared
+ * on a 393px screen again — the exact defect FB-124 shipped and the amendment to CLAUDE.md #2 was
+ * written about. A test id names a thing for a test. A class is what styling is allowed to depend
+ * on. */
+body:has(.rail) .topbar { display: none; }
 
 /* Main content column */
 .main {
@@ -196,7 +203,7 @@ body:has([data-testid='rail']) .topbar { display: none; }
  * still needs a measure and its own padding. The first version set `padding: 0; max-width: none`,
  * which was too blunt: text ran from the rail's rule to the far edge of a 1440px window at line
  * lengths nobody can read. The design's own figures are 32px/36px/64px against a ~1080px column. */
-body:has([data-testid='rail']) .main {
+body:has(.rail) .main {
   max-width: 68rem;
   margin: 0;
   padding: 2rem 2.25rem 4rem;
@@ -267,9 +274,12 @@ body:has([data-testid='rail']) .main {
 }
 
 @media (max-width: 60rem) {
-  [data-testid='rail'] { display: none; }
-  body:has([data-testid='rail']) .topbar { display: flex; }
-  body:has([data-testid='rail']) .main {
+  /* The class, not the test id — see the note above `body:has(.rail) .topbar`. This catches the
+     rail AND the shell that stands in for it while its numbers load; both are 250px, and neither
+     belongs on a phone. */
+  .rail { display: none; }
+  body:has(.rail) .topbar { display: flex; }
+  body:has(.rail) .main {
     max-width: var(--content-max);
     margin: 0 auto;
     padding: 3rem 1.5rem 5rem;

@@ -78,18 +78,37 @@ test('health endpoint is public (uptime monitor path)', async ({ page }) => {
 
 
 
+
 /**
- * FB-158 — the rail's waiting shell is not the rail.
+ * FB-158 — the rail's waiting shell is not the rail, and neither belongs on a phone.
  *
  * While a Suspense boundary resolves, the fallback and the streamed content are both in the document
- * for an instant. Sharing one test id made "is the rail there?" un-askable, and made the mobile
- * check a coin flip.
+ * for an instant. Sharing one test id made "is the rail there?" un-askable and the mobile check a
+ * coin flip — and then giving the shell its own id took it out of the phone media query, because
+ * that rule keyed on the test id rather than the class. A 250px rail came back on a 393px screen:
+ * FB-124's defect, returning through a test id.
  */
 test('the rail and its waiting shell are never the same thing', async ({ page }) => {
   await testLogin(page, JOHN);
   await page.goto('/venture/arca');
   await expect(page.getByTestId('lane-arca')).toBeVisible();
-  // Exactly one real rail, and the shell has gone rather than lingering underneath it.
   await expect(page.getByTestId('rail')).toHaveCount(1);
   await expect(page.getByTestId('rail-waiting')).toHaveCount(0);
+});
+
+test('neither the rail nor its shell is ever on the phone', async ({ page }) => {
+  await testLogin(page, JOHN);
+  // Measured at domcontentloaded, when the shell is most likely to still be up — the moment CI
+  // caught and a warm local server did not.
+  await page.goto('/venture/arca', { waitUntil: 'domcontentloaded' });
+  const widestAtLoad = await page.evaluate(() =>
+    Math.max(0, ...[...document.querySelectorAll('.rail')].map((e) => e.getBoundingClientRect().right)));
+  expect(widestAtLoad, 'a rail or its shell is drawn on the phone').toBeLessThanOrEqual(1);
+
+  await expect(page.getByTestId('lane-arca')).toBeVisible();
+  const { scrollW, clientW } = await page.evaluate(() => ({
+    scrollW: document.documentElement.scrollWidth,
+    clientW: document.documentElement.clientWidth,
+  }));
+  expect(scrollW, `horizontal scroll: ${scrollW} > ${clientW}`).toBeLessThanOrEqual(clientW + 1);
 });
