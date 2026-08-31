@@ -99,3 +99,21 @@ test.describe('what happened', () => {
     await page.screenshot({ path: `${SHOTS}/23-mobile-what-happened.png`, fullPage: true });
   });
 });
+
+/**
+ * FB-158 — "What happened" streams.
+ *
+ * It was the one screen under a venture still at six seconds: three blocking reads, the most
+ * expensive in the studio among them, none of them needed above the fold.
+ */
+test.describe('what happened streams (FB-158)', () => {
+  test('the shell is gone once the record is in, and nothing is duplicated', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca/activity');
+    await expect(page.getByTestId('activity-summary')).toBeVisible();
+    await expect(page.getByTestId('activity-waiting')).toHaveCount(0);
+    // One heading, not the shell's plus the record's.
+    await expect(page.getByRole('heading', { name: 'What happened' })).toHaveCount(1);
+    await expect(page.getByTestId('activity-scope')).toHaveCount(1);
+  });
+});

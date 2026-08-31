@@ -77,3 +77,19 @@ test('health endpoint is public (uptime monitor path)', async ({ page }) => {
 
 
 
+
+/**
+ * FB-158 — the rail's waiting shell is not the rail.
+ *
+ * While a Suspense boundary resolves, the fallback and the streamed content are both in the document
+ * for an instant. Sharing one test id made "is the rail there?" un-askable, and made the mobile
+ * check a coin flip.
+ */
+test('the rail and its waiting shell are never the same thing', async ({ page }) => {
+  await testLogin(page, JOHN);
+  await page.goto('/venture/arca');
+  await expect(page.getByTestId('lane-arca')).toBeVisible();
+  // Exactly one real rail, and the shell has gone rather than lingering underneath it.
+  await expect(page.getByTestId('rail')).toHaveCount(1);
+  await expect(page.getByTestId('rail-waiting')).toHaveCount(0);
+});

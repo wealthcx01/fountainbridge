@@ -1,7 +1,8 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/auth';
-import { loadVentures } from '@/lib/ventures';
+import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureHealth } from '@/lib/health';
 import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
@@ -54,9 +55,50 @@ export default async function VentureActivityPage({
     return <VentureForbidden ventureId={id} exists={Boolean(venture)} />;
   }
 
-  const refreshing = refresh === '1';
-  const testRig = process.env.E2E_TEST_LOGIN === '1';
+  return (
+    <Suspense fallback={<ActivityWaiting ventureName={venture.name} />}>
+      <Record venture={venture} isAdmin={access.isAdmin} refreshing={refresh === '1'} />
+    </Suspense>
+  );
+}
 
+/**
+ * The screen before its records are in (FB-158).
+ *
+ * Every other screen under a venture answers in about 230 ms; this one took **5,986 ms**, because it
+ * awaited three reads before rendering anything — and `ventureRuns` alone is the most expensive read
+ * in the studio (~4.3s, measured in FB-157).
+ *
+ * The heading is true before any of them return, so it renders now.
+ *
+ * **No summary sentence, no skeleton rows, and no controls.** The summary counts changes in a
+ * fourteen-day window: a greyed-out one is still a claim about the venture. And a control in a
+ * Suspense fallback is not hydrated — FB-157 shipped one, and while the boundary resolved there were
+ * two of it in the document, one of them dead.
+ */
+function ActivityWaiting({ ventureName }: { ventureName: string }) {
+  return (
+    <section data-testid="activity-waiting">
+      <p className="eyebrow"><span className="eyebrow-id">{ventureName}</span> — What happened</p>
+      <h1 style={{ margin: '0 0 0.5rem' }}>What happened</h1>
+      <p className="muted" data-testid="activity-waiting-line"
+         style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
+        Reading what {ventureName} has been doing&hellip;
+      </p>
+    </section>
+  );
+}
+
+/** The record once it is read. Everything below here costs a round trip. */
+async function Record({
+  venture,
+  isAdmin,
+  refreshing,
+}: {
+  venture: VentureSummary;
+  isAdmin: boolean;
+  refreshing: boolean;
+}) {
   // Three reads, in parallel, each already bounded by its own loader (FB-123). This screen adds no
   // per-row read: the decisions come out of the approvals the desk already loads, not from walking
   // each one's event history.
@@ -148,7 +190,7 @@ export default async function VentureActivityPage({
         </div>
       ) : null}
 
-      {access.isAdmin ? (
+      {isAdmin ? (
         // Only Bruntsfield. A founder has one venture and the cross-venture feed would be a door to
         // a room with their own furniture in it.
         <p className="muted" data-testid="activity-all-ventures" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '1.25rem' }}>
