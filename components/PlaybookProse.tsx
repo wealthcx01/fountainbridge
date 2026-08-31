@@ -5,9 +5,16 @@ import remarkGfm from 'remark-gfm';
 
 // Renders playbook markdown. Bare-slug links in the content (e.g. `[moats](moats)`) are rewritten to
 // `/playbook/<slug>` so cross-links work from any route; external/absolute/anchor links pass through.
-export function PlaybookProse({ body }: { body: string }) {
+/**
+ * `measure` is the line length (FB-134).
+ *
+ * The playbook keeps the width it has had; the handbook's reader asks for `var(--measure)` — 62ch,
+ * the design system's figure. A prop rather than a change here, because widening the shared renderer
+ * to suit one surface silently restyles the other.
+ */
+export function PlaybookProse({ body, measure = '46rem' }: { body: string; measure?: string }) {
   return (
-    <div className="playbook-prose" style={{ fontSize: 'var(--fs-body)', lineHeight: 1.65, maxWidth: '46rem' }}>
+    <div className="playbook-prose" style={{ fontSize: 'var(--fs-body)', lineHeight: 1.65, maxWidth: measure }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

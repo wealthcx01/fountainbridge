@@ -71,6 +71,9 @@
   --topbar-height: 3.75rem;
   --content-max: 64rem;
   --content-narrow: 46rem;
+  /* The reading measure, from the Bruntsfield design system (FB-134). Long-form prose gets this and
+     nothing else: 62 characters is where a line stops being comfortable to track back from. */
+  --measure: 62ch;
   /* FB-124 — the hairline system. Square corners, no shadows, 1px rules as structure, so the studio
    * reads as one brand with the main Bruntsfield site.
    *
@@ -417,6 +420,11 @@ body:has(.rail) .main {
 .link-button:hover { color: var(--color-accent-hover); }
 
 .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+/* A deliberate three-across (FB-134), not an auto-fill: the handbook is nine chapters and the design
+   is a 3×3. Auto-fill would give four columns in a wide window and break the shape into 4/4/1. */
+.grid-3 { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 60rem) { .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 40rem) { .grid-3 { grid-template-columns: minmax(0, 1fr); } }
 .stack { display: flex; flex-direction: column; gap: 0.35rem; }
 .hr { height: 1px; background: var(--color-border); border: 0; margin: 2rem 0; }
 .muted { color: var(--color-ink-muted); }
