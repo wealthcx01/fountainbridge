@@ -303,6 +303,12 @@ test.describe('a surface is the door to its queue (FB-109)', () => {
     // The audit found the surface cards were the most button-shaped objects on the page and the only
     // ones that did nothing. They must not become mouse-only controls instead.
     const select = page.getByTestId('dept-build-select');
+    // FB-157: the desk streams, so this content arrives after the shell and is inert until React
+    // has attached to it. `click()` waits for actionability and rides that out; a bare `focus()` +
+    // key press does not, and fired into markup with no handler on it. Waiting for the page to go
+    // quiet is waiting for the thing the test is actually about — that the control WORKS from the
+    // keyboard, not that it works three milliseconds after first paint.
+    await page.waitForLoadState('networkidle');
     await select.focus();
     await page.keyboard.press('Enter');
     await expect(select).toHaveAttribute('aria-pressed', 'true');

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures, ventureChatUrl, type VentureSummary } from '@/lib/ventures';
@@ -7,22 +8,24 @@ import { loadFiledForLanes, defaultBranchFileReader, type FiledTicket } from '@/
 import { ticketsByRepoFrom } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
-import { loadApprovals, attachBudgetDisclosure, toSpends, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { attachBudgetDisclosure, toSpends, type ActiveGraphApproval } from '@/lib/approvals';
 import { historyFor } from '@/lib/activegraph-log';
 import { boardState } from '@/lib/firstrun';
 import { FirstRun, BoardUnreadable } from '@/components/FirstRun';
 import { narrate, narrateFault } from '@/lib/activegraph';
 import type { ApprovalHistory } from '@/components/ApprovalCard';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
-import { loadRunReports, engineState, type RunReport } from '@/lib/runreports';
-import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
+import { engineState, type RunReport } from '@/lib/runreports';
+import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
 import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
 import { blockerLine, degradedGroups, deskSummary, type ReadFailure } from '@/lib/desk';
 import { loadEnvelopes } from '@/lib/budgets-load';
 import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
+import { DeskWaiting } from '@/components/DeskWaiting';
 import { readiness } from '@/lib/readiness';
+import { timed } from '@/lib/timing';
 
 // Venture lanes & tickets (FB-006). Scoping is enforced HERE, server-side: a session that can't
 // access this venture never triggers a ticket fetch (CLAUDE.md #6 — isolation is not UI-only).
@@ -62,6 +65,14 @@ async function loadApprovalHistories(
   return read.filter((e): e is [string, ApprovalHistory] => e !== null);
 }
 
+/**
+ * The desk (FB-006, FB-128, streamed in FB-157).
+ *
+ * Authorization and the manifest are cheap and stay here — the refusal must be decided before a
+ * single read leaves, and it is (CLAUDE.md #6). Everything that costs a network round trip is behind
+ * the `<Suspense>` below, so the founder gets their desk and its prompt bar immediately and the
+ * board fills in behind it.
+ */
 export default async function VenturePage({
   params,
   searchParams,
@@ -84,9 +95,35 @@ export default async function VenturePage({
 
   const venture = ventures.find((v) => v.id === id);
   // Deny BEFORE any data fetch. A signed-in but unauthorized user sees the refusal, not the data.
+  // This is decided on the critical path deliberately: a refusal must never arrive after a shell
+  // that implies there is something to see.
   if (!venture || !canAccessVenture(access, id)) {
     return <VentureForbidden ventureId={id} exists={Boolean(venture)} />;
   }
+
+  return (
+    <Suspense
+      fallback={
+        <DeskWaiting ventureName={venture.name} ventureStatus={venture.status} />
+      }
+    >
+      <Desk venture={venture} access={access} email={session.user.email} refreshing={refresh === '1'} />
+    </Suspense>
+  );
+}
+
+/** The desk once its records are read. Everything below here costs a round trip. */
+async function Desk({
+  venture,
+  access,
+  email,
+  refreshing,
+}: {
+  venture: VentureSummary;
+  access: ReturnType<typeof authorizeVentures>;
+  email: string;
+  refreshing: boolean;
+}) {
 
   // ---- The reads ---------------------------------------------------------------------------
   //
@@ -105,8 +142,6 @@ export default async function VenturePage({
   // `GITHUB_MAX_CONCURRENT` (8) still governs how many actually leave at once, so this is not a
   // burst — it is the difference between keeping that budget full and leaving it idle while one
   // request finishes.
-  const refreshing = refresh === '1';
-
   // Fixture sources for the UI gate + offline dev. Gated on E2E_TEST_LOGIN, not on the presence of
   // the directory alone: this is the external-action gate, and a stray env var must not be able to
   // swap a founder's real approval queue for files on disk. Keying off the same switch that already
@@ -114,14 +149,6 @@ export default async function VenturePage({
   // rather than several — and a deployment with it set has bigger problems than this.
   // (NODE_ENV is not usable here: `next start` sets it to production for the UI gate too.)
   const testRig = process.env.E2E_TEST_LOGIN === '1';
-  const approvalSource =
-    process.env.APPROVALS_FIXTURE_DIR && testRig
-      ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
-      : githubApprovalSource(new GitHubClient());
-  const runSource =
-    process.env.RUNREPORTS_FIXTURE_DIR && testRig
-      ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
-      : githubRunReportSource(new GitHubClient());
 
   const noRuns: { reports: RunReport[]; heartbeats: RunReport[]; total: number } = { reports: [], heartbeats: [], total: 0 };
 
@@ -136,11 +163,19 @@ export default async function VenturePage({
   // the two together means neither has finished when the other starts: both miss the per-venture
   // cache and the venture pays for two full backlog reads per repository, as a burst, against the
   // secondary rate limit FB-083 exists to avoid. The index is derived from the lanes instead.
+  //
+  // Each read is timed (FB-157). They run in parallel, so their sum is not the wall clock — what the
+  // readings answer is WHICH of them the round is waiting on. FB-128 estimated this page's own work
+  // at ~350 ms by subtracting one rail-bound number from another; it is ~4.8s, and guessing again
+  // would be the fourth time in a row.
   const [data, health, approvalsRead, runsRead] = await Promise.all([
-    loadVentureTickets(venture, { refresh: refreshing }),
-    loadVentureHealth(venture, { refresh: refreshing }),
-    loadApprovals(venture, approvalSource).catch((): ActiveGraphApproval[] => []),
-    loadRunReports(venture, runSource)
+    timed('desk: your backlog', () => loadVentureTickets(venture, { refresh: refreshing }), venture.id),
+    timed('desk: repository health', () => loadVentureHealth(venture, { refresh: refreshing }), venture.id),
+    // Shared with the rail around this page (FB-157). These were two full reads per request each,
+    // queueing against each other for the same eight concurrent slots.
+    timed('desk: your approvals', () => ventureApprovals(venture), venture.id)
+      .catch((): ActiveGraphApproval[] => []),
+    timed('desk: what your team did', () => ventureRuns(venture), venture.id)
       .then((r) => ({ runs: r, degraded: false }))
       .catch(() => ({ runs: noRuns, degraded: true })),
   ]);
@@ -158,8 +193,8 @@ export default async function VenturePage({
   // rather than walked: it was a `for` loop awaiting one approval at a time, which on a venture with
   // a real queue was most of this page's time on its own.
   const [attention, historyEntries] = await Promise.all([
-    loadVentureAttention(venture, { refresh: refreshing, tickets: ticketsByRepoFrom(data.lanes) }),
-    loadApprovalHistories(venture, approvalsRead, testRig),
+    timed('desk: open work', () => loadVentureAttention(venture, { refresh: refreshing, tickets: ticketsByRepoFrom(data.lanes) }), venture.id),
+    timed('desk: the record behind each approval', () => loadApprovalHistories(venture, approvalsRead, testRig), venture.id),
   ]);
   const histories: Record<string, ApprovalHistory> = Object.fromEntries(historyEntries);
 
@@ -172,8 +207,11 @@ export default async function VenturePage({
   //
   // A read failure must not blank a board that was fine a moment ago, so it degrades to none: the
   // pull requests stay in the attention queue either way, which is where the founder was before.
-  const filedByRepo = await loadFiledForLanes(inferred, attention.perRepo, defaultBranchFileReader())
-    .catch(() => new Map<string, FiledTicket[]>());
+  const filedByRepo = await timed(
+    'desk: work you accepted, not live yet',
+    () => loadFiledForLanes(inferred, attention.perRepo, defaultBranchFileReader()),
+    venture.id,
+  ).catch(() => new Map<string, FiledTicket[]>());
 
   const lanes = inferred.map((lane) => {
     const filed = filedByRepo.get(lane.repo);
@@ -377,7 +415,7 @@ export default async function VenturePage({
       filedRefs={filedRefs}
       unmatchedWork={unmatchedWork}
       viewerIsFounder={
-        !!venture.founderEmail && venture.founderEmail.toLowerCase() === session.user.email.toLowerCase()
+        !!venture.founderEmail && venture.founderEmail.toLowerCase() === email.toLowerCase()
       }
       fetchedAt={data.fetchedAt}
       org={org}

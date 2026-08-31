@@ -1,6 +1,7 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
-import { loadVentures } from '@/lib/ventures';
+import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { approvalRepos } from '@/lib/venture-repos';
 import { defaultKnowledgeSource, defaultProvenanceSource } from '@/lib/knowledge-load';
@@ -8,8 +9,9 @@ import { originOf, type KnowledgeRow } from '@/lib/knowledge';
 import { GitHubClient } from '@/lib/github';
 import { loadRoutines, type Routine } from '@/lib/routines';
 import { fixtureRoutineSource, githubRoutineSource } from '@/lib/routines-load';
+import { timed } from '@/lib/timing';
 import { VentureForbidden } from '@/components/VentureForbidden';
-import { KnowledgeView } from '@/components/KnowledgeView';
+import { KnowledgeView, MemoryWaiting } from '@/components/KnowledgeView';
 
 /**
  * Memory — what this venture knows (FB-133, over FB-106).
@@ -51,16 +53,36 @@ export default async function KnowledgePage({ params }: { params: Promise<{ id: 
     return <VentureForbidden ventureId={id} exists={Boolean(venture)} />;
   }
 
+  return (
+    <Suspense fallback={<MemoryWaiting ventureName={venture.name} />}>
+      <Memory venture={venture} />
+    </Suspense>
+  );
+}
+
+/**
+ * The corpus once it is read (FB-157).
+ *
+ * Split out so the `<Suspense>` above has something to wait on. The heading, the explanation and the
+ * Add control are all true before a document has been read, so they render immediately — and Add is
+ * the thing a founder most often came to this screen to use.
+ */
+async function Memory({ venture }: { venture: VentureSummary }) {
+  const id = venture.id;
   const corpusOf = defaultKnowledgeSource();
   const provenanceOf = defaultProvenanceSource();
 
   const [perRepo, routineResult] = await Promise.all([
     Promise.all(
       approvalRepos(venture).map(async (repo) => {
-        const corpus = await corpusOf(repo);
+        const corpus = await timed('memory: the documents', () => corpusOf(repo), repo);
         // Provenance is a nicety; the corpus is the page. A history read that fails must cost the
         // founder a dash in two columns, never the list of what they have handed over.
-        const commits = await provenanceOf(repo, corpus.docs.map((d) => d.path)).catch(() => null);
+        const commits = await timed(
+          'memory: where each came from',
+          () => provenanceOf(repo, corpus.docs.map((d) => d.path)),
+          repo,
+        ).catch(() => null);
         const rows: KnowledgeRow[] = corpus.docs.map((doc) => ({
           repo,
           doc,
@@ -109,7 +131,7 @@ async function loadRoutinesSafely(
       ? fixtureRoutineSource(process.env.ROUTINES_FIXTURE_DIR)
       : githubRoutineSource(new GitHubClient());
   try {
-    return { routines: await loadRoutines(venture, source), errors: [] };
+    return { routines: await timed('memory: recurring work', () => loadRoutines(venture, source), venture.id), errors: [] };
   } catch {
     return { routines: [], errors: ['The studio could not read this venture’s recurring work just now.'] };
   }

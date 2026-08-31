@@ -132,3 +132,31 @@ test.describe('the desk', () => {
     await page.screenshot({ path: `${SHOTS}/20-mobile-desk.png`, fullPage: true });
   });
 });
+
+/**
+ * FB-157 — the desk streams, and a fallback is not a place for controls.
+ *
+ * Putting the prompt bar in the Suspense fallback looked like a kindness: the founder could start
+ * typing while the board loaded. They could not — a fallback is not hydrated — and for the moment
+ * the boundary took to resolve there were TWO prompt bars in the document, one of them dead.
+ */
+test.describe('the desk streams (FB-157)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+  });
+
+  test('there is exactly one prompt bar, and it works', async ({ page }) => {
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('prompt-bar-input')).toHaveCount(1);
+    await expect(page.getByTestId('prompt-chip-0')).toHaveCount(1);
+    // Not just present — the one that is there is the live one.
+    await page.getByTestId('prompt-chip-0').click();
+    await expect(page.getByTestId('prompt-bar-input')).not.toHaveValue('');
+  });
+
+  test('the waiting shell is gone once the desk is in, not merely hidden', async ({ page }) => {
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('desk-summary')).toBeVisible();
+    await expect(page.getByTestId('desk-waiting')).toHaveCount(0);
+  });
+});

@@ -12,9 +12,9 @@ import { TicketsView } from '@/components/TicketsView';
 import { TicketTrail } from '@/components/TicketTrail';
 import type { VentureSummary } from '@/lib/ventures';
 import { filterTickets, parseFilter, resolveSelected, rowKey, type TicketRow } from '@/lib/tickets-view';
-import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
-import { loadRunReports, type RunReport } from '@/lib/runreports';
-import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
+import { type ActiveGraphApproval } from '@/lib/approvals';
+import { type RunReport } from '@/lib/runreports';
+import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
 import { GitHubClient } from '@/lib/github';
 import { trailSources } from '@/lib/trail-sources';
 import { loadTrail } from '@/lib/trail-load';
@@ -214,24 +214,16 @@ async function TrailFor({
   attention: Awaited<ReturnType<typeof loadVentureAttention>>;
   filedByRepo: Map<string, FiledTicket[]>;
 }) {
-  const testRig = process.env.E2E_TEST_LOGIN === '1';
+  // Shared with the rail around this page (FB-157), which reads both of these too.
   const [approvals, runs] = await Promise.all([
-    loadApprovals(
-      venture,
-      process.env.APPROVALS_FIXTURE_DIR && testRig
-        ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
-        : githubApprovalSource(new GitHubClient()),
-    ).catch(() => ({ approvals: [] as ActiveGraphApproval[], capped: false })).then((r) => (Array.isArray(r) ? { approvals: r, capped: false } : r)),
-    loadRunReports(
-      venture,
-      process.env.RUNREPORTS_FIXTURE_DIR && testRig
-        ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
-        : githubRunReportSource(new GitHubClient()),
-    ).catch(() => ({ reports: [] as RunReport[], heartbeats: [] as RunReport[], total: 0 })),
+    // `loadApprovals` returns a plain array; the `Array.isArray` narrowing that used to be here was
+    // guarding against a shape it cannot produce.
+    ventureApprovals(venture).catch((): ActiveGraphApproval[] => []),
+    ventureRuns(venture).catch(() => ({ reports: [] as RunReport[], heartbeats: [] as RunReport[], total: 0 })),
   ]);
 
   const trail = await loadTrail(venture, row.repo, row.id, trailSources(venture, {
-    approvals: approvals.approvals,
+    approvals,
     runs: runs.reports.filter((r) => !r.isHeartbeat && r.repo === row.repo && r.ticketsTouched.includes(row.id)),
     work: attention.approvals,
     filedPrNumbers: Object.fromEntries(
