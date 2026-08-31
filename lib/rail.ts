@@ -3,16 +3,9 @@ import type { VentureSummary } from './ventures';
 import { loadVentureAttention } from './attention';
 import { departmentBudgets, type BudgetDisclosure } from './budgets';
 import { loadEnvelopes } from './budgets-load';
-import {
-  loadApprovals,
-  toSpends,
-  githubApprovalSource,
-  fixtureApprovalSource,
-  type ActiveGraphApproval,
-} from './approvals';
-import { loadRunReports, engineState, type EngineState } from './runreports';
-import { githubRunReportSource, fixtureRunReportSource } from './runreports-load';
-import { GitHubClient } from './github';
+import { toSpends, type ActiveGraphApproval } from './approvals';
+import { engineState, type EngineState } from './runreports';
+import { ventureApprovals, ventureRuns } from './venture-reads';
 import { timed } from './timing';
 
 /**
@@ -64,20 +57,6 @@ export interface RailData {
   degraded: boolean;
 }
 
-function approvalSource() {
-  // Same discipline as the venture page: the fixture source is gated on E2E_TEST_LOGIN, not on the
-  // directory alone, so a stray env var cannot swap a founder's real approval queue for files on disk.
-  return process.env.APPROVALS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1'
-    ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
-    : githubApprovalSource(new GitHubClient());
-}
-
-function runReportSource() {
-  return process.env.RUNREPORTS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1'
-    ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
-    : githubRunReportSource(new GitHubClient());
-}
-
 /**
  * The rail's data for one venture, once per request.
  *
@@ -101,10 +80,11 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
   const [attention, approvals, runs] = await Promise.all([
     timed('rail: open work', () => loadVentureAttention(venture), venture.id)
       .catch(fell<Awaited<ReturnType<typeof loadVentureAttention>> | null>(null)),
-    timed('rail: your approvals', () => loadApprovals(venture, approvalSource()), venture.id)
+    // Shared with the page inside this layout (FB-157) — these were two full reads per request.
+    timed('rail: your approvals', () => ventureApprovals(venture), venture.id)
       .catch(fell<ActiveGraphApproval[]>([])),
-    timed('rail: what your team did', () => loadRunReports(venture, runReportSource()), venture.id)
-      .catch(fell<Awaited<ReturnType<typeof loadRunReports>> | null>(null)),
+    timed('rail: what your team did', () => ventureRuns(venture), venture.id)
+      .catch(fell<Awaited<ReturnType<typeof ventureRuns>> | null>(null)),
   ]);
 
   // Envelopes are read from disk in this repo, not over the network — cheap, and synchronous.

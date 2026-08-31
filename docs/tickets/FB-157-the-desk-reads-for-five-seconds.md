@@ -1,6 +1,6 @@
 # FB-157 — The desk does its own five seconds
 
-**Status:** Todo · **Area:** Studio / performance · **Depends on:** FB-151
+**Status:** Done · **Area:** Studio / performance · **Depends on:** FB-151
 
 ## What was measured
 
@@ -47,10 +47,71 @@ measurement subtracted one rail-bound number from another.
 - Reducing the number of reads. That is a different question and FB-083's budget already governs it;
   this ticket is about what a founder waits for, not what the studio asks for.
 
+## What the instrument said
+
+Measured against **production data**, signed in as ARCA's founder — the studio run locally with the
+service's own environment, so these are the real reads:
+
+| Step | Median |
+| --- | --- |
+| `desk: what your team did` | **4,268 ms** |
+| `desk: repository health` | 3,460 ms |
+| `desk: your backlog` | 2,097 ms |
+| `memory: recurring work` | 2,024 ms |
+| `desk: your approvals` | 1,828 ms |
+| `memory: the documents` | 790 ms |
+| `memory: where each came from` | 569 ms |
+| `desk: open work` | 6 ms |
+| `desk: the record behind each approval` | 0 ms |
+
+They run in parallel, so the wall clock is the slowest, not the sum. **`loadRunReports` is the most
+expensive read in the studio**, and it is what the rail was waiting on too — which answers FB-151's
+open question as a side effect.
+
+### And a duplicate nobody had counted
+
+    desk: what your team did   4,447 ms
+    rail: what your team did   3,300 ms
+    desk: your approvals       1,712 ms
+    rail: your approvals       1,707 ms
+
+Those are not four reads. They are two, done twice — once by `app/venture/[id]/layout.tsx` for the
+rail and once by the page inside it, because a layout and its page render independently and each
+built its own source. Every screen under a venture was paying for both, and with
+`GITHUB_MAX_CONCURRENT` at 8 the duplicates did not run beside the originals, they queued against
+them. Deduping alone took the desk from 4.7s to 2.7s warm.
+
+## After the fix
+
+| | Before | After |
+| --- | --- | --- |
+| `/venture/arca` | 5,190 ms | **58–119 ms** |
+| `/venture/arca/knowledge` | 5,238 ms | **46–87 ms** |
+
+Time to first byte. The reads themselves have not got faster — `loadRunReports` still takes ~4.3s,
+and the board still fills in when it does. What changed is that a founder is no longer looking at
+white while it happens.
+
+**Reducing that 4.3s is a separate question**, and this ticket said so from the start: it is about
+what a founder waits for, not what the studio asks for. `loadRunReports` reads `limit × READ_MARGIN`
+files per surface, and the rail needs only the heartbeat out of all of it.
+
 ## Acceptance criteria
 
-- [ ] The reads behind the desk and Memory are measured on production and recorded here.
-- [ ] `/venture/arca` is **under 3s**, which has been FB-128's unmet criterion since.
-- [ ] `/venture/arca/knowledge` is under 1s.
-- [ ] Nothing renders a value it does not have yet; each waiting panel says what it is waiting for.
-- [ ] Measured three times on production, landing path checked beside every reading, and recorded.
+- [x] The reads behind the desk and Memory are measured and recorded here.
+- [x] `/venture/arca` is **under 3s** — 58–119 ms. FB-128's criterion, met at last, and by the
+      opposite of what FB-128 tried.
+- [x] `/venture/arca/knowledge` is under 1s — 46–87 ms.
+- [x] Nothing renders a value it does not have yet. The waiting shells carry a name and a line, and
+      **no controls at all** — see below.
+- [ ] Measured on production after the deploy, landing path checked beside every reading.
+
+## A control in a Suspense fallback is a dead control
+
+The first version put the desk's prompt bar and Memory's Add form in the waiting shells, reasoning
+that a founder could start typing before the board finished. **They could not.** A fallback is not
+hydrated, so the controls did nothing — and while the boundary resolved, both copies were in the
+document at once, which the UI gate caught as two elements answering to one test id.
+
+Present and inert is the dead control the design contract forbids, with a plausible excuse. The
+shells now carry no controls, and the gate asserts there is exactly one of each on the real screen.

@@ -143,3 +143,25 @@ test.describe('memory (FB-133)', () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 });
+
+/**
+ * FB-157 — Memory streams, and its Add control is not duplicated by the shell.
+ *
+ * The waiting shell deliberately carries no form: content in a Suspense fallback is not hydrated, so
+ * a form there would be present, duplicated beside the real one, and dead to the touch.
+ */
+test.describe('memory streams (FB-157)', () => {
+  test('there is exactly one Add control, and it is the live one', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca/knowledge');
+    await expect(page.getByTestId('knowledge-file')).toHaveCount(1);
+    await expect(page.getByTestId('knowledge-submit')).toHaveCount(1);
+    await expect(page.getByTestId('knowledge-waiting')).toHaveCount(0);
+
+    await page.getByTestId('knowledge-file').setInputFiles({
+      name: 'note.txt', mimeType: 'text/plain', buffer: Buffer.from('A note.'),
+    });
+    await page.getByTestId('knowledge-submit').click();
+    await expect(page.getByTestId('knowledge-result')).toBeVisible();
+  });
+});

@@ -4,9 +4,8 @@ import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureHealth } from '@/lib/health';
-import { loadRunReports } from '@/lib/runreports';
-import { githubRunReportSource, fixtureRunReportSource } from '@/lib/runreports-load';
-import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from '@/lib/approvals';
+import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
+import { type ActiveGraphApproval } from '@/lib/approvals';
 import { GitHubClient } from '@/lib/github';
 import { buildFeed } from '@/lib/activity-feed';
 import { composeActivitySummary } from '@/lib/activity-summary';
@@ -70,21 +69,12 @@ export default async function VentureActivityPage({
   const unreadable: string[] = [];
   const [health, runs, approvals] = await Promise.all([
     loadVentureHealth(venture, { refresh: refreshing }),
-    loadRunReports(
-      venture,
-      process.env.RUNREPORTS_FIXTURE_DIR && testRig
-        ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
-        : githubRunReportSource(new GitHubClient()),
-    ).catch(() => {
+    // Shared with the rail around this page (FB-157), which reads both of these too.
+    ventureRuns(venture).catch(() => {
       unreadable.push('what your team has been doing');
       return { reports: [], heartbeats: [], total: 0 };
     }),
-    loadApprovals(
-      venture,
-      process.env.APPROVALS_FIXTURE_DIR && testRig
-        ? fixtureApprovalSource(process.env.APPROVALS_FIXTURE_DIR)
-        : githubApprovalSource(new GitHubClient()),
-    ).catch((): ActiveGraphApproval[] => {
+    ventureApprovals(venture).catch((): ActiveGraphApproval[] => {
       unreadable.push('the decisions you have made');
       return [];
     }),

@@ -169,6 +169,64 @@ export function KnowledgeView({
 }
 
 /**
+ * The top of the screen: what it is, and the one control that needs nothing read.
+ *
+ * Shared with `MemoryWaiting` below rather than copied, so the screen a founder sees for the first
+ * 200 ms and the screen they see after are the same screen with more in it.
+ */
+function MemoryHeading({
+  ventureId,
+  ventureName,
+  summary,
+}: {
+  /** Null on the waiting shell: the Add control is omitted there, so there is nothing to file to. */
+  ventureId: string | null;
+  ventureName: string;
+  summary: string | null;
+}) {
+  return (
+    <>
+      <p className="eyebrow"><span className="eyebrow-id">Memory</span> — {ventureName}</p>
+      <h1 style={{ margin: '0 0 0.35rem' }}>What {ventureName} knows</h1>
+      {summary ? (
+        <p data-testid="memory-summary" style={{ margin: '0 0 0.3rem', fontSize: 'var(--fs-subhead)' }}>
+          {summary}
+        </p>
+      ) : null}
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)', marginTop: 0 }}>
+        Everything you have handed over or your team has learned. The composer reads all of it before
+        it drafts anything.
+      </p>
+      {/* Omitted while waiting. Content in a Suspense fallback is not hydrated, so a form here would
+          be present, duplicated in the document beside the real one, and dead to the touch — the
+          exact dead control the design contract forbids. */}
+      {ventureId === null ? null : <Add ventureId={ventureId} />}
+    </>
+  );
+}
+
+/**
+ * Memory, drawn before its documents are in (FB-157).
+ *
+ * The corpus and its provenance cost ~2.6s against production data, and the whole screen waited on
+ * them. The heading and the explanation are true before a single document has been read, so they
+ * render immediately.
+ *
+ * No summary sentence and no skeleton rows: both would be claims about a corpus nobody has counted.
+ * And no Add control — see `MemoryHeading`; a form in a fallback is inert and duplicated.
+ */
+export function MemoryWaiting({ ventureName }: { ventureName: string }) {
+  return (
+    <section data-testid="knowledge-waiting">
+      <MemoryHeading ventureId={null} ventureName={ventureName} summary={null} />
+      <p className="muted" data-testid="knowledge-waiting-line" style={{ fontSize: 'var(--fs-body-sm)' }}>
+        Reading what your venture holds&hellip;
+      </p>
+    </section>
+  );
+}
+
+/**
  * A fact the studio does not hold. One shape for it, so an absence never reads as a value.
  *
  * The dash has a text twin rather than an `aria-label`: a label on a plain `<span>` is not reliably
