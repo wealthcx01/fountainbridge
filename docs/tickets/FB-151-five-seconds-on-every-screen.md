@@ -122,10 +122,33 @@ all three. The readings then say which one to attack if the numbers still matter
       title. Recorded above rather than quietly corrected.
 - [x] The rail still shows real numbers or says it cannot; no zero stands in for an unknown. The
       header's fallback shows no badge rather than a badge saying nothing needs you.
-- [ ] `/venture/arca/handbook` — which reads nothing about the venture — is under 1s. *Measured on
-      production after the deploy; recorded below.*
-- [ ] `/venture/arca` is **under 3s**, which is FB-128's unmet criterion. *Same.*
+- [x] `/venture/arca/handbook` — which reads nothing about the venture — is under 1s. **219 ms.**
+- [ ] `/venture/arca` is **under 3s**, which is FB-128's unmet criterion. **Not met: 4,858 ms.** The
+      rail is no longer any of it — see below. What remains is the desk page's own reads, and that
+      is **FB-157**.
 
 ## After the fix
 
-*Measured on production once this is deployed, three loads each, the same way as above.*
+Production, signed in as ARCA's founder, three loads each, landing path checked, median TTFB:
+
+| Route | Before | After | |
+| --- | --- | --- | --- |
+| `/venture/arca/handbook` | 5,333 ms | **219 ms** | static markdown — nothing but the rail was ever slow about it |
+| `/venture/arca/tickets` | 5,242 ms | **243 ms** | the rail, plus FB-155's streamed trail |
+| `/venture/arca/knowledge` | 5,238 ms | **3,483 ms** | the rail is gone from it; the corpus reads are now the cost |
+| `/venture/arca` | 5,190 ms | **4,858 ms** | the rail is gone from it; the desk's own reads are the cost |
+| `/admin/timing` | — | 217 ms | signed in, no rail — the control |
+
+**The rail's five seconds are gone from every screen.** A handbook page went from 5.3 seconds to a
+fifth of a second, and the two screens still above a second are held there by their own page reads,
+not by the shell around them.
+
+Two things this exposed, which the earlier arithmetic had hidden:
+
+- **The desk's own work is ~4.8s, not the ~350 ms FB-128 inferred.** That inference subtracted the
+  handbook's time from the desk's, and both numbers were almost entirely rail. Filed as **FB-157**.
+- **Memory (`/knowledge`) costs ~3.5s of its own.** FB-133 added a provenance query per surface on
+  top of the corpus reads. Bounded, but not free. Same ticket.
+
+And the rail still ends with real numbers rather than sitting on "checking" — verified on
+production: the engine line and all three budget rows resolve.
