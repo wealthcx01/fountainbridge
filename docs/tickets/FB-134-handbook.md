@@ -79,3 +79,19 @@ The first "three across" check counted distinct left edges. It **passed with the
 auto-fill**, because the column beside the rail is ~766px, which `minmax(15rem, 1fr)` also happens to
 divide into three. It now asserts the computed track count as well, which fails the moment the rule
 changes — verified by watching it go red at four columns and green again.
+
+## Verified on production
+
+Signed in as ARCA's founder, 1440×1000 and 393×851:
+
+| | |
+| --- | --- |
+| Grid | `244.656px 244.672px 244.672px` — three tracks, nine chapters |
+| Reading times | 22 · 29 · 29 · 20 · 12 · 30 · 19 · 17 · 5 min |
+| Reader measure | 620px (62ch), inside a column that would allow 766 |
+| Chapter opens at | `/venture/arca/handbook/how-to-start`, **rail still present** |
+| Next → | `/venture/arca/handbook/how-to-build` |
+| ← Handbook → | `/venture/arca/handbook` |
+| Phone | one column, top bar back, overflow 0 |
+
+The screens were read, not just asserted.
