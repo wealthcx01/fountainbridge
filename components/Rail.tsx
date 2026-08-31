@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { RailNav } from './RailNav';
 import { formatMoney } from '@/lib/budgets';
 import { toneColor } from '@/lib/status';
-import type { RailData } from '@/lib/rail';
+import { railWords, type RailData } from '@/lib/rail';
 
 /**
  * The persistent rail (FB-124).
@@ -27,10 +27,20 @@ export function Rail({
   ventureId: string;
   ventureName: string;
   ventureStatus: string;
-  data: RailData;
+  /**
+   * The venture's live numbers, or `null` while they are still being read (FB-151).
+   *
+   * One component renders both states rather than a shell and a copy of it: a fallback that is a
+   * second implementation of the same rail is a fallback that drifts, and this one is on every
+   * screen under a venture.
+   */
+  data: RailData | null;
   /** In the venture's declared order, so a department with no envelope still has a name to show. */
   departmentIds: string[];
 }) {
+  // One place where "not known yet" becomes words (lib/rail.ts), so the three facts below cannot
+  // each decide differently what an unknown looks like.
+  const words = railWords(data);
   return (
     // The rail's layout lives in `.rail` in globals.css, not inline. It used to be inline, and
     // `display: flex` there beat the media query meant to hide it on a phone — so a 250px rail sat on
@@ -49,7 +59,7 @@ export function Rail({
       </div>
       <div className="hr" style={{ margin: '0 0 0.6rem' }} />
 
-      <RailNav ventureId={ventureId} needsYou={data.needsYou} />
+      <RailNav ventureId={ventureId} needsYou={words.needsYou} />
 
       {/* FB-139 replaces this with the live feed from the venture box. Until then it says what it is:
           a placeholder is honest, a frozen last-known scene would not be. */}
@@ -79,7 +89,7 @@ export function Rail({
             and a budget of nothing are different facts. */}
         <ul data-testid="rail-budgets" style={{ listStyle: 'none', margin: '0.4rem 0 0', padding: 0 }}>
           {departmentIds.map((departmentId, i) => {
-            const b = data.budgets[i] ?? null;
+            const b = words.budgets?.[i] ?? null;
             return (
               <li
                 key={departmentId}
@@ -98,6 +108,10 @@ export function Rail({
                     {formatMoney(b.reportedMinor + b.queuedMinor, b.currency)}/
                     {formatMoney(b.limitMinor, b.currency)}
                   </span>
+                ) : words.budgets === null ? (
+                  // Still reading. "not set" would be a statement about this venture's setup, and
+                  // "£0" would be a statement about its spending; neither is known yet.
+                  <span>checking</span>
                 ) : (
                   <span>not set</span>
                 )}
@@ -110,10 +124,10 @@ export function Rail({
       <div style={{ marginTop: '1.6rem', fontSize: 'var(--fs-meta)' }}>
         <span
           data-testid="rail-engine"
-          data-state={data.engine.state}
-          style={{ color: data.engine.state === 'stalled' ? toneColor('blocked') : 'var(--color-ink-muted)' }}
+          data-state={words.engine.state}
+          style={{ color: words.engine.state === 'stalled' ? toneColor('blocked') : 'var(--color-ink-muted)' }}
         >
-          {data.engine.text}
+          {words.engine.text}
         </span>
       </div>
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { NAV as RAIL_NAV, activeKey } from '../../components/RailNav';
+import { railWords, type RailData } from '../rail';
 
 /**
  * The rail (FB-124).
@@ -70,5 +71,49 @@ describe('a shortcut is not a section', () => {
     // "Needs you" is a filter on Tickets since FB-129, so following it lands them IN Tickets. A rail
     // that highlighted nothing there would tell a founder they were nowhere.
     expect(activeKey('/venture/arca/tickets', '/venture/arca')).toBe('tickets');
+  });
+});
+
+// --- what the rail says before it knows (FB-151) ----------------------------------------------
+
+describe('the rail before its numbers are in', () => {
+  const known: RailData = {
+    needsYou: 3,
+    budgets: [{ departmentId: 'sell', currency: 'GBP', limitMinor: 500_000, reportedMinor: 120_000, queuedMinor: 0, overLimit: false } as unknown as NonNullable<RailData['budgets'][number]>],
+    engine: { state: 'running', text: 'Your team checked in 4 minutes ago.', ageMinutes: 4 },
+    degraded: false,
+  };
+
+  it('says it has not counted rather than counting zero', () => {
+    // A badge is the one place a zero and an unknown must never look the same: "nothing needs you"
+    // is a claim, and this is the most-seen surface in the product.
+    expect(railWords(null).needsYou).toBeNull();
+    expect(railWords(null).needsYou).not.toBe(0);
+  });
+
+  it('does not call the engine quiet, or stalled, before it has looked', () => {
+    // Both of those are findings about the venture. Nothing has been found yet.
+    const { engine } = railWords(null);
+    expect(engine.state).toBe('checking');
+    expect(engine.text).toMatch(/checking/i);
+    expect(engine.text).not.toMatch(/stalled|quiet/i);
+  });
+
+  it('offers no budget list at all rather than a list of blanks', () => {
+    // `[]` would render as a venture with no departments, and `[null]` as departments with no
+    // envelope set. Both are statements about this venture's setup; neither has been read.
+    expect(railWords(null).budgets).toBeNull();
+  });
+
+  it('passes the real numbers through untouched once they are in', () => {
+    const words = railWords(known);
+    expect(words.needsYou).toBe(3);
+    expect(words.engine).toEqual(known.engine);
+    expect(words.budgets).toBe(known.budgets);
+  });
+
+  it('keeps a genuine zero a zero', () => {
+    // The distinction only earns its keep if "nothing waits on you" still survives the round trip.
+    expect(railWords({ ...known, needsYou: 0 }).needsYou).toBe(0);
   });
 });

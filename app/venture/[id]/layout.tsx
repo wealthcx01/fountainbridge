@@ -1,5 +1,6 @@
+import { Suspense } from 'react';
 import { auth } from '@/auth';
-import { loadVentures } from '@/lib/ventures';
+import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadRailData } from '@/lib/rail';
 import { Rail } from '@/components/Rail';
@@ -24,6 +25,21 @@ import { VentureForbidden } from '@/components/VentureForbidden';
  * A layout cannot receive data from its page. `loadRailData` is wrapped in React `cache()`, so the
  * layout and the page share one fetch per request rather than making two — the FB-123 failure was
  * exactly this shape, many reads nobody had counted.
+ *
+ * ## Why the rail's numbers stream (FB-151)
+ *
+ * Measured on production, three loads each, median time to first byte: `/admin/timing` — signed in,
+ * the whole root layout, no rail — answers in **224 ms**. `/venture/arca/handbook`, which is static
+ * markdown under this layout, takes **5,333 ms**. The difference between those two numbers is this
+ * layout awaiting `loadRailData`, and it was doing it on every screen under a venture.
+ *
+ * So the shell renders immediately and the numbers arrive after. The reads are unchanged — same
+ * calls, same per-request `cache()`, same FB-083 budget. What changed is that a founder opening
+ * their handbook is not waiting on their approval history to be read first.
+ *
+ * The fallback is the SAME `<Rail>` with `data={null}`, not a second implementation of it. A rail
+ * that renders before it knows says so — "checking", no badge — rather than showing a zero, which
+ * on the most-seen surface in the product would be believed everywhere (FB-124).
  */
 export default async function VentureLayout({
   children,
@@ -46,18 +62,36 @@ export default async function VentureLayout({
     return <VentureForbidden ventureId={id} exists={Boolean(venture)} />;
   }
 
-  const data = await loadRailData(venture, Date.now());
+  const shell = {
+    ventureId: venture.id,
+    ventureName: venture.name,
+    ventureStatus: venture.status,
+    departmentIds: venture.departments.map((d) => d.id),
+  };
 
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh' }}>
-      <Rail
-        ventureId={venture.id}
-        ventureName={venture.name}
-        ventureStatus={venture.status}
-        data={data}
-        departmentIds={venture.departments.map((d) => d.id)}
-      />
+      <Suspense fallback={<Rail {...shell} data={null} />}>
+        <RailWithNumbers venture={venture} shell={shell} />
+      </Suspense>
       <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
     </div>
   );
+}
+
+/**
+ * The rail once its numbers are in.
+ *
+ * A separate async component purely so the `<Suspense>` above has something to wait on: a layout
+ * that awaits inline has nothing to stream around, which is how this cost ended up on every screen.
+ */
+async function RailWithNumbers({
+  venture,
+  shell,
+}: {
+  venture: VentureSummary;
+  shell: { ventureId: string; ventureName: string; ventureStatus: string; departmentIds: string[] };
+}) {
+  const data = await loadRailData(venture, Date.now());
+  return <Rail {...shell} data={data} />;
 }

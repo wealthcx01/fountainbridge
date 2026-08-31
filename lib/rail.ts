@@ -125,3 +125,37 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
     degraded,
   };
 }
+
+// --- what the rail says when it does not know yet (FB-151) -------------------------------------
+
+/**
+ * The rail's three facts, each either known or explicitly not.
+ *
+ * The rail's numbers stream, so there is now a moment on every screen where it is drawn and the
+ * numbers are not in. That moment is exactly where an invented value would be born, and the rail is
+ * the most-seen surface in the product — a zero here is believed everywhere (FB-124).
+ *
+ * So the "we do not know yet" state is a value with a type rather than a branch inside JSX. It can
+ * be tested without a browser, and there is one place where "unknown" turns into words instead of
+ * three places that could each decide differently.
+ */
+export interface RailWords {
+  /** How much waits on the founder — `null` while it is still being counted. Never 0 for unknown. */
+  needsYou: number | null;
+  engine: { state: EngineState | 'checking'; text: string };
+  /** Per-department budgets, or `null` for the whole list while it is still being read. */
+  budgets: (BudgetDisclosure | null)[] | null;
+}
+
+export function railWords(data: RailData | null): RailWords {
+  if (!data) {
+    return {
+      needsYou: null,
+      // Not "quiet" and not "stalled": both are findings about the venture, and nothing has been
+      // found yet.
+      engine: { state: 'checking', text: 'Checking whether your team is running.' },
+      budgets: null,
+    };
+  }
+  return { needsYou: data.needsYou, engine: data.engine, budgets: data.budgets };
+}
