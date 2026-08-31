@@ -37,3 +37,71 @@ test('handbook is reachable from the studio nav', async ({ page }) => {
   await page.waitForURL(/\/handbook$/);
   await expect(page.getByTestId('handbook-index')).toBeVisible();
 });
+
+/**
+ * FB-134 — the handbook, in the venture shell.
+ *
+ * The venture route re-exported the global page, so every chapter link, the back link and the
+ * prev/next pair pointed at `/handbook` — outside the rail. A founder opening chapter three from
+ * their desk lost their desk to read it.
+ */
+test.describe('the handbook inside a venture (FB-134)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+  });
+
+  test('reading a chapter never leaves the venture', async ({ page }) => {
+    await page.goto('/venture/arca/handbook');
+    await page.getByTestId('hb-how-to-start').click();
+    await expect(page).toHaveURL(/\/venture\/arca\/handbook\/how-to-start$/);
+    // The rail is still there, which is the whole point.
+    await expect(page.getByTestId('rail')).toHaveCount(1);
+
+    await page.getByTestId('handbook-next').click();
+    await expect(page).toHaveURL(/\/venture\/arca\/handbook\/how-to-build$/);
+    await page.getByTestId('handbook-back').click();
+    await expect(page).toHaveURL(/\/venture\/arca\/handbook$/);
+  });
+
+  test('every chapter says how long it takes, and none says zero', async ({ page }) => {
+    await page.goto('/venture/arca/handbook');
+    const minutes = page.locator('[data-testid$="-minutes"]');
+    const n = await minutes.count();
+    expect(n).toBeGreaterThan(0);
+    for (let i = 0; i < n; i++) {
+      await expect(minutes.nth(i)).toHaveText(/^[1-9]\d* min read$/);
+    }
+  });
+
+  test('the chapters are three across, and it is three by rule', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/venture/arca/handbook');
+
+    // Three laid-out columns...
+    const lefts = await page.locator('[data-testid="handbook-grid"] > a').evaluateAll((els) =>
+      [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().left)))]);
+    expect(lefts).toHaveLength(3);
+
+    // ...and three BY RULE, not by luck. The column beside the rail is ~766px, which an auto-filling
+    // `minmax(15rem, 1fr)` also happens to divide into three — so the check above passes with the
+    // rule replaced, and on its own it asserts nothing. The computed track count does.
+    const tracks = await page.locator('[data-testid="handbook-grid"]').evaluate(
+      (e) => getComputedStyle(e).gridTemplateColumns.split(/\s+/).filter(Boolean).length);
+    expect(tracks, 'the grid is three by rule, at any width above 60rem').toBe(3);
+  });
+
+  test('the reader holds the reading measure, not the full column', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/venture/arca/handbook/how-to-start');
+    const width = await page.locator('.playbook-prose').evaluate((e) => e.getBoundingClientRect().width);
+    // 62ch of this face lands well under the 68rem content column; the point is that it is bounded
+    // by the measure and not by the page.
+    expect(width).toBeLessThan(700);
+    expect(width).toBeGreaterThan(300);
+  });
+
+  test('a founder cannot read another venture’s shell by guessing the URL', async ({ page }) => {
+    await page.goto('/venture/the-reset/handbook');
+    await expect(page.getByTestId('handbook-index')).toHaveCount(0);
+  });
+});

@@ -1,6 +1,6 @@
 # FB-134 — Handbook
 
-**Status:** Todo · **Area:** Studio / handbook · **Depends on:** FB-124
+**Status:** Done · **Area:** Studio / handbook · **Depends on:** FB-124
 **Design:** `docs/design/foundry-desk/` — screens 8 and 9; `screens/09-Handbook.txt`, `10-Handbook_chapter.txt`.
 
 ## Why this matters (for the founder)
@@ -43,6 +43,39 @@ git diff --stat -- content/   # expect: no output. The copy does not change.
 
 ## Acceptance criteria
 
-- [ ] A 3×3 grid of chapters with number, title and reading time.
-- [ ] The reader holds a 62ch measure.
-- [ ] `content/` is byte-identical before and after.
+- [x] A 3×3 grid of chapters with number, title and reading time. Nine chapters, three columns —
+      `.grid-3`, a deliberate `repeat(3, …)` rather than the auto-filling `.grid`, which gives four
+      in a wide window and breaks the shape into 4/4/1.
+- [x] The reader holds a 62ch measure. `--measure: 62ch` is a token now, from the Bruntsfield design
+      system, passed to the shared prose renderer rather than set on it — the playbook keeps its
+      width.
+- [x] `content/` is byte-identical before and after. `git diff --stat -- content/` is empty.
+
+## What this added beyond the scope as written
+
+**Reading the handbook no longer costs a founder their venture.** The venture routes re-exported the
+global pages, so every chapter link, the back link and the prev/next pair pointed at `/handbook` —
+outside the rail. A founder opening chapter three from their desk lost their desk to read it, and
+had no way back except the browser's history.
+
+The pages take a `base` now (`/handbook` or `/venture/<id>/handbook`) and the links are built from
+it. The venture routes also guard their own venture, like every other route under `/venture/[id]` —
+the layout guards them too, and two checks that agree cost nothing (CLAUDE.md #6).
+
+## The design's one false sentence, not shipped
+
+The design's index reads *"…the method your team already follows. Copy untouched, rendered from the
+venture repo."* The second half is not true and this ticket already said so: the handbook is one
+method across every venture and lives in the studio. It is omitted rather than reworded — a screen
+is not the place to keep an aspiration.
+
+The chapter screen's *"rendered from `content/handbook`; copy untouched"* is omitted for a different
+reason: it is a note to whoever reads the design, and on a founder's screen it names a repository
+path, which is engineering.
+
+## A guard that asserted nothing, caught before it shipped
+
+The first "three across" check counted distinct left edges. It **passed with the rule replaced by an
+auto-fill**, because the column beside the rail is ~766px, which `minmax(15rem, 1fr)` also happens to
+divide into three. It now asserts the computed track count as well, which fails the moment the rule
+changes — verified by watching it go red at four columns and green again.
