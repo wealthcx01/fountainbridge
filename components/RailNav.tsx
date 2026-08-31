@@ -64,7 +64,14 @@ export function activeKey(pathname: string, base: string): NavKey {
   return match?.key ?? 'desk';
 }
 
-export function RailNav({ ventureId, needsYou }: { ventureId: string; needsYou: number }) {
+/**
+ * `needsYou` is `null` while the rail is still counting (FB-151).
+ *
+ * Not `0`. The rail's numbers now stream, so there is a moment before the count is known, and a
+ * badge is the one place a zero and an unknown must not look the same — "nothing needs you" is a
+ * claim, and the rail is the most-seen surface in the product.
+ */
+export function RailNav({ ventureId, needsYou }: { ventureId: string; needsYou: number | null }) {
   const base = `/venture/${ventureId}`;
   const pathname = usePathname() ?? base;
   const active = activeKey(pathname, base);
@@ -93,7 +100,7 @@ export function RailNav({ ventureId, needsYou }: { ventureId: string; needsYou: 
             {/* The count of work waiting on this founder — the same number the desk's blocker banner
                 reads. Absent at zero rather than showing "0": a badge that is always there stops
                 being a signal, and this one has to keep meaning something. */}
-            {n.badge && needsYou > 0 ? (
+            {n.badge && needsYou !== null && needsYou > 0 ? (
               <span
                 className="tag"
                 data-testid="rail-needs-badge"

@@ -1,4 +1,4 @@
-# FB-151 — Five seconds on every screen (it was not the rail)
+# FB-151 — Five seconds on every screen under a venture
 
 **Status:** Done · **Area:** Studio / performance · **Depends on:** FB-128
 
@@ -34,46 +34,60 @@ five seconds were never on the page it changed.
 within a request. That is not the problem. The problem is that the load itself takes five seconds and
 now happens on **five screens instead of one** — FB-124 multiplied a cost nobody had measured.
 
-## What was measured again, before changing anything — and the theory was wrong
+## What was measured again, and the mistake in the first measurement
 
-**2026-08-31, production, signed in as ARCA's founder, three loads each, median time to first byte:**
+**2026-08-31, production, signed in as ARCA's founder, three loads each, median time to first byte.**
 
-| Route | Renders | Median TTFB |
+The first pass produced this, and a confident wrong conclusion:
+
+| Route | Median | |
 | --- | --- | --- |
-| `/health` | nothing — no page, no header | **237 ms** |
-| `/login` | the header and a sign-in form. **No rail.** | **5,354 ms** |
-| `/` | the venture list | 5,047 ms |
-| `/attention` | open work across every venture — no rail | 4,820 ms |
-| `/venture/arca/handbook` | static markdown | 4,988 ms |
-| `/venture/arca/knowledge` | the corpus | 5,456 ms |
-| `/venture/arca/tickets` | the backlog | 5,303 ms |
-| `/venture/arca` | the whole desk | 5,962 ms |
+| `/login` | 5,354 ms | "the login page has no rail, so the rail is not the cost" |
+| `/attention` | 4,820 ms | "225 ms when this ticket was written — a regression" |
 
-`/attention` was **225 ms** when this ticket was written and is **4,820 ms** now, and it has no rail.
-`/login` has no rail either. So the rail was never the cause — it was simply present on the screens
-that got measured.
+**Both readings were of a different page.** Signed in, `/login` redirects to `/venture/arca` and
+`/attention` redirects to `/venture/arca/tickets`. The probe recorded the time and never recorded
+where it landed, so two venture screens were written down under the names of two pages that have no
+rail. The conclusion drawn from them — that the root layout was the cost — followed correctly from
+numbers that were not measurements of what they were labelled.
 
-**The one experiment that settled it.** The same routes, in a fresh browser with no session:
+That is the same trap as the sweep that reported ten healthy pages and had been looking at the login
+screen the whole time. **Print where you landed, beside every reading.**
 
-| Route | Signed out | Signed in |
-| --- | --- | --- |
-| `/login` | **196 ms** | **5,354 ms** |
-| `/not-authorized` | **200 ms** | — |
+### The corrected table
 
-Same route. Same layout. Same server. The only difference is the `if (session?.user?.email)` block
-in `app/layout.tsx`, and the expensive half of it is **`loadAccessibleAttention`** — open work across
-every venture the viewer can see, read in the ROOT layout, on **every page of the studio**.
+| Route | Renders | Landed on | Median |
+| --- | --- | --- | --- |
+| `/health` | nothing — no page, no header | `/health` | **232 ms** |
+| `/login` *(signed out)* | the header and a sign-in form | `/login` | **200 ms** |
+| `/not-authorized` *(signed in)* | the header, with a session | `/not-authorized` | **223 ms** |
+| `/admin/timing` *(signed in)* | the header and a table. **No rail.** | `/admin/timing` | **224 ms** |
+| `/venture/arca/handbook` | static markdown, **under the rail** | `/venture/arca/handbook` | **5,333 ms** |
+| `/venture/arca` | the whole desk | `/venture/arca` | 5,190 ms |
 
-FB-124 did multiply an unmeasured cost across five screens. It just was not this one. The cost was
-on all of them, and on the login page, from before FB-124 existed.
+The root layout, signed in, with the whole header, costs **224 ms**. Put the same page under
+`app/venture/[id]/layout.tsx` and it costs **5,333 ms**.
 
-## What to find out first
+**This ticket's original title was right.** It is the rail.
 
-Which of the three reads it is. `/attention` runs `loadVentureAttention` across every venture in
-225 ms, so it is almost certainly **not** the attention queue — leaving `loadApprovals` (which walks
-the `foundry-approvals` ref per repository) and `loadRunReports` (bounded by FB-123, but bounded is
-not the same as fast). Measure before changing anything: FB-128 spent its effort on the page because
-the page looked slow, and the page was not slow.
+## What was shipped first, and why it stays
+
+The first PR against this ticket moved the header's cross-venture count behind `<Suspense>` and
+built the measuring instrument. The header was never the five seconds — that was the wrong reading —
+but the change is right on its own terms: it is a cross-venture read of open work, on every page,
+that nothing above the fold depends on. It stays.
+
+The instrument stays too, and it is the reason this correction exists at all.
+
+## Which of the three reads it is — still open, and it no longer blocks the fix
+
+`loadRailData`'s three reads are instrumented and their medians are on `/admin/timing`, which is
+Bruntsfield-only. Reading them needs John's account; the founder login this was measured with cannot
+see that page, and widening it to see a diagnostic would be the wrong trade.
+
+It does not gate the fix. Whichever of the three it is, **nothing above the fold depends on any of
+them**, so the rail's shell renders now and its numbers arrive after — which is the same answer for
+all three. The readings then say which one to attack if the numbers still matter.
 
 ## Scope
 
@@ -86,6 +100,8 @@ the page looked slow, and the page was not slow.
 - Take the header's read off the critical path. Nothing above the fold depends on a count beside a
   link, so the shell flushes and the badge arrives when it arrives — the FB-155 treatment, one
   layout up. The reads are unchanged; the founder stops waiting for them.
+- **Take the rail's three reads off it too**, the same way, since that is where the seconds actually
+  are. The rail draws immediately and says "checking" until it knows.
 - Keep FB-083's rule: bounded per load, never repeating on a timer, never a function of how much
   history a venture has.
 - The fallback shows the nav **without** a badge, never with a zero. A zero is a claim that nothing
