@@ -26,6 +26,7 @@
  */
 
 import type { RunOutcome } from './runreports';
+import type { Tone } from './status';
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
 
@@ -243,3 +244,35 @@ export async function loadRoutines(
   const rank: Record<RoutineState, number> = { proposed: 0, active: 1, paused: 2 };
   return all.sort((a, b) => rank[a.state] - rank[b.state] || a.title.localeCompare(b.title));
 }
+
+// --- the words and tones a routine is shown in (FB-133) ---------------------------------------
+//
+// These lived inside `components/RoutinesView.tsx` until the Memory screen started showing the same
+// routines in a compact form. Two surfaces naming the same state differently is how "paused" and
+// "off" come to mean the same thing to the studio and different things to the founder, so the
+// vocabulary is one exported thing that both read.
+
+/** How often, said the way a person would. */
+export const CADENCE_LABEL: Record<Cadence, string> = {
+  hourly: 'every hour',
+  daily: 'every day',
+  weekly: 'every week',
+};
+
+export const STATE_LABEL: Record<RoutineState, string> = {
+  proposed: 'waiting for you',
+  active: 'on',
+  paused: 'paused',
+};
+
+/**
+ * The shared tone vocabulary, not colours of any component's own (FB-057's contract).
+ *
+ * `proposed` is `attention` because it is a next step the founder must take; `paused` is `idle`
+ * because nothing is happening and nobody needs to act.
+ */
+export const STATE_TONE: Record<RoutineState, Tone> = {
+  proposed: 'attention',
+  active: 'ok',
+  paused: 'idle',
+};

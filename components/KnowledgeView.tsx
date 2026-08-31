@@ -1,49 +1,81 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { AREA_LABEL, byArea, describeSize, type KnowledgeDoc } from '@/lib/knowledge';
+import {
+  AREA_LABEL,
+  describeOrigin,
+  describeSize,
+  memorySummary,
+  orderRows,
+  type KnowledgeDoc,
+  type KnowledgeRow,
+} from '@/lib/knowledge';
 import { ACCEPTED_DESCRIPTION } from '@/lib/documents';
 import { showAngleBrackets } from '@/lib/markdown';
+import { onDate } from '@/lib/when';
+import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } from '@/lib/routines';
 import { toneColor } from '@/lib/status';
 import { depositDocument } from '@/app/actions/knowledge';
 
 /**
- * What your venture knows (FB-106).
+ * Memory — what this venture knows (FB-133, over FB-106).
  *
- * The founder's own uploads, visible for the first time. Grouped by area rather than listed flat,
- * because the two mean different things — background the team reads before it works, and artifacts it
- * produced or was handed — and someone scanning for "did my price list land?" is looking inside one
- * of them.
+ * FB-106 made the corpus visible for the first time: until then a document went in through the
+ * composer, landed in the venture's records, and vanished from the founder's view. This is the
+ * screen the design asks for on top of that — one table of what the venture holds, **where each
+ * document came from**, and, beneath it, the recurring work that happens without anyone asking.
  *
- * Reading happens here, in the studio, rather than by sending the founder to a code host: the whole
- * reason this page exists is that the only way to see the corpus was GitHub.
+ * ## Why provenance is the point rather than decoration
+ *
+ * The founder's question on this screen is never "what files exist". It is *"is the thing I handed
+ * over actually being used?"* — and the first half of that is knowing the studio has it and knows
+ * who gave it. So every row states its source in the founder's terms (you, your composer, your
+ * team), read off the record that wrote it rather than assumed.
+ *
+ * ## Why a column can be empty
+ *
+ * "Last used" has no honest source yet: nothing records which documents your team reads when it
+ * works. The column is in the design and it stays, empty, with the reason said in words underneath —
+ * because the alternative is a plausible number on the one screen whose entire job is to say what
+ * the machine actually read. That is the failure this studio has shipped before and it is worse
+ * here than anywhere. Filling it is FB-156.
  */
 export function KnowledgeView({
   ventureId,
   ventureName,
-  docs,
+  rows,
   errors,
+  routines,
+  routineErrors = [],
+  provenanceMissing = false,
 }: {
   ventureId: string;
   ventureName: string;
-  docs: KnowledgeDoc[];
+  rows: KnowledgeRow[];
   errors: string[];
+  routines: Routine[];
+  routineErrors?: string[];
+  provenanceMissing?: boolean;
 }) {
   const [open, setOpen] = useState<KnowledgeDoc | null>(null);
-  const groups = byArea(docs);
+  const ordered = orderRows(rows);
 
   return (
     <section data-testid="knowledge">
-      <p className="eyebrow"><span className="eyebrow-id">Knowledge</span> — {ventureName}</p>
-      <h1 style={{ margin: '0 0 0.5rem' }}>What your venture knows</h1>
-      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-        Everything you have given this venture. Your team reads this before it works, which is why a
-        good document today makes next month&rsquo;s work better.
+      <p className="eyebrow"><span className="eyebrow-id">Memory</span> — {ventureName}</p>
+      <h1 style={{ margin: '0 0 0.35rem' }}>What {ventureName} knows</h1>
+      <p data-testid="memory-summary" style={{ margin: '0 0 0.3rem', fontSize: 'var(--fs-subhead)' }}>
+        {memorySummary(ordered)}
+      </p>
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)', marginTop: 0 }}>
+        Everything you have handed over or your team has learned. The composer reads all of it before
+        it drafts anything.
       </p>
 
-      <Upload ventureId={ventureId} />
+      <Add ventureId={ventureId} />
 
       {/* An unreadable corpus must never render as "you have given it nothing". The difference
           between those two, on this page, is a founder's own work. */}
@@ -54,67 +86,118 @@ export function KnowledgeView({
         </p>
       ) : null}
 
-      {groups.length === 0 && errors.length === 0 ? (
-        <p className="card muted" data-testid="knowledge-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
-          Nothing yet. Hand over a document above, or give one to the composer mid-conversation — a
-          price list, a pitch deck, the notes behind a decision.
+      {ordered.length === 0 && errors.length === 0 ? (
+        <p className="card muted" data-testid="knowledge-empty"
+           style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
+          Nothing yet. Hand over what you already have: research, notes, a deck. It becomes part of
+          what {ventureName} knows, and your team reads it before it works.
         </p>
       ) : null}
 
-      {groups.map((group) => (
-        <div key={group.area} data-testid={`knowledge-${group.area}`} style={{ marginTop: '1.5rem' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.15rem' }}>{group.area}</p>
-          <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0 0 0.5rem' }}>{AREA_LABEL[group.area]}</p>
-          <div className="stack" style={{ gap: '0.5rem' }}>
-            {group.docs.map((doc) => (
-              <button
-                key={doc.path}
-                type="button"
-                className="card card-link"
-                data-testid={`knowledge-doc-${doc.path}`}
-                style={{ textAlign: 'left', cursor: 'pointer', padding: '0.7rem 0.85rem', width: '100%' }}
-                onClick={() => setOpen(doc)}
-              >
-                <div style={{ fontSize: 'var(--fs-body-sm)' }}>{doc.title}</div>
-                <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.2rem' }}>
-                  {doc.department} · {describeSize(doc.bytes)}
-                  {doc.text === null ? ' · too large to show here' : null}
-                </div>
-              </button>
-            ))}
+      {ordered.length > 0 ? (
+        <>
+          <div className="table-scroll">
+            <table className="records" data-testid="memory-table">
+              <thead>
+                <tr>
+                  <th scope="col">Document</th>
+                  <th scope="col">From</th>
+                  <th scope="col">Added</th>
+                  <th scope="col">Last used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ordered.map(({ doc, origin }) => (
+                  <tr key={doc.path} data-testid={`memory-row-${doc.path}`}>
+                    <td>
+                      <button
+                        type="button"
+                        className="link-button"
+                        data-testid={`knowledge-doc-${doc.path}`}
+                        onClick={() => setOpen(doc)}
+                      >
+                        {doc.title}
+                      </button>
+                      <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-meta)' }}>
+                        {AREA_LABEL[doc.area]} · {doc.department} · {describeSize(doc.bytes)}
+                        {doc.text === null ? ' · too large to show here' : null}
+                      </span>
+                    </td>
+                    <td data-testid={`memory-from-${doc.path}`}>
+                      {origin.kind === 'unknown' ? <Absent /> : origin.who}
+                    </td>
+                    <td data-testid={`memory-added-${doc.path}`}>
+                      {describeOrigin(origin, onDate) ?? <Absent />}
+                    </td>
+                    {/* Deliberately empty. See the note under the table, and the header comment. */}
+                    <td data-testid={`memory-used-${doc.path}`}><Absent /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      ))}
+
+          <p className="muted" data-testid="memory-used-note"
+             style={{ fontSize: 'var(--fs-meta-lg)', maxWidth: 'var(--content-narrow)', marginTop: '0.5rem' }}>
+            <strong>Last used</strong> is empty because nothing yet records which documents your team
+            read while it worked. It stays empty rather than showing you a number nobody measured.
+          </p>
+
+          {provenanceMissing ? (
+            <p className="muted" data-testid="memory-provenance-missing" style={{ fontSize: 'var(--fs-meta-lg)' }}>
+              Where some of these came from could not be read just now, so those rows show a dash.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+
+      <hr className="hr" />
+
+      <Routines ventureId={ventureId} routines={routines} errors={routineErrors} />
 
       {open ? <Reader doc={open} onClose={() => setOpen(null)} /> : null}
     </section>
   );
 }
 
-/** Handing a document over, with the rules stated where the button is. */
-function Upload({ ventureId }: { ventureId: string }) {
+/** A fact the studio does not hold. One shape for it, so an absence never reads as a value. */
+function Absent() {
+  return <span className="muted" aria-label="not recorded">—</span>;
+}
+
+/**
+ * Handing a document over, with the rules stated where the button is.
+ *
+ * The ticket expected this to be a control that says why it does not work yet. It does work: FB-106
+ * built the path, and it goes the same way every other change goes — proposed for a human to accept,
+ * never written straight into the venture's records (CLAUDE.md #4). So it is the real thing, and the
+ * copy says what actually happens rather than promising it is already in use.
+ */
+function Add({ ventureId }: { ventureId: string }) {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   return (
     <form
       data-testid="knowledge-upload"
-      style={{ margin: '1rem 0' }}
+      style={{ margin: '1rem 0 1.5rem' }}
       action={(form) => startTransition(async () => setResult(await depositDocument(ventureId, form)))}
     >
       <label htmlFor="knowledge-file" style={{ fontSize: 'var(--fs-body-sm)', display: 'block', marginBottom: '0.3rem' }}>
-        Hand over a document
+        Add a document
       </label>
-      <input id="knowledge-file" name="file" type="file" data-testid="knowledge-file"
-             style={{ fontSize: 'var(--fs-body-sm)' }} />
-      <button type="submit" className="btn" data-testid="knowledge-submit" disabled={pending} style={{ marginLeft: '0.5rem' }}>
-        {pending ? 'Saving…' : 'Save it'}
-      </button>
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input id="knowledge-file" name="file" type="file" data-testid="knowledge-file"
+               style={{ fontSize: 'var(--fs-body-sm)', maxWidth: '100%' }} />
+        <button type="submit" className="btn" data-testid="knowledge-submit" disabled={pending}>
+          {pending ? 'Adding…' : 'Add'}
+        </button>
+      </div>
       {/* The rules, at the point of upload, from the constants the code enforces — never a second
           copy that can drift. A founder who meets a refusal they were not warned about learns the
           studio does not know its own limits. */}
       <p className="muted" data-testid="knowledge-limits" style={{ fontSize: 'var(--fs-meta)', margin: '0.35rem 0 0' }}>
-        {ACCEPTED_DESCRIPTION} Nothing is used until you approve it.
+        {ACCEPTED_DESCRIPTION} It is proposed for your OK before your team uses it.
       </p>
       {result ? (
         <p data-testid="knowledge-result"
@@ -123,6 +206,66 @@ function Upload({ ventureId }: { ventureId: string }) {
         </p>
       ) : null}
     </form>
+  );
+}
+
+/**
+ * What happens without you asking — the routines, compactly.
+ *
+ * The same records as `/venture/[id]/routines`, in the same words and the same tones (the vocabulary
+ * is exported from `lib/routines.ts` so the two cannot drift). Read-only here on purpose: this
+ * screen answers "what does my venture do on its own", and the screen behind the link is where it is
+ * changed. It is also the only route to that screen — the rail has no row for it.
+ */
+function Routines({ ventureId, routines, errors }: { ventureId: string; routines: Routine[]; errors: string[] }) {
+  const now = new Date();
+  return (
+    <div data-testid="memory-routines">
+      <h2 style={{ fontSize: 'var(--fs-h3)', margin: '0 0 0.35rem' }}>What happens without you asking</h2>
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)', marginTop: 0 }}>
+        Work your team does on a schedule. Nothing runs until you say so.{' '}
+        <Link href={`/venture/${ventureId}/routines`} data-testid="memory-routines-link">Change these →</Link>
+      </p>
+
+      {errors.length > 0 ? (
+        <p className="card" data-testid="memory-routines-error"
+           style={{ borderColor: toneColor('attention'), color: toneColor('attention'), fontSize: 'var(--fs-body-sm)' }}>
+          ⚠ {errors.join(' ')}
+        </p>
+      ) : null}
+
+      {routines.length === 0 && errors.length === 0 ? (
+        <p className="card muted" data-testid="memory-routines-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
+          Nothing runs on a schedule yet. When your team spots something worth doing regularly, it
+          will suggest it and wait for your OK.
+        </p>
+      ) : (
+        <ul className="stack" data-testid="memory-routines-list" style={{ listStyle: 'none', margin: 0, padding: 0, gap: '0.5rem' }}>
+          {routines.map((routine) => {
+            const reason = whyNotRunning(routine, now);
+            return (
+              <li key={routine.id} className="card" data-testid={`memory-routine-${routine.id}`}
+                  style={{ padding: '0.7rem 0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span aria-hidden="true" style={{
+                    width: '0.5rem', height: '0.5rem', borderRadius: '50%', flex: 'none',
+                    background: toneColor(STATE_TONE[routine.state]),
+                  }} />
+                  <strong style={{ fontSize: 'var(--fs-body-sm)' }}>{routine.title}</strong>
+                  <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>{CADENCE_LABEL[routine.cadence]}</span>
+                  <span style={{ color: toneColor(STATE_TONE[routine.state]), fontSize: 'var(--fs-meta-lg)' }}>
+                    {STATE_LABEL[routine.state]}
+                  </span>
+                </div>
+                {reason ? (
+                  <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.25rem 0 0' }}>{reason}</p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 

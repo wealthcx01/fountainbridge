@@ -1,0 +1,11 @@
+{
+  "id": "daily-price-check",
+  "venture_id": "arca",
+  "title": "Check the price feed every morning",
+  "standing_order": "Compare yesterday's prices against the feed and flag anything that moved more than 20%.",
+  "cadence": "daily",
+  "criterion": "Only when the feed has new prices since the last check.",
+  "state": "proposed",
+  "proposed_by": "build",
+  "proposed_at": "2026-07-21T08:00:00Z"
+}

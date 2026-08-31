@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { decideRoutine } from '@/app/actions/routines';
-import { whyNotRunning, type Routine } from '@/lib/routines';
+import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } from '@/lib/routines';
 import { describeOutcome } from '@/lib/runreports';
-import { toneColor, type Tone } from '@/lib/status';
+import { toneColor } from '@/lib/status';
 
 /**
  * Routines, as a founder controls them (FB-047).
@@ -18,31 +18,6 @@ import { toneColor, type Tone } from '@/lib/status';
  * says, for everything else, *why it is not running right now*. "Nothing happening" and "paused by
  * you" and "ran an hour ago" look identical on a page that only shows a list.
  */
-
-/** How often, said the way a person would. */
-const CADENCE_LABEL: Record<Routine['cadence'], string> = {
-  hourly: 'every hour',
-  daily: 'every day',
-  weekly: 'every week',
-};
-
-const STATE_LABEL: Record<Routine['state'], string> = {
-  proposed: 'waiting for you',
-  active: 'on',
-  paused: 'paused',
-};
-
-/**
- * The shared tone vocabulary, not colours of this component's own (FB-057's contract).
- *
- * `proposed` is `attention` because it is a next step the founder must take; `paused` is `idle`
- * because nothing is happening and nobody needs to act.
- */
-const STATE_TONE: Record<Routine['state'], Tone> = {
-  proposed: 'attention',
-  active: 'ok',
-  paused: 'idle',
-};
 
 export function RoutinesView({
   ventureId,

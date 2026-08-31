@@ -1,0 +1,26 @@
+{
+  "context/sell/brand-positioning.md": {
+    "committedDate": "2026-07-18T09:12:00Z",
+    "messageHeadline": "context: Brand positioning",
+    "authorName": "arca-sell",
+    "totalCount": 1
+  },
+  "context/general/price-list.md": {
+    "committedDate": "2026-07-20T16:40:00Z",
+    "messageHeadline": "knowledge: price-list.pdf",
+    "authorName": "foundry-studio",
+    "totalCount": 1
+  },
+  "library/build/set-naming.md": {
+    "committedDate": "2026-06-02T11:05:00Z",
+    "messageHeadline": "build: record the set-naming decision",
+    "authorName": "Ross",
+    "totalCount": 4
+  },
+  "context/general/supplier-terms.md": {
+    "committedDate": "2026-07-19T12:00:00Z",
+    "messageHeadline": "knowledge: supplier-terms.pdf",
+    "authorName": "foundry-studio",
+    "totalCount": 1
+  }
+}
