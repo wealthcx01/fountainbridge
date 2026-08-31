@@ -104,7 +104,26 @@ files per surface, and the rail needs only the heartbeat out of all of it.
 - [x] `/venture/arca/knowledge` is under 1s — 46–87 ms.
 - [x] Nothing renders a value it does not have yet. The waiting shells carry a name and a line, and
       **no controls at all** — see below.
-- [ ] Measured on production after the deploy, landing path checked beside every reading.
+- [x] Measured on production after the deploy, landing path checked beside every reading.
+
+### On production
+
+Signed in as ARCA's founder, three loads each, landing path checked, median TTFB:
+
+| Route | Before FB-151 | After FB-151 | After this |
+| --- | --- | --- | --- |
+| `/venture/arca` | 5,190 ms | 4,858 ms | **231 ms** |
+| `/venture/arca/knowledge` | 5,238 ms | 3,483 ms | **230 ms** |
+| `/venture/arca/tickets` | 5,242 ms | 243 ms | 227 ms |
+| `/venture/arca/handbook` | 5,333 ms | 219 ms | 230 ms |
+| `/venture/arca/activity` | — | — | **5,986 ms** ← not touched by this ticket |
+
+And the screens still finish: the desk's summary reads *"6 decisions wait on you; your team is on 14
+moving tickets…"*, Memory's reads *"11 documents — 8 pieces of background, 3 artifacts"*, and there
+is exactly **one** prompt bar and **one** Add control on each, with no waiting shell left behind.
+
+**`/venture/arca/activity` is the one screen still at six seconds.** It reads health, runs and
+approvals directly and was not in this ticket's scope. Filed as **FB-158**.
 
 ## A control in a Suspense fallback is a dead control
 
