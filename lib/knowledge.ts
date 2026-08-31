@@ -105,3 +105,158 @@ export function describeSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// --- where a document came from, and when (FB-133) -------------------------------------------
+
+/**
+ * A document's provenance, as far as git can be made to say it.
+ *
+ * The Memory screen's job is to state what the machine actually read, so this is a discriminated
+ * union rather than two nullable fields: a row is in exactly one of these states, and "we know who
+ * added it" and "we know who last touched it" are different claims that must not be rendered as the
+ * same sentence.
+ *
+ * - `added`   — the path has exactly one commit behind it, so that commit *is* the moment it arrived.
+ * - `changed` — it has more than one. We know when it was last touched and by whom; we do **not**
+ *               know when it was added without walking the whole history, so we do not say.
+ * - `unknown` — the history could not be read. Absent, never guessed (CLAUDE.md #10).
+ */
+export type DocOrigin =
+  | { kind: 'added'; who: string; at: string }
+  | { kind: 'changed'; who: string; at: string }
+  | { kind: 'unknown' };
+
+/** One commit's worth of what git will tell us about a path. */
+export interface DocCommit {
+  committedDate: string;
+  messageHeadline: string;
+  authorName: string | null;
+  /** How many commits have touched this path. 1 means the commit we have is the one that added it. */
+  totalCount: number;
+}
+
+/**
+ * Who handed this over, read off the commit that wrote it.
+ *
+ * The two ways in leave different fingerprints, and they are the two the founder cares about
+ * distinguishing: `app/actions/knowledge.ts` commits `knowledge: <filename>` when they use the Add
+ * control, and `deploy/librechat/deposit-mcp` commits `context: <title>` when the composer files
+ * something mid-conversation. Anything else was written by a lane or by hand, and the commit's own
+ * author is the honest answer for those.
+ *
+ * The prefixes live here beside the words they produce, because a founder reading "You" needs it to
+ * still be true after someone changes a commit message on the other side.
+ */
+export const STUDIO_DEPOSIT_PREFIX = 'knowledge:';
+export const COMPOSER_DEPOSIT_PREFIX = 'context:';
+
+export function whoAdded(commit: Pick<DocCommit, 'messageHeadline' | 'authorName'>): string {
+  const headline = commit.messageHeadline.trim();
+  if (headline.startsWith(STUDIO_DEPOSIT_PREFIX)) return 'You';
+  // Not "You": the composer's deposit tool is called by the agent during a founder's conversation,
+  // and attributing the agent's judgement to the founder is the kind of small lie this screen exists
+  // to avoid.
+  if (headline.startsWith(COMPOSER_DEPOSIT_PREFIX)) return 'Your composer';
+  return commit.authorName?.trim() || 'Your team';
+}
+
+/** Fold one path's commit into the union above. Null in — `unknown` out, never a default date. */
+export function originOf(commit: DocCommit | null): DocOrigin {
+  if (!commit || !commit.committedDate) return { kind: 'unknown' };
+  const who = whoAdded(commit);
+  return commit.totalCount === 1
+    ? { kind: 'added', who, at: commit.committedDate }
+    : { kind: 'changed', who, at: commit.committedDate };
+}
+
+/**
+ * The "Added" cell, in words that stay true.
+ *
+ * A document with a history says *Updated*, because the date we hold is the last change and not the
+ * arrival. Saying "Added" over the date of an edit is exactly the invented number this screen must
+ * not print.
+ */
+export function describeOrigin(origin: DocOrigin, day: (iso: string) => string | null): string | null {
+  switch (origin.kind) {
+    case 'added': { const d = day(origin.at); return d && `Added ${d}`; }
+    case 'changed': { const d = day(origin.at); return d && `Updated ${d}`; }
+    case 'unknown': return null;
+    default: {
+      const unhandled: never = origin;
+      return unhandled;
+    }
+  }
+}
+
+/** A corpus row as the Memory table renders it: the document, plus what its records say about it. */
+export interface KnowledgeRow {
+  /**
+   * Which of the venture's repositories this came from.
+   *
+   * The path alone is NOT an identity. A venture has several surfaces (Build, Sell, Scale) and the
+   * corpus is read from each of them, so two of them can both hold `context/general/price-list.md` —
+   * at which point a path-keyed table renders duplicate React keys and two elements answering to one
+   * test id, and clicking one document opens the other. Same lesson as `rowKey` in tickets-view.ts.
+   */
+  repo: string;
+  doc: KnowledgeDoc;
+  origin: DocOrigin;
+}
+
+/** The identity of a row: the surface it came from AND its path. Never the path alone. */
+export const docKey = (row: Pick<KnowledgeRow, 'repo' | 'doc'>): string => `${row.repo}/${row.doc.path}`;
+
+/**
+ * Newest first, and everything git could not date last.
+ *
+ * A founder opening this screen is usually checking that the thing they handed over this morning
+ * landed, so recency is the useful order. Undated rows sort to the bottom rather than to the top,
+ * where a missing date would otherwise read as "just now".
+ */
+export function orderRows(rows: readonly KnowledgeRow[]): KnowledgeRow[] {
+  // Parsed instants rather than a string compare: these timestamps come from a code host and from
+  // fixtures, and `2026-06-20T09:00:00Z` sorts against `2026-06-20T10:00:00+01:00` correctly only
+  // once both are numbers. The same two moments compared as text put the earlier one first.
+  const when = (r: KnowledgeRow): number | null => {
+    if (r.origin.kind === 'unknown') return null;
+    const at = Date.parse(r.origin.at);
+    return Number.isFinite(at) ? at : null;
+  };
+  return [...rows].sort((a, b) => {
+    const [x, y] = [when(a), when(b)];
+    if (x !== null && y !== null && x !== y) return y - x;
+    if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+    return a.doc.title.localeCompare(b.doc.title) || docKey(a).localeCompare(docKey(b));
+  });
+}
+
+/**
+ * The sentence over the table.
+ *
+ * It counts what is on the screen and nothing else. A summary computed from a different list than
+ * the one below it is the FB-149 badge/destination disagreement, and this page is the worst place to
+ * repeat it — the whole screen is a claim about what the machine holds.
+ */
+export function memorySummary(rows: readonly KnowledgeRow[]): string {
+  if (rows.length === 0) return 'Nothing handed over yet.';
+  const docs = `${rows.length} document${rows.length === 1 ? '' : 's'}`;
+  // Counted by area, and the sentence names the areas it counted. The first draft said "across N
+  // areas" where N was the number of SURFACES and the words after the dash named the two corpus
+  // areas — two different things in one clause, on the screen whose job is to be exact.
+  const parts = (['context', 'library'] as KnowledgeArea[])
+    .map((area) => ({ area, n: rows.filter((r) => r.doc.area === area).length }))
+    .filter((p) => p.n > 0)
+    .map((p) => `${p.n} ${p.n === 1 ? AREA_SHORT[p.area].one : AREA_SHORT[p.area].many}`);
+  return `${docs} — ${parts.join(', ')}.`;
+}
+
+/**
+ * The short form of each area, for a sentence rather than a section heading.
+ *
+ * Both forms spelled out rather than an `s` appended: "1 piece of backgrounds" is what appending one
+ * produces, and a summary that cannot count to one is not a summary anybody trusts.
+ */
+export const AREA_SHORT: Record<KnowledgeArea, { one: string; many: string }> = {
+  context: { one: 'piece of background', many: 'pieces of background' },
+  library: { one: 'artifact', many: 'artifacts' },
+};

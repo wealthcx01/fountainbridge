@@ -355,6 +355,57 @@ body:has([data-testid='rail']) .main {
 }
 .tag-accent { background: var(--color-accent-tint); color: var(--color-accent); }
 
+/* Records table (FB-133)
+ *
+ * The studio's one table style: hairlines, no zebra striping, no vertical rules — the same paper
+ * grammar as the cards, so a table does not read as a different product on the same page.
+ *
+ * `.table-scroll` is not decoration. FB-153 shipped a 393px screen that a single long URL pushed to
+ * 471px, and a four-column table is the same defect waiting to happen: the wrapper takes the
+ * overflow so the PAGE never scrolls sideways. `word-break` on the cells means it usually does not
+ * come to that. */
+.table-scroll { max-width: 100%; overflow-x: auto; }
+.records {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body-sm);
+  text-align: left;
+}
+.records th {
+  font-family: var(--font-mono);
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-muted);
+  font-weight: 400;
+  padding: 0 0.9rem 0.45rem 0;
+  border-bottom: 1px solid var(--color-border-strong);
+  white-space: nowrap;
+}
+.records td {
+  padding: 0.65rem 0.9rem 0.65rem 0;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.records th:last-child, .records td:last-child { padding-right: 0; }
+
+/* A button that reads as a link. The row's document opens a reader rather than navigating, so it
+ * must be a <button> for the keyboard and a link to the eye. */
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.link-button:hover { color: var(--color-accent-hover); }
+
 .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
 .stack { display: flex; flex-direction: column; gap: 0.35rem; }
 .hr { height: 1px; background: var(--color-border); border: 0; margin: 2rem 0; }

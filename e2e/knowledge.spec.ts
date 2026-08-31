@@ -20,19 +20,21 @@ test.describe('what your venture knows (FB-106)', () => {
     await expect(page).toHaveURL(/\/venture\/arca\/knowledge$/);
   });
 
-  test('every deposited document is listed, grouped by what it is for', async ({ page }) => {
+  test('every deposited document is listed, and says what it is for', async ({ page }) => {
+    // FB-133 turned the two grouped lists into one table. What each document is FOR still has to
+    // reach the founder — it moved into the row rather than being dropped.
     await page.goto('/venture/arca/knowledge');
-    await expect(page.getByTestId('knowledge-context')).toContainText('Brand positioning');
-    await expect(page.getByTestId('knowledge-context')).toContainText('Price list');
-    await expect(page.getByTestId('knowledge-library')).toContainText('Set naming decision');
-    // The two areas mean different things, and the page says which is which.
-    await expect(page.getByTestId('knowledge-context')).toContainText('reads before it works');
+    const table = page.getByTestId('memory-table');
+    await expect(table).toContainText('Brand positioning');
+    await expect(table).toContainText('Price list');
+    await expect(table).toContainText('Set naming decision');
+    await expect(table).toContainText('reads before it works');
   });
 
   test('a founder reads a document without leaving the studio', async ({ page }) => {
     // The whole point: the only way to see this was GitHub.
     await page.goto('/venture/arca/knowledge');
-    await page.getByTestId('knowledge-doc-context/sell/brand-positioning.md').click();
+    await page.getByTestId('knowledge-doc-arca/context/sell/brand-positioning.md').click();
     const reader = page.getByTestId('knowledge-reader');
     await expect(reader).toBeVisible();
     await expect(reader).toContainText('a trading desk, not a toy aisle');
@@ -46,7 +48,7 @@ test.describe('what your venture knows (FB-106)', () => {
     await page.goto('/venture/arca/knowledge');
     await expect(page.getByTestId('knowledge-limits')).toContainText('PDF');
     await expect(page.getByTestId('knowledge-limits')).toContainText('12MB');
-    await expect(page.getByTestId('knowledge-limits')).toContainText('until you approve it');
+    await expect(page.getByTestId('knowledge-limits')).toContainText('proposed for your OK');
   });
 
   test('handing a document over reaches the server and answers honestly', async ({ page }) => {
@@ -64,5 +66,80 @@ test.describe('what your venture knows (FB-106)', () => {
     // Venture isolation is server-side on this route like every other (CLAUDE.md #6).
     await page.goto('/venture/the-reset/knowledge');
     await expect(page.getByTestId('knowledge')).toHaveCount(0);
+  });
+});
+
+/**
+ * FB-133 — Memory: what the venture knows.
+ *
+ * The screen the design asks for on top of FB-106's list: one table, with where each document came
+ * from, and the recurring work underneath it. The founder's question here is never "what files
+ * exist" — it is "is the thing I handed over actually being used?"
+ */
+test.describe('memory (FB-133)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+  });
+
+  test('the table names the source of every document, in the founder’s terms', async ({ page }) => {
+    await page.goto('/venture/arca/knowledge');
+
+    // The studio's own Add control wrote this one, so it was the founder.
+    await expect(page.getByTestId('memory-from-arca/context/general/price-list.md')).toHaveText('You');
+    // The composer deposited this one. Not "You" — the machine made that call mid-conversation.
+    await expect(page.getByTestId('memory-from-arca/context/sell/brand-positioning.md')).toHaveText('Your composer');
+    // Nobody the studio recognises: whoever actually wrote it.
+    await expect(page.getByTestId('memory-from-arca/library/build/set-naming.md')).toHaveText('Ross');
+  });
+
+  test('a document with a history says Updated, never Added over the date of an edit', async ({ page }) => {
+    await page.goto('/venture/arca/knowledge');
+    await expect(page.getByTestId('memory-added-arca/context/general/price-list.md')).toHaveText('Added 20 July 2026');
+    // Four changes behind it: the date we hold is the last one, and the word has to say so.
+    await expect(page.getByTestId('memory-added-arca/library/build/set-naming.md')).toHaveText('Updated 2 June 2026');
+  });
+
+  test('“Last used” is empty and says why, rather than showing a number nobody measured', async ({ page }) => {
+    await page.goto('/venture/arca/knowledge');
+    const cell = page.getByTestId('memory-used-arca/context/general/price-list.md');
+    // A dash to the eye AND a text twin for a screen reader — a glyph on its own is state a
+    // screen-reader user does not get (the design contract's own rule).
+    await expect(cell).toContainText('—');
+    await expect(cell.locator('.sr-only')).toHaveText('not recorded');
+    await expect(page.getByTestId('memory-used-note')).toContainText('nothing yet records');
+  });
+
+  test('the summary counts the same documents the table lists', async ({ page }) => {
+    // The FB-149 failure — a count over one screen and a list over another — on the one screen whose
+    // entire job is to state what the studio actually holds.
+    await page.goto('/venture/arca/knowledge');
+    const rows = await page.locator('[data-testid^="memory-row-"]').count();
+    await expect(page.getByTestId('memory-summary')).toContainText(`${rows} documents`);
+    // And the areas it names add up to the same total.
+    const summary = (await page.getByTestId('memory-summary').textContent()) ?? '';
+    const counted = [...summary.matchAll(/(\d+) (?:pieces? of background|artifacts?)/g)]
+      .reduce((n, m) => n + Number(m[1]), 0);
+    expect(counted).toBe(rows);
+  });
+
+  test('the recurring work is on the screen, with a way to change it', async ({ page }) => {
+    // `/routines` has no row in the rail, so this is the only route to it.
+    await page.goto('/venture/arca/knowledge');
+    await expect(page.getByTestId('memory-routines')).toContainText('Each week, work the new sign-ups');
+    await expect(page.getByTestId('memory-routine-daily-price-check')).toContainText('waiting for you');
+    await page.getByTestId('memory-routines-link').click();
+    await expect(page).toHaveURL(/\/venture\/arca\/routines$/);
+  });
+
+  test('the screen fits a phone, long document names and all', async ({ page }) => {
+    // FB-153: a single long string pushed a 393px window to 471px. A four-column table is the same
+    // defect waiting to happen, so the page must not scroll sideways at any point.
+    await page.setViewportSize({ width: 393, height: 851 });
+    await page.goto('/venture/arca/knowledge');
+    await expect(page.getByTestId('memory-table')).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
   });
 });
