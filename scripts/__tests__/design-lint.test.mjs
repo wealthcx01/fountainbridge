@@ -84,3 +84,30 @@ describe('design-lint stays quiet where it should', () => {
     expect(rules(`<button {...props}>Go</button>`)).toEqual([]);
   });
 });
+
+describe('a stylesheet must not key on a test id (FB-158)', () => {
+  it('flags a rule selecting on data-testid', () => {
+    // The phone media query hid the rail with `[data-testid='rail']`. Renaming the waiting shell's
+    // id took it out of that rule and put a 250px rail back on a 393px screen — FB-124's defect,
+    // returning through a test id.
+    const found = lintText("@media (max-width: 60rem) {\n  [data-testid='rail'] { display: none; }\n}\n", 'app/globals.css');
+    expect(found.map((v) => v.rule)).toContain('testid-selector');
+  });
+
+  it('accepts the same rule keyed on the class', () => {
+    const found = lintText('@media (max-width: 60rem) {\n  .rail { display: none; }\n}\n', 'app/globals.css');
+    expect(found.map((v) => v.rule)).not.toContain('testid-selector');
+  });
+
+  it('leaves test ids alone in components, where they belong', () => {
+    const found = lintText('<nav data-testid="rail" />\n', 'components/Rail.tsx');
+    expect(found.map((v) => v.rule)).not.toContain('testid-selector');
+  });
+
+  it('catches the other selector forms too', () => {
+    for (const sel of ['[data-testid^="rail"]', '[data-testid*=rail]', '[data-testid|="rail"]']) {
+      const found = lintText(`${sel} { display: none; }\n`, 'app/globals.css');
+      expect(found.map((v) => v.rule), sel).toContain('testid-selector');
+    }
+  });
+});

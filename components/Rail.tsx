@@ -46,7 +46,14 @@ export function Rail({
     // `display: flex` there beat the media query meant to hide it on a phone — so a 250px rail sat on
     // a 393px screen, the board scrolled sideways, and no unit test could see it. An inline style is
     // not overridable, which makes it the wrong place for anything responsive.
-    <nav className="rail" data-testid="rail" aria-label="Venture">
+    // The waiting shell answers to `rail-waiting`, not `rail` (FB-158).
+    //
+    // While a Suspense boundary resolves, the fallback and the streamed content are BOTH in the
+    // document for an instant — measured: two at `domcontentloaded`, one by the time the board is
+    // visible. Sharing one test id made that instant a strict-mode violation, and worse, made the
+    // two states indistinguishable to anything asking "is the rail there?". They are different
+    // things: one of them knows this venture's numbers and one of them does not.
+    <nav className="rail" data-testid={data === null ? 'rail-waiting' : 'rail'} aria-label="Venture">
       <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'var(--fs-h4)', letterSpacing: '0.04em' }}>
           BRUNTSFIELD
