@@ -128,3 +128,38 @@ export function groupFailures(messages: string[]): FailureGroup[] {
 
 /** Does anything here actually need the founder? Drives whether the note is worth their attention. */
 export const needsAction = (groups: FailureGroup[]): boolean => groups.some((g) => !g.transient);
+
+// --- empty, or unread? (FB-137) ---------------------------------------------------------------
+
+/**
+ * What a panel should say: its content, its invitation, or its apology.
+ *
+ * ## The rule this makes uniform
+ *
+ * **Empty and degraded are different sentences, and a screen must never say both.** Measured with
+ * every read failing, four screens said them together and put the *empty* one first:
+ *
+ *   tickets   "No tickets yet. The first one your team files lands here."  ⚠ part could not be read
+ *   activity  "Nothing yet. Everything your venture does gets written down here."  ⚠ …
+ *   memory    "Nothing handed over yet."  ⚠ …
+ *   routines  ⚠ …  "No recurring work yet."
+ *
+ * The empty state is an invitation — it tells a founder their venture is a blank page. When the
+ * studio could not look, that is a claim it has no evidence for, and it is the most reassuring thing
+ * it can possibly say (CLAUDE.md #10). So a failed read **replaces** the invitation rather than
+ * sitting under it.
+ *
+ * ## Why a function rather than a condition in five places
+ *
+ * Because it was a condition in five places, and four of them were wrong. One name, one rule, and a
+ * test per state.
+ */
+export type PanelState = 'content' | 'empty' | 'unreadable';
+
+export function panelState(input: { hasContent: boolean; couldNotRead: boolean }): PanelState {
+  // Content wins even when something failed: a partial list plus a strip saying what is missing is
+  // more use than an apology instead of the half we have. That is the FB-137 rule that a degraded
+  // read never blanks a panel which had data.
+  if (input.hasContent) return 'content';
+  return input.couldNotRead ? 'unreadable' : 'empty';
+}

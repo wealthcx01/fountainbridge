@@ -8,6 +8,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { failIfFaulted } from './read-faults';
 import { join } from 'node:path';
 import type { PrCiStatus } from './attention';
 import type { WorkSource } from './work-load';
@@ -15,6 +16,9 @@ import type { WorkSource } from './work-load';
 export function fixtureWorkSource(dir: string): WorkSource {
   const key = (repo: string) => repo.replace(/\//g, '__');
   const read = (repo: string, number: number) => {
+    // FB-137: fail at READ time, where a real read fails. Outside the try, because a fault must not
+    // be swallowed into "this piece of work does not exist" — the two are different answers.
+    failIfFaulted('work');
     try {
       return JSON.parse(readFileSync(join(dir, key(repo), `${number}.json`), 'utf8'));
     } catch {

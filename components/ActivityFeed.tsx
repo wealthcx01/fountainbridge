@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { panelState } from '@/lib/read-failures';
 import type { FeedItem } from '@/lib/activity-feed';
 import { toneColor } from '@/lib/status';
 import { onDate } from '@/lib/when';
@@ -10,8 +11,17 @@ import { onDate } from '@/lib/when';
  * state carried only by colour is a state a screen-reader user does not get, which the design
  * contract forbids and which matters most on the entries nobody wants to miss.
  */
-export function ActivityFeed({ items }: { items: FeedItem[] }) {
-  if (items.length === 0) {
+export function ActivityFeed({ items, couldNotRead = false }: { items: FeedItem[]; couldNotRead?: boolean }) {
+  const state = panelState({ hasContent: items.length > 0, couldNotRead });
+  // FB-137: "Nothing yet. Everything your venture does gets written down here" is an invitation. Said
+  // over a read that failed it becomes a claim the studio has no evidence for — and the most
+  // reassuring one it can make. The apology REPLACES the invitation; it does not sit under it.
+  // Nothing at all, deliberately. The page above already carries a strip naming WHICH source could
+  // not be read, and two apologies for one failure is the studio talking about itself twice. What
+  // must not happen is the INVITATION below, which would tell a founder their venture has done
+  // nothing.
+  if (state === 'unreadable') return null;
+  if (state === 'empty') {
     return (
       <p className="card muted" data-testid="activity-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
         Nothing yet. Everything your venture does gets written down here — including the things that

@@ -161,7 +161,7 @@ async function Record({
         failed, refused: it stays here with its state. Decisions appear the moment they are made.
       </p>
 
-      <ActivityFeed items={feed} />
+      <ActivityFeed items={feed} couldNotRead={unreadable.length > 0 || failures.length > 0} />
 
       {truncated ? (
         <p className="muted" data-testid="activity-capped" style={{ fontSize: 'var(--fs-meta-lg)' }}>

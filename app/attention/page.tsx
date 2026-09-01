@@ -51,7 +51,19 @@ export default async function AttentionPage({
             review" and the introduction said "waiting on your OK" — three phrasings, and "review"
             in particular means something specific and different in engineering. */}
         <h1 style={{ margin: 0 }}>Needs you</h1>
-        <span className="tag" data-testid="attention-count">{approvals.length}</span>
+        {/* FB-137: a count is a claim. With the reads failing this said `0`, which is the sentence
+            "nothing needs you" — the most reassuring thing the studio can say, said on no evidence.
+            An em dash and a word for the screen reader instead. */}
+        <span className="tag" data-testid="attention-count">
+          {errors.length > 0 && approvals.length === 0 ? (
+            <>
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">not known</span>
+            </>
+          ) : (
+            approvals.length
+          )}
+        </span>
       </div>
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
         Everything across your ventures waiting on your OK. {APPROVAL_REASSURANCE} Oldest first.{' '}
@@ -59,7 +71,17 @@ export default async function AttentionPage({
       </p>
       <hr className="hr" />
 
-      {approvals.length === 0 ? (
+      {/* FB-137: empty and degraded are different sentences, and this screen said BOTH — "Nothing is
+          waiting for you", and under it "some of your work is not showing". The first is the
+          reassurance a founder acts on; the second is the reason it might be wrong. Saying them
+          together, in that order, is the confusion this ticket exists to end. */}
+      {approvals.length === 0 && errors.length > 0 ? (
+        <p className="card" data-testid="attention-unreadable" style={{ fontSize: 'var(--fs-body-sm)' }}>
+          <span aria-hidden="true">⚠ </span>
+          The studio could not read your ventures just now, so it cannot tell you what is waiting.
+          It is not that nothing is — it is that it could not look. This clears on its own.
+        </p>
+      ) : approvals.length === 0 ? (
         <p className="card muted" data-testid="attention-empty">Nothing is waiting for you.</p>
       ) : (
         <>

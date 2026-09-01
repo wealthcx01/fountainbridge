@@ -7,6 +7,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
+import { failIfFaulted } from './read-faults';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import { fullRepoName } from './venture-repos';
@@ -43,6 +44,8 @@ export function githubRoutineSource(client: GitHubClient, org?: string): Routine
 export function fixtureRoutineSource(dir: string): RoutineSource {
   return {
     async list(repo) {
+      // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+      failIfFaulted('routines');
       try {
         return readdirSync(join(dir, repo)).filter((f) => f.endsWith('.json'));
       } catch {
@@ -50,6 +53,8 @@ export function fixtureRoutineSource(dir: string): RoutineSource {
       }
     },
     async read(repo, name) {
+      // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+      failIfFaulted('routines');
       try {
         return JSON.parse(readFileSync(join(dir, repo, name), 'utf8'));
       } catch {

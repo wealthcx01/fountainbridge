@@ -50,8 +50,14 @@ export interface RailData {
    * a cross-venture page and becomes a filter that can show both kinds.
    */
   needsYou: number;
-  /** Per-department budgets. `null` where a department declares no envelope; the rail says so. */
-  budgets: (BudgetDisclosure | null)[];
+  /**
+   * Per-department budgets. `null` **inside** the array where a department declares no envelope;
+   * the whole array `null` when the spend could not be read at all (FB-137).
+   *
+   * Those are three different sentences — "no limit set", "nothing spent", "we could not look" —
+   * and the rail said the second for all three until this was split out.
+   */
+  budgets: (BudgetDisclosure | null)[] | null;
   engine: { state: EngineState; text: string; ageMinutes: number | null };
   /** True when any read above failed. The rail is quieter about what it could not load, not silent. */
   degraded: boolean;
@@ -89,6 +95,13 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
 
   // Envelopes are read from disk in this repo, not over the network — cheap, and synchronous.
   const { envelopes } = loadEnvelopes(venture.id);
+  // Spend comes from the APPROVALS. When that read failed, `approvals` is `[]` — and `[]` means
+  // "nothing has been spent", which is a claim (FB-137). The rail printed `£0/£4,800` for a venture
+  // whose spending it had not been able to look at, on the most-seen surface in the product.
+  //
+  // So the budgets are withheld entirely rather than computed from an empty list. `railWords` already
+  // renders `null` as "checking", which is the true answer.
+  const spendUnread = degraded && approvals.length === 0;
   const { budgets } = departmentBudgets(
     venture.departments.map((d) => d.id),
     envelopes,
@@ -99,8 +112,9 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
   const engine = engineState(runs?.heartbeats ?? [], new Date(nowMs));
 
   return {
+    // Also not 0 when unread — see `RailData.needsYou`.
     needsYou: attention?.approvals.length ?? 0,
-    budgets,
+    budgets: spendUnread ? null : budgets,
     engine: { state: engine.state, text: engine.text, ageMinutes: engine.ageMinutes },
     degraded,
   };

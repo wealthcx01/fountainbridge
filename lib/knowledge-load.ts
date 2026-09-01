@@ -1,4 +1,5 @@
 import 'server-only';
+import { failIfFaulted } from './read-faults';
 
 /**
  * Reading a venture's corpus off git (FB-106).
@@ -101,6 +102,8 @@ function build(path: string, blob: Blob | null | undefined): KnowledgeDoc[] {
 /** Offline fixture source (dev / Playwright): reads `<dir>/<repo>/<area>/<dept>/<file>`. */
 export function fixtureKnowledgeSource(dir: string): KnowledgeSourceFn {
   return async (repo) => {
+    // FB-137: fail at READ time, where a real read fails.
+    failIfFaulted('knowledge');
     const { readdirSync, readFileSync, statSync } = await import('node:fs');
     const { join } = await import('node:path');
     const docs: KnowledgeDoc[] = [];
@@ -230,7 +233,11 @@ export function githubProvenanceSource(
  * fixture can exercise both halves.
  */
 export function fixtureProvenanceSource(dir: string): ProvenanceSourceFn {
+  // FB-137: the degraded state is only real if it can be induced. Gated on the same
+  // E2E_TEST_LOGIN that already turns this studio into a rig, so production is untouched.
   return async (repo, paths) => {
+    // FB-137: fail at READ time, where a real read fails.
+    failIfFaulted('provenance');
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const out = new Map<string, DocCommit>();

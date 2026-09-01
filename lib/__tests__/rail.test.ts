@@ -79,7 +79,10 @@ describe('a shortcut is not a section', () => {
 describe('the rail before its numbers are in', () => {
   const known: RailData = {
     needsYou: 3,
-    budgets: [{ departmentId: 'sell', currency: 'GBP', limitMinor: 500_000, reportedMinor: 120_000, queuedMinor: 0, overLimit: false } as unknown as NonNullable<RailData['budgets'][number]>],
+    budgets: [{
+      department: 'sell', currency: 'GBP', period: 'monthly', limitMinor: 500_000,
+      reportedMinor: 120_000, queuedMinor: 0, notes: [], overLimit: false,
+    }] as RailData['budgets'],
     engine: { state: 'running', text: 'Your team checked in 4 minutes ago.', ageMinutes: 4 },
     degraded: false,
   };
@@ -103,6 +106,13 @@ describe('the rail before its numbers are in', () => {
     // `[]` would render as a venture with no departments, and `[null]` as departments with no
     // envelope set. Both are statements about this venture's setup; neither has been read.
     expect(railWords(null).budgets).toBeNull();
+  });
+
+  it('withholds the budgets when the spend itself could not be read (FB-137)', () => {
+    // The three sentences the rail must keep apart: "no limit set", "nothing spent", "we could not
+    // look". It said the second for all three, and printed £0/£4,800 for a venture whose spending
+    // it had not managed to read — on the most-seen surface in the product.
+    expect(railWords({ ...known, budgets: null }).budgets).toBeNull();
   });
 
   it('passes the real numbers through untouched once they are in', () => {

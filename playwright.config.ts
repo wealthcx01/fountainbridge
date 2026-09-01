@@ -42,6 +42,10 @@ export default defineConfig({
       WORK_FIXTURE_DIR: 'e2e/fixtures/work',
       // FB-106: the venture's corpus, offline.
       KNOWLEDGE_FIXTURE_DIR: 'e2e/fixtures/knowledge',
+      // FB-137: which reads to fail on purpose, so the degraded half of every screen can be
+      // checked by eye and in CI rather than only when a code host is having a bad day. Empty by
+      // default; `e2e/degraded.spec.ts` runs a second server with it set.
+      E2E_FAIL_READS: process.env.E2E_FAIL_READS ?? '',
       // FB-133: the recurring work shown under the corpus on the Memory screen. Without this the
       // gate would reach GitHub for it, which is both slow and a network dependency the UI gate is
       // built to avoid — and it would render the "could not be read" state on every run.

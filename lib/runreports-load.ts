@@ -8,6 +8,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
+import { failIfFaulted } from './read-faults';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
 import { fullRepoName } from './venture-repos';
@@ -46,6 +47,8 @@ export function fixtureRunReportSource(dir: string): RunReportSource {
   const key = (repo: string) => repo.replace(/\//g, '__');
   return {
     async list(repo) {
+      // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+      failIfFaulted('runreports');
       try {
         return readdirSync(join(dir, key(repo))).filter((f) => f.endsWith('.json'));
       } catch {
@@ -53,6 +56,8 @@ export function fixtureRunReportSource(dir: string): RunReportSource {
       }
     },
     async read(repo, name) {
+      // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+      failIfFaulted('runreports');
       try {
         return JSON.parse(readFileSync(join(dir, key(repo), name), 'utf8'));
       } catch {

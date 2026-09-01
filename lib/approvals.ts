@@ -11,6 +11,7 @@
  */
 
 import 'server-only';
+import { failIfFaulted } from './read-faults';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitHubClient } from './github';
@@ -186,12 +187,16 @@ export function fixtureApprovalSource(dir: string): ApprovalSource {
   const key = (repo: string) => repo.replace(/\//g, '__');
   return {
     async listIds(repo) {
+      // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+      failIfFaulted('approvals');
       try {
         const idsRaw = readFileSync(join(dir, key(repo), '_ids.json'), 'utf8');
         return JSON.parse(idsRaw) as string[];
       } catch { return []; }
     },
     async read(repo, id, file) {
+      // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+      failIfFaulted('approvals');
       try {
         const text = readFileSync(join(dir, key(repo), id, `${file}.json`), 'utf8');
         return { json: JSON.parse(text), sha: `sha-${id}-${file}` };

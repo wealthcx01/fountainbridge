@@ -12,6 +12,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { failIfFaulted } from './read-faults';
 import { join } from 'node:path';
 import { loadVentures, type VentureSummary } from './ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from './authz';
@@ -297,6 +298,8 @@ export function githubPrFetcher(client: GitHubClient, org: string): RepoPrFetche
 /** Offline fixture source (dev / Playwright): reads `<dir>/<repo>.json` as RawPr[]. */
 export function fixturePrFetcher(dir: string): RepoPrFetcher {
   return async (repo) => {
+    // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+    failIfFaulted('prs');
     try {
       const raw = readFileSync(join(dir, `${repo}.json`), 'utf8');
       return { prs: JSON.parse(raw) as RawPr[], error: null };
@@ -357,7 +360,16 @@ export async function loadVentureAttention(
   const perRepo = fresh
     ? cached.perRepo
     : await Promise.all(
-        venture.repos.map(async (repo) => ({ repo, result: await (opts.fetcher ?? defaultPrFetcher())(repo) })),
+        venture.repos.map(async (repo) => {
+          // A fetcher that THROWS must not take the page with it (FB-137). `RepoPrs` already has an
+          // `error` field and both shipped fetchers use it; this is for the ones that do not get
+          // the chance — a rate limit, a reset socket. `/attention` was a 500 when one threw.
+          try {
+            return { repo, result: await (opts.fetcher ?? defaultPrFetcher())(repo) };
+          } catch {
+            return { repo, result: { prs: [], error: `The studio could not read ${repo} just now.` } };
+          }
+        }),
       );
 
   // Derived on every read, from whatever ticket knowledge THIS caller has. The network read is what
