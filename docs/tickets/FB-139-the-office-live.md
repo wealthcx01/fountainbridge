@@ -114,6 +114,27 @@ The lane timer is active and wakes every five minutes. Observed on production:
 | **not live** | three empty chairs and the machine's own sentence, while the studio could not see a wake |
 | **the cause** | not a stale box — a real liveness defect, found by the plate and fixed above |
 
-The other direction — a wake moving the plate and the ledger row together — is recorded after this
-deploys. It also needs the lane to have wake budget left; ARCA has parked at 20 wakes for the day,
-so what a wake writes right now is a `blocked` report rather than work in progress.
+### And then it went live
+
+Two fixes later — liveness reading every check-in (above) and the studio seeing past a thousand files
+(**FB-161**) — the same plate on production:
+
+```
+live                      true
+rail engine               Your team checked in just now.
+plate == ledger surfaces  true
+plate == ledger states    true
+
+  build   waiting-on-you   Finished — 3 things waiting on you.
+  sell    waiting-on-you   Finished — 2 things waiting on you.
+  scale   waiting-on-you   Finished — 1 thing waiting on you.
+```
+
+From *"your team is not working on this venture yet"*, to *"has not checked in for 1 day"*, to
+*"checked in just now"* — and the plate and the ledger agreeing on every surface and every state,
+because they are one array.
+
+The remaining half of the box-side proof is a wake caught **mid-flight**, which needs the lane to
+have budget left: ARCA has parked at 20 wakes for the day, so what a wake writes right now is a
+`blocked` report rather than work in progress. All three desks correctly read as finished-and-waiting
+rather than working, which is the truth about that machine tonight.

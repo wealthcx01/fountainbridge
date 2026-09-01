@@ -62,4 +62,5 @@ Every caller benefits: run reports, approvals, routines, and the ticket listings
 - [x] A truncated tree is said out loud rather than shown as a subset.
 - [x] A missing ref is still an empty directory, so a venture with no lane reads as quiet rather than
       broken.
-- [ ] ARCA's engine line reads minutes rather than days, on production. *Recorded after the deploy.*
+- [x] ARCA's engine line reads minutes rather than days, on production: **"Your team checked in just
+      now."** The office went live with it — three surfaces, plate and ledger agreeing.

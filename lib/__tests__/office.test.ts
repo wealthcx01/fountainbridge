@@ -136,12 +136,23 @@ describe('the plate and the ledger cannot disagree', () => {
 });
 
 describe('the line under the plate', () => {
+  it('counts THINGS waiting, the same total the blocker banner states', () => {
+    // It counted desks, and read "3 waiting on you" over a ledger whose rows added to six. Two
+    // numbers on one screen that appear to disagree — and the smaller one was the reassuring one,
+    // on the count a founder acts on.
+    const o = buildOffice(input({
+      waiting: [waiting('build'), waiting('build'), waiting('build'), waiting('sell'), waiting('sell')],
+    }));
+    expect(o.desks.filter((d) => d.state === 'waiting-on-you')).toHaveLength(2);
+    expect(officeSummary(o)).toBe('5 things waiting on you.');
+  });
+
   it('counts who is working and who has a hand up', () => {
     const o = buildOffice(input({
       runs: [run({ repo: 'build', endedAt: null })],
       waiting: [waiting('sell')],
     }));
-    expect(officeSummary(o)).toBe('1 working, 1 waiting on you.');
+    expect(officeSummary(o)).toBe('1 working, 1 thing waiting on you.');
   });
 
   it('says a quiet office is quiet, without pretending it is broken', () => {
