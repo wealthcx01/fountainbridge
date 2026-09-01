@@ -103,3 +103,38 @@ have a founder account, a machine and a working key, and are therefore complete 
   `.table-scroll` is `position: relative` now — a scroll container should be the containing block
   for what it contains. This affected the Memory table too; it only never showed because four
   columns fit.
+
+## Read against the real portfolio
+
+Run locally with the service's own environment — real manifests, real records, the write credential
+removed, the founder account promoted to admin so the ledger could be read at all:
+
+```
+ttfb          52 ms  (the shell, before any row)
+summary       3 ventures: 1 waiting on its founder, 1 could not be read.
+
+  arca                  amber   6 waiting on John Gallagher · 15 underway · £0/£5,800
+  modernisation-engine  green   its team is on 1 ticket
+  the-reset             unknown its records could not be read
+
+wiring        Every venture is wired to its own machine.
+waiting       6 things waiting on founders, the middle one for 14 days.
+onboarding    Provision the next founder from ARCA — it has a founder account, a machine
+              and a working key.
+as founder    ← All ventures · You are seeing exactly what THE RESET's founder sees.
+phone         the page does not drag sideways at all
+```
+
+**On production, as ARCA's founder:** `/` goes to `/venture/arca`, the ledger is not in the document,
+and the as-founder strip is absent — they are the founder, not someone looking at one.
+
+## A third thing the reading caught
+
+The Engine column read `—` for every venture, because the row collapsed `EngineState.unknown` into
+the same absence as a read that failed. They are different facts: *"your team is not working on this
+venture yet"* is a sentence the studio owns and a founder needs. The row's engine is `null` only when
+the read failed; everything else carries the engine's own words.
+
+The guard for it was **vacuous on the first attempt** — asserted against ARCA, whose fixture engine
+has checked in, so it passed with the collapse restored. It asserts `the-reset`, whose engine never
+has, which is the state in question.

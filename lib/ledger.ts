@@ -48,7 +48,14 @@ export interface LedgerRow {
   needsThem: number | null;
   /** Tickets the team is actually on. `null` when unread. A filed ticket is not work in progress. */
   underway: number | null;
-  engine: { state: EngineState | 'unknown'; text: string };
+  /**
+   * What the venture's team is doing, in the engine's own words — or `null` when that read failed.
+   *
+   * `null` and `EngineState.unknown` are different facts and the first draft of this collapsed them.
+   * "Unknown" is the engine reporting that it has never run here — a sentence a founder needs, and
+   * one the studio owns. `null` is the studio not having read anything, which is a dash.
+   */
+  engine: { state: EngineState; text: string } | null;
   /** `null` when no department declares an envelope, or when they cannot be added up. */
   spend: LedgerSpend | null;
   /** True when any read behind this row failed. The row says so rather than showing a partial truth. */
@@ -74,7 +81,7 @@ export type LedgerTone = 'unknown' | 'blocked' | 'attention' | 'ok' | 'idle';
 
 export function rowTone(row: LedgerRow): LedgerTone {
   if (row.degraded) return 'unknown';
-  if (row.engine.state === 'stalled' || row.spend?.over) return 'blocked';
+  if (row.engine?.state === 'stalled' || row.spend?.over) return 'blocked';
   if ((row.needsThem ?? 0) > 0) return 'attention';
   if ((row.underway ?? 0) > 0) return 'ok';
   return 'idle';
@@ -93,7 +100,7 @@ export function rowReason(row: LedgerRow): string {
     case 'unknown':
       return 'Some of this venture’s records could not be read, so these numbers are incomplete.';
     case 'blocked':
-      if (row.engine.state === 'stalled') return 'Its team has stopped — this needs fixing, not deciding.';
+      if (row.engine?.state === 'stalled') return 'Its team has stopped — this needs fixing, not deciding.';
       return 'Spending has passed the limit this venture set.';
     case 'attention': {
       const n = row.needsThem ?? 0;
@@ -133,7 +140,7 @@ export function toRow(input: {
     founderEmail: venture.founderEmail,
     needsThem,
     underway: input.underway,
-    engine: input.engine ?? { state: 'unknown', text: 'Not known yet.' },
+    engine: input.engine,
     spend: totalSpend(input.budgets),
     degraded: input.degraded,
   };
