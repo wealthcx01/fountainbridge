@@ -114,7 +114,7 @@ async function Record({
     // Shared with the rail around this page (FB-157), which reads both of these too.
     ventureRuns(venture).catch(() => {
       unreadable.push('what your team has been doing');
-      return { reports: [], heartbeats: [], total: 0 };
+      return { reports: [], heartbeats: [], checkIns: [], total: 0 };
     }),
     ventureApprovals(venture).catch((): ActiveGraphApproval[] => {
       unreadable.push('the decisions you have made');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fromLaneRecord, loadRunReports, engineState, describeRun, type RunReportSource } from '../runreports';
+import { fromLaneRecord, loadRunReports, engineState, describeRun, type RunReport, type RunReportSource } from '../runreports';
 
 const venture = {
   id: 'arca',
@@ -284,5 +284,74 @@ describe('what the board opens to render twenty runs', () => {
     };
     const out = await loadRunReports(venture, src, 20);
     expect(out.reports.map((r) => r.ticketsTouched[0])).toEqual(['ARCA-002']);
+  });
+});
+
+describe('a run report is a check-in (FB-139)', () => {
+  const at = (iso: string, over: Partial<RunReport> = {}): RunReport => ({
+    laneId: 'build', startedAt: iso, endedAt: iso, trigger: 'scheduled', outcome: 'blocked',
+    summaryMd: 'Parked — daily wake budget reached.', ticketsTouched: ['ARCA-61'],
+    errorDetail: null, prUrl: null, repo: 'arca', isHeartbeat: false, ...over,
+  });
+
+  it('counts a plain report, not only a heartbeat', () => {
+    // Measured on the ARCA box: the lane woke, hit its daily budget and wrote a `blocked` report
+    // against a ticket slug — thirty seconds old. Because it was not slugged `heartbeat`, every
+    // ARCA screen said "your team is not working on this venture yet" about a machine that had just
+    // run. A report written is a wake that happened.
+    const now = new Date('2026-09-01T21:46:00Z');
+    expect(engineState([], now).state).toBe('unknown');
+    expect(engineState([at('2026-09-01T21:45:13Z')], now).state).toBe('running');
+  });
+
+  it('still goes stalled when the reports themselves stop', () => {
+    const now = new Date('2026-09-01T21:46:00Z');
+    expect(engineState([at('2026-09-01T20:00:00Z')], now).state).toBe('stalled');
+  });
+
+  it('takes the most recent of heartbeats and reports together', () => {
+    const now = new Date('2026-09-01T21:46:00Z');
+    const stale = at('2026-09-01T18:00:00Z', { isHeartbeat: true });
+    const fresh = at('2026-09-01T21:45:13Z');
+    expect(engineState([stale, fresh], now).state).toBe('running');
+    expect(engineState([fresh, stale], now).state).toBe('running');
+  });
+});
+
+describe('what liveness reads (FB-139)', () => {
+  it('puts every wake in `checkIns`, heartbeat or not', async () => {
+    // The caller bug this field exists to make impossible: passing `heartbeats` alone to
+    // `engineState`. It reads perfectly well and is wrong, because a heartbeat is written only when
+    // a wake finds nothing to work — so a BUSY machine leaves reports and no heartbeat.
+    const files: Record<string, unknown> = {
+      'a.json': { ticket: 'heartbeat', lane: 'build', status: 'idle', summary: 'Lane awake.', started: '2026-09-01T21:00:00Z', finished: '2026-09-01T21:00:01Z' },
+      'b.json': { ticket: 'ARCA-61', lane: 'build', status: 'blocked', summary: 'Parked — daily wake budget reached.', started: '2026-09-01T21:45:00Z', finished: '2026-09-01T21:45:13Z' },
+    };
+    // Through the file-per-repo helper: `approvalRepos` on this fixture venture returns two, and a
+    // source that answers both with the same files would double every count.
+    const runs = await loadRunReports(venture, source({ arca: files as Record<string, unknown> }));
+
+    expect(runs.heartbeats).toHaveLength(1);
+    expect(runs.reports).toHaveLength(1);
+    expect(runs.checkIns, 'a wake is missing from what liveness reads').toHaveLength(2);
+    // Newest first, and the newest here is the plain report — the whole point.
+    expect(runs.checkIns[0].startedAt).toBe('2026-09-01T21:45:00Z');
+  });
+
+  it('does not cap `checkIns` to the DISPLAY limit, and always holds the newest wake', async () => {
+    // `reports` is sliced for the screen. `checkIns` is not — it is bounded only by the read budget
+    // (limit × READ_MARGIN, FB-083), and the names read are the newest, so the most recent wake is
+    // always in it. That is the property liveness depends on.
+    const many = Object.fromEntries(
+      Array.from({ length: 25 }, (_, i) => [`r${i}.json`, {
+        ticket: `ARCA-${i}`, lane: 'build', status: 'progress', summary: 'x',
+        started: `2026-09-01T10:${String(i).padStart(2, '0')}:00Z`, finished: `2026-09-01T10:${String(i).padStart(2, '0')}:30Z`,
+      }]),
+    );
+    const runs = await loadRunReports(venture, source({ arca: many }), 5);
+    expect(runs.reports, 'the display list is capped at the limit').toHaveLength(5);
+    expect(runs.checkIns.length, 'liveness sees only what the screen shows').toBeGreaterThan(5);
+    // The newest wake of all twenty-five, which is the one liveness turns on.
+    expect(runs.checkIns[0].startedAt).toBe('2026-09-01T10:24:00Z');
   });
 });

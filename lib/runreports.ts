@@ -182,7 +182,7 @@ export async function loadRunReports(
   venture: VentureSummary,
   source: RunReportSource,
   limit = 20,
-): Promise<{ reports: RunReport[]; heartbeats: RunReport[]; total: number }> {
+): Promise<{ reports: RunReport[]; heartbeats: RunReport[]; checkIns: RunReport[]; total: number }> {
   const all: RunReport[] = [];
   let total = 0;
   for (const repo of approvalRepos(venture)) {
@@ -220,7 +220,18 @@ export async function loadRunReports(
   const reports = all.filter((r) => !r.isHeartbeat).sort(byRecency);
   // `total` is counted from the listing, not from what was opened — the point of this function is
   // that those two numbers are now deliberately different, and "showing 20 of 117" has to stay true.
-  return { reports: reports.slice(0, limit), heartbeats, total };
+  // `checkIns` is what liveness reads: every wake that left a record, heartbeat or not (FB-139).
+  //
+  // A named field rather than each caller spreading two arrays. The bug this replaces was a caller
+  // passing `heartbeats` alone to `engineState` — which reads perfectly well and is wrong, because
+  // a heartbeat is only written when a wake finds NOTHING to work. A busy machine leaves reports and
+  // no heartbeat, and the studio told every ARCA screen its team had never started.
+  //
+  // Not sliced to `limit`: `reports` is capped for the SCREEN, and the newest wake must not fall off
+  // the end of the list that decides whether the venture is alive. It is still bounded by the read
+  // budget above (`limit × READ_MARGIN`), which is FB-083's rule and stays — and safely, because the
+  // names read are the newest ones, so the most recent wake is always among them.
+  return { reports: reports.slice(0, limit), heartbeats, checkIns: all.sort(byRecency), total };
 }
 
 /**
@@ -233,13 +244,28 @@ export async function loadRunReports(
  */
 export type EngineState = 'running' | 'quiet' | 'stalled' | 'unknown';
 
+/**
+ * Is the venture's machine alive, and when did it last say so?
+ *
+ * ## Every report is a check-in (FB-139)
+ *
+ * This took **heartbeats only**, and heartbeats are written only when a wake finds nothing to work.
+ * Measured on the ARCA box: the lane woke, hit its daily budget, and wrote a `blocked` report
+ * against a ticket slug — a real report, thirty seconds old — and because it was not slugged
+ * `heartbeat` the studio read the venture as never having started. Every ARCA screen said *"your
+ * team is not working on this venture yet"* about a machine that had run four minutes earlier.
+ *
+ * A report is evidence the lane woke. That is the entire question this function asks, so it counts
+ * both, and the caller passes both.
+ */
 export function engineState(
-  heartbeats: RunReport[],
+  /** Every check-in: heartbeats AND run reports. A report written is a wake that happened. */
+  checkIns: RunReport[],
   now: Date,
   /** How long without a wake before a lane that should be waking counts as stalled. */
   stalledAfterMinutes = 30,
 ): { state: EngineState; lastSeen: string | null; text: string; ageMinutes: number | null } {
-  const latest = heartbeats
+  const latest = checkIns
     .map((h) => h.endedAt ?? h.startedAt)
     .filter((t): t is string => !!t)
     .sort()

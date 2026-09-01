@@ -151,7 +151,8 @@ async function Desk({
   // (NODE_ENV is not usable here: `next start` sets it to production for the UI gate too.)
   const testRig = process.env.E2E_TEST_LOGIN === '1';
 
-  const noRuns: { reports: RunReport[]; heartbeats: RunReport[]; total: number } = { reports: [], heartbeats: [], total: 0 };
+  const noRuns: { reports: RunReport[]; heartbeats: RunReport[]; checkIns: RunReport[]; total: number } =
+    { reports: [], heartbeats: [], checkIns: [], total: 0 };
 
   // FB-046: external-action approvals (the ActiveGraph gate). Most ventures have no foundry-approvals
   // ref yet — a read failure must never blank the board, so degrade to none.
@@ -236,7 +237,9 @@ async function Desk({
   const now = new Date(defaultNow());
   const approvals = attachBudgetDisclosure(approvalsRead, envelopes, knownDepartments, now);
 
-  const engine = engineState(runs.heartbeats, now);
+  // Both lists (FB-139): a run report is a check-in, and heartbeats are only written when a wake
+  // finds nothing to work — so heartbeats alone read a busy machine as one that never started.
+  const engine = engineState(runs.checkIns, now);
 
   // FB-139: the office, from what the box already publishes. An in-flight run report IS "this agent
   // is working right now", the heartbeat is "the machine is alive", and the attention queue is the
