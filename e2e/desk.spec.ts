@@ -107,7 +107,10 @@ test.describe('the desk', () => {
 
   test('the office says it is not live rather than drawing an empty room', async ({ page }) => {
     // A frozen last-known scene would read as a team sitting still. FB-139 makes it live.
-    await expect(page.getByTestId('office-placeholder')).toContainText('Not live yet');
+    // FB-139 replaced the placeholder with the live office. The fixture machine is reporting, so
+    // this is the live plate — and the ledger beside it is the same events.
+    await expect(page.getByTestId('office-live')).toBeVisible();
+    await expect(page.getByTestId('office-ledger')).toBeVisible();
   });
 
   test('Scale says it is not connected, and counts what waits on it', async ({ page }) => {
@@ -158,5 +161,56 @@ test.describe('the desk streams (FB-157)', () => {
     await page.goto('/venture/arca');
     await expect(page.getByTestId('desk-summary')).toBeVisible();
     await expect(page.getByTestId('desk-waiting')).toHaveCount(0);
+  });
+});
+
+/**
+ * FB-139 — the office, live.
+ *
+ * The design's constraint is the whole ticket: *"The office is the feeling; this ledger is the
+ * record. Same events, so they cannot disagree."*
+ */
+test.describe('the office (FB-139)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca');
+  });
+
+  test('every character on the plate has a row in the ledger, and the same state', async ({ page }) => {
+    // Not two lists checked against each other — one list, mapped twice. This asserts that nothing
+    // has grown a second one.
+    const desks = await page.locator('[data-testid^="office-desk-"]').evaluateAll((els) =>
+      els.map((e) => e.getAttribute('data-testid')!.replace('office-desk-', '')));
+    const rows = await page.locator('[data-testid^="office-row-"]').evaluateAll((els) =>
+      els.map((e) => e.getAttribute('data-testid')!.replace('office-row-', '')));
+    expect(desks.length, 'the office is empty').toBeGreaterThan(0);
+    expect(rows, 'the plate and the ledger draw different surfaces').toEqual(desks);
+  });
+
+  test('a raised hand means something is genuinely waiting on the founder', async ({ page }) => {
+    // The hand must mean what the amber banner means. Every desk with a hand has a row saying so.
+    const hands = await page.locator('[data-testid^="office-hand-"]').evaluateAll((els) =>
+      els.map((e) => e.getAttribute('data-testid')!.replace('office-hand-', '')));
+    for (const id of hands) {
+      await expect(page.getByTestId(`office-row-${id}`)).toHaveAttribute('data-state', 'waiting-on-you');
+      await expect(page.getByTestId(`office-row-${id}`)).toContainText('waiting on you');
+    }
+  });
+
+  test('every row says what its surface is doing — never a blank', async ({ page }) => {
+    const rows = page.locator('[data-testid^="office-row-"]');
+    const n = await rows.count();
+    expect(n).toBeGreaterThan(0);
+    for (let i = 0; i < n; i++) {
+      await expect(rows.nth(i).locator('td').nth(1)).not.toBeEmpty();
+    }
+  });
+
+  test('the plate is drawn for the eye and the ledger is read aloud', async ({ page }) => {
+    // Every state on the plate is written in words beside it; the pictures are hidden from a screen
+    // reader because a picture is the feeling and the record is the half they get.
+    const svg = page.locator('[data-testid^="pixel-agent-"]').first();
+    await expect(svg).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.getByTestId('office-ledger')).toBeVisible();
   });
 });
