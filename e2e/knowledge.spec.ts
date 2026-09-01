@@ -165,3 +165,63 @@ test.describe('memory streams (FB-157)', () => {
     await expect(page.getByTestId('knowledge-result')).toBeVisible();
   });
 });
+
+/**
+ * FB-140 — a credential must never reach a venture's records.
+ *
+ * The composer's deposit tool has scanned every deposit since it was written. The studio's own Add
+ * control did not scan at all: two doors to one place, one of them guarded.
+ */
+test.describe('handing over a document (FB-140)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca/knowledge');
+  });
+
+  test('a document carrying a private key is refused, with a reason', async ({ page }) => {
+    await page.getByTestId('knowledge-file').setInputFiles({
+      name: 'runbook.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('Deploy notes\n\n-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n'),
+    });
+    await page.getByTestId('knowledge-submit').click();
+    const result = page.getByTestId('knowledge-result');
+    await expect(result).toBeVisible();
+    await expect(result).toContainText('was not saved');
+    await expect(result).toContainText('a private key');
+    // Actionable, not a lecture: it says what to do next.
+    await expect(result).toContainText(/remove it/i);
+  });
+
+  test('the refusal never repeats the credential back', async ({ page }) => {
+    // The message is rendered on a screen and could be read over a shoulder or pasted into a
+    // support thread. The whole point is to keep the value out of the record — including this one.
+    const token = `ghp_${'z'.repeat(36)}`;
+    await page.getByTestId('knowledge-file').setInputFiles({
+      name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from(`token ${token}\n`),
+    });
+    await page.getByTestId('knowledge-submit').click();
+    await expect(page.getByTestId('knowledge-result')).toContainText('a GitHub token');
+    await expect(page.getByTestId('knowledge-result')).not.toContainText(token);
+  });
+
+  test('an ordinary document is not refused', async ({ page }) => {
+    // A coarse net still has to pass what founders actually upload. This rig holds no write
+    // credential, so the honest refusal proves it got past the scan and reached the server.
+    await page.getByTestId('knowledge-file').setInputFiles({
+      name: 'positioning.txt', mimeType: 'text/plain',
+      buffer: Buffer.from('A trading desk, not a toy aisle. Our password policy is a manager.'),
+    });
+    await page.getByTestId('knowledge-submit').click();
+    const result = page.getByTestId('knowledge-result');
+    await expect(result).toBeVisible();
+    await expect(result).not.toContainText('was not saved');
+  });
+
+  test('a document cannot be handed to another venture by guessing the URL', async ({ page }) => {
+    // Venture isolation on the write path, not only the read (CLAUDE.md #6).
+    await page.goto('/venture/the-reset/knowledge');
+    await expect(page.getByTestId('knowledge-file')).toHaveCount(0);
+    await expect(page.getByTestId('venture-forbidden')).toBeVisible();
+  });
+});
