@@ -195,6 +195,55 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
  * on. */
 body:has(.rail) .topbar { display: none; }
 
+/* FB-135 — the sign-in screen owns the whole window.
+ *
+ * The design's first screen is a centred block on an empty page: wordmark, one sentence, the two
+ * doors, and the Edinburgh line at the foot. The top bar carries a wordmark of its own, so leaving
+ * it up would print the name twice on the one screen where the studio introduces itself.
+ *
+ * Keyed on the class, like `body:has(.rail)` — see the note there. A stylesheet must never key on a
+ * test id (`design-lint`'s `testid-selector` rule). */
+body:has(.signin) .topbar { display: none; }
+body:has(.signin) .main { max-width: none; margin: 0; padding: 0; }
+
+.signin {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+/* One column of a readable width, whatever is in it. */
+.signin-block { width: 100%; max-width: 22rem; }
+.signin-field {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  font-size: var(--fs-body-sm);
+  color: var(--color-ink);
+  background: var(--color-paper-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+}
+.signin-field:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+/* The rule between the two doors, with the label sitting on it. */
+.signin-or {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-ink-muted);
+  font-size: var(--fs-meta);
+}
+.signin-or::before, .signin-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
 /* Main content column */
 .main {
   max-width: var(--content-max);
