@@ -42,9 +42,24 @@ export function WaitingQueue({ work, ventureId }: { work: PrApproval[]; ventureI
                 knows it by (FB-099). The pull request's title otherwise — never a guess between. */}
             <span>{a.ticketTitle ?? a.title}</span>
           </div>
+          {/* FB-138: "Decide →", and it goes to the decision.
+           *
+           * This link was `?work=<repo>#<number>` — a query parameter **nothing reads**. The desk
+           * ignores it, so the row that the amber banner sends a founder to did nothing at all when
+           * pressed. The most important link on the screen a founder leaves open, on the queue the
+           * whole banner exists to reach.
+           *
+           * It goes where every other route into a decision goes: the work page, where Approve signs
+           * the grant and Refuse takes a note. Same path on a phone as at a desk — a founder who can
+           * only READ on mobile stays the bottleneck until they get home. */}
           <span className="muted" style={{ flexShrink: 0, fontSize: 'var(--fs-meta-lg)' }}>
             waiting {howLong(a.createdAt) ?? 'a moment'}{' '}
-            <Link href={`/venture/${ventureId}?work=${encodeURIComponent(`${a.repo}#${a.number}`)}`}>→</Link>
+            <Link
+              href={`/venture/${ventureId}/work/${a.repo}/${a.number}`}
+              data-testid={`waiting-decide-${a.repo}-${a.number}`}
+            >
+              Decide →
+            </Link>
           </span>
         </li>
       ))}
