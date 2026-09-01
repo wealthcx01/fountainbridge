@@ -20,6 +20,7 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { GitHubClient, GitHubError } from '@/lib/github';
 import { approvalRepos } from '@/lib/venture-repos';
 import { MAX_DOCUMENT_BYTES, looksEmpty, readDocumentText, refusalFor, tooLargeRefusal } from '@/lib/documents';
+import { scanForSecrets, secretRefusal } from '@/lib/secrets';
 
 export interface DepositResult {
   ok: boolean;
@@ -72,11 +73,25 @@ export async function depositDocument(ventureId: string, form: FormData): Promis
       message: `“${file.name}” could not be opened. If it is password-protected, save an unlocked copy and try again. Nothing was saved.`,
     };
   }
+  // FB-140: a credential must never reach the venture's records.
+  //
+  // The composer's deposit tool has scanned every deposit since it was written — this door did not
+  // scan at all. Two ways into one place and one of them guarded, on a control the studio itself
+  // offers a founder. Anything handed over becomes permanent git history, so there is no taking it
+  // back out afterwards (CLAUDE.md #8).
+  //
+  // BEFORE the write, and before the emptiness check below: a file that is nothing BUT a key has
+  // little readable prose in it, and "there was no readable text" is a true sentence that tells a
+  // founder the wrong thing about the most important refusal the studio makes.
+  const secret = scanForSecrets(text);
+  if (secret) return { ok: false, message: secretRefusal(file.name, secret) };
+
   // A scan has no text layer, and depositing it empty would teach the venture that a 60-page report
   // is blank.
   if (looksEmpty(text)) {
     return { ok: false, message: `“${file.name}” had no readable text in it. Nothing was saved.` };
   }
+
 
   const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
   if (!writeToken) {
