@@ -244,6 +244,28 @@ body:has(.signin) .main { max-width: none; margin: 0; padding: 0; }
   background: var(--color-border);
 }
 
+/* FB-138 — the pocket studio.
+ *
+ * The design's screen 11 is not a cut-down desk, it is the same desk in one column, in the order a
+ * founder needs it on a phone: what they are blocking, what their team is doing, the queue, and the
+ * prompt. At a desk the order is different because the eye scans a wide page differently.
+ *
+ * Done with `order` rather than a second composition, deliberately. A phone-only copy of these four
+ * sections would put two of every control in the document — which is exactly how the rail's waiting
+ * shell and the ledger's fallback table each shipped a duplicate test id (FB-158, FB-136). One
+ * markup, one set of controls, reordered.
+ *
+ * `order` only reaches DIRECT children of a flex container, which is why the four carry wrappers. */
+@media (max-width: 48rem) {
+  .desk { display: flex; flex-direction: column; }
+  /* Everything not named keeps its source order, after the four. */
+  .desk > * { order: 5; }
+  .desk > .pocket-1 { order: 1; }
+  .desk > .pocket-2 { order: 2; }
+  .desk > .pocket-3 { order: 3; }
+  .desk > .pocket-4 { order: 4; }
+}
+
 /* Main content column */
 .main {
   max-width: var(--content-max);

@@ -249,7 +249,8 @@ export function VentureBoard({
   const somethingInFlight = runs.some((r) => r.outcome === null);
 
   return (
-    <section>
+    // `desk` is what the phone media query reorders (FB-138). See `app/globals.css`.
+    <section className="desk" data-testid="desk">
       <WhileWorking working={somethingInFlight} />
       <p className="eyebrow">
         <span className="eyebrow-id">{venture.id}</span> — Venture
@@ -297,7 +298,9 @@ export function VentureBoard({
       {/* ---- 2. The blocker banner --------------------------------------------------------------
           The founder named as the blocker, in those words. "3 items awaiting review" is a status;
           this is the same fact addressed to the one person who can end it. */}
-      <BlockerBanner line={blocker} href={`/venture/${venture.id}#waiting-on-you`} />
+      <div className="pocket-1">
+        <BlockerBanner line={blocker} href={`/venture/${venture.id}#waiting-on-you`} />
+      </div>
 
       {/* FB-042: the brief's own lines — the specifics behind the sentence, each a way in. Kept
           because they link: a summary that states a number a founder then has to go and find is a
@@ -323,7 +326,9 @@ export function VentureBoard({
           The most important thing a founder does, started from the screen they leave open rather
           than from behind a link. It files nothing: it carries the words to the composer, whose own
           gate is still the only thing that turns them into work. */}
-      <PromptBar ventureId={venture.id} ventureName={venture.name} />
+      <div className="pocket-4">
+        <PromptBar ventureId={venture.id} ventureName={venture.name} />
+      </div>
       {/* Conversational composer entry (FB-025 → in-studio FB-065 → out to the box FB-086 → home
           again FB-102). The full story, because this button has now moved three times and the next
           person deserves the dates: FB-065 put it in-studio (no founder should leave for a
@@ -375,7 +380,9 @@ export function VentureBoard({
       {/* ---- 5. The office ----------------------------------------------------------------------
           A placeholder until the venture box reports agent state (FB-139), and it says so. A frozen
           last-known scene would read as a team sitting still. */}
-      <OfficePlate />
+      <div className="pocket-2">
+        <OfficePlate />
+      </div>
 
       {/* ---- 6. What the engine did -------------------------------------------------------------- */}
       {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} /> : null}
@@ -384,7 +391,7 @@ export function VentureBoard({
           external-approval cards alone were not that: on a venture whose waiting items are all open
           pull requests — the common case — the anchor sat above three empty sections and a founder
           was scrolled past the office to nothing. */}
-      <section id="waiting-on-you" data-testid="waiting-on-you" style={{ marginTop: '1.5rem' }}>
+      <section id="waiting-on-you" data-testid="waiting-on-you" className="pocket-3" style={{ marginTop: '1.5rem' }}>
         <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Waiting on you</p>
         <WaitingQueue work={openWorkQueue} ventureId={venture.id} />
       </section>
