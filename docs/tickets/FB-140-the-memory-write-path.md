@@ -93,3 +93,22 @@ that tells a founder the wrong thing about the most important refusal the studio
 - [ ] Proven end to end on the ARCA box — upload, index, cite. Blocked on the ARCA venture token
       (FB-072); `STUDIO_APPROVAL_GITHUB_TOKEN`'s scope is the open question and it is John's to
       settle. What is proven without it is above.
+
+## Verified on production
+
+Signed in as ARCA's founder, where the studio holds a real write credential — so this is the door
+with the consequences behind it, not the fixture rig:
+
+```
+upload   runbook-with-a-key.txt, containing `ghp_zzzz…` among ordinary prose
+
+refusal  "runbook-with-a-key.txt" was not saved — it looks like it contains a GitHub
+         token. Anything handed over becomes part of your venture's permanent records,
+         so a credential in it could not be taken back out. Remove it and hand the
+         document over again.
+
+leaks the value back?   no
+says nothing was saved? yes
+```
+
+No branch, no proposal, no commit — the refusal happens before any of them.
