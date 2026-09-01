@@ -20,6 +20,7 @@ import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
+import type { Office } from '@/lib/office';
 import { WaitingQueue } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
@@ -118,6 +119,7 @@ export function VentureBoard({
   runs = [],
   runsTotal = 0,
   engine = null,
+  office,
   orphanEnvelopes = [],
   staleRepos = [],
   totalWarnings,
@@ -157,6 +159,13 @@ export function VentureBoard({
   /** `ageMinutes` since FB-098: a card can only say "picked up 12 minutes ago; last checked in 2
    *  minutes ago" if the real check-in travels with the state. */
   engine?: { state: string; text: string; ageMinutes: number | null } | null;
+  /**
+   * The office, built server-side (FB-139).
+   *
+   * One array, mapped twice — into the plate and into the ledger — so the design's constraint ("same
+   * events, so they cannot disagree") holds because there is nothing to disagree with.
+   */
+  office: Office;
   /** Non-null when the venture's budgets file exists but could not be read (FB-054). */
   budgetsError?: string | null;
   /** Envelopes keyed to departments this venture does not declare — configured but enforcing nothing. */
@@ -381,7 +390,7 @@ export function VentureBoard({
           A placeholder until the venture box reports agent state (FB-139), and it says so. A frozen
           last-known scene would read as a team sitting still. */}
       <div className="pocket-2">
-        <OfficePlate />
+        <OfficePlate office={office} />
       </div>
 
       {/* ---- 6. What the engine did -------------------------------------------------------------- */}

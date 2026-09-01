@@ -16,6 +16,7 @@ import { narrate, narrateFault } from '@/lib/activegraph';
 import type { ApprovalHistory } from '@/components/ApprovalCard';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
 import { engineState, type RunReport } from '@/lib/runreports';
+import { buildOffice } from '@/lib/office';
 import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
 import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
 import { blockerLine, degradedGroups, deskSummary, type ReadFailure } from '@/lib/desk';
@@ -237,6 +238,17 @@ async function Desk({
 
   const engine = engineState(runs.heartbeats, now);
 
+  // FB-139: the office, from what the box already publishes. An in-flight run report IS "this agent
+  // is working right now", the heartbeat is "the machine is alive", and the attention queue is the
+  // raised hand — so the plate needs no new read, no new box-side file and no new credential. One
+  // array; the plate and the ledger beside it are two mappings of it.
+  const office = buildOffice({
+    departments: venture.departments,
+    runs: runs.reports,
+    waiting: attention.approvals,
+    engine,
+  });
+
   // Pure, unit-tested, and shared with the cards — the previous version lived inline here and was
   // reachable only through Playwright.
   const { budgets, orphanEnvelopes } = departmentBudgets(
@@ -427,6 +439,7 @@ async function Desk({
       runs={runs.reports}
       runsTotal={runs.total}
       engine={engine}
+      office={office}
     />
   );
 }

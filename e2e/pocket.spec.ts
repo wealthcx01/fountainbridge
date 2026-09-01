@@ -32,12 +32,12 @@ test.describe('the pocket studio (FB-138)', () => {
     // Measure a settled page. The desk streams (FB-157), so a bounding box read the instant the
     // shell arrives is a box for markup that is about to move.
     await expect(page.getByTestId('waiting-on-you')).toBeVisible();
-    await expect(page.getByTestId('office-placeholder')).toBeVisible();
+    await expect(page.getByTestId('office-plate')).toBeVisible();
     await expect(page.getByTestId('prompt-bar-input')).toBeVisible();
 
     const hasBanner = (await page.getByTestId('blocker-banner').count()) > 0;
     const blocker = await topOf(page, hasBanner ? 'blocker-banner' : 'blocker-none');
-    const office = await topOf(page, 'office-placeholder');
+    const office = await topOf(page, 'office-plate');
     const queue = await topOf(page, 'waiting-on-you');
     const prompt = await topOf(page, 'prompt-bar-input');
 
