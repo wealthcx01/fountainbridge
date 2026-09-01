@@ -60,8 +60,8 @@ test.describe('a founder’s first ten seconds', () => {
   test('an admin still gets the list, because they are genuinely choosing', async ({ page }) => {
     await testLogin(page, JOHN);
     await page.goto('/');
-    await expect(page.getByTestId('venture-grid')).toBeVisible();
-    await expect(page.getByTestId('venture-arca')).toBeVisible();
+    await expect(page.getByTestId('ledger-table')).toBeVisible();
+    await expect(page.getByTestId('ledger-row-arca')).toBeVisible();
   });
 
   test('a venture with work in it still gets its board', async ({ page }) => {

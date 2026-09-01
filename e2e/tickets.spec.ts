@@ -7,7 +7,8 @@ const SHOTS = 'e2e/__screenshots__';
 
 test('venture → lane → ticket drawer, with dependency link', async ({ page }) => {
   await testLogin(page, 'john.gallagher@wealthcx.com'); // admin — sees all ventures
-  await page.getByTestId('venture-arca').click();
+  // FB-136: the admin's home is the ledger, and its way in is "Open as founder".
+  await page.getByTestId('ledger-open-arca').click();
   await page.waitForURL(/\/venture\/arca$/);
 
   await expect(page.getByTestId('lane-arca')).toBeVisible();
