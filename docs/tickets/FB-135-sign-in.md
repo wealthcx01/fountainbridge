@@ -81,7 +81,20 @@ credential removed.
 **The one hop that cannot be driven off production** is Google's final callback: the local
 `redirect_uri` is not on that client's allowlist, so Google answers with its own error page. That
 proves the button starts the flow with the right client and the right callback shape; only the
-deployed domain can complete it. Driven there after the deploy — recorded below.
+deployed domain can complete it.
+
+### Driven on production, after the deploy
+
+| | |
+| --- | --- |
+| Google | `redirect_uri=https://foundry-studio-production-4a73.up.railway.app/api/auth/callback/google` → lands on **`accounts.google.com/v3/signin/identifier`**, Google's own sign-in page. The hop that errored locally. |
+| Wrong password | refused, `?error=password`, and `/venture/arca` still bounces to `/login` |
+| Right password | signed in at `/venture/arca`, rail present |
+| The sentence, the footer, one visible wordmark, no test door | all as designed |
+| Phone (393×851) | overflow 0 |
+
+An unattended browser cannot type a Google password, so the last step is Google's own screen — which
+is exactly the boundary: everything the studio controls is proven, and what remains is Google's.
 
 ## Two guards that asserted nothing, caught before they shipped
 
