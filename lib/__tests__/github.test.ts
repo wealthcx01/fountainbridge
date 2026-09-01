@@ -75,6 +75,63 @@ describe('GitHubClient — content helpers', () => {
     expect(await client.listDir('owner/repo', 'docs/tickets')).toEqual([]);
   });
 
+  describe('listDir is not capped at a thousand (FB-161)', () => {
+    // The contents API returns at most 1,000 entries, alphabetically first, with no flag and no
+    // error. ARCA's state ref held 1,551 run reports named `<slug>-<UTC>.json`, so the studio read
+    // the OLDEST thousand and its "most recent wake" was a month old — and got one report worse
+    // every five minutes.
+    const tree = (paths: string[], truncated = false) =>
+      res(200, { truncated, tree: paths.map((p) => ({ path: p, type: 'blob' })) });
+
+    it('reads the tree, not the contents listing', async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(tree(['runreports/a.json']));
+      const client = new GitHubClient({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      await client.listDir('owner/repo', 'runreports', 'foundry-state');
+      const url = String(fetchImpl.mock.calls[0][0]);
+      expect(url, 'still on the capped endpoint').not.toContain('/contents/');
+      expect(url).toContain('/git/trees/foundry-state');
+      expect(url).toContain('recursive=1');
+    });
+
+    it('returns everything, past the thousand', async () => {
+      const many = Array.from({ length: 1551 }, (_, i) => `runreports/r-${String(i).padStart(5, '0')}.json`);
+      const fetchImpl = vi.fn().mockResolvedValue(tree(many));
+      const client = new GitHubClient({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      const got = await client.listDir('owner/repo', 'runreports', 'foundry-state');
+      expect(got).toHaveLength(1551);
+      // And the newest is in it, which is the whole point.
+      expect(got.map((e) => e.name)).toContain('r-01550.json');
+    });
+
+    it('lists one directory, not the whole tree under it', async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(tree([
+        'runreports/a.json',
+        'runreports/nested/b.json',
+        'approvals/c.json',
+        'runreports',
+      ]));
+      const client = new GitHubClient({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      expect((await client.listDir('owner/repo', 'runreports', 'foundry-state')).map((e) => e.name))
+        .toEqual(['a.json']);
+    });
+
+    it('says when even the tree was truncated, rather than showing a subset quietly', async () => {
+      // A cap that announces itself can be handled; a cap that lies cannot.
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const fetchImpl = vi.fn().mockResolvedValue(tree(['runreports/a.json'], true));
+      const client = new GitHubClient({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      await client.listDir('owner/repo', 'runreports', 'foundry-state');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('truncated'));
+      warn.mockRestore();
+    });
+
+    it('is still an empty directory when the ref is not there', async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(res(404, { message: 'not found' }));
+      const client = new GitHubClient({ fetchImpl: fetchImpl as unknown as typeof fetch });
+      expect(await client.listDir('owner/repo', 'runreports', 'foundry-state')).toEqual([]);
+    });
+  });
+
   it('sends the auth header when a token is set', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(res(200, []));
     const client = new GitHubClient({ fetchImpl: fetchImpl as unknown as typeof fetch, token: 'secret' });

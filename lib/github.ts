@@ -540,13 +540,48 @@ export class GitHubClient {
   }
 
   /** List a directory's entries (name + type), or [] if it doesn't exist. */
+  /**
+   * Every entry in a directory on a ref.
+   *
+   * ## Why this is not the contents API
+   *
+   * **The contents API returns at most 1,000 entries, and it returns the alphabetically FIRST ones**
+   * — with no flag, no error and no hint that anything was left out. Measured on ARCA's
+   * `foundry-state` ref on 2026-09-01: 1,551 run reports on the ref, 1,000 returned. The lane names
+   * them `<slug>-<UTC timestamp>.json`, so alphabetically first is chronologically **oldest**.
+   *
+   * The studio therefore read a window that had stopped advancing a month earlier, and every surface
+   * built on it — the engine line, the run reports, the activity feed, the office — described a
+   * venture whose machine wakes every five minutes as one that had not checked in for a day. It got
+   * one report worse every five minutes and would never have recovered on its own.
+   *
+   * The trees API has a far higher ceiling and, when it does hit it, **says so**: `truncated: true`.
+   * A cap that announces itself can be handled; a cap that lies cannot.
+   *
+   * @param truncated set to true when the ref is too large even for the trees API, so a caller can
+   *   say what it could not see rather than quietly showing a subset.
+   */
   async listDir(repo: string, path: string, ref = 'main'): Promise<Array<{ name: string; type: string }>> {
+    const clean = path.replace(/^\/+|\/+$/g, '');
     try {
-      const data = await this.request<Array<{ name: string; type: string }>>(
-        `/repos/${repo}/contents/${encodeURI(path)}?ref=${encodeURIComponent(ref)}`,
-      );
-      return Array.isArray(data) ? data : [];
+      const tree = await this.request<{
+        tree?: Array<{ path: string; type: string }>;
+        truncated?: boolean;
+      }>(`/repos/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`);
+
+      if (tree.truncated) {
+        // Loud rather than silently partial. Nothing in the studio can act on this, and the whole
+        // point of the change is that a caller is told when it is looking at a subset.
+        console.warn(`[github] tree for ${repo}@${ref} is truncated — ${path} may be incomplete`);
+      }
+      const prefix = clean ? `${clean}/` : '';
+      return (tree.tree ?? [])
+        .filter((e) => e.path.startsWith(prefix) && !e.path.slice(prefix.length).includes('/'))
+        .map((e) => ({ name: e.path.slice(prefix.length), type: e.type === 'blob' ? 'file' : 'dir' }))
+        .filter((e) => e.name.length > 0);
     } catch (e) {
+      // A ref or a repository that is not there is an empty directory, which is what every caller
+      // already handles. Anything else propagates, so a rate limit is not read as "no reports".
       if (e instanceof GitHubError && e.status === 404) return [];
       throw e;
     }
