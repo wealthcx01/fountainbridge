@@ -75,7 +75,14 @@ async function Memory({ venture }: { venture: VentureSummary }) {
   const [perRepo, routineResult] = await Promise.all([
     Promise.all(
       approvalRepos(venture).map(async (repo) => {
-        const corpus = await timed('memory: the documents', () => corpusOf(repo), repo);
+        // A corpus read that THROWS must not blank the screen (FB-137). It did: with the read
+        // failing, `/venture/arca/knowledge` rendered nothing at all — not a panel saying what
+        // could not be read, the whole page empty. The founder's own documents are what this
+        // screen is for, and "gone" and "could not look" are the two things it must never confuse.
+        const corpus = await timed('memory: the documents', () => corpusOf(repo), repo).catch(() => ({
+          docs: [],
+          error: `The studio could not read what ${repo} holds just now.`,
+        }));
         // Provenance is a nicety; the corpus is the page. A history read that fails must cost the
         // founder a dash in two columns, never the list of what they have handed over.
         const commits = await timed(

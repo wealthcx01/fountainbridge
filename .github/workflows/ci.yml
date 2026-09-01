@@ -162,6 +162,15 @@ jobs:
       - name: Run the UI gate
         timeout-minutes: 10
         run: npm run test:e2e
+      # FB-137: the same screens again, with every read failing on purpose.
+      #
+      # A second server rather than a flag on the first: the fault list is read from the process
+      # environment, so it has to be set when the server starts. Without this the degraded half of
+      # every screen was only ever exercised when a code host was having a bad day — which is to say
+      # never, in CI, which is how three screens came to render nothing at all and two to answer 500.
+      - name: Run the UI gate with every read failing
+        timeout-minutes: 8
+        run: npm run test:e2e:degraded
       - name: Upload UI-gate gallery (screenshots + report)
         if: always()
         uses: actions/upload-artifact@v4

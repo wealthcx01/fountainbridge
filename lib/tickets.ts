@@ -10,6 +10,7 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
+import { failIfFaulted } from './read-faults';
 import { join } from 'node:path';
 import { parseTicket, looksLikeTicket, type Ticket, type ParseWarning } from '../tools/ticket-parser/src/index';
 import type { VentureSummary } from './ventures';
@@ -272,6 +273,8 @@ export function githubTicketFetcher(client: GitHubClient, org: string): RepoTick
 /** Offline fixture source (dev / Playwright): reads `<dir>/<repo>/*.md`. */
 export function fixtureTicketFetcher(dir: string): RepoTicketFetcher {
   return async (repo) => {
+    // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+    failIfFaulted('tickets');
     const repoDir = join(dir, repo);
     try {
       const names = readdirSync(repoDir).filter((n) => n.endsWith('.md'));
@@ -318,7 +321,29 @@ export async function loadVentureTickets(
   }
   const fetcher = opts.fetcher ?? defaultFetcher();
   const repos = venture.repos.length > 0 ? venture.repos : [];
-  const lanes = await Promise.all(repos.map(async (repo) => groupRepoTickets(repo, await fetcher(repo))));
+  // A fetcher that THROWS must not take the page with it (FB-137).
+  //
+  // The contract says a fetcher returns `{ files, error }`, and both shipped ones do — so this
+  // guard reads like belt and braces until you remember what it is protecting: a rate limit, a
+  // socket reset, a bug in a fetcher nobody has written yet. When one threw, `Promise.all` rejected,
+  // `loadVentureTickets` threw, and every screen that reads a backlog rendered NOTHING. Measured:
+  // the desk blank, the tickets screen a 500.
+  //
+  // A repo that could not be read becomes a lane that says so, which is the shape every consumer
+  // already handles — and one unreadable repo stops costing the founder the other two.
+  const lanes = await Promise.all(
+    repos.map(async (repo) => {
+      try {
+        return groupRepoTickets(repo, await fetcher(repo));
+      } catch {
+        return groupRepoTickets(repo, {
+          files: [],
+          error: `The studio could not read ${repo} just now.`,
+          errorKind: 'unreadable',
+        });
+      }
+    }),
+  );
   const totalWarnings = lanes.reduce(
     (sum, lane) => sum + STATUS_GROUPS.reduce((s, g) => s + lane.groups[g].reduce((w, t) => w + t.warnings.length, 0), 0),
     0,

@@ -6,6 +6,7 @@ import { decideRoutine } from '@/app/actions/routines';
 import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } from '@/lib/routines';
 import { describeOutcome } from '@/lib/runreports';
 import { toneColor } from '@/lib/status';
+import { panelState } from '@/lib/read-failures';
 
 /**
  * Routines, as a founder controls them (FB-047).
@@ -62,7 +63,11 @@ export function RoutinesView({
         </p>
       )}
 
-      {routines.length === 0 ? (
+      {/* FB-137: an apology instead of an invitation, never both. "No recurring work yet" tells a
+          founder their team has proposed nothing; when the records could not be read, it has not
+          been asked. */}
+      {panelState({ hasContent: routines.length > 0, couldNotRead: errors.length > 0 }) === 'unreadable' ? null
+        : routines.length === 0 ? (
         <p className="card muted" data-testid="routines-empty">
           No recurring work yet. When your team spots something worth doing on a schedule, it will
           suggest it here and wait for your OK.

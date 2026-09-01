@@ -2,7 +2,7 @@
   "name": "fountainbridge",
   "version": "0.1.0",
   "private": true,
-  "description": "Foundry Studio — the founder-facing venture platform (FB-005 studio shell onward).",
+  "description": "Foundry Studio \u2014 the founder-facing venture platform (FB-005 studio shell onward).",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:degraded": "E2E_FAIL_READS=all playwright test e2e/degraded.spec.ts"
   },
   "dependencies": {
     "fflate": "^0.8.3",

@@ -13,6 +13,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { failIfFaulted } from './read-faults';
 import { join } from 'node:path';
 import { loadVentures, type VentureSummary } from './ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from './authz';
@@ -222,6 +223,8 @@ export function githubHealthFetcher(client: GitHubClient, org: string): RepoHeal
 /** Offline fixture source: reads `<dir>/<repo>.json` as RepoHealthRaw. */
 export function fixtureHealthFetcher(dir: string): RepoHealthFetcher {
   return async (repo) => {
+    // FB-137: fail at READ time, where a real read fails — inside whatever the loader catches.
+    failIfFaulted('health');
     const empty: RepoHealthRaw = { defaultBranch: 'main', protected: false, latestRun: null, activity: [], error: null };
     // Guard against a manifest repo name escaping the fixture dir (path traversal).
     if (repo.includes('/') || repo.includes('..')) return empty;
@@ -280,8 +283,22 @@ export async function loadVentureHealth(
 
   const fetcher = opts.fetcher ?? defaultHealthFetcher();
   const days = staleDays();
+  // A fetcher that THROWS must not take the page with it (FB-137). `RepoHealthRaw` already carries
+  // an `error`, and a repo the studio could not look at is a repo it says nothing about — not a
+  // whole screen that fails to render.
   const repos = await Promise.all(
-    venture.repos.map(async (repo) => buildRepoHealth(repo, await fetcher(repo), now(), days)),
+    venture.repos.map(async (repo) => {
+      try {
+        return buildRepoHealth(repo, await fetcher(repo), now(), days);
+      } catch {
+        return buildRepoHealth(
+          repo,
+          { defaultBranch: 'main', protected: false, latestRun: null, activity: [], error: `The studio could not read ${repo} just now.` },
+          now(),
+          days,
+        );
+      }
+    }),
   );
   const activity = repos.flatMap((r) => r.activity).sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   const result: VentureHealth = { ventureId: venture.id, repos, activity, fetchedAt: now() };

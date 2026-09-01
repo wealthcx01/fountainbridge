@@ -47,6 +47,8 @@ export async function loadLedgerRow(venture: VentureSummary, nowMs: number): Pro
     awaitingApproval: approvals ? approvals.filter((a) => a.status === 'proposed').length : null,
     underway: tickets ? tickets.lanes.reduce((n, l) => n + l.groups['in-progress'].length, 0) : null,
     engine: rail ? { state: rail.engine.state, text: rail.engine.text } : null,
+    // `rail.budgets` is null when the SPEND could not be read (FB-137), which is not the same as a
+    // venture with no envelopes. `[]` here would turn the first into the second.
     budgets: rail?.budgets ?? [],
     // `loadRailData` degrades internally rather than throwing, so its own flag has to come out too.
     degraded: degraded || Boolean(rail?.degraded),

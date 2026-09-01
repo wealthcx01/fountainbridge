@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import { panelState } from '@/lib/read-failures';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -80,6 +81,8 @@ export function TicketsView({
   const [outcome, setOutcome] = useState<{ id: string; kind: 'approved' | 'refused'; message: string } | null>(null);
 
   const counts = useMemo(() => countTickets(rows), [rows]);
+  // FB-137: empty and unreadable are different sentences, and this screen said both.
+  const panel = panelState({ hasContent: rows.length > 0, couldNotRead: errors.length > 0 });
   const shown = useMemo(() => filterTickets(rows, filter), [rows, filter]);
   const order = useMemo(() => decisionOrder(rows), [rows]);
 
@@ -122,27 +125,47 @@ export function TicketsView({
               className={f === filter ? 'btn btn-primary' : 'btn'}
               onClick={() => go(f, null, 'replace')}
             >
-              {FILTER_LABEL[f]} {n}
+              {/* FB-137: `0` on every filter is four claims about a backlog nobody could read —
+                  and "Needs you 0" is the reassuring one. A dash, with a word for the reader who
+                  cannot see it. */}
+              {FILTER_LABEL[f]}{' '}
+              {panel === 'unreadable' ? (
+                <>
+                  <span aria-hidden="true">—</span>
+                  <span className="sr-only">not known</span>
+                </>
+              ) : (
+                n
+              )}
             </button>
           );
         })}
       </div>
 
-      <p data-testid="tickets-summary" className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-        {ticketsSummary(counts)}
-      </p>
+      {/* FB-137: "No tickets yet. The first one your team files lands here." is an invitation, and
+          over a read that failed it tells a founder their backlog is empty when the studio simply
+          could not look. The apology replaces it; when there ARE tickets it sits beside them, because
+          a partial list plus a note of what is missing beats an apology instead of the half we have. */}
+      {panel === 'unreadable' ? null : (
+        <p data-testid="tickets-summary" className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
+          {ticketsSummary(counts)}
+        </p>
+      )}
 
       {errors.length ? (
         <p className="card muted" data-testid="tickets-degraded" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
           <span aria-hidden="true">⚠ </span>
-          Part of this venture could not be read, so the list may be short. Nothing is lost from your
-          venture’s records.
+          {panel === 'unreadable'
+            ? 'The studio could not read this venture’s tickets just now, so it cannot show you the list. Nothing is lost from your venture’s records, and this clears on its own.'
+            : 'Part of this venture could not be read, so the list may be short. Nothing is lost from your venture’s records.'}
         </p>
       ) : null}
 
       <div className="tickets-split">
         <ol data-testid="tickets-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {shown.length === 0 ? (
+          {/* "The queue is clear" is the most reassuring sentence on this screen. It must never be
+              said about a list the studio could not read. */}
+          {shown.length === 0 && panel !== 'unreadable' ? (
             <li className="card muted" data-testid="tickets-list-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
               Nothing here. The queue is clear.
             </li>

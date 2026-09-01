@@ -19,6 +19,7 @@ import { showAngleBrackets } from '@/lib/markdown';
 import { onDate } from '@/lib/when';
 import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } from '@/lib/routines';
 import { toneColor } from '@/lib/status';
+import { panelState } from '@/lib/read-failures';
 import { depositDocument } from '@/app/actions/knowledge';
 
 /**
@@ -63,20 +64,20 @@ export function KnowledgeView({
 }) {
   const [open, setOpen] = useState<KnowledgeDoc | null>(null);
   const ordered = orderRows(rows);
+  // FB-137: with nothing read, "Nothing handed over yet" and the invitation beneath it both tell a
+  // founder their own documents are not there. The apology replaces them.
+  const state = panelState({ hasContent: ordered.length > 0, couldNotRead: errors.length > 0 });
 
   return (
     <section data-testid="knowledge">
-      <p className="eyebrow"><span className="eyebrow-id">Memory</span> — {ventureName}</p>
-      <h1 style={{ margin: '0 0 0.35rem' }}>What {ventureName} knows</h1>
-      <p data-testid="memory-summary" style={{ margin: '0 0 0.3rem', fontSize: 'var(--fs-subhead)' }}>
-        {memorySummary(ordered)}
-      </p>
-      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)', marginTop: 0 }}>
-        Everything you have handed over or your team has learned. The composer reads all of it before
-        it drafts anything.
-      </p>
-
-      <Add ventureId={ventureId} />
+      {/* `MemoryHeading`, not a second copy of it. This screen kept its own inline heading beside the
+          shared one for a ticket and a half — which is the drift the shared component was extracted
+          to prevent. */}
+      <MemoryHeading
+        ventureId={ventureId}
+        ventureName={ventureName}
+        summary={state === 'unreadable' ? null : memorySummary(ordered)}
+      />
 
       {/* An unreadable corpus must never render as "you have given it nothing". The difference
           between those two, on this page, is a founder's own work. */}
@@ -87,7 +88,7 @@ export function KnowledgeView({
         </p>
       ) : null}
 
-      {ordered.length === 0 && errors.length === 0 ? (
+      {state === 'empty' ? (
         <p className="card muted" data-testid="knowledge-empty"
            style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
           Nothing yet. Hand over what you already have: research, notes, a deck. It becomes part of

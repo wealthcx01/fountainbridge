@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { causeOf, groupFailures, needsAction, repoOf } from '../read-failures';
+import { causeOf, groupFailures, needsAction, repoOf, panelState } from '../read-failures';
 
 // The exact five the attention queue showed a founder on 2026-08-01, in one sentence, above the work.
 const REAL = [
@@ -81,5 +81,24 @@ describe('turning five failures into sentences a person can act on', () => {
   it('knows when the founder is actually needed', () => {
     expect(needsAction(groupFailures(REAL))).toBe(true);
     expect(needsAction(groupFailures(['x: GitHub rate limit hit']))).toBe(false);
+  });
+});
+
+describe('empty, or unread? (FB-137)', () => {
+  it('shows the content whenever there is any, failure or not', () => {
+    // A partial list plus a strip saying what is missing beats an apology instead of the half we
+    // have — a degraded read must never blank a panel that had data.
+    expect(panelState({ hasContent: true, couldNotRead: false })).toBe('content');
+    expect(panelState({ hasContent: true, couldNotRead: true })).toBe('content');
+  });
+
+  it('says "we could not look" rather than "there is nothing"', () => {
+    // The empty state is an invitation: it tells a founder their venture is a blank page. When the
+    // studio could not look, that is the most reassuring thing it can say, said on no evidence.
+    expect(panelState({ hasContent: false, couldNotRead: true })).toBe('unreadable');
+  });
+
+  it('keeps the invitation for a genuinely empty venture', () => {
+    expect(panelState({ hasContent: false, couldNotRead: false })).toBe('empty');
   });
 });

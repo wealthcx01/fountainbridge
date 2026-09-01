@@ -95,6 +95,10 @@ export function LedgerRowView({ row }: { row: LedgerRow }) {
             {formatMoney(row.spend.spentMinor, row.spend.currency)}
             <span className="muted">/{formatMoney(row.spend.limitMinor, row.spend.currency)}</span>
           </>
+        ) : row.degraded ? (
+          // Not "not set", which is a claim about this venture's setup. When the row could not be
+          // read, the honest answer about its spending is that we do not know (FB-137).
+          <Absent />
         ) : (
           // Not "£0": a venture with no envelope set and a venture that has spent nothing are
           // different facts, and `lib/budgets.ts` exists to keep them apart.
