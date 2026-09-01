@@ -57,6 +57,18 @@ test.describe('the ledger (FB-136)', () => {
     await expect(page.getByTestId('ledger-summary')).toContainText(`${n} venture`);
   });
 
+  test('the engine column carries the engine’s own sentence', async ({ page }) => {
+    // "Nobody has run here yet" is a fact the studio owns and a founder needs. Collapsing it into
+    // the same dash as a read that FAILED throws the sentence away and says nothing instead.
+    await testLogin(page, JOHN);
+    await page.goto('/');
+    // ARCA's engine has checked in; the-reset's never has. BOTH must read as sentences — the second
+    // is the one that matters, because "nobody has run here yet" is the state the first draft threw
+    // away by collapsing it into the same dash as a read that failed.
+    await expect(page.getByTestId('ledger-engine-arca')).toContainText('checked in');
+    await expect(page.getByTestId('ledger-engine-the-reset')).toContainText('not working on this venture yet');
+  });
+
   test('a venture with no envelope reads "not set", never £0', async ({ page }) => {
     // A venture that has set no limit and a venture that has spent nothing are different facts.
     await testLogin(page, JOHN);

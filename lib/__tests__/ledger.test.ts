@@ -21,7 +21,7 @@ const row = (over: Partial<LedgerRow> = {}): LedgerRow => ({
   founderEmail: 'ross@bruntsfield.capital',
   needsThem: 0,
   underway: 0,
-  engine: { state: 'running', text: 'Your team checked in 4 minutes ago.' },
+  engine: { state: 'running' as const, text: 'Your team checked in 4 minutes ago.' },
   spend: null,
   degraded: false,
   ...over,
@@ -89,10 +89,19 @@ describe('what waits on a founder', () => {
     expect(toRow({ ...base, openWork: 4, awaitingApproval: null }).needsThem).toBeNull();
   });
 
-  it('falls back to "not known yet" for an engine nobody could read', () => {
-    const r = toRow({ ...base, openWork: 0, awaitingApproval: 0, engine: null });
-    expect(r.engine.state).toBe('unknown');
-    expect(rowTone(r)).not.toBe('blocked'); // unread is not stopped
+  it('keeps the engine’s own words, and only a FAILED read is absent', () => {
+    // "Nobody has run here yet" is a fact the studio owns and a founder needs. Rendering it as a
+    // dash — which the first draft did, by collapsing it into the same `unknown` as an unread
+    // engine — throws away the sentence and says nothing instead.
+    const known = toRow({
+      ...base, openWork: 0, awaitingApproval: 0,
+      engine: { state: 'unknown', text: 'Your team is not working on this venture yet.' },
+    });
+    expect(known.engine?.text).toBe('Your team is not working on this venture yet.');
+
+    const unread = toRow({ ...base, openWork: 0, awaitingApproval: 0, engine: null });
+    expect(unread.engine).toBeNull();
+    expect(rowTone(unread)).not.toBe('blocked'); // unread is not stopped
   });
 });
 

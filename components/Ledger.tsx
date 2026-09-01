@@ -82,9 +82,11 @@ export function LedgerRowView({ row }: { row: LedgerRow }) {
       <td>{row.founderName ?? <Absent />}</td>
       <td data-testid={`ledger-needs-${row.ventureId}`}>{row.needsThem ?? <Absent />}</td>
       <td>{row.underway ?? <Absent />}</td>
+      {/* The engine's own sentence, whatever it says. "Nobody has run here yet" is a fact this
+          studio owns and a founder needs; only a read that FAILED is a dash. */}
       <td data-testid={`ledger-engine-${row.ventureId}`}
-          style={{ color: row.engine.state === 'stalled' ? toneColor('blocked') : undefined }}>
-        {row.engine.state === 'unknown' ? <Absent /> : row.engine.text}
+          style={{ color: row.engine?.state === 'stalled' ? toneColor('blocked') : undefined }}>
+        {row.engine ? row.engine.text : <Absent />}
       </td>
       <td data-testid={`ledger-spend-${row.ventureId}`}
           style={{ color: row.spend?.over ? toneColor('blocked') : undefined }}>
