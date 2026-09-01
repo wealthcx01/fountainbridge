@@ -1,6 +1,6 @@
 # FB-136 — The admin ledger: every venture, one screen
 
-**Status:** Todo · **Area:** Studio / admin · **Depends on:** FB-124
+**Status:** Done · **Area:** Studio / admin · **Depends on:** FB-124
 **Design:** `docs/design/foundry-desk/` — screen 10; `screens/01-All_ventures_admin.txt`.
 
 ## Why this matters (for John)
@@ -54,10 +54,52 @@ Both roles, on production:
 
 ## Acceptance criteria
 
-- [ ] Admins see the ledger at `/` with all seven columns.
-- [ ] A founder never sees it — they land on their own desk, asserted by a test.
-- [ ] Amber marks a founder bottleneck, red an engine stop or an over-budget surface.
-- [ ] "Open as founder" renders the founder's exact desk, from the same components and data path, with
-      a persistent way back.
-- [ ] The wiring footnote names any venture whose composer key is unset.
-- [ ] Response-time and onboarding footnotes render from real data or say they have none.
+- [x] Admins see the ledger at `/` with all seven columns.
+- [x] A founder never sees it — they land on their own desk, asserted by a test.
+- [x] Amber marks a founder bottleneck, red an engine stop or an over-budget surface.
+- [x] "Open as founder" renders the founder's exact desk, from the same components and data path,
+      with a persistent way back. It is literally `/venture/<id>` — no admin variant of anything —
+      plus a strip carrying "← All ventures" and *"You are seeing exactly what this founder sees."*
+      Shown only when the viewer is **not** that venture's founder: John opening his own venture is
+      not viewing as a founder, he is the founder.
+- [x] The wiring footnote names any venture whose composer key is unset, and names the variable so
+      the fix is copy-pasteable.
+- [x] Response-time and onboarding footnotes render from real data or say they have none. Both had
+      to be re-derived — see below.
+
+## Two colours the design does not name, and the studio cannot do without
+
+The design gives amber and red. Two more states are real:
+
+- **Unknown.** A venture whose reads failed is not calm. Painting it green is the studio reporting
+  health it never checked (CLAUDE.md #10), on the one screen used to decide where to look.
+- **Idle.** Nothing waiting and nothing moving is a fact about a venture, not a fault in it, and
+  colouring it like work-in-progress would hide the ventures that have genuinely stalled quietly.
+
+And **red beats amber** when both apply: a stopped team with six decisions queued behind it is not a
+slow founder, it is a venture that cannot proceed even if they decide.
+
+## The two footnotes that had no data
+
+**Response time.** The design asks for *"median from needs-you to decided"*. Nothing in the studio
+records when something *started* needing a founder — an approval carries `grantedAt` and no
+proposed-at; a decided pull request keeps no trace of how long it sat. So the footnote reports what
+IS knowable, named for what it measures — *"6 things waiting on founders, the middle one for 3
+days"* — and says the other half is not recorded. Filed as **FB-159**.
+
+**Onboarding.** The design names one account: *"The Arca account is the template."* That is a
+decision somebody made, not a fact in any manifest, and hard-coding a venture into the studio core
+is exactly what CLAUDE.md #5 forbids. So the footnote reports what is derivable — which ventures
+have a founder account, a machine and a working key, and are therefore complete enough to copy.
+
+## Two defects found by building it
+
+- **The fallback table shared the real table's test id**, which is FB-158's lesson repeated on the
+  first attempt. It put two seven-column tables in the document while the boundary resolved.
+- **`.sr-only` escapes a scroll container.** It is `position: absolute` with no positioned ancestor,
+  so its containing block is the document: laid out at its static position inside a table scrolled
+  120px right, it sits 120px past the window and **adds that to the page's own scroll width**. The
+  ledger scrolled a 393px phone sideways by 92px while the scroll container was working perfectly.
+  `.table-scroll` is `position: relative` now — a scroll container should be the containing block
+  for what it contains. This affected the Memory table too; it only never showed because four
+  columns fit.

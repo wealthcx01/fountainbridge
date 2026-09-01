@@ -12,7 +12,9 @@ async function noHorizontalScroll(page: import('@playwright/test').Page): Promis
 
 test('mobile: shell + ventures render, nav is thumb-reachable, no horizontal scroll', async ({ page }) => {
   await testLogin(page, JOHN);
-  await expect(page.getByTestId('venture-grid')).toBeVisible();
+  // FB-136: the admin's home is the ledger. A seven-column table on a 393px screen is the FB-153
+  // defect waiting to happen, so `noHorizontalScroll` below is the point of this test, not scenery.
+  await expect(page.getByTestId('ledger-table')).toBeVisible();
 
   const nav = page.getByTestId('topnav');
   await expect(nav).toBeVisible();

@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { auth } from '@/auth';
 import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
@@ -69,12 +70,57 @@ export default async function VentureLayout({
     departmentIds: venture.departments.map((d) => d.id),
   };
 
+  // FB-136: Bruntsfield looking at a founder's venture sees the founder's exact desk — same
+  // components, same data path — with a persistent way back and a line saying whose screen this is.
+  // Shown only when the viewer is NOT this venture's founder: John opening his own venture is not
+  // "seeing what a founder sees", he is the founder.
+  const asFounder =
+    access.isAdmin &&
+    (!venture.founderEmail || venture.founderEmail.toLowerCase() !== email.toLowerCase());
+
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh' }}>
       <Suspense fallback={<Rail {...shell} data={null} />}>
         <RailWithNumbers venture={venture} shell={shell} />
       </Suspense>
-      <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
+      <main style={{ flex: 1, minWidth: 0 }}>
+        {asFounder ? <AsFounderStrip ventureName={venture.name} /> : null}
+        {children}
+      </main>
+    </div>
+  );
+}
+
+/**
+ * The strip an admin reads over a founder's desk (FB-136).
+ *
+ * It says what this screen is, because the whole point of "Open as founder" is that it is NOT an
+ * admin view of a venture — it is the founder's own screen, from the same components and the same
+ * data path. Someone diagnosing a founder's problem has to be looking at the founder's problem.
+ *
+ * Persistent rather than a one-time banner: an admin three screens deep into someone else's venture
+ * needs the way back to still be there, and needs to still know whose desk they are on.
+ */
+function AsFounderStrip({ ventureName }: { ventureName: string }) {
+  return (
+    <div
+      data-testid="as-founder-strip"
+      style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: '0.75rem',
+        flexWrap: 'wrap',
+        padding: '0.5rem 2.25rem',
+        borderBottom: '1px solid var(--color-border)',
+        background: 'var(--color-paper-sunken)',
+        fontSize: 'var(--fs-meta-lg)',
+      }}
+    >
+      <Link href="/" data-testid="as-founder-back">← All ventures</Link>
+      {/* copy-lint-ok: admin-only — a founder never sees this strip */}
+      <span className="muted">
+        You are seeing exactly what {ventureName}&rsquo;s founder sees.
+      </span>
     </div>
   );
 }

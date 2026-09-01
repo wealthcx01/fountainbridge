@@ -426,7 +426,16 @@ body:has(.rail) .main {
  * 471px, and a four-column table is the same defect waiting to happen: the wrapper takes the
  * overflow so the PAGE never scrolls sideways. `word-break` on the cells means it usually does not
  * come to that. */
-.table-scroll { max-width: 100%; overflow-x: auto; }
+/* `position: relative` is load-bearing, not tidiness (FB-136).
+ *
+ * `.sr-only` is `position: absolute`. With no positioned ancestor its containing block is the
+ * document, so it is laid out at its static position — which, in a table scrolled 120px to the
+ * right, is 120px past the window — and it ESCAPES the scroll container, adding that width to the
+ * document. A seven-column ledger on a 393px phone scrolled the whole page sideways by 92px, and
+ * the scroll container was working perfectly the entire time.
+ *
+ * A scroll container should be the containing block for what it contains. */
+.table-scroll { position: relative; max-width: 100%; overflow-x: auto; }
 .records {
   width: 100%;
   border-collapse: collapse;

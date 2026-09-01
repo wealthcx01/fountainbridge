@@ -17,11 +17,13 @@ async function testLogin(page: Page, email: string): Promise<void> {
 }
 
 test('admin (John) sees every venture', async ({ page }) => {
+  // FB-136 turned the admin's grid of cards into the ledger. The property is unchanged: every
+  // venture, and only an admin.
   await testLogin(page, 'john.gallagher@wealthcx.com');
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByTestId('venture-grid')).toBeVisible();
-  await expect(page.getByTestId('venture-arca')).toBeVisible();
-  await expect(page.getByTestId('venture-the-reset')).toBeVisible();
+  await expect(page.getByTestId('ledger-table')).toBeVisible();
+  await expect(page.getByTestId('ledger-row-arca')).toBeVisible();
+  await expect(page.getByTestId('ledger-row-the-reset')).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/01-admin-all-ventures.png`, fullPage: true });
 });
 
@@ -52,7 +54,7 @@ test('signed-out visitor is sent to login (no public pages, FB-015)', async ({ p
   await page.goto('/');
   await page.waitForURL((url) => url.pathname.startsWith('/login'));
   await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible();
-  await expect(page.getByTestId('venture-grid')).toHaveCount(0); // studio data never shown signed-out
+  await expect(page.getByTestId('ledger')).toHaveCount(0); // studio data never shown signed-out
   await page.screenshot({ path: `${SHOTS}/04-login.png`, fullPage: true });
 });
 
