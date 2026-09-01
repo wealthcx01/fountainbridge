@@ -167,10 +167,16 @@ export function deskDoing(desk: OfficeDesk): string {
 export function officeSummary(office: Office): string {
   if (!office.live) return office.text;
   const working = office.desks.filter((d) => d.state === 'working').length;
-  const hands = office.desks.filter((d) => d.state === 'waiting-on-you').length;
+  // THINGS waiting, not desks with a hand up.
+  //
+  // This counted desks and read "3 waiting on you" over a ledger whose rows added to six. Two
+  // numbers on one screen that appear to disagree is the FB-099 defect, and here it was worse than
+  // usual: the smaller number was the reassuring one, on the count a founder acts on. It is the
+  // same total the blocker banner states, so the desk cannot say two things about one queue.
+  const hands = office.desks.reduce((n, d) => n + (d.state === 'waiting-on-you' ? d.waitingOnYou : 0), 0);
   if (working === 0 && hands === 0) return 'Nobody is working and nobody is waiting on you.';
   const parts: string[] = [];
   if (working) parts.push(`${working} working`);
-  if (hands) parts.push(`${hands} waiting on you`);
+  if (hands) parts.push(`${hands} thing${hands === 1 ? '' : 's'} waiting on you`);
   return `${parts.join(', ')}.`;
 }
