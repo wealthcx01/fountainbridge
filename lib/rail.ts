@@ -109,7 +109,9 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
     new Date(nowMs),
   );
 
-  const engine = engineState(runs?.heartbeats ?? [], new Date(nowMs));
+  // Both lists (FB-139) — see the note on `engineState`. The rail and the desk must not disagree
+  // about whether the machine is alive, so they read the same thing the same way.
+  const engine = engineState(runs?.checkIns ?? [], new Date(nowMs));
 
   return {
     // Also not 0 when unread — see `RailData.needsYou`.

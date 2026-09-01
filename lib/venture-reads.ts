@@ -63,8 +63,8 @@ function ventureFor(ventureId: string): VentureSummary | null {
   return loadVentures().find((v) => v.id === ventureId) ?? null;
 }
 
-export type Runs = { reports: RunReport[]; heartbeats: RunReport[]; total: number };
-const NO_RUNS: Runs = { reports: [], heartbeats: [], total: 0 };
+export type Runs = { reports: RunReport[]; heartbeats: RunReport[]; checkIns: RunReport[]; total: number };
+const NO_RUNS: Runs = { reports: [], heartbeats: [], checkIns: [], total: 0 };
 
 const runsById = cache(async (ventureId: string): Promise<Runs> => {
   const venture = ventureFor(ventureId);
