@@ -1,7 +1,8 @@
 import { emptyPanel } from '@/lib/firstrun';
 import { TEAM_TITLE } from '@/lib/glossary';
 import type { RunReport } from '@/lib/runreports';
-import { describeRun } from '@/lib/runreports';
+import Link from 'next/link';
+import { collapseRepeats, describeRun } from '@/lib/runreports';
 import { toneColor, type Tone } from '@/lib/status';
 import { ReleasePlanButton } from './ReleasePlanButton';
 
@@ -15,6 +16,16 @@ import { ReleasePlanButton } from './ReleasePlanButton';
  * The sentences come from `describeRun`, not from here: the same run is summarised in the brief at
  * the top of the page, and two renderings of one fact drift.
  */
+/**
+ * How many runs the desk shows (FB-178).
+ *
+ * The design's own line is "Showing the 4 most recent of 31 runs". This showed twenty, each roughly
+ * 131px against the design's 48, so the panel alone was 2,621px — and on ARCA most of those rows
+ * were the same sentence repeated. The full history is one press away on What happened, which is
+ * the screen for it.
+ */
+const DESK_RUNS = 4;
+
 export function LaneActivity({
   reports,
   total,
@@ -35,6 +46,11 @@ export function LaneActivity({
   ventureId?: string;
 }) {
   const engineTone: Tone = engine.state === 'stalled' ? 'blocked' : engine.state === 'unknown' ? 'idle' : 'working';
+
+  // Collapse BEFORE slicing, so fifteen copies of "parked until tomorrow" become one row and the
+  // other three slots go to things the founder has not already read. Slicing first would spend all
+  // four on the same sentence.
+  const shown = collapseRepeats(reports).slice(0, DESK_RUNS);
 
   // The `id` is FB-104's anchor: the brief's sentences about the team link down here, because this is
   // where each run's own account of itself is printed — the one place those sentences can honestly
@@ -65,7 +81,7 @@ export function LaneActivity({
         {engine.text}
       </p>
 
-      {reports.length === 0 ? (
+      {shown.length === 0 ? (
         /* FB-066: name what would fill it, then say what starts it. */
         <div className="card" data-testid="lane-activity-empty">
           <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('runs', hasComposer).what}</p>
@@ -75,7 +91,7 @@ export function LaneActivity({
         </div>
       ) : (
         <ol data-testid="lane-activity-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {reports.map((r, i) => {
+          {shown.map((r, i) => {
             const tone = runTone(r);
             return (
               <li
@@ -98,6 +114,12 @@ export function LaneActivity({
                     <span className="sr-only">{OUTCOME_LABEL[r.outcome ?? 'in-flight']}: </span>
                     {describeRun(r)}
                   </span>
+                  {/* Said once with a count, never printed fifteen times (FB-178). */}
+                  {r.repeats > 1 ? (
+                    <span className="tag" data-testid={`run-${r.laneId}-${i}-repeats`} style={{ flexShrink: 0 }}>
+                      ×{r.repeats}
+                    </span>
+                  ) : null}
                   <span className="tag" style={{ flexShrink: 0 }} data-testid={`run-${r.laneId}-${i}-lane`}>{r.laneId}</span>
                 </div>
                 <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.3rem 0 0' }}>
@@ -130,9 +152,10 @@ export function LaneActivity({
         </ol>
       )}
 
-      {total > reports.length ? (
+      {total > shown.length ? (
         <p className="muted" data-testid="lane-activity-more" style={{ fontSize: 'var(--fs-meta)' }}>
-          Showing the {reports.length} most recent of {total} runs.
+          Showing the {shown.length} most recent of {total} runs.{' '}
+          {ventureId ? <Link href={`/venture/${ventureId}/activity`}>What happened</Link> : null}
         </p>
       ) : null}
     </section>

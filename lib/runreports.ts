@@ -500,3 +500,32 @@ export async function loadLiveness(
 
   return { at, degraded };
 }
+
+/**
+ * Collapse a run of identical outcomes into one entry with a count (FB-178).
+ *
+ * The desk showed twenty run rows and on ARCA most of them were the same sentence — *"Stopped on
+ * ARCA-061… Daily plan: team budget reached — parked until tomorrow"* — because a lane at its daily
+ * budget re-parks every five minutes and writes a report each time. Fifteen copies of one fact is
+ * one fact, and printing it fifteen times pushes everything the founder has not already read off
+ * the bottom of the screen.
+ *
+ * **Consecutive only.** Two identical outcomes with something else between them are two things that
+ * happened, and merging across the gap would tell the founder they happened together. The repeat is
+ * the newest of its group, so the timestamp shown is the most recent one.
+ */
+export function collapseRepeats(reports: readonly RunReport[]): Array<RunReport & { repeats: number }> {
+  const out: Array<RunReport & { repeats: number }> = [];
+  for (const r of reports) {
+    const last = out[out.length - 1];
+    // Same lane, same outcome, same words. `describeRun` is what the row actually prints, so this
+    // merges exactly what a reader would see as duplicated and never merges two rows that read
+    // differently.
+    if (last && last.laneId === r.laneId && last.outcome === r.outcome && describeRun(last) === describeRun(r)) {
+      last.repeats += 1;
+      continue;
+    }
+    out.push({ ...r, repeats: 1 });
+  }
+  return out;
+}

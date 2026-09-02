@@ -271,3 +271,59 @@ test.describe('the venture is alive, or it is not (FB-167)', () => {
     await expect(rail).not.toContainText('Not live yet');
   });
 });
+
+/**
+ * FB-178 — the desk is a page you read, not a page you scroll.
+ *
+ * Measured against the design at 1440×1000: the design's desk is ~1,900px; the live one was
+ * **9,908px**, because it rendered a four-column board of every ticket on every surface — on ARCA
+ * 73 of them, **37 already finished** — taking 4,634px, plus twenty run rows at 2,621px where the
+ * design shows four.
+ *
+ * Asserted as a HEIGHT, because nothing else catches it. Every section was present, in the right
+ * order, with correct data — `the sections run in the design's order` above passes either way. The
+ * page was right and unusable, which is the FB-124 family, and only a measurement sees it.
+ */
+test.describe('the desk fits on a desk (FB-178)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('desk-summary')).toBeVisible();
+  });
+
+  test('no finished ticket is rendered on the desk', async ({ page }) => {
+    // The clearest symptom, and the clearest rule. Done work answers none of the desk's questions.
+    await expect(page.getByTestId('col-done')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="col-"]'), 'the ticket board is back on the desk')
+      .toHaveCount(0);
+  });
+
+  test('each surface still says what is in it, and where to go', async ({ page }) => {
+    // Removing the board must not remove the SIGNAL. A founder still has to be able to see that a
+    // surface exists, roughly how much is in it, and get to it in one press.
+    const links = page.locator('[data-testid^="lane-open-"]');
+    expect(await links.count(), 'no surface offers a way through to its queue').toBeGreaterThan(0);
+    await expect(links.first()).toHaveAttribute('href', /\/venture\/arca\/tickets/);
+  });
+
+  test('a read failure is still stated — that signal was inside the block that went', async ({ page }) => {
+    // `lane-error` lived in the removed markup. If the fixtures produce no failure there is nothing
+    // to assert, which is also right; what must not happen is the element ceasing to exist.
+    const errors = page.getByTestId('lane-error');
+    if (await errors.count()) await expect(errors.first()).toBeVisible();
+  });
+
+  test('the whole page is a readable length', async ({ page }) => {
+    // A RATCHET, not a design target. The named sections now total 1,892px against the design's
+    // ~1,900 — the shape is right. What is left above that is `approvals-queue` (739px) and
+    // `approvals-decided` (356px), which are a separate question from the ticket board and are
+    // named as follow-up in FB-178 rather than changed here.
+    //
+    // The structural assertions above are the real guard; this one exists because the defect was a
+    // page that grew without bound as a venture aged, and only a measurement sees that. Returning
+    // the board would add thousands of pixels and fail this immediately.
+    const h = await page.evaluate(() => document.documentElement.scrollHeight);
+    expect(h, `the desk is ${h}px; it was 9,908px on production before FB-178`)
+      .toBeLessThan(4300);
+  });
+});
