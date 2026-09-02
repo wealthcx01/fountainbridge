@@ -1,6 +1,16 @@
 # FB-178 — the desk renders the entire backlog, and is five times longer than its design
 
-**Status:** Open · **Phase:** 3 · **Found by:** the design comparison, 2026-09-02
+**Status:** Shipped in part · **Phase:** 3 · **Found by:** the design comparison, 2026-09-02
+
+> **Done:** the ticket board is off the desk, runs are collapsed and cut to the design's four, and a
+> height ratchet guards it. The named sections now total **1,892px** against the design's ~1,900 —
+> the shape is right.
+>
+> **Left, deliberately:** the page is 4,157px in the gate's fixture, and the gap above the named
+> sections is `approvals-queue` (739px) and `approvals-decided` (356px). "Decided — what happened
+> next" is finished work on a desk whose design has no such section, which is the same argument as
+> the DONE column — but it is FB-142's external-send record, genuinely the founder's business, and
+> removing it is a product decision rather than a conformance fix. Next candidate; not taken here.
 
 ## Measured, both sides, 1440×1000
 

@@ -55,19 +55,12 @@ test('mobile: the venture shell fits the phone it is on', async ({ page }) => {
   await expect(page.getByTestId('rail')).toBeHidden();
 });
 
-test('mobile: venture board + full-width ticket drawer', async ({ page }) => {
-  await testLogin(page, JOHN);
-  await page.goto('/venture/arca');
-  await expect(page.getByTestId('lane-arca')).toBeVisible();
-  // Open the drawer from a ticket in the first ("To do") column. On the phone layout the columns
-  // stack, so a ticket in the last ("Done") column sits at the very bottom of the page — a spot
-  // where Playwright's click hit-testing is unreliable. Any ticket exercises the same drawer, so
-  // click one that's reliably in the initial viewport.
-  await page.getByTestId('ticket-ARCA-3').click();
-  await expect(page.getByTestId('ticket-drawer')).toBeVisible();
-  await expect(page.getByTestId('drawer-title')).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/09-mobile-drawer.png`, fullPage: true });
-});
+/*
+ * The mobile drawer test stood here. The drawer is gone (FB-178) — nothing on the desk could open
+ * it once the ticket board went, and an unreachable control is worse than none. Reading a ticket on
+ * a phone is covered where it now happens: `tickets-view.spec.ts` → "it fits a phone, and the ticket
+ * is reachable there".
+ */
 
 test('health endpoint is public (uptime monitor path)', async ({ page }) => {
   // No login — /api/health must return 200 without an auth redirect.

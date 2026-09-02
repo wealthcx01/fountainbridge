@@ -37,20 +37,13 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   await expect(page.getByTestId('lane-skipped-arca')).toHaveCount(0);
   await expect(page.getByTestId('lane-arca')).not.toContainText('non-ticket');
 
-  // Open a Done ticket that depends on another in view.
-  await page.getByTestId('ticket-ARCA-2').click();
-  const drawer = page.getByTestId('ticket-drawer');
-  await expect(drawer).toBeVisible();
-  await expect(page.getByTestId('drawer-title')).toHaveText('Card search & filter');
-  await expect(page.getByTestId('drawer-github-link')).toHaveAttribute('href', /arca\/blob\/.*ARCA-2-card-search\.md/);
-
-  // Dependency link jumps to ARCA-1.
-  await page.getByTestId('dep-ARCA-1').click();
-  await expect(page.getByTestId('drawer-title')).toHaveText('Terminal card renderer setup');
+  // The desk no longer carries a ticket board (FB-178), so opening a ticket from here is no longer
+  // the path — the queue is one press away and the ticket, its dependencies and its decision are all
+  // on that screen. `tickets-view.spec.ts` asserts every one of those, against the screen that
+  // replaced the drawer rather than against the drawer.
+  await expect(page.getByTestId('lane-open-arca')).toHaveAttribute('href', /\/venture\/arca\/tickets/);
 
   await page.screenshot({ path: `${SHOTS}/05-venture-board.png`, fullPage: true });
-  await page.getByTestId('drawer-close').click();
-  await expect(drawer).toBeHidden();
 });
 
 test('a founder cannot open another venture — no ticket data is served', async ({ page }) => {
@@ -70,60 +63,19 @@ test('empty / not-provisioned repos render a clear state, not a crash', async ({
 
 
 /**
- * FB-105 — the whole ticket lives in the studio.
+ * FB-105's decision-on-the-ticket tests lived here, against the desk's drawer.
  *
- * John: "some ticket's 'need my okay' but there is then no button to click accept, or deny, or then
- * use the composer to edit the tickets." The drawer showed him a decision and denied him the lever.
+ * The drawer is gone (FB-178): the desk no longer carries a ticket board, so nothing could open it,
+ * and an unreachable control is worse than none. It had already been superseded — `TicketsView`'s
+ * own header says *"The list, the ticket and the decision are one screen. Before this the drawer
+ * showed a ticket…"* — and `tickets-view.spec.ts` asserts all six of the properties this block did,
+ * against the screen a founder actually uses: the decision offered where the ticket is, a refusal
+ * requiring a note, dependency chips moving between tickets, and approve reaching the server.
+ *
+ * Deleted rather than repointed, because repointing would have produced a second copy of tests that
+ * already exist.
  */
-test.describe('the ticket carries its own decision (FB-105)', () => {
-  test.beforeEach(async ({ page }) => {
-    await testLogin(page, 'john.gallagher@wealthcx.com');
-    await page.goto('/venture/arca');
-  });
 
-  test('a ticket waiting on the founder offers accept and send-back where the ticket is', async ({ page }) => {
-    // ARCA-1 has an open piece of work (PR 10), so the board files it under "Needs your OK".
-    await page.getByTestId('ticket-ARCA-1').click();
-    const decision = page.getByTestId('drawer-decision');
-    await expect(decision).toBeVisible();
-    await expect(page.getByTestId('drawer-read-work')).toHaveAttribute('href', '/venture/arca/work/arca/10');
-    await expect(page.getByTestId('drawer-accept')).toBeVisible();
-    await page.getByTestId('drawer-sendback-open').click();
-    await expect(page.getByTestId('drawer-note')).toBeVisible();
-  });
-
-  test('the ticket does not print its own name twice', async ({ page }) => {
-    // The drawer shows the title above the body, and the body opened with the same title as an <h1>.
-    await page.getByTestId('ticket-ARCA-1').click();
-    await expect(page.getByTestId('drawer-title')).toHaveText('Terminal card renderer setup');
-    await expect(page.getByTestId('ticket-drawer').locator('h1')).toHaveCount(0);
-  });
-
-  test('the drawer and the board agree about the status, and the body does not argue', async ({ page }) => {
-    // The audit: "Needs your OK" in the banner and `Status: Todo` two lines below it — two answers
-    // to one question, in one view, and the wrong one written larger.
-    await page.getByTestId('ticket-ARCA-1').click();
-    await expect(page.getByTestId('drawer-status')).toHaveText('Needs your OK');
-    await expect(page.getByTestId('ticket-drawer')).not.toContainText('Status:');
-  });
-
-  test('a ticket nobody is waiting on offers no decision at all', async ({ page }) => {
-    // Offering an Accept button for work that does not exist would be worse than offering none.
-    await page.getByTestId('ticket-ARCA-6').click();
-    await expect(page.getByTestId('drawer-decision')).toHaveCount(0);
-  });
-
-  test('changing the ask is a sentence, through the composer that already exists', async ({ page }) => {
-    await page.getByTestId('ticket-ARCA-1').click();
-    await page.getByTestId('drawer-ask-changes').click();
-    await expect(page).toHaveURL(/\/venture\/arca\/composer\?about=ARCA-1$/);
-  });
-
-  test('the code host is a reference here too, not the continuation of reading', async ({ page }) => {
-    await page.getByTestId('ticket-ARCA-1').click();
-    await expect(page.getByTestId('drawer-github-link')).not.toHaveClass(/btn/);
-  });
-});
 
 /**
  * FB-098 — watching your ticket being worked.
@@ -134,17 +86,23 @@ test.describe('the ticket carries its own decision (FB-105)', () => {
  * EVIDENCE — real timestamps, real check-ins, real attempt counts — and never a bar counting to
  * nothing.
  */
-test.describe('the loop is visible on the board (FB-098)', () => {
+test.describe('the loop is visible on the queue (FB-098)', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page, 'john.gallagher@wealthcx.com');
-    await page.goto('/venture/arca');
+    // The Tickets screen, not the desk. FB-178 took the board off the desk and this moved with it —
+    // it is the founder's answer to "is anything happening to the thing I asked for", and it now
+    // lives on the only list of tickets they have.
+    await page.goto('/venture/arca/tickets');
   });
 
-  test('a worked ticket says so on the board and links to the review', async ({ page }) => {
+  test('a worked ticket says so, and the ticket carries the way through', async ({ page }) => {
     const line = page.getByTestId('ticket-progress-ARCA-1');
     await expect(line).toHaveAttribute('data-state', 'worked');
-    await expect(line).toHaveAttribute('href', '/venture/arca/work/arca/10');
     await expect(line).toContainText('read it and decide');
+    // The line itself is text, not a link: the row already opens the ticket, and a link inside a
+    // link is not a control a keyboard user can reach. The destination is on the ticket.
+    await page.getByTestId('tickets-row-ARCA-1').click();
+    await expect(page.getByTestId('detail-read-work')).toHaveAttribute('href', '/venture/arca/work/arca/10');
   });
 
   test('a ticket being worked shows when it was picked up and the real check-in', async ({ page }) => {
@@ -167,11 +125,17 @@ test.describe('the loop is visible on the board (FB-098)', () => {
     await expect(line).toContainText('Tried 2 times and stopped');
   });
 
-  test('a ticket nobody has touched says nothing, and the column says it once', async ({ page }) => {
-    // Twenty cards each saying "waiting to be picked up" is how a board teaches someone to stop
-    // reading it (FB-100's item 5), so the reassurance lives on the column.
+  test('a ticket nobody has touched says nothing at all', async ({ page }) => {
+    // Twenty rows each saying "waiting to be picked up" is how a list teaches someone to stop
+    // reading it (FB-100's item 5). On the board that reassurance lived on the column header; this
+    // screen has filters rather than columns, and the row's own status label already says "To do".
     await expect(page.getByTestId('ticket-progress-ARCA-2')).toHaveCount(0);
-    await expect(page.getByTestId('col-todo-note')).toContainText('Waiting for your team to pick up');
+    // And no row invents one either: a progress line appears only where there is evidence for it,
+    // so the list does not read as twenty copies of the same reassurance.
+    const rows = await page.locator('[data-testid^="tickets-row-"]').count();
+    const lines = await page.locator('[data-testid^="ticket-progress-"]').count();
+    expect(lines, 'every row carries a progress line, which is the noise FB-100 asked us to stop')
+      .toBeLessThan(rows);
   });
 });
 
@@ -191,29 +155,32 @@ test.describe('one number for what is waiting (FB-099)', () => {
   test('work the lane filed under its own branch reaches its ticket', async ({ page }) => {
     // PR 13 is `foundry/deck-export` / "build: deck-export (Foundry lane)" — no id anywhere. Before
     // FB-099 it matched nothing and ARCA-3 sat in "To do" while the badge counted the work.
-    await page.goto('/venture/arca');
-    await expect(page.getByTestId('col-pr-open').getByTestId('ticket-ARCA-3')).toBeVisible();
+    // The board is gone (FB-178); the same claim is now made by the row's status and its progress.
+    await page.goto('/venture/arca/tickets');
+    await expect(page.getByTestId('tickets-row-ARCA-3')).toContainText('Needs your OK');
     await expect(page.getByTestId('ticket-progress-ARCA-3')).toHaveAttribute('data-state', 'worked');
   });
 
   test('work that matches nothing is shown as exactly that', async ({ page }) => {
-    // Inventing a match to make the columns add up would be the same failure in the opposite
-    // costume. It appears, says it has no ticket, and can still be read and decided.
-    await page.goto('/venture/arca');
-    const orphan = page.getByTestId('unmatched-work-arca-14');
+    // Inventing a match to make the numbers add up would be the same failure in the opposite
+    // costume. It appears as its own row, says it has no ticket, and can still be read and decided.
+    await page.goto('/venture/arca/tickets');
+    const orphan = page.getByTestId('tickets-row-arca#14');
     await expect(orphan).toBeVisible();
-    await expect(orphan).toContainText('No ticket');
-    await expect(orphan).toHaveAttribute('href', '/venture/arca/work/arca/14');
+    await orphan.click();
+    await expect(page.getByTestId('detail-no-ticket')).toContainText('There is no ticket for this');
+    await expect(page.getByTestId('detail-read-work')).toHaveAttribute('href', '/venture/arca/work/arca/14');
   });
 
-  test('the column and the queue count the same work', async ({ page }) => {
-    // The whole ticket in one assertion: what the board says is waiting, and what the queue says is
-    // waiting, are the same number computed from the same knowledge.
-    await page.goto('/venture/arca');
-    const column = Number(await page.getByTestId('col-pr-open-count').innerText());
+  test('the queue and the attention page count the same work', async ({ page }) => {
+    // The whole ticket in one assertion: what the ticket screen says is waiting, and what the
+    // cross-venture queue says is waiting, are one number from one knowledge. The board's column
+    // was the other half of this pair and is gone (FB-178); the filter is its successor.
+    await page.goto('/venture/arca/tickets');
+    const filter = Number((await page.getByTestId('tickets-filter-needs').innerText()).match(/\d+/)?.[0] ?? '-1');
     await page.goto('/attention');
     const badge = Number(await page.getByTestId('attention-count').innerText());
-    expect(column).toBe(badge);
+    expect(filter).toBe(badge);
   });
 
   test('the queue calls work by its ticket’s name, not the lane’s branch', async ({ page }) => {
@@ -240,19 +207,28 @@ test.describe('one number for what is waiting (FB-099)', () => {
 test.describe('an unnumbered ticket is flagged, not named (FB-097)', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page, 'john.gallagher@wealthcx.com');
-    await page.goto('/venture/arca');
+    // The Tickets screen, not the desk. The desk's board is gone (FB-178), and this rule had only
+    // ever been applied THERE — so removing the board would have quietly reintroduced the defect
+    // FB-097 exists to fix, on the screen that is now the only list of tickets a founder has.
+    await page.goto('/venture/arca/tickets');
   });
 
-  test('the board says "unnumbered" instead of pretending -NEW is a name', async ({ page }) => {
-    await expect(page.getByTestId('ticket-id-ARCA-NEW')).toHaveText('unnumbered');
+  test('the list says "unnumbered" instead of pretending -NEW is a name', async ({ page }) => {
+    await expect(page.getByTestId('tickets-id-ARCA-NEW')).toHaveText('unnumbered');
   });
 
   test('the title does the work while it has no number', async ({ page }) => {
-    await expect(page.getByTestId('ticket-ARCA-NEW')).toContainText('Show set name on card pages');
+    await expect(page.getByTestId('tickets-row-ARCA-NEW')).toContainText('Show set name on card pages');
   });
 
   test('a numbered ticket still shows its number', async ({ page }) => {
-    await expect(page.getByTestId('ticket-id-ARCA-3')).toHaveText('ARCA-3');
+    await expect(page.getByTestId('tickets-id-ARCA-3')).toHaveText('ARCA-3');
+  });
+
+  test('the ticket itself says it too, not just the list', async ({ page }) => {
+    // Two places render an id on this screen and only one of them was fixed the first time I looked.
+    await page.getByTestId('tickets-row-ARCA-NEW').click();
+    await expect(page.getByTestId('detail-id')).toHaveText('unnumbered');
   });
 });
 

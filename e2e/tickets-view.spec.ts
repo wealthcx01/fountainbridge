@@ -111,10 +111,13 @@ test.describe('tickets', () => {
   });
 
   test('dependency chips move between tickets', async ({ page }) => {
-    await page.goto('/venture/arca/tickets?filter=all');
+    // This selected NO ticket, so the detail pane was empty, so there were never any chips, so the
+    // guard below skipped it every single run — a test that had never once executed its assertion.
+    // Found when FB-178 removed the desk's drawer and this was named as the coverage replacing it.
+    // ARCA-2 declares a dependency on ARCA-1; open it, and the chip has something to be.
+    await page.goto('/venture/arca/tickets?filter=all&t=arca%2FARCA-2');
     const deps = page.getByTestId('tickets-detail').locator('[data-testid^="detail-dep-"]');
-    // Only meaningful when the fixture ticket actually declares one.
-    if ((await deps.count()) === 0) test.skip();
+    await expect(deps.first(), 'ARCA-2 declares a dependency and no chip rendered').toBeVisible();
     const id = (await deps.first().textContent())?.trim();
     await deps.first().click();
     await expect(page).toHaveURL(new RegExp(`t=[^&]*${id}`));

@@ -21,6 +21,7 @@ const row = (over: Partial<TicketRow> & { group?: TicketStatusGroup } = {}): Tic
     title: over.title ?? `Ticket ${id}`,
     repo: over.repo ?? 'arca',
     group: over.group ?? 'todo',
+    progress: over.progress ?? null,
     surface: over.surface ?? 'Build',
     waiting: over.waiting ?? null,
     item: over.item === null ? null : ({ ticket: { id, title: `Ticket ${id}` }, warnings: [] } as unknown as TicketRow['item']),

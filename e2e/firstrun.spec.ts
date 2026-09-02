@@ -69,7 +69,10 @@ test.describe('a founder’s first ten seconds', () => {
     await testLogin(page, JOHN);
     await page.goto('/venture/arca');
     await expect(page.getByTestId('first-run')).toHaveCount(0);
-    await expect(page.getByTestId('col-todo').first()).toBeVisible();
+    // The desk no longer carries a ticket board (FB-178), so "it got its board" is now: it got the
+    // desk, with the summary that counts real work and a way through to the queue.
+    await expect(page.getByTestId('desk-summary')).toBeVisible();
+    await expect(page.getByTestId('lane-open-arca')).toBeVisible();
   });
 });
 
