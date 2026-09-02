@@ -4,6 +4,15 @@ import type { DeskState } from '@/lib/office';
 /**
  * One agent at one desk (FB-139).
  *
+ * **This is a placeholder for the real thing.** The design's G6 is an embed of
+ * https://github.com/pixel-agents-hq/pixel-agents — animated agents that walk to their desks, type
+ * while editing and raise a bubble when they are stuck, driven by Claude Code's own hook events on
+ * the venture box. That is FB-163, and it needs box-side work this repo has no delivery path for.
+ *
+ * What this draws is honest and live — it comes from the same array the ledger does, and it says
+ * "not live" rather than freezing — and it is a drawing, not the office. When FB-163 lands this
+ * becomes the fallback for a venture whose box is not reporting.
+ *
  * Pixel art, drawn as a grid of 1-unit rects in a 16×16 viewBox and scaled by the container — so it
  * is crisp at any size, carries no asset, and costs one inline SVG. `shape-rendering: crispEdges`
  * keeps the pixels square rather than letting the browser smooth them into mush.
