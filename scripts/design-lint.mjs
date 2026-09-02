@@ -16,6 +16,16 @@ import { join, relative, sep } from 'node:path';
 
 /** The token source of truth is allowed to contain raw values — it is where they are defined. */
 const TOKEN_SOURCE = join('app', 'globals.css');
+/**
+ * The one other file allowed to hold raw values (FB-141).
+ *
+ * The web app manifest and the `theme-color` meta tag are read by iOS and Android, not by CSS, so
+ * they cannot reference a custom property — they need a literal. `lib/brand.ts` is where those
+ * literals live, and a test asserts they still equal the tokens in `globals.css` they are copies of.
+ * Exempted by name for the same reason the token source is: a declared source of values is not a
+ * component inventing them.
+ */
+const OS_COLOUR_SOURCE = join('lib', 'brand.ts');
 
 export const RULES = {
   'raw-colour': 'a raw hex colour — use a --color-* / --tone-* token from app/globals.css',
@@ -99,7 +109,8 @@ function deadControls(text) {
  */
 export function lintText(text, relPath) {
   const violations = [];
-  const isTokenSource = relPath === TOKEN_SOURCE || relPath === TOKEN_SOURCE.split(sep).join('/');
+  const declaresValues = (p) => relPath === p || relPath === p.split(sep).join('/');
+  const isTokenSource = declaresValues(TOKEN_SOURCE) || declaresValues(OS_COLOUR_SOURCE);
   const isStyleSheet = relPath.endsWith('.css');
   const state = { inside: false };
 
