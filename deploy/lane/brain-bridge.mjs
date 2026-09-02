@@ -203,7 +203,7 @@ const server = createServer(async (req, res) => {
   }
 
   try {
-    const { results, digest } = await serialise(() =>
+    const { results, digest, slugs } = await serialise(() =>
       askBrain({
         // The founder owns every department, so the composer queries unpartitioned unless it asks
         // for one surface explicitly.
@@ -216,6 +216,11 @@ const server = createServer(async (req, res) => {
     send(res, 200, {
       digest,
       pages: results.map((r) => ({ slug: r.slug, title: r.title, score: r.score })),
+      // What the caller was actually SHOWN, as distinct from what the index returned (FB-156). The
+      // two differ: a page can be dropped on the way into the digest. The composer's own record of
+      // use will be built from this — it is not recorded here, because this service is read-only by
+      // construction and giving it a write credential is a decision, not a detail. See FB-165.
+      shown: slugs,
       found: results.length,
     });
   } catch (e) {

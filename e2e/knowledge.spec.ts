@@ -99,14 +99,40 @@ test.describe('memory (FB-133)', () => {
     await expect(page.getByTestId('memory-added-arca/library/build/set-naming.md')).toHaveText('Updated 2 June 2026');
   });
 
-  test('“Last used” is empty and says why, rather than showing a number nobody measured', async ({ page }) => {
+  test('the FB-133 apology for an empty “Last used” is GONE', async ({ page }) => {
+    // Asserted as an absence on purpose. The column was empty for a ticket and a half with the
+    // reason written underneath, and the risk when it fills is not that the new sentence is missing
+    // — it is that the OLD one survives beside it, telling a founder nothing records what their
+    // team reads while the row next to it names the ticket that read it. A test for the replacement
+    // would pass with both on screen.
     await page.goto('/venture/arca/knowledge');
-    const cell = page.getByTestId('memory-used-arca/context/general/price-list.md');
-    // A dash to the eye AND a text twin for a screen reader — a glyph on its own is state a
-    // screen-reader user does not get (the design contract's own rule).
-    await expect(cell).toContainText('—');
-    await expect(cell.locator('.sr-only')).toHaveText('not recorded');
-    await expect(page.getByTestId('memory-used-note')).toContainText('nothing yet records');
+    await expect(page.getByTestId('memory-table')).toBeVisible();
+    await expect(page.getByTestId('knowledge')).not.toContainText('nothing yet records');
+    await expect(page.getByTestId('knowledge')).not.toContainText('a number nobody measured');
+  });
+
+  test('“Last used” names the work, and links to it (FB-156)', async ({ page }) => {
+    await page.goto('/venture/arca/knowledge');
+    const cell = page.getByTestId('memory-used-arca/context/sell/brand-positioning.md');
+    await expect(cell).toHaveAttribute('data-use', 'used');
+    // A link, not a bare date: the founder's question is what it was used FOR.
+    const link = cell.getByRole('link', { name: 'Replace the tagline' });
+    await expect(link).toHaveAttribute('href', '/venture/arca/tickets?t=ARCA-58');
+    await expect(cell).toContainText('30 August 2026');
+  });
+
+  test('a document nothing has read says so, and differently from one with no record', async ({ page }) => {
+    // The distinction the ticket turns on. Both are a dash to the eye — the table would be
+    // unreadable otherwise — and they are different sentences to a screen reader, because "nobody
+    // has read this" is a finding the founder can act on and "we do not keep the record" is not.
+    await page.goto('/venture/arca/knowledge');
+    const unread = page.getByTestId('memory-used-arca/context/general/price-list.md');
+    await expect(unread).toHaveAttribute('data-use', 'never');
+    await expect(unread).toContainText('—');
+    await expect(unread.locator('.sr-only')).toHaveText('Nothing has read this yet.');
+
+    // And the note underneath explains the dash the rows are actually showing.
+    await expect(page.getByTestId('memory-used-note')).toContainText('nothing has read that document yet');
   });
 
   test('the summary counts the same documents the table lists', async ({ page }) => {

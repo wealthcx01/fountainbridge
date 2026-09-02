@@ -112,6 +112,22 @@ function excerpt(text, maxChars) {
  * @returns {string} '' when there is nothing worth showing
  */
 export function formatDigest(results, opts = {}) {
+  return digestWithPages(results, opts).digest;
+}
+
+/**
+ * The digest AND the pages that actually went into it (FB-156).
+ *
+ * `formatDigest` delegates here rather than the record being computed alongside it, because the two
+ * must not be able to disagree. A page can be dropped twice on the way into a digest — an excerpt
+ * that comes back empty, and the `maxChars` break — so "the pages we retrieved" and "the pages the
+ * model was shown" are genuinely different lists. Recording the first while showing the second would
+ * put documents in the founder's `Last used` column that nothing ever read: exactly the invented
+ * fact the column stayed empty for a ticket and a half to avoid.
+ *
+ * @returns {{digest: string, slugs: string[]}} slugs in the order they appear in the digest
+ */
+export function digestWithPages(results, opts = {}) {
   const { maxChars = 4000, perPageChars = 600, maxPages = 8 } = opts;
   const best = new Map();
   for (const r of Array.isArray(results) ? results : []) {
@@ -125,6 +141,7 @@ export function formatDigest(results, opts = {}) {
   const pages = [...best.values()].sort((a, b) => b.score - a.score).slice(0, maxPages);
 
   const lines = [];
+  const slugs = [];
   let used = 0;
   for (const p of pages) {
     const body = excerpt(p.text, perPageChars);
@@ -135,9 +152,10 @@ export function formatDigest(results, opts = {}) {
     const entry = `- ${label}\n  ${body}`;
     if (used + entry.length > maxChars) break;
     lines.push(entry);
+    slugs.push(p.slug);
     used += entry.length + 1;
   }
-  return lines.join('\n');
+  return { digest: lines.join('\n'), slugs };
 }
 
 /**

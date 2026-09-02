@@ -6,6 +6,8 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { approvalRepos } from '@/lib/venture-repos';
 import { defaultKnowledgeSource, defaultProvenanceSource } from '@/lib/knowledge-load';
 import { originOf, type KnowledgeRow } from '@/lib/knowledge';
+import { lastUse, readingsNote, type ReadingsRecord } from '@/lib/readings';
+import { defaultReadingsSource } from '@/lib/readings-load';
 import { GitHubClient } from '@/lib/github';
 import { loadRoutines, type Routine } from '@/lib/routines';
 import { fixtureRoutineSource, githubRoutineSource } from '@/lib/routines-load';
@@ -71,6 +73,7 @@ async function Memory({ venture }: { venture: VentureSummary }) {
   const id = venture.id;
   const corpusOf = defaultKnowledgeSource();
   const provenanceOf = defaultProvenanceSource();
+  const readingsOf = defaultReadingsSource();
 
   const [perRepo, routineResult] = await Promise.all([
     Promise.all(
@@ -90,18 +93,36 @@ async function Memory({ venture }: { venture: VentureSummary }) {
           () => provenanceOf(repo, corpus.docs.map((d) => d.path)),
           repo,
         ).catch(() => null);
+        // FB-156. One request, and a failure costs the fourth column rather than the page — but it
+        // costs it as "we could not look", never as "nothing has read this".
+        const readings: ReadingsRecord = await timed(
+          'memory: what has been read',
+          () => readingsOf(repo),
+          repo,
+        ).catch(() => ({
+          log: new Map(),
+          present: false,
+          error: `The studio could not read what ${repo} has used.`,
+        }));
         const rows: KnowledgeRow[] = corpus.docs.map((doc) => ({
           repo,
           doc,
           origin: originOf(commits?.get(doc.path) ?? null),
+          lastUse: lastUse(readings, doc.path),
         }));
-        return { rows, error: corpus.error, provenanceRead: commits !== null };
+        return { rows, error: corpus.error, provenanceRead: commits !== null, readings };
       }),
     ),
     loadRoutinesSafely(venture),
   ]);
 
   const rows = perRepo.flatMap((r) => r.rows);
+  // The note under the table is computed from the SAME records the cells were, so it can never
+  // explain a dash the rows are not showing (FB-149's lesson, on a smaller surface). Only surfaces
+  // that actually PUT documents on the screen count: ARCA's marketing repo holds no corpus, and
+  // letting it vote turned the note into "some of your surfaces do not record what they read" over
+  // a table where every visible row came from the one surface that does.
+  const usedNote = readingsNote(perRepo.filter((r) => r.rows.length > 0).map((r) => r.readings));
   // An unreadable corpus must never render as "you have given it nothing" — the difference between
   // those two is a founder's own work (FB-021, on the surface where it matters most).
   const errors = perRepo.map((r) => r.error).filter((e): e is string => !!e);
@@ -119,6 +140,7 @@ async function Memory({ venture }: { venture: VentureSummary }) {
       routines={routineResult.routines}
       routineErrors={routineResult.errors}
       provenanceMissing={provenanceMissing}
+      usedNote={usedNote}
     />
   );
 }

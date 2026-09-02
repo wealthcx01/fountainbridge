@@ -150,7 +150,11 @@ log "baseline: $(tr '\n' ' ' <"$RUNDIR/base.res")"
 # did before FB-050, and says so in the log, the PR body and the RunReport.
 log "RESEARCH: asking the venture brain…"
 RESEARCH_MODE="brain (semantic)"
-set +e; BRAIN_DIGEST="$(brain_research "$TICKET_FILE" "$DEPT")"; BRAIN_RC=$?; set -e
+# FB-156: the pages the model is actually shown are written here, and recorded below. A record of
+# use belongs where the reading happens — reconstructing it later from a prompt would be a guess.
+BRAIN_USED_FILE="$(mktemp)"
+trap 'rm -f "$BRAIN_USED_FILE"' EXIT
+set +e; BRAIN_DIGEST="$(brain_research "$TICKET_FILE" "$DEPT" "$BRAIN_USED_FILE")"; BRAIN_RC=$?; set -e
 # An index nobody has refreshed for days is not the same as a current one, and the founder is about
 # to be told the work was planned from what the venture knows. Say when it's stale.
 BRAIN_AGE_NOTE=""
@@ -164,6 +168,12 @@ fi
 if [ -n "$BRAIN_DIGEST" ]; then
   RESEARCH_MODE="brain (semantic)${BRAIN_AGE_NOTE}"
   log "RESEARCH: brain returned $(grep -c '^- ' <<<"$BRAIN_DIGEST") relevant page(s)${BRAIN_AGE_NOTE}"
+  # What was read, recorded against the work it was read for (FB-156) — this is what fills the
+  # studio's `Last used` column. The ticket ID is extracted the way the studio extracts it, so the
+  # two agree on what names a piece of work; the URL is left to the studio, which owns its routes.
+  TICKET_ID="$(basename "$TICKET_FILE" .md | grep -oiE '^[a-z]{2,}-[0-9]+[a-z]?' || true)"
+  TICKET_TITLE="$(grep -m1 '^# ' "$TICKET_FILE" 2>/dev/null | sed 's/^# *//' || true)"
+  record_readings "$BRAIN_USED_FILE" ticket "${TICKET_ID:-$SLUG}" "${TICKET_TITLE:-$SLUG}"
   # The digest is REFERENCE DATA, not instructions. Everything the brain can reach is in scope —
   # merged repo content, ticket prose, code comments, founder deposits — so text that lands in the
   # venture repo must not be able to steer an agent that writes code and opens PRs. Delimit it and

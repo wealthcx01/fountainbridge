@@ -34,6 +34,7 @@ export const FAULTABLE = [
   'runreports',
   'knowledge',
   'provenance',
+  'readings',
   'routines',
   'work',
   'trail',

@@ -76,6 +76,24 @@ test.describe('every screen, with every read failing (FB-137)', () => {
     });
   }
 
+  test('a record of use that could not be READ never reads as "nothing has read this" (FB-156)', async ({ page }) => {
+    // The `Last used` column has three states and only two of them are the studio's to claim. With
+    // the record unreadable, every cell must fall back to "we do not keep this" — printing "nothing
+    // has read this document" over a read that failed would be a fact about the founder's venture
+    // invented out of a broken request, on the screen whose whole job is to say what was read.
+    await page.goto('/venture/arca/knowledge');
+    const cells = page.locator('[data-testid^="memory-used-"]');
+    const n = await cells.count();
+    // With EVERY read failing the corpus is unreadable too, so there are no rows and the loop below
+    // asserts nothing. That is the honest outcome to declare rather than to report as a pass — the
+    // logic itself is pinned in lib/__tests__/readings.test.ts, where the corpus can be readable
+    // while the record is not. Skipping says "not measured"; passing would say "measured, fine".
+    test.skip(n === 0, 'the corpus is unreadable in this run, so there are no cells to check');
+    for (let i = 0; i < n; i++) {
+      await expect(cells.nth(i)).not.toHaveAttribute('data-use', 'never');
+    }
+  });
+
   test('the rail says "checking" rather than a spend it could not read', async ({ page }) => {
     // £0/£4,800 for a venture whose spending the studio had not managed to look at, on the
     // most-seen surface in the product.

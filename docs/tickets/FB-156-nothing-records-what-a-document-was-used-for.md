@@ -1,6 +1,17 @@
 # FB-156 — Nothing records what a document was used for
 
-**Status:** Todo · **Area:** Studio / knowledge · **Depends on:** FB-133
+**Status:** Shipped (lane) · **Area:** Studio / knowledge · **Depends on:** FB-133
+
+> **What shipped, and what did not.** The lane's reading is recorded and `Last used` is real: it
+> names the piece of work and links to it, and a document nothing has read says so in words distinct
+> from a venture that keeps no record. The **composer's** reading is not recorded — its brain bridge
+> is read-only by construction and giving it a write credential is a posture decision, not a detail.
+> Split to **FB-166**. Proven end to end on the ARCA box on 2026-09-02: a real gbrain query wrote a
+> real `readings.json` to `wealthcx01/arca`'s `foundry-state` ref.
+>
+> Found on the way: **FB-165** — every corpus page's department has been read off a slug shape gbrain
+> does not emit, so the D8 department partition has never applied. A Build lane can retrieve Sell's
+> private context.
 
 ## What is missing
 
