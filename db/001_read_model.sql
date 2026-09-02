@@ -121,10 +121,22 @@ alter default privileges in schema public grant select on tables to foundry_stud
 --
 -- Two things that are easy to get wrong and produce very different failures:
 --
---   * **Use Supabase's SESSION pooler, port 5432** — not the direct connection and not the
---     transaction pooler. The direct host is IPv6-only and Railway has no outbound IPv6, so a direct
---     string fails at runtime with ENETUNREACH; the transaction pooler is for serverless and breaks
---     prepared statements. The session pooler is IPv4 with direct-connection semantics.
+--   * **Use the SHARED session pooler, port 5432.** Three endpoints exist and only one of them
+--     answers on IPv4 without paying:
+--
+--       direct connection    db.<ref>.supabase.co        IPv6 only, unless the IPv4 add-on is bought
+--       dedicated pooler                                 IPv6 only, same add-on
+--       SHARED pooler        <region>.pooler.supabase.com IPv4 by default — no add-on
+--
+--     Measured on this project, 2026-09-02: `db.pzxdjfelojqvygcpnbvf.supabase.co` resolves to an
+--     AAAA record and no A record at all. Railway has no outbound IPv6, so a direct string fails
+--     there at runtime with ENETUNREACH while working perfectly from a developer machine that has
+--     IPv6 — which is the worst shape of bug to ship, because it passes every local check.
+--
+--     The IPv4 add-on would fix the other two and is a paid extra we do not need.
+--
+--     Not the TRANSACTION pooler (port 6543) either: it is for serverless functions and does not
+--     support prepared statements, which a long-running server wants.
 --   * **Through the pooler the username carries the project ref after a dot** — `foundry_studio.<ref>`,
 --     not `foundry_studio`. Supavisor reads the tenant from the part after the last dot. A plain
 --     username authenticates against the wrong tenant rather than failing clearly.
