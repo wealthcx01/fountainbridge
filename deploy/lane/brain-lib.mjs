@@ -13,13 +13,25 @@ export const DEPARTMENTS = ['build', 'sell', 'scale', 'general'];
 // The venture's D8 knowledge areas (FB-043's deposit tool writes `<area>/<dept>/<slug>.md`).
 const AREAS = ['context', 'library'];
 
-// gbrain slugs are path-derived and flattened: `context/build/ideal-customer.md` indexes as
-// `context-build-ideal-customer`. There is no path field on a search hit, so the department is read
-// back off that slug prefix. Documented limitation (same spirit as foundry-lib.sh's
-// ticket_department default): a top-level file literally named `context/build-thing.md` would also
-// match and be read as 'build'. The deposit tool only ever writes `<area>/<dept>/<slug>.md` with the
+// A gbrain slug is path-derived, and there is no path field on a search hit, so the department is
+// read back off the slug's prefix.
+//
+// **gbrain emits TWO slug shapes, and this accepted only the one it never emits for a corpus page.**
+// Measured against ARCA's live index on 2026-09-02: markdown notes keep their separators
+// (`context/sell/arca-brand-positioning`, `docs/tickets/arca-062-arca-brand-redesign`) while code
+// and data files are flattened (`modules-cards-jobs-ts`, `trkd_scraper-output-websockets-json`).
+// Every founder-deposited document is a note, so every one of them arrives slash-separated — and
+// this regex required a hyphen. It matched nothing, `pageDepartment` returned null for every corpus
+// page, null means *shared, every lane may read it*, and the D8 partition has been inert since
+// FB-050 (FB-165).
+//
+// Both shapes are accepted because both are real, not as a hedge: a flattened `context-build-x` is
+// what a differently-configured index would produce, and the cost of accepting it is nil.
+//
+// Documented limitation, unchanged: a top-level file literally named `context/build-thing.md` also
+// matches and reads as 'build'. The deposit tool only ever writes `<area>/<dept>/<slug>.md` with the
 // dept from a fixed enum, so this does not arise on the deposit path.
-const DEPT_SLUG_RE = new RegExp(`^(?:${AREAS.join('|')})-(${DEPARTMENTS.join('|')})(?:-|$)`);
+const DEPT_SLUG_RE = new RegExp(`^(?:${AREAS.join('|')})[-/](${DEPARTMENTS.join('|')})(?:[-/]|$)`);
 
 /**
  * The department a brain page belongs to, or null when it is shared/unattributed (tickets, code,

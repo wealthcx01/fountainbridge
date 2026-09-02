@@ -1,6 +1,16 @@
 # FB-165 — a Build lane can read the Sell surface's private context
 
-**Status:** Open · **Phase:** 2 · **Found by:** FB-156, on the ARCA box
+**Status:** Shipped · **Phase:** 2 · **Found by:** FB-156, on the ARCA box
+
+> **Did it actually happen on ARCA?** Unknowable from the record, and that is the honest answer. The
+> journal holds 62 RESEARCH runs between 18 and 27 August, each reporting "brain returned 5–6
+> relevant page(s)" — **the count only. The page names were never logged.** The exposure window is
+> real: ARCA's three departments each work a different repo, the brain is indexed over Build's repo,
+> and `context/sell/` lives in that repo, so a Build lane querying it could receive the founder's
+> Sell positioning. Whether any given run did cannot be recovered. FB-156 closes that gap from now
+> on — every run records which documents it read.
+>
+> Found on the way: **FB-169** — the brain has indexed two of ARCA's seven corpus documents.
 
 ## What is wrong
 
