@@ -135,6 +135,27 @@ than no prompt: it spends the one moment a founder is willing to say yes.
 - `lib/brand.ts` — the two colours iOS and Android read, which cannot be CSS variables, in one
   declared place with a test asserting they still equal the tokens they copy.
 
+## Verified on production, unauthenticated
+
+Fetched the way an operating system fetches them — no session, no redirect followed:
+
+```
+/manifest.webmanifest    200  application/manifest+json
+/icon-192.png            200  image/png
+/icon-512.png            200  image/png
+/apple-touch-icon.png    200  image/png
+/sw.js                   200  application/javascript
+
+name          Bruntsfield Foundry Studio
+short_name    Foundry
+start_url     /
+display       standalone
+theme_color   #1a3b26
+```
+
+That is everything a phone reads before it offers to install. What it does next is the part only a
+phone can answer.
+
 ## For John, to finish it
 
 The install is the part a device has to answer. On an iPhone: open the studio in Safari, Share → **Add
