@@ -9,30 +9,69 @@ import {
   researchQuestion,
 } from '../brain-lib.mjs';
 
+/**
+ * Slugs gbrain ACTUALLY emitted, captured from ARCA's live index on 2026-09-02 (FB-165).
+ *
+ * The bug this fixture exists to prevent: every slug in this suite used to be written by hand in a
+ * shape gbrain does not produce for a corpus page. The tests were thorough, they discriminated, and
+ * they had never once been run against a real input — so `pageDepartment` returned null for every
+ * founder document and the D8 department partition was inert for months without a single red test.
+ *
+ * gbrain emits two shapes, and both are here: markdown notes keep their separators, code and data
+ * files are flattened. Do not "tidy" these into one shape.
+ */
+const REAL_SLUGS = {
+  // Notes — what every founder-deposited document looks like.
+  sellContext: 'context/sell/arca-brand-positioning',
+  sellNote: 'context/sell/market-note-terminal-wedge',
+  ticket: 'docs/tickets/arca-062-arca-brand-redesign',
+  reference: 'reference/trkd-to-arca-design',
+  // Code and data — flattened.
+  code: 'modules-cards-jobs-ts',
+  scraped: 'trkd_scraper-output-websockets-json',
+  script: 'init-sh',
+};
+
 describe('pageDepartment — which surface owns a brain page', () => {
-  it('reads the department off a deposited context/library page', () => {
+  it('reads the department off a slug gbrain actually emitted', () => {
+    // The whole ticket, in one assertion. This is the exact string the live index returned.
+    expect(pageDepartment(REAL_SLUGS.sellContext)).toBe('sell');
+    expect(pageDepartment(REAL_SLUGS.sellNote)).toBe('sell');
+  });
+
+  it('reads it off the flattened shape too, which gbrain also emits', () => {
     expect(pageDepartment('context-build-ideal-customer')).toBe('build');
     expect(pageDepartment('library-sell-outreach-sequence')).toBe('sell');
-    expect(pageDepartment('context-scale-hiring-plan')).toBe('scale');
+  });
+
+  it('covers every department and both areas', () => {
+    expect(pageDepartment('context/build/auction-aggregator-v1-scope')).toBe('build');
+    expect(pageDepartment('library/scale/runbook')).toBe('scale');
+    expect(pageDepartment('library/build/spec')).toBe('build');
   });
 
   it('treats general as shared, not as a department', () => {
+    expect(pageDepartment('context/general/brand-voice')).toBeNull();
     expect(pageDepartment('context-general-brand-voice')).toBeNull();
   });
 
-  it('leaves tickets, code and root docs unattributed (every lane may read them)', () => {
-    expect(pageDepartment('docs-tickets-arca-price-history')).toBeNull();
-    expect(pageDepartment('src-app-page-tsx')).toBeNull();
-    expect(pageDepartment('readme-md')).toBeNull();
+  it('leaves tickets, code, references and root docs unattributed (every lane may read them)', () => {
+    // All four are real slugs from the live index.
+    expect(pageDepartment(REAL_SLUGS.ticket)).toBeNull();
+    expect(pageDepartment(REAL_SLUGS.code)).toBeNull();
+    expect(pageDepartment(REAL_SLUGS.scraped)).toBeNull();
+    expect(pageDepartment(REAL_SLUGS.reference)).toBeNull();
+    expect(pageDepartment(REAL_SLUGS.script)).toBeNull();
   });
 
   it('needs the department to be a whole slug segment', () => {
-    // `context/buildings/…` is not the Build surface.
+    // `context/buildings/…` is not the Build surface, in either shape.
+    expect(pageDepartment('context/buildings/note')).toBeNull();
     expect(pageDepartment('context-buildings-note')).toBeNull();
   });
 
   it('is case-insensitive and safe on junk input', () => {
-    expect(pageDepartment('CONTEXT-BUILD-X')).toBe('build');
+    expect(pageDepartment('CONTEXT/BUILD/X')).toBe('build');
     expect(pageDepartment(undefined)).toBeNull();
     expect(pageDepartment(42)).toBeNull();
   });
@@ -50,6 +89,24 @@ describe('partitionForDepartment — a lane sees its own surface plus what is sh
     { slug: 'docs-tickets-arca-price-history' },
     { slug: 'context-general-brand-voice' },
   ];
+
+  it('drops Sell’s private context from a Build lane — using the real ARCA hits (FB-165)', () => {
+    // The live exposure, pinned. These are the two slugs ARCA's index actually returns for the
+    // founder's Sell context, and before FB-165 a Build lane received both: the regex expected a
+    // hyphen, the index emits a slash, nothing matched, and an unmatched page counts as shared.
+    const real = [
+      { slug: REAL_SLUGS.sellContext },
+      { slug: REAL_SLUGS.sellNote },
+      { slug: REAL_SLUGS.ticket },
+      { slug: REAL_SLUGS.code },
+      { slug: 'context/build/no-fake-demo-data-policy' },
+    ];
+    const kept = partitionForDepartment(real, 'build').map((r) => r.slug);
+    expect(kept).not.toContain(REAL_SLUGS.sellContext);
+    expect(kept).not.toContain(REAL_SLUGS.sellNote);
+    // And it still gets its own surface plus everything shared.
+    expect(kept).toEqual(['docs/tickets/arca-062-arca-brand-redesign', 'modules-cards-jobs-ts', 'context/build/no-fake-demo-data-policy']);
+  });
 
   it("drops another department's private context", () => {
     const kept = partitionForDepartment(hits, 'build').map((r) => r.slug);
