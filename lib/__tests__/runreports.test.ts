@@ -341,12 +341,49 @@ describe('what liveness reads (FB-139)', () => {
     expect(runs.checkIns[0].startedAt).toBe('2026-09-01T21:45:00Z');
   });
 
+  it('picks the NEWEST reports, not the alphabetically-last slugs (FB-177)', async () => {
+    // The defect, with the real filenames that exposed it. ARCA's state ref held 1,773 reports on
+    // 2026-09-02; the loader sorted the raw filenames, which sorts by SLUG first and by time only
+    // within one slug. So the "newest sixty" were really the sixty alphabetically-last slugs, and
+    // the desk's account of what the team did had not moved since 31 July while the lane wrote a
+    // report every five minutes.
+    //
+    // The budget must BITE for this to test anything: with limit 1 the loader opens 1 × READ_MARGIN
+    // = 3 files, and there are five here. An earlier version of this test used two files, so
+    // everything fit, the selection never truncated, and it passed with the bug restored.
+    const old = (slug: string, t: string) => [`${slug}-202607${t}Z.json`, {
+      ticket: 'ARCA-47', lane: 'build', status: 'progress', summary: 'stale',
+      started: `2026-07-${t.slice(0, 2)}T${t.slice(3, 5)}:00:00Z`, finished: `2026-07-${t.slice(0, 2)}T${t.slice(3, 5)}:01:00Z`,
+    }] as const;
+    const files = Object.fromEntries([
+      // Four alphabetically-LAST slugs, all five weeks old. The old sort filled its whole budget
+      // from these and never opened the fifth.
+      old('sign-in-tagline-fix', '31T190348'),
+      old('sign-in-tagline-fix', '31T185113'),
+      old('watchlist-parity', '30T120000'),
+      old('uiux-audit', '29T090000'),
+      // Alphabetically FIRST, and minutes old — the one a founder is looking for.
+      ['ARCA-061-saved-card-lists-not-persisting-20260902T164512Z.json', {
+        ticket: 'ARCA-61', lane: 'build', status: 'progress', summary: 'newest',
+        started: '2026-09-02T16:45:12Z', finished: '2026-09-02T16:46:00Z',
+      }],
+    ]);
+    const runs = await loadRunReports(venture, source({ arca: files as Record<string, unknown> }), 1);
+    expect(runs.reports, 'nothing was read').toHaveLength(1);
+    expect(runs.reports[0].summaryMd, 'the loader filled its budget with alphabetically-last slugs and never opened the newest report')
+      .toBe('newest');
+  });
+
   it('does not cap `checkIns` to the DISPLAY limit, and always holds the newest wake', async () => {
     // `reports` is sliced for the screen. `checkIns` is not — it is bounded only by the read budget
     // (limit × READ_MARGIN, FB-083), and the names read are the newest, so the most recent wake is
     // always in it. That is the property liveness depends on.
+    // Named the way the LANE names them — `<slug>-YYYYMMDDTHHMMSSZ.json`. The fixture used to be
+    // `r0.json`…`r24.json`, which the lane has never written, and a loader that selects on the
+    // timestamp in the filename cannot be tested against filenames that have none (FB-165's lesson,
+    // on a different function).
     const many = Object.fromEntries(
-      Array.from({ length: 25 }, (_, i) => [`r${i}.json`, {
+      Array.from({ length: 25 }, (_, i) => [`report-${i}-20260901T10${String(i).padStart(2, '0')}00Z.json`, {
         ticket: `ARCA-${i}`, lane: 'build', status: 'progress', summary: 'x',
         started: `2026-09-01T10:${String(i).padStart(2, '0')}:00Z`, finished: `2026-09-01T10:${String(i).padStart(2, '0')}:30Z`,
       }]),
