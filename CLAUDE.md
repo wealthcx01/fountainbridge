@@ -32,7 +32,21 @@ Where the plan and a ticket disagree, the ticket's **scope** section wins for wh
 10. **Fail loud, surface everything.** A founder blocked at 22:00 must see *why* in the studio — run reports, lane staleness, and failure states are surfaced in plain language, never swallowed.
 11. **Look at the screen, beside its design, before the PR.** Any change that touches a screen is not
     verified until that screen and the design have been rendered **side by side in a browser**, at
-    1440×1000 and 393×851, and both have been *looked at*. Record each page's height in the PR.
+    1440×1000 and 393×851, and both have been *looked at* — as pictures, not as markup. Record each
+    page's height in the PR.
+
+    **The design is the Claude Design artifact:**
+    `https://claude.ai/code/artifact/7187a06f-f746-4e70-bfc6-446a3d7330ac`. It is a working
+    prototype, not a picture: open it with Playwright, press "Continue with Google" (either door
+    signs you in), and click the rail's labels — Tickets, What happened, Memory, Handbook, The pocket
+    studio — to reach each screen. Screenshot both sides and **read the images**.
+
+    **The live side is production**, signed in as the venture's founder, because fixtures are small
+    and every fault this rule exists to catch only appears at real size: ARCA's 73 tickets, its 1,773
+    run reports, its five weeks of history.
+
+    `docs/design-conformance.md` is the scorecard, with the method written out and the last reading
+    for every screen. Add a line to it.
 
     This is a gate because its absence has cost more than any other failure here. Thirty tickets
     shipped, each verified against its own scope, and nobody compared a screen to the design until
@@ -58,6 +72,12 @@ Where the plan and a ticket disagree, the ticket's **scope** section wins for wh
     writer's time at the reader's expense; and burying the answer at the end. `copy-lint` catches the
     founder-vocabulary rules it can check mechanically (FB-103's "team" not "agent"); this covers
     everything it cannot.
+
+    **This applies to the reply itself, not only to what is written into files.** The last message of
+    every turn must stand on its own: what was done, what it means, what is left, and what the reader
+    has to decide — in full, in that order, without needing the messages above it. A reply that
+    assumes the reader remembers three turns of context is the same failure as a ticket that assumes
+    the founder reads code.
 
 ## Stack (Decision D6)
 
