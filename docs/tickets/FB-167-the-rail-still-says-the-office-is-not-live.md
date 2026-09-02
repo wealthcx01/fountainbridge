@@ -1,6 +1,12 @@
 # FB-167 — the rail says the office is not live, three lines above "your team checked in 3 minutes ago"
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-156, on production
+**Status:** Shipped · **Phase:** 3 · **Found by:** FB-156, on production
+
+> Removed rather than replaced. The rail already answers "is this venture's machine alive" once,
+> from the run reports, in the line the placeholder was contradicting; the office itself lives on the
+> desk, which is where FB-139 put it. Whether the rail should carry a compact office summary at all
+> is a design call, not a bug fix, and inventing one here would have been the second source this
+> ticket exists to remove.
 
 ## What a founder sees
 

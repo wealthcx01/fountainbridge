@@ -68,25 +68,17 @@ export function Rail({
 
       <RailNav ventureId={ventureId} needsYou={words.needsYou} />
 
-      {/* FB-139 replaces this with the live feed from the venture box. Until then it says what it is:
-          a placeholder is honest, a frozen last-known scene would not be. */}
-      <div style={{ marginTop: '1.6rem' }}>
-        <div className="eyebrow">The office</div>
-        <div
-          data-testid="rail-office-placeholder"
-          style={{
-            marginTop: '0.4rem',
-            padding: '0.8rem',
-            border: '1px dashed var(--color-border-strong)',
-            background: 'var(--color-paper-sunken)',
-            fontSize: 'var(--fs-meta)',
-            color: 'var(--color-ink-muted)',
-          }}
-        >
-          Not live yet. Your team’s desks appear here once this venture’s machine reports what they
-          are doing.
-        </div>
-      </div>
+      {/* The office placeholder that stood here is gone (FB-167).
+          It read "Not live yet. Your team's desks appear here once this venture's machine reports
+          what they are doing" — and it sat three lines above this same rail's engine line saying
+          "Your team checked in 2 minutes ago". Two statements about one machine, one screen apart,
+          contradicting each other on every venture page in production.
+          It was honest when nothing was live. FB-139 built the live office on the desk and its own
+          comment here said "FB-139 replaces this" — the replacement shipped, the placeholder did
+          not get deleted, and a true sentence became a false one the moment the office became real.
+          The office lives on the desk. The rail already answers "is this venture's machine alive"
+          once, below, from the run reports. Answering it twice from two sources is exactly what
+          FB-139's own constraint forbids: same events, so they cannot disagree. */}
 
       <div style={{ marginTop: '1.6rem' }}>
         <div className="eyebrow">Budgets, month</div>
