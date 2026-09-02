@@ -2,6 +2,11 @@
 
 **Status:** Open · **Phase:** 3 · **Split from:** FB-156
 
+> **Decided 2026-09-02 by John: option 2 — do it properly with proper write access.** Not the MCP
+> tool (option 1), whose record would be as complete as the model's memory of calling it, and not by
+> giving the read-only bridge a credential (option 3). A separate recorder holds the token; the
+> bridge stays read-only by construction, which is the property it was built for.
+
 ## What is missing
 
 FB-156 made `Last used` real: the lane records which of the founder's documents went into each piece
@@ -38,7 +43,11 @@ Decide **who writes**, then build it. The options, and what each costs:
 3. **The bridge writes, and stops being read-only.** Simplest, and gives up a property that was
    argued for on purpose. If this is chosen, it should be argued for in the PR, not assumed.
 
-Whichever wins, the studio side needs nothing: `lib/readings.ts` already carries
+**Option 2 is the decision.** The recorder takes `shown` from the bridge's response, holds its own
+narrowly-scoped write credential, and appends to `readings.json` the way the lane does. The bridge's
+fixed-argv, no-write contract is untouched.
+
+The studio side needs nothing: `lib/readings.ts` already carries
 `kind: 'conversation'`, and `workHref` already declines to invent a destination for a conversation
 that has no page.
 
