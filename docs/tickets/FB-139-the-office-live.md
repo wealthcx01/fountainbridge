@@ -91,6 +91,10 @@ arrays each caller spreads, because the bug *was* a caller passing the wrong hal
 ## Acceptance criteria
 
 - [x] The plate renders live agent state from the venture box, read-only. The studio never writes.
+      **But the characters are a drawing, not the design's embed.** `README.md` is explicit — *"the
+      real plate is the pixel-agents embed (G6)"* — and there is a real project it means
+      (https://github.com/pixel-agents-hq/pixel-agents, MIT). What shipped here is live and honest
+      and it is not that. **FB-163** is the embed; this becomes its fallback.
 - [x] The plate and the ledger are driven by one feed. Not two code paths checked against each
       other — **one array**, mapped twice. There is no second list to get wrong, and a test asserts
       the mapping stays complete.
