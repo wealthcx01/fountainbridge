@@ -67,38 +67,66 @@ describe('what an empty panel says', () => {
   });
 });
 
-describe('the welcome', () => {
-  it('greets the founder by name and offers exactly one action', () => {
-    const w = welcome('THE RESET', 'Ross', true);
-    expect(w.greeting).toBe('Welcome, Ross.');
+describe('the welcome (FB-143)', () => {
+  it('says the venture is READY, and offers exactly one action', () => {
+    // "X is ready" is the half that does the work: it turns an empty screen from evidence of a
+    // broken product into evidence of a ready one.
+    const w = welcome('THE RESET', 'Ross', 'ready');
+    expect(w.greeting).toBe('Welcome, Ross. THE RESET is ready.');
     expect(w.action?.label).toBe('Tell the studio what you want');
     expect(w.action?.href('the-reset')).toBe('/venture/the-reset/composer');
   });
 
+  it('does not claim to know the time of day', () => {
+    // The design's line is "Good morning. Arca is ready." A founder outside Edinburgh would be
+    // greeted with the wrong time of day on the one screen whose entire job is to be believed.
+    expect(welcome('THE RESET', 'Ross', 'ready').greeting).not.toMatch(/morning|afternoon|evening/i);
+  });
+
   it('falls back to the venture when there is no founder name', () => {
-    expect(welcome('THE RESET', null, true).greeting).toBe('Welcome to THE RESET.');
+    expect(welcome('THE RESET', null, 'ready').greeting).toBe('THE RESET is ready.');
   });
 
-  it('says day one is meant to look like this', () => {
-    // A blank page reads as a broken product unless something says otherwise.
-    expect(welcome('THE RESET', 'Ross', true).body).toContain('exactly right for day one');
+  it('invites the founder to hand over what they already have', () => {
+    const body = welcome('ARCA', 'Ross', 'ready').body;
+    expect(body).toContain('waiting for its first piece of work');
+    expect(body).toContain('research, notes, a deck');
+    expect(body).toContain('becomes what ARCA knows');
   });
 
-  it('offers no action, and says so, when the venture has no box yet', () => {
-    // Nothing to click and nothing to do — but the founder is told that plainly rather than being
-    // left to work out why the page is empty.
-    const w = welcome('THE RESET', 'Ross', false);
+  it('lists what will be here, beside the action rather than instead of it', () => {
+    // The design shows both. A founder who presses nothing should still leave knowing what this
+    // page is for.
+    const w = welcome('ARCA', 'Ross', 'ready');
+    expect(w.action).not.toBeNull();
+    expect(w.coming).toHaveLength(3);
+    expect(w.coming[0]).toContain('office');
+  });
+
+  it('offers no action when the venture has no machine yet', () => {
+    const w = welcome('THE RESET', 'Ross', 'no-box');
     expect(w.action).toBeNull();
-    expect(w.waiting).toContain('fill up on its own');
-    expect(w.body).toContain('you do not need to do anything');
-    // A page with nothing to do AND nothing to read is indistinguishable from a broken one, so it
-    // says what it is for instead.
-    expect(w.coming.length).toBeGreaterThan(0);
+    expect(w.body).toContain('machine is still being built');
+    expect(w.waiting).toContain('fills up on its own');
+    expect(w.coming).toHaveLength(3);
   });
 
-  it('lists nothing beside the action when there IS one', () => {
-    // The ticket's own words: nothing else competes with it.
-    expect(welcome('THE RESET', 'Ross', true).coming).toEqual([]);
+  it('offers no action when the machine exists but the studio cannot reach it', () => {
+    // The admin ledger's own warning: "Caldera's composer key is not set; its founder meets a dead
+    // button on day one." A machine WITH no key is the case a boolean could not express, and it is
+    // the one that ships a control that fails on press.
+    const w = welcome('CALDERA', 'Ross', 'no-key');
+    expect(w.action, 'day one offers a control that would fail on press').toBeNull();
+    expect(w.body).toContain('cannot reach it yet');
+    expect(w.body).toContain('nothing is lost');
+  });
+
+  it('never blames the founder for either kind of not-ready', () => {
+    for (const wiring of ['no-box', 'no-key'] as const) {
+      const w = welcome('CALDERA', 'Ross', wiring);
+      expect(w.body).toContain('nothing for you to do');
+      expect(w.body).toContain('Bruntsfield');
+    }
   });
 });
 

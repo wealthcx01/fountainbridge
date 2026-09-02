@@ -5,6 +5,10 @@
 pixel-office is a placeholder drawing; the real plate is the **pixel-agents embed** (G6)."*
 **Upstream:** https://github.com/pixel-agents-hq/pixel-agents — MIT, TypeScript, ~9.2k stars.
 
+**Shipped in part:** nothing of this ticket has shipped. The commit that names it (#196) filed the
+ticket and marked FB-139's plate as the placeholder it is. The embed, the box service and the proxy
+are all still to build.
+
 ## What FB-139 shipped, and what it is not
 
 FB-139 built the office from what the venture box already publishes: one character per surface, four

@@ -337,3 +337,33 @@ describe('one query for a whole backlog (FB-083)', () => {
     expect(r.errorKind).toBe('rate-limit');
   });
 });
+
+describe('moving a founder off day one (FB-143)', () => {
+  it('a cleared cache re-reads, so a first filing is visible at once', async () => {
+    // `boardState` reads the ticket cache, which holds for two minutes. Without a clear, a founder
+    // files their first piece of work, returns to their desk, and is told "your team is set up and
+    // waiting for its first piece of work" — for up to two minutes, with no way past it but a URL
+    // parameter they have never seen. That is the worst two minutes in the product to be told
+    // nothing has happened.
+    //
+    // `clearTicketCache` has been exported since FB-006 and was called by nothing until FB-143.
+    clearTicketCache();
+    let reads = 0;
+    const fetcher: RepoTicketFetcher = async () => {
+      reads += 1;
+      return { files: [], error: null };
+    };
+    const now = () => 1_000;
+
+    await loadVentureTickets(venture, { fetcher, now });
+    expect(reads).toBe(1);
+
+    // Within the window, cached — this is the behaviour that strands a founder on day one.
+    await loadVentureTickets(venture, { fetcher, now });
+    expect(reads, 'the cache is not holding, so this test proves nothing').toBe(1);
+
+    clearTicketCache();
+    await loadVentureTickets(venture, { fetcher, now });
+    expect(reads, 'a cleared cache did not re-read').toBe(2);
+  });
+});

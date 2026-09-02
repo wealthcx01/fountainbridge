@@ -36,7 +36,7 @@ test.describe('a founder’s first ten seconds', () => {
     await testLogin(page, JOHN);
     await page.goto('/venture/modernisation-engine');
     await expect(page.getByTestId('first-run-action')).toHaveCount(0);
-    await expect(page.getByTestId('first-run-waiting')).toContainText('fill up on its own');
+    await expect(page.getByTestId('first-run-waiting')).toContainText('fills up on its own');
     await expect(page.getByTestId('first-run-coming')).toBeVisible();
   });
 
@@ -70,5 +70,55 @@ test.describe('a founder’s first ten seconds', () => {
     await page.goto('/venture/arca');
     await expect(page.getByTestId('first-run')).toHaveCount(0);
     await expect(page.getByTestId('col-todo').first()).toBeVisible();
+  });
+});
+
+/**
+ * FB-143 — a founder's first morning.
+ *
+ * The only screen a founder sees before they have any reason to trust the studio. Its job is to make
+ * emptiness read as readiness rather than as breakage.
+ */
+test.describe('day one (FB-143)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, JOHN);
+    await page.goto('/venture/modernisation-engine');
+  });
+
+  test('it says what this page is called', async ({ page }) => {
+    await expect(page.getByTestId('first-run')).toContainText('Day one');
+  });
+
+  test('it lists what will be here, whether or not there is an action', async ({ page }) => {
+    // The design shows the list beside the action, not instead of it. A founder who presses nothing
+    // should still leave knowing what this page is for.
+    const coming = page.getByTestId('first-run-coming');
+    await expect(coming).toBeVisible();
+    await expect(coming).toContainText('The office');
+    await expect(coming).toContainText('Tickets');
+    await expect(coming).toContainText('waits on you');
+  });
+
+  test('it never says "agents" to someone who has just arrived', async ({ page }) => {
+    // The design's own line is "your agents, live, at their desks". The founder vocabulary has said
+    // "your team" since FB-103, and day one is the worst screen to introduce an engineering word on.
+    await expect(page.getByTestId('first-run')).toContainText('your team, live, at their desks');
+    await expect(page.getByTestId('first-run')).not.toContainText('agents');
+  });
+
+  test('it does not claim to know what time it is where the founder is', async ({ page }) => {
+    // The design's line is "Good morning. Arca is ready." A founder outside Edinburgh would be
+    // greeted with the wrong time of day on the one screen whose whole job is to be believed.
+    const heading = await page.getByRole('heading', { level: 1 }).textContent();
+    expect(heading).not.toMatch(/morning|afternoon|evening/i);
+  });
+
+  test('a venture that cannot be told anything says who is fixing it', async ({ page }) => {
+    // Not the founder's problem, and it says so — rather than leaving them to work out why the one
+    // screen they have been given is empty and has no button.
+    const run = page.getByTestId('first-run');
+    await expect(run).toContainText('nothing for you to do');
+    await expect(run).toContainText('Bruntsfield');
+    await expect(page.getByTestId('first-run-action')).toHaveCount(0);
   });
 });

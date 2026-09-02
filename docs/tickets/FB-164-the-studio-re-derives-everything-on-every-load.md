@@ -2,6 +2,9 @@
 
 **Status:** Todo · **Area:** Studio / architecture · **Depends on:** FB-157, FB-161
 
+**Shipped in part:** nothing of this ticket has shipped. The commit that names it (#196) filed the
+ticket and recorded the measurements in it. The read model is still to build.
+
 ## What is true today
 
 Measured on production, signed in as ARCA's founder, 2026-09-02:

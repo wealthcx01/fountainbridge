@@ -118,46 +118,91 @@ export function emptyPanel(panel: 'tickets' | 'runs' | 'approvals' | 'activity',
 }
 
 /**
+ * How ready a venture actually is to be told something (FB-143).
+ *
+ * Three states, not two. `hasComposer` only ever asked whether the venture had a **box**, and the
+ * failure the admin ledger warns about is the other one: *"Caldera's composer key is not set; its
+ * founder meets a dead button on day one. Fix before invite."* A venture can have a machine and
+ * still have no key, and on the one screen a founder judges the studio by, the difference between
+ * those is a control that works and a control that fails on press.
+ */
+export type VentureWiring = 'ready' | 'no-box' | 'no-key';
+
+/**
+ * What this page will hold, in the design's own words — with one change.
+ *
+ * The design writes *"your agents, live, at their desks"*. `copy-lint` refuses it, and rightly: the
+ * founder vocabulary has said "your team" since FB-103, after the studio drifted back into
+ * engineering words four separate times (FB-024, FB-063, FB-068, FB-100). "Agent" is the word that
+ * rule exists for, and day one is the worst possible screen to introduce it on — a founder meets it
+ * before they know what any of this is.
+ *
+ * The image is the design's; the word is the contract's.
+ */
+export const DAY_ONE_COMING: readonly string[] = [
+  'The office: your team, live, at their desks.',
+  'Tickets: everything you have asked for, each one followable to where it changed things.',
+  'A queue that counts only what waits on you.',
+];
+
+/**
  * The welcome a founder meets on day one.
  *
  * Deliberately one action. The ticket's own words: *nothing else competes with it.* A second button
  * on this screen is a choice, and a choice on an empty product is a way of asking someone who has
  * just arrived to guess what the thing is for.
+ *
+ * ## "Arca is ready", and not "Good morning"
+ *
+ * The design's line is *"Good morning. Arca is ready."* The half that does the work is the second
+ * one — it is what turns an empty screen from evidence of a broken product into evidence of a ready
+ * one. The first half is a claim about the reader's local time that the studio cannot check: a
+ * founder outside Edinburgh is greeted with the wrong time of day on the one screen whose entire job
+ * is to be believed. So the readiness stays and the clock goes.
+ *
+ * ## The action is offered only when it would work
+ *
+ * A dead control is forbidden by the design contract, and this is the screen most likely to ship
+ * one — the people building it never see it, because everyone works on a venture ten weeks in.
  */
-export function welcome(ventureName: string, founderFirstName: string | null, hasComposer: boolean): {
+export function welcome(ventureName: string, founderFirstName: string | null, wiring: VentureWiring): {
   greeting: string;
   body: string;
   action: { label: string; href: (ventureId: string) => string } | null;
   waiting: string | null;
-  /** What this page will hold. Shown when there is no action, so the page explains itself. */
-  coming: string[];
+  /** What this page will hold. Always — the design shows it beside the action, not instead of it. */
+  coming: readonly string[];
 } {
-  const greeting = founderFirstName ? `Welcome, ${founderFirstName}.` : `Welcome to ${ventureName}.`;
-  if (!hasComposer) {
+  const greeting = founderFirstName
+    ? `Welcome, ${founderFirstName}. ${ventureName} is ready.`
+    : `${ventureName} is ready.`;
+
+  if (wiring === 'ready') {
     return {
       greeting,
-      body: `${ventureName} is set up, but its own machine is still being built. That is where your `
-        + 'work gets done, and it is being handled — you do not need to do anything.',
-      action: null,
-      waiting: 'This page will fill up on its own once it is ready.',
-      // A page with nothing to do on it and nothing to read is indistinguishable from a broken one.
-      // If a founder cannot act, they should at least leave knowing what this page is for.
-      coming: [
-        'The work your venture is doing, and what it is waiting on.',
-        'What your team did each time it woke up.',
-        'Anything about to go outside your company, waiting for your OK.',
-      ],
+      body: `Your team is set up and waiting for its first piece of work. Start with what you `
+        + `already have: research, notes, a deck, exports from other conversations. Hand it over, `
+        + `and it becomes what ${ventureName} knows.`,
+      action: { label: 'Tell the studio what you want', href: (id) => `/venture/${id}/composer` },
+      waiting: null,
+      coming: DAY_ONE_COMING,
     };
   }
+
+  // Not ready. Say which, say who fixes it, and offer NO control — the founder cannot act on either
+  // of these, and a button that fails on press would teach them the product is broken on the first
+  // screen they ever see.
   return {
-    greeting,
-    body: 'Nothing has happened yet, which is exactly right for day one. Start by telling the studio '
-      + 'what you want — in plain English, the way you would tell a person. It will ask a question '
-      + 'or two, read the work back to you, and build nothing until you say yes.',
-    action: { label: 'Tell the studio what you want', href: (id) => `/venture/${id}/composer` },
-    waiting: null,
-    // Nothing listed: there IS one thing to do, and a list beside it would compete with it.
-    coming: [],
+    greeting: founderFirstName ? `Welcome, ${founderFirstName}.` : `Welcome to ${ventureName}.`,
+    body:
+      wiring === 'no-box'
+        ? `${ventureName} is set up, but its own machine is still being built. That is where your `
+          + 'work gets done, and Bruntsfield is handling it — there is nothing for you to do.'
+        : `${ventureName} has its own machine, but the studio cannot reach it yet. Bruntsfield is `
+          + 'finishing the connection — there is nothing for you to do, and nothing is lost.',
+    action: null,
+    waiting: 'This page fills up on its own once it is ready.',
+    coming: DAY_ONE_COMING,
   };
 }
 
