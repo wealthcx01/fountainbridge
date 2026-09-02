@@ -201,10 +201,20 @@ describe('the company, by surface', () => {
 
   it('says a surface has reported nothing rather than “0 delivered”', () => {
     // Nothing having reported and nothing having happened are different facts, and only one of them
-    // is true. There is no analytics source in the studio at all (decision-surface-outcomes.md).
+    // is true (decision-surface-outcomes.md).
+    //
+    // FB-142 changed WHICH sentence Sell says — it now reads the sends the studio has gated, so a
+    // venture that has never sent anything is told that rather than being told nothing reports. The
+    // rule this test exists for is unchanged and is the second assertion.
     const line = surface({ departmentId: 'sell', ticketCount: 2 });
-    expect(line).toContain('Nothing reported yet');
+    expect(line).toContain('Nothing has been sent yet');
     expect(line).not.toMatch(/\b0 (delivered|opened|replied)/);
+  });
+
+  it('a surface with no reporting of its own still says so', () => {
+    // The original sentence, on a surface that genuinely has no source — which is every one except
+    // Sell, and Build when it has a launch.
+    expect(surface({ departmentId: 'growth', ticketCount: 2 })).toContain('Nothing reported yet');
   });
 
   it('says Scale is not connected, and counts what waits on it', () => {

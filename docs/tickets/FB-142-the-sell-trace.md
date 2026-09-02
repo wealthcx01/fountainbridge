@@ -1,6 +1,6 @@
 # FB-142 — The Sell trace: what happened to what went out (gap G2)
 
-**Status:** Todo · **Area:** Sell / reporting · **Depends on:** FB-128
+**Status:** Shipped in part ·  **Area:** Sell / reporting · **Depends on:** FB-128
 **Design:** `docs/design/foundry-desk/` — screen 3, "Sell · the pipeline"; the trail's send hops.
 **Gap:** G2. Rides on the ratified GTM research.
 
@@ -61,13 +61,56 @@ make ticket-drift
 
 Before review, on a real send to a real interest-flagged recipient, approved through the real gate.
 
+## The provider decision, as the ticket demanded — and what follows from it
+
+**The Gmail API, from the venture's own Workspace. No email service provider.**
+
+It follows from the ratified research rather than from taste. `docs/research-gtm.md` §7 puts sends on
+a venture-owned domain inside the venture's own Google Workspace, with SPF/DKIM/DMARC aligned from
+day one and an internal-user-type OAuth app on `gmail.send` where that suffices. Adding an ESP would
+break that premise: a different sending domain, alignment redone, and the founder's own identity no
+longer the sender. The research names Postmark and AgentMail as **Cofounder's** choices, not ours.
+
+### The finding: two thirds of the design's line cannot be obtained
+
+The design asks for *"41 delivered · 29 opened · 3 replied"*.
+
+| | |
+| --- | --- |
+| **Sent** | **known.** The API returns a message id. That is the whole of what it reports. |
+| **Delivered** | **not known.** Acceptance by Gmail for delivery is not delivery. Bounces arrive as a message in the mailbox, which needs a read scope. |
+| **Opened** | needs a **tracking pixel** — against the ratified posture (interest-based, consent-first, one-click unsubscribe), and largely defeated by Apple's Mail Privacy Protection anyway. |
+| **Replied** | needs **`gmail.readonly`**, a restricted scope requiring CASA verification. A large thing to take in order to render a number. |
+
+`docs/decision-surface-outcomes.md` said Sell's numbers *"arrive free with FB-142 because the provider
+reports them."* That was written before this question was settled. **Corrected there.**
+
+So Sell reports what the studio genuinely holds — *the thing you approved on Tuesday went out* — which
+is the feedback the gate actually needs, and it is true.
+
 ## Acceptance criteria
 
-- [ ] A send approved through the existing gate produces a stored report: delivered, opened, replied.
-- [ ] The desk's Sell panel shows the last send's numbers, or says plainly there has been no send.
-- [ ] A metric the provider does not report is absent, never rendered as zero.
-- [ ] "Open your outbox ↗" resolves to the venture's Workspace outbox.
-- [ ] A send appears as hops on its ticket's trail.
-- [ ] The approvals tests pass unchanged — the gate is untouched.
-- [ ] Interest-based only, per the ratified research; a test asserts the recipient classification and
-      lawful basis are recorded with every send.
+- [x] The desk's Sell panel shows the last send, or says plainly there has been no send. It reads
+      the sends the studio **already gated**: no new pipeline, no new read.
+- [x] A metric the provider does not report is absent, never rendered as zero — and the sentence
+      names which part is unknown rather than leaving a gap the reader fills in.
+- [x] A send that **failed** leads the line rather than being skipped over. A "last send" that
+      quietly showed the last *successful* one would hide the single most important event on this
+      surface (CLAUDE.md #10). So does one that went out on an approval the studio cannot verify.
+- [x] "Open your outbox ↗" resolves to the venture's own Workspace sent view, and is absent rather
+      than pointing at somebody's personal inbox.
+- [x] The approvals tests pass unchanged — the gate is untouched. Nothing here sends anything; it
+      reads records that already exist.
+- [ ] A send produces a stored report of delivered/opened/replied. **Not buildable** as specified —
+      see the finding above. What is storable is stored.
+- [ ] A send appears as hops on its ticket's trail. Not built: the trail joins ActiveGraph events,
+      runs and pull requests, and a send hop needs the executor to emit an event shaped for it. That
+      is box-side, and box-side work in this repo has no delivery path (FB-163 names the same gap).
+- [ ] Interest-based only, with the recipient classification and lawful basis recorded with every
+      send. **This is a legal requirement, not a nicety** (§3, §4), and it belongs where the send is
+      *performed* — the executor — not where it is reported. Nothing here weakens it and nothing here
+      can satisfy it.
+- [ ] Proven on a real send to a real interest-flagged recipient. **Not done, deliberately.** Sending
+      is the one thing this studio never does without a recorded human approval (CLAUDE.md #4), and an
+      agent approving its own test send to satisfy an acceptance criterion is exactly what that gate
+      exists to prevent.

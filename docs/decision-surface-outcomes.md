@@ -53,7 +53,23 @@ ship before this is settled — and it is the same discipline as `unknown` versu
 
 **Option 1 now, with the rule above ratified; revisit when a venture has users to measure.**
 
-Sell's numbers arrive free with FB-142 because the provider reports them. Scale's arrive free with the
+~~Sell's numbers arrive free with FB-142 because the provider reports them.~~
+
+**Corrected 2026-09-02, by FB-142.** They do not, and there is no provider. `docs/research-gtm.md`
+§7 — ratified — sends from **the venture's own Google Workspace** through an internal-user-type
+OAuth app on `gmail.send`. There is no third-party email service in the architecture, and adding one
+would break its premise: a different sending domain, SPF/DKIM/DMARC alignment redone, and the
+founder's own identity no longer the sender.
+
+`gmail.send` reports one thing: that a message was accepted. **Delivered** is not that — acceptance
+for delivery is not delivery. **Opened** needs a tracking pixel, which the ratified posture argues
+against and which Apple's Mail Privacy Protection has largely defeated anyway. **Replied** needs
+`gmail.readonly`, a restricted scope requiring CASA verification, which is a large thing to take in
+order to render a number.
+
+So Sell says what the studio genuinely holds — that a send was approved, that it went, when, and
+what it was — and says plainly that what happened next is not reported. Which is this document's own
+rule, applied to the surface that prompted it. Scale's arrive free with the
 connector, once G3 is decided. Build's are the only ones needing new machinery, and measuring usage of
 a product nobody uses yet would be the most elaborate way to render a zero this programme could find.
 
