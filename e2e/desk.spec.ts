@@ -230,3 +230,44 @@ test.describe('the office (FB-139)', () => {
     await expect(page.getByTestId('office-ledger')).toBeVisible();
   });
 });
+
+/**
+ * FB-167 — one machine, one answer.
+ *
+ * The rail carried a placeholder reading *"Not live yet. Your team's desks appear here once this
+ * venture's machine reports what they are doing"* three lines above its own engine line saying
+ * *"Your team checked in 2 minutes ago"*. Two statements about the same machine, one screen apart,
+ * contradicting each other on every venture page in production for weeks.
+ *
+ * Asserted at the level of the **page**, not either component, because neither component was wrong
+ * on its own — that is exactly why it survived. The desk's office and the rail's engine were each
+ * internally consistent and each told a different story about the same box.
+ */
+test.describe('the venture is alive, or it is not (FB-167)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+  });
+
+  for (const route of ['/venture/arca', '/venture/arca/tickets', '/venture/arca/knowledge']) {
+    test(`${route} does not both claim and deny that the machine reports`, async ({ page }) => {
+      await page.goto(route);
+      await expect(page.getByTestId('rail')).toBeVisible();
+      const text = await page.locator('body').innerText();
+
+      const deniesItReports = /not live yet/i.test(text);
+      const saysItReported = /checked in|is working|woke/i.test(text);
+      expect(
+        deniesItReports && saysItReported,
+        `${route} says the machine is not live AND that it reported. One of them is wrong.`,
+      ).toBe(false);
+    });
+  }
+
+  test('the rail states the engine once, and nothing else in it answers the same question', async ({ page }) => {
+    await page.goto('/venture/arca');
+    const rail = page.getByTestId('rail');
+    await expect(rail.getByTestId('rail-engine')).toHaveCount(1);
+    // The placeholder that used to sit above it is gone, not merely reworded.
+    await expect(rail).not.toContainText('Not live yet');
+  });
+});
