@@ -139,6 +139,41 @@ export interface RunReportSource {
   read(repo: string, name: string): Promise<unknown | null>;
 }
 
+/**
+ * The instant a report was written, read out of its filename (FB-164).
+ *
+ * The lane names every report `<slug>-YYYYMMDDTHHMMSSZ.json` — fixed-width, zero-padded, UTC, which
+ * is why the loader can sort names lexicographically and get chronological order. The same property
+ * means the newest wake's TIME is already in the listing, and asking whether a machine is alive does
+ * not need a single file opened.
+ *
+ * That was costing real seconds. `loadRunReports` opens `limit × READ_MARGIN` files per repository —
+ * sixty each, a hundred and eighty for a venture with three — and the rail wanted one number out of
+ * all of it. Every screen under a venture paid, including a static handbook page whose own content
+ * is on screen in 279ms.
+ *
+ * Null for a name carrying no stamp. The heartbeat beacon is overwritten in place and has none, so
+ * it is read as a file — one read per repository rather than sixty.
+ */
+export function writtenAtFromName(name: string): string | null {
+  const m = name.match(/-(\d{8})T(\d{6})Z\.json$/);
+  if (!m) return null;
+  const [, d, t] = m;
+  const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T`
+    + `${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}Z`;
+  return Number.isFinite(Date.parse(iso)) ? iso : null;
+}
+
+/** The newest instant a listing can account for, without opening anything. */
+export function newestWrittenAt(names: readonly string[]): string | null {
+  let best: string | null = null;
+  for (const name of names) {
+    const at = writtenAtFromName(name);
+    if (at && (best === null || at > best)) best = at;
+  }
+  return best;
+}
+
 /** The liveness beacon's filename, fixed by the lane (`foundry-lib.sh`). */
 const HEARTBEAT_FILE = '_heartbeat.json';
 
@@ -270,7 +305,21 @@ export function engineState(
     .filter((t): t is string => !!t)
     .sort()
     .pop() ?? null;
+  return engineStateAt(latest, now, stalledAfterMinutes);
+}
 
+/**
+ * The same verdict, from the one instant it actually needs (FB-164).
+ *
+ * `engineState` takes records because the desk holds them anyway. The rail does not — and reading
+ * sixty files per repository to derive a single timestamp is what made every screen under a venture
+ * wait six seconds, including a static handbook page whose own content is on screen in 279ms.
+ */
+export function engineStateAt(
+  latest: string | null,
+  now: Date,
+  stalledAfterMinutes = 30,
+): { state: EngineState; lastSeen: string | null; text: string; ageMinutes: number | null } {
   if (!latest) {
     return {
       state: 'unknown',
@@ -365,4 +414,51 @@ export function describeRun(report: RunReport): string {
     default:
       return report.summaryMd ? inFounderWords(report.summaryMd) : `Worked${on}.`;
   }
+}
+
+/**
+ * When this venture's machine last checked in — without opening sixty files (FB-164).
+ *
+ * The listing already carries it: every report is named `<slug>-YYYYMMDDTHHMMSSZ.json`. The only
+ * thing that has to be opened is the heartbeat beacon, which is overwritten in place and therefore
+ * has no stamp in its name — one read per repository instead of sixty.
+ *
+ * This is what the rail wants. The desk still loads the reports themselves, because it renders them.
+ */
+export async function loadLiveness(
+  venture: VentureSummary,
+  source: RunReportSource,
+): Promise<{ at: string | null; degraded: boolean }> {
+  let degraded = false;
+  let at: string | null = null;
+
+  await Promise.all(
+    approvalRepos(venture).map(async (repo) => {
+      let names: string[];
+      try {
+        names = await source.list(repo);
+      } catch {
+        // A repository the studio could not list is not a machine that has stopped. The caller says
+        // so rather than reporting a stall it has no evidence for (CLAUDE.md #10).
+        degraded = true;
+        return;
+      }
+
+      const fromNames = newestWrittenAt(names);
+      if (fromNames && (at === null || fromNames > at)) at = fromNames;
+
+      // The beacon, by name. On a quiet venture it is the ONLY evidence of life, and it is older
+      // than nothing else — so it is read rather than inferred.
+      if (!names.includes(HEARTBEAT_FILE)) return;
+      try {
+        const beat = fromLaneRecord(await source.read(repo, HEARTBEAT_FILE), repo);
+        const beatAt = beat?.endedAt ?? beat?.startedAt ?? null;
+        if (beatAt && (at === null || beatAt > at)) at = beatAt;
+      } catch {
+        degraded = true;
+      }
+    }),
+  );
+
+  return { at, degraded };
 }

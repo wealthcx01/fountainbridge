@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { fromLaneRecord, loadRunReports, engineState, describeRun, type RunReport, type RunReportSource } from '../runreports';
+import {
+  fromLaneRecord, loadRunReports, loadLiveness, engineState, engineStateAt, describeRun,
+  writtenAtFromName, newestWrittenAt, type RunReport, type RunReportSource,
+} from '../runreports';
 
 const venture = {
   id: 'arca',
@@ -353,5 +356,79 @@ describe('what liveness reads (FB-139)', () => {
     expect(runs.checkIns.length, 'liveness sees only what the screen shows').toBeGreaterThan(5);
     // The newest wake of all twenty-five, which is the one liveness turns on.
     expect(runs.checkIns[0].startedAt).toBe('2026-09-01T10:24:00Z');
+  });
+});
+
+describe('liveness without opening sixty files (FB-164)', () => {
+  it('reads the instant out of the filename', () => {
+    expect(writtenAtFromName('ARCA-061-saved-card-lists-20260901T214512Z.json'))
+      .toBe('2026-09-01T21:45:12Z');
+  });
+
+  it('has nothing to say about a name that carries no stamp', () => {
+    // The beacon is overwritten in place, so it has none — which is why it is still read as a file.
+    expect(writtenAtFromName('_heartbeat.json')).toBeNull();
+    expect(writtenAtFromName('notes.md')).toBeNull();
+    expect(writtenAtFromName('ARCA-1-20261301T000000Z.json'), 'a 13th month').toBeNull();
+  });
+
+  it('finds the newest of a listing whatever order it arrived in', () => {
+    const names = [
+      'ARCA-1-20260901T090000Z.json',
+      '_heartbeat.json',
+      'ARCA-2-20260902T110000Z.json',
+      'ARCA-3-20260801T090000Z.json',
+    ];
+    expect(newestWrittenAt(names)).toBe('2026-09-02T11:00:00Z');
+    expect(newestWrittenAt([...names].reverse())).toBe('2026-09-02T11:00:00Z');
+  });
+
+  it('is null for a listing with nothing stamped in it', () => {
+    expect(newestWrittenAt([])).toBeNull();
+    expect(newestWrittenAt(['_heartbeat.json'])).toBeNull();
+  });
+
+  it('agrees with what the loader would have said', async () => {
+    // The point of the shortcut is that it is not a different answer. A report written at 21:45 and
+    // a listing naming it must produce the same verdict.
+    const at = newestWrittenAt(['ARCA-61-20260901T214512Z.json'])!;
+    const now = new Date('2026-09-01T21:46:00Z');
+    expect(engineStateAt(at, now).state).toBe('running');
+    expect(engineStateAt(newestWrittenAt(['ARCA-61-20260901T180000Z.json']), now).state).toBe('stalled');
+    expect(engineStateAt(null, now).state).toBe('unknown');
+  });
+
+  it('opens one file per repository, not sixty', async () => {
+    // The whole point. Sixty per repository is a hundred and eighty for a venture with three, and
+    // the rail wanted one number out of all of it.
+    const names = Array.from({ length: 40 }, (_, i) => `ARCA-${i}-2026090${(i % 9) + 1}T090000Z.json`);
+    let opened = 0;
+    const source: RunReportSource = {
+      async list() { return [...names, '_heartbeat.json']; },
+      async read(_repo, name) {
+        opened += 1;
+        return name === '_heartbeat.json'
+          ? { ticket: 'heartbeat', lane: 'build', status: 'idle', summary: 'awake', started: '2026-09-09T10:00:00Z', finished: '2026-09-09T10:00:01Z' }
+          : null;
+      },
+    };
+    const live = await loadLiveness(venture, source);
+    // `approvalRepos` on this fixture venture resolves two: the venture's own and its Sell surface.
+    expect(opened, 'the beacon should be the only file opened, per repo').toBe(2);
+    // And it takes the beacon when the beacon is newer than anything in the listing.
+    expect(live.at).toBe('2026-09-09T10:00:01Z');
+    expect(live.degraded).toBe(false);
+  });
+
+  it('says it could not look, rather than reporting a stall', async () => {
+    // A repository the studio could not list is not a machine that has stopped, and "stalled" is a
+    // finding about the venture (CLAUDE.md #10).
+    const source: RunReportSource = {
+      async list() { throw new Error('rate limited'); },
+      async read() { return null; },
+    };
+    const live = await loadLiveness(venture, source);
+    expect(live.at).toBeNull();
+    expect(live.degraded).toBe(true);
   });
 });

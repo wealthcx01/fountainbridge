@@ -36,7 +36,7 @@ import { cache } from 'react';
 import { loadVentures, type VentureSummary } from './ventures';
 import { GitHubClient } from './github';
 import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from './approvals';
-import { loadRunReports, type RunReport } from './runreports';
+import { loadRunReports, loadLiveness, type RunReport } from './runreports';
 import { githubRunReportSource, fixtureRunReportSource } from './runreports-load';
 
 /**
@@ -88,3 +88,18 @@ export const ventureRuns = (venture: VentureSummary): Promise<Runs> => runsById(
 /** The external actions waiting on this founder, once per request. */
 export const ventureApprovals = (venture: VentureSummary): Promise<ActiveGraphApproval[]> =>
   approvalsById(venture.id);
+
+const livenessById = cache(async (ventureId: string): Promise<{ at: string | null; degraded: boolean }> => {
+  const venture = ventureFor(ventureId);
+  return venture ? loadLiveness(venture, runReportSource()) : { at: null, degraded: false };
+});
+
+/**
+ * When this venture's machine last checked in, once per request (FB-164).
+ *
+ * The rail's whole interest in run reports is this one instant, and `ventureRuns` was opening sixty
+ * files per repository to derive it. Separate accessor, separate cost: the desk still calls
+ * `ventureRuns` because it renders the reports, and the rail no longer pays for a list it does not
+ * show.
+ */
+export const ventureLiveness = (venture: VentureSummary) => livenessById(venture.id);
