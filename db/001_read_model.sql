@@ -73,14 +73,32 @@ create policy run_reports_scoped on run_reports
 
 -- ## The studio connects as THIS role, and never as the owner
 --
--- `force row level security` binds the table owner. It does **not** bind a superuser, or any role
--- with BYPASSRLS — those ignore every policy above silently, with no error and no log line. So the
--- policies are only worth anything if the application's connection is neither.
+-- `force row level security` removes the **table owner's** exemption, and only that one. Two other
+-- exemptions exist, are checked earlier, and are unconditional: being a **superuser**, and carrying
+-- the **BYPASSRLS** attribute. A connection with either reads straight through every policy above,
+-- silently, with no error and no log line.
 --
--- This was not a theoretical precaution: the first run of the isolation test passed every query
--- across every venture, because PGlite connects as `postgres` and a superuser reads straight through
--- RLS. In production the equivalent mistake is using Supabase's default `postgres` user, which is
--- exactly the connection string its dashboard hands you first.
+-- Both are live here, and they are not the same thing:
+--
+--   * **In these tests**, PGlite connects as a genuine superuser. The first run of the isolation
+--     suite passed every cross-venture query for that reason, which is how this was found.
+--   * **On Supabase**, the default `postgres` user is deliberately NOT a superuser — but it does
+--     carry `BYPASSRLS`, which Supabase's own row-level-security documentation states outright. So
+--     FORCE buys nothing against it either, and `BYPASSRLS` cannot be stripped from `postgres`
+--     because it is a reserved role. The connection string the dashboard offers first is precisely
+--     the one RLS does not bind.
+--
+-- The answer is therefore not to constrain `postgres`; it is to connect as something else. A role
+-- that is not a superuser, does not hold BYPASSRLS, and does not own these tables is subject to
+-- plain RLS. FORCE stays as belt-and-braces for the day something connects as the owner by accident.
+--
+-- Verify the attributes actually landed, in every environment, before trusting any of this:
+--
+--   select rolname, rolsuper, rolbypassrls from pg_roles
+--    where rolname in ('postgres', 'service_role', 'foundry_studio');
+--
+-- `foundry_studio` must show f / f. `postgres` will show rolbypassrls = t — that row is the entire
+-- reason this section exists.
 --
 -- `nologin` because the credential is granted separately per environment; the role is the grant
 -- surface, not an account.
@@ -95,3 +113,20 @@ grant usage on schema public to foundry_studio;
 -- process has no business writing to a cache it can rebuild, and a studio that cannot write cannot
 -- corrupt the thing every screen reads.
 grant select on ventures, run_reports to foundry_studio;
+-- Tables added later must be granted too, or the studio silently loses a screen rather than failing
+-- loudly. Default privileges cover what the ingest's role creates from here on.
+alter default privileges in schema public grant select on tables to foundry_studio;
+
+-- ## Connecting as it, on Railway
+--
+-- Two things that are easy to get wrong and produce very different failures:
+--
+--   * **Use Supabase's SESSION pooler, port 5432** — not the direct connection and not the
+--     transaction pooler. The direct host is IPv6-only and Railway has no outbound IPv6, so a direct
+--     string fails at runtime with ENETUNREACH; the transaction pooler is for serverless and breaks
+--     prepared statements. The session pooler is IPv4 with direct-connection semantics.
+--   * **Through the pooler the username carries the project ref after a dot** — `foundry_studio.<ref>`,
+--     not `foundry_studio`. Supavisor reads the tenant from the part after the last dot. A plain
+--     username authenticates against the wrong tenant rather than failing clearly.
+--
+--   postgresql://foundry_studio.<ref>:<password>@aws-<n>-eu-west-2.pooler.supabase.com:5432/postgres
