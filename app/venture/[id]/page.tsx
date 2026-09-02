@@ -423,7 +423,12 @@ async function Desk({
 
   return (
     <VentureBoard
-      venture={{ id: venture.id, name: venture.name, status: venture.status, founderName: venture.founderName, hasComposer, chatUrl }}
+      venture={{
+        id: venture.id, name: venture.name, status: venture.status,
+        founderName: venture.founderName, hasComposer, chatUrl,
+        // FB-142: the venture's own Workspace, for the Sell surface's outbox reference.
+        founderEmail: venture.founderEmail,
+      }}
       wiringWarning={wiringWarning}
       lanes={lanes}
       departments={venture.departments}

@@ -120,9 +120,25 @@ test.describe('the desk', () => {
     await expect(scale).toContainText(/(\d+ tickets? waiting on it|No tickets yet)/);
   });
 
-  test('Sell reports nothing rather than reporting zeroes', async ({ page }) => {
+  test('Sell says what went out, and never a number it does not have', async ({ page }) => {
+    // FB-142: Sell is no longer silent — the studio holds every send it gated, so it can say what
+    // went and when. What it cannot say is what happened NEXT: the ratified architecture sends from
+    // the venture's own Workspace through `gmail.send`, which reports neither opens nor replies
+    // without a read scope or a tracking pixel. So it says that, rather than printing a zero.
     const sell = page.getByTestId('dept-sell-outcome');
-    await expect(sell).toContainText('Nothing reported yet');
+    await expect(sell).toContainText(/Last send|Nothing has been sent yet/);
+    await expect(sell, 'a delivered/opened/replied count appeared from nowhere')
+      .not.toContainText(/\d+ (delivered|opened|replied)/);
+  });
+
+  test('the outbox is a reference, and only to the venture’s own', async ({ page }) => {
+    // The design's "Open your outbox ↗". The studio does not read the mailbox, so this is the one
+    // place a founder can see the message itself.
+    const outbox = page.getByTestId('sell-outbox');
+    if (await outbox.count()) {
+      await expect(outbox).toHaveAttribute('href', /^https:\/\/mail\.google\.com\/mail\/u\/[^/]+\/#sent$/);
+      await expect(outbox).toHaveAttribute('rel', /noopener/);
+    }
   });
 
   test('it fits a phone', async ({ page }) => {

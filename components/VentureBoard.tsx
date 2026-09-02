@@ -21,6 +21,7 @@ import { FounderBrief } from './FounderBrief';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
 import type { Office } from '@/lib/office';
+import { lastSend, outboxUrl } from '@/lib/sends';
 import { WaitingQueue } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
@@ -136,6 +137,8 @@ export function VentureBoard({
     id: string; name: string; status: string; founderName: string | null; hasComposer: boolean;
     /** The box's own chat, on its own screen (FB-086). Null until the venture has a box. */
     chatUrl: string | null;
+    /** The venture's own Workspace address — the outbox the Sell surface links to (FB-142). */
+    founderEmail?: string | null;
   };
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
@@ -197,6 +200,8 @@ export function VentureBoard({
   wiringWarning?: string | null;
 }) {
   const pendingApprovals = approvals.filter((a) => a.status === 'proposed');
+  // FB-142: the venture's own Workspace sent view, for the Sell surface's reference link.
+  const outbox = outboxUrl(venture.founderEmail ?? null);
   // Nothing that reached the executor may leave the founder's view without a visible outcome. The
   // previous version rendered ONLY `proposed`, so a `failed` send — the state added precisely to make
   // an errored real action loud — silently vanished from the queue, as did an unverifiable one
@@ -503,8 +508,21 @@ export function VentureBoard({
                     ticketCount: lanes.find((l) => l.repo === d.repo)?.total ?? 0,
                     hasLaunch: Boolean(d.launch),
                     provisioned: d.provisioned,
+                    // FB-142: from the sends this venture has already gated. No new read.
+                    lastSend: d.id === 'sell' ? lastSend(approvals) : null,
                   })}
                 </p>
+                {/* The design's "Open your outbox ↗". The studio does not read the mailbox — see
+                    lib/sends.ts on why that scope is not taken — so this is the one place a founder
+                    can see the message itself. Absent without a workspace address, rather than a
+                    link that lands on somebody's personal inbox. */}
+                {d.id === 'sell' && outbox ? (
+                  <p style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.2rem 0 0' }}>
+                    <a href={outbox} target="_blank" rel="noopener noreferrer" data-testid="sell-outbox">
+                      Open your outbox ↗
+                    </a>
+                  </p>
+                ) : null}
                 {/* One string owner: `describe` returns a whole sentence, so the view adds no
                     prefix of its own — "Budget no budget set" came from gluing a word onto a
                     fragment. The sentence names whose figure it is, so no glyph or sr-only twin is

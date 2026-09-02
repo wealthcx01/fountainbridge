@@ -20,6 +20,7 @@
  */
 
 import { formatMoney, periodLabel, type Period } from './budgets';
+import { sellOutcome, type Send } from './sends';
 
 /** Finished work waiting to be read, plus external actions proposed and waiting on a human. */
 export interface WaitingInput {
@@ -223,6 +224,13 @@ export interface SurfaceOutcomeInput {
   hasLaunch: boolean;
   /** The surface is set up at all. */
   provisioned: boolean;
+  /**
+   * Sell only: the most recent send the studio gated, if any (FB-142).
+   *
+   * Optional because every other surface has none, and absent is a real answer — a venture that has
+   * never sent anything says so rather than reading as a surface that reports nothing.
+   */
+  lastSend?: Send | null;
 }
 
 /**
@@ -245,6 +253,11 @@ export function surfaceOutcome(input: SurfaceOutcomeInput): string {
   if (input.hasLaunch) return `${tickets} · preview of the app running from the venture machine.`;
   if (!input.provisioned) return `Not set up yet. ${tickets} waiting on it.`;
   if (input.departmentId === 'scale') return `Not connected · platform tbd. ${tickets} waiting on it.`;
+
+  // FB-142: Sell is no longer silent. The studio holds every send it gated, so it can say what went
+  // and when — and it says plainly that what happened NEXT is not reported, rather than printing a
+  // zero for it. `lib/sends.ts` explains why two thirds of the design's line cannot be obtained.
+  if (input.departmentId === 'sell') return sellOutcome(input.lastSend ?? null, input.ticketCount);
 
   // Nothing has reported, which is a different fact from nothing having happened — and only one of
   // them is true. There is no analytics source anywhere in the studio yet.
