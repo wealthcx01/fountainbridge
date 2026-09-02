@@ -141,4 +141,15 @@ alter default privileges in schema public grant select on tables to foundry_stud
 --     not `foundry_studio`. Supavisor reads the tenant from the part after the last dot. A plain
 --     username authenticates against the wrong tenant rather than failing clearly.
 --
---   postgresql://foundry_studio.<ref>:<password>@aws-<n>-eu-west-2.pooler.supabase.com:5432/postgres
+-- For THIS project, found on 2026-09-02 by trying each region's shared pooler until one accepted the
+-- tenant. The dashboard shows only the direct string and the pooler host is not derivable from it,
+-- so it is written down here rather than looked up again:
+--
+--   host      aws-1-eu-west-1.pooler.supabase.com     (eu-west-1, Ireland — not London)
+--   port      5432
+--   user      foundry_studio.pzxdjfelojqvygcpnbvf
+--   database  postgres
+--
+-- Verified through that host, not assumed: the role connects, RLS still binds it (scoped to arca it
+-- sees only arca's rows; naming another venture by hand returns nothing), and writes are refused.
+-- Pooling weakens none of it — which was the thing worth checking.
