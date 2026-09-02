@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { welcome, firstName } from '@/lib/firstrun';
+import { welcome, firstName, type VentureWiring } from '@/lib/firstrun';
 import { toneColor } from '@/lib/status';
 
 /**
@@ -16,19 +16,25 @@ export function FirstRun({
   ventureId,
   ventureName,
   founderName,
-  hasComposer,
+  wiring,
 }: {
   ventureId: string;
   ventureName: string;
   founderName: string | null;
-  hasComposer: boolean;
+  /**
+   * Whether this venture can actually be told something (FB-143).
+   *
+   * Not a boolean. A venture with a machine and no key gets an action that fails on press — the
+   * admin ledger's own warning, on the one screen a founder judges the studio by.
+   */
+  wiring: VentureWiring;
 }) {
-  const w = welcome(ventureName, firstName(founderName), hasComposer);
+  const w = welcome(ventureName, firstName(founderName), wiring);
 
   return (
     <section data-testid="first-run">
       <p className="eyebrow">
-        <span className="eyebrow-id">{ventureId}</span> — Venture
+        <span className="eyebrow-id">{ventureId}</span> — Venture · Day one
       </p>
       <h1 style={{ margin: '0 0 0.75rem' }}>{w.greeting}</h1>
       <p style={{ fontSize: 'var(--fs-body)', maxWidth: 'var(--content-narrow)', marginTop: 0 }}>

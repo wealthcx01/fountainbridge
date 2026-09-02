@@ -10,7 +10,7 @@ import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { attachBudgetDisclosure, toSpends, type ActiveGraphApproval } from '@/lib/approvals';
 import { historyFor } from '@/lib/activegraph-log';
-import { boardState } from '@/lib/firstrun';
+import { boardState, type VentureWiring } from '@/lib/firstrun';
 import { FirstRun, BoardUnreadable } from '@/components/FirstRun';
 import { narrate, narrateFault } from '@/lib/activegraph';
 import type { ApprovalHistory } from '@/components/ApprovalCard';
@@ -399,13 +399,21 @@ async function Desk({
     ? readiness([venture], process.env).ventures[0].problem
     : null;
 
+  // FB-143: whether day one can offer its one action at all.
+  //
+  // `hasComposer` only ever asked whether the venture had a BOX. The failure the admin ledger warns
+  // about is the other one — a machine with no key — and on day one that is a button that fails on
+  // press, on the only screen a founder meets before they have any reason to trust the studio.
+  const wired = readiness([venture], process.env).ventures[0];
+  const wiring: VentureWiring = !wired?.host ? 'no-box' : wired.keySet ? 'ready' : 'no-key';
+
   if (state.kind === 'first-run') {
     return (
       <FirstRun
         ventureId={venture.id}
         ventureName={venture.name}
         founderName={venture.founderName}
-        hasComposer={hasComposer}
+        wiring={wiring}
       />
     );
   }

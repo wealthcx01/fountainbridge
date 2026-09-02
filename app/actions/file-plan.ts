@@ -27,6 +27,8 @@
  */
 
 import { GitHubClient, GitHubError } from '@/lib/github';
+import { clearTicketCache } from '@/lib/tickets';
+import { clearAttentionCache } from '@/lib/attention';
 import { fullRepoName } from '@/lib/venture-repos';
 import { requireVentureRepo } from '@/lib/venture-access';
 import {
@@ -255,6 +257,7 @@ export async function filePlan(
       `/repos/${full}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
     );
     if (Array.isArray(open) && open.length) {
+      movedOn(ventureId);
       return { ok: true, message: `Updated all ${filed.length} tickets. They are still one piece of work.`, url: open[0].html_url, filed };
     }
 
@@ -267,6 +270,7 @@ export async function filePlan(
         body: prBody,
       }),
     });
+    movedOn(ventureId);
     return { ok: true, message: `Filed ${filed.length} tickets as one set.`, url: pr.html_url, filed };
   } catch (e) {
     // Surfaced, never swallowed (CLAUDE.md #10). A founder whose plan half-filed must not be told it
@@ -299,4 +303,24 @@ function dependencyIdsFor(plan: PlanDraft, slug: string, idBySlug: Map<string, s
     .filter((d) => kept.has(d))
     .map((d) => idBySlug.get(d))
     .filter((id): id is string => Boolean(id));
+}
+
+/**
+ * The founder has just filed their first work — stop showing them day one (FB-143).
+ *
+ * `loadVentureTickets` and `loadVentureAttention` cache per venture for two minutes. Without this a
+ * founder files their first piece of work, goes back to their desk, and is greeted by *"your team is
+ * set up and waiting for its first piece of work"* — for up to two minutes, with no way past it but
+ * a URL parameter they have never seen.
+ *
+ * That is the worst two minutes in the product to be told nothing has happened. `clearTicketCache`
+ * has been exported since FB-006 and called by nothing.
+ *
+ * Both caches: the tickets decide `boardState`, and the attention queue is where a filed set becomes
+ * visible as work in progress (FB-120).
+ */
+function movedOn(ventureId: string): void {
+  void ventureId; // the caches are per-venture keyed internally; clearing is all-or-nothing today
+  clearTicketCache();
+  clearAttentionCache();
 }
