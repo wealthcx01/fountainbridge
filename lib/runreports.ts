@@ -218,35 +218,73 @@ export async function loadRunReports(
   source: RunReportSource,
   limit = 20,
 ): Promise<{ reports: RunReport[]; heartbeats: RunReport[]; checkIns: RunReport[]; total: number }> {
-  const all: RunReport[] = [];
+  const repos = approvalRepos(venture);
+
+  // Every surface listed at once. This used to be a sequential `for…of await`, so a venture with
+  // three departments paid three round trips before it opened a single report — and each of those
+  // waves then opened `limit × READ_MARGIN` files. `loadLiveness` below already fanned out in
+  // parallel over the same repositories; the two disagreed about how to walk one venture.
+  //
+  // Error behaviour is deliberately unchanged: a throwing `list` still rejects the whole load, and
+  // the caller renders "could not be read" rather than "no runs" (FB-094, FB-137). Turning a failed
+  // surface into an empty one here would be the exact confusion those tickets exist to prevent.
+  const listings = await Promise.all(
+    repos.map(async (repo) => ({ repo, names: await source.list(repo) })),
+  );
+
   let total = 0;
-  for (const repo of approvalRepos(venture)) {
-    const names = await source.list(repo);
-
-    // The beacon is always read, by name. It is the only positive evidence a lane is alive
-    // (`engineState`), and on a quiet venture it is older than nothing else — so choosing it by
-    // recency would drop exactly the venture that most needs to be told its engine is stalled.
-    const heartbeatNames = names.filter((n) => n === HEARTBEAT_FILE);
-    const reportNames = names.filter((n) => n !== HEARTBEAT_FILE);
-    total += reportNames.length;
-
-    // Lexicographic on `...-YYYYMMDDTHHMMSSZ.json` is chronological — the timestamp is fixed-width,
-    // zero-padded and UTC, which is the whole reason the lane writes it that way.
-    const newest = reportNames.sort().reverse().slice(0, limit * READ_MARGIN);
-
-    const read = await Promise.all(
-      [...heartbeatNames, ...newest].map(async (name) => {
-        try {
-          return fromLaneRecord(await source.read(repo, name), repo);
-        } catch {
-          // One unreadable report must not lose the other nineteen. Sequential reads used to fail
-          // the whole load; parallel ones must not turn that into a worse failure.
-          return null;
-        }
-      }),
-    );
-    for (const parsed of read) if (parsed) all.push(parsed);
+  const beacons: Array<{ repo: string; name: string }> = [];
+  const dated: Array<{ repo: string; name: string; at: string }> = [];
+  for (const { repo, names } of listings) {
+    for (const name of names) {
+      // The beacon is always read, by name. It is the only positive evidence a lane is alive
+      // (`engineState`), and on a quiet venture it is older than nothing else — so choosing it by
+      // recency would drop exactly the venture that most needs to be told its engine is stalled.
+      if (name === HEARTBEAT_FILE) { beacons.push({ repo, name }); continue; }
+      total += 1;
+      // `writtenAtFromName` returns null for a name carrying no stamp; '' sorts last, which is
+      // where an undateable report belongs.
+      dated.push({ repo, name, at: writtenAtFromName(name) ?? '' });
+    }
   }
+
+  // **Ordered by the timestamp, not by the filename.**
+  //
+  // This was `reportNames.sort().reverse()`, with a comment asserting that lexicographic order on
+  // `…-YYYYMMDDTHHMMSSZ.json` is chronological. It is — but only among names sharing a prefix, and
+  // the prefix is the ticket slug. Sorting the raw names sorts by SLUG first and by time only
+  // within one slug, so the "newest 60" was really the sixty alphabetically-last slugs.
+  //
+  // Measured on ARCA, 2026-09-02, 1,773 reports on the ref: the newest was
+  // `ARCA-061-saved-card-lists-not-persisting-20260902T164512Z` (minutes old) and the old sort's
+  // first pick was `sign-in-tagline-fix-20260731T190348Z` — five weeks stale, chosen because
+  // "sign-in…" sorts last. The desk's account of what the team did had not advanced since 31 July,
+  // and nothing said so. Same shape as FB-161: a correct-looking answer about a different world.
+  // Undateable names (no stamp at all) tie-break on the name DESCENDING, which is what this
+  // function did for everything before — so a report the lane did not name in its usual shape is
+  // no worse off than it was.
+  dated.sort((a, b) => b.at.localeCompare(a.at) || b.name.localeCompare(a.name) || a.repo.localeCompare(b.repo));
+
+  // The budget is now `limit × READ_MARGIN` for the VENTURE rather than for each repository — sixty
+  // files instead of a hundred and eighty — and it is the correct sixty, because the ordering above
+  // is global. The margin's argument (see READ_MARGIN) holds unchanged across surfaces: for the true
+  // newest-20-by-start to fall outside the newest-60-by-write, forty reports would have to be
+  // written between one run starting and finishing.
+  const newest = dated.slice(0, limit * READ_MARGIN);
+
+  const all: RunReport[] = [];
+  const read = await Promise.all(
+    [...beacons, ...newest].map(async ({ repo, name }) => {
+      try {
+        return fromLaneRecord(await source.read(repo, name), repo);
+      } catch {
+        // One unreadable report must not lose the other nineteen.
+        return null;
+      }
+    }),
+  );
+  for (const parsed of read) if (parsed) all.push(parsed);
+
   // Newest first by start time. Ties broken by lane so the order is stable between renders.
   const byRecency = (a: RunReport, b: RunReport) =>
     b.startedAt.localeCompare(a.startedAt) || a.laneId.localeCompare(b.laneId);
