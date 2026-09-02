@@ -16,12 +16,13 @@
 // file both this and gbrain-refresh.sh take through flock, so reads and the refresh serialise.
 //
 // Usage: brain-query.mjs (--question "…" | --ticket <file>) [--department build] [--limit 12]
+//        [--used-file <path>]  write the slugs that went into the digest, one per line (FB-156)
 // Exit codes: 0 = digest printed · 3 = brain reachable but nothing relevant · 1 = brain unavailable.
 
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { formatDigest, parseHits, partitionForDepartment, researchQuestion } from './brain-lib.mjs';
+import { digestWithPages, parseHits, partitionForDepartment, researchQuestion } from './brain-lib.mjs';
 
 const GBRAIN_BIN = process.env.GBRAIN_BIN || 'gbrain';
 const SOURCE_ID = process.env.FOUNDRY_BRAIN_SOURCE || process.env.GBRAIN_SOURCE || '';
@@ -90,7 +91,10 @@ export async function askBrain(opts) {
   const stdout = await runGbrain(payload, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const hits = parseHits(stdout);
   const results = partitionForDepartment(hits, department).slice(0, limit);
-  return { results, digest: formatDigest(results, { maxChars: opts?.maxChars ?? 4000 }) };
+  // `slugs` is what the model was actually shown, not what came back from the index (FB-156). The
+  // composer's bridge and the lane both use it to record what was read.
+  const { digest, slugs } = digestWithPages(results, { maxChars: opts?.maxChars ?? 4000 });
+  return { results, digest, slugs };
 }
 
 /** Build a RESEARCH question from a ticket's markdown (re-exported for the lane's CLI path). */
@@ -126,11 +130,11 @@ async function main() {
     }
   }
   if (!question) {
-    console.error('usage: brain-query.mjs (--question "…" | --ticket <file>) [--department build] [--limit 12]');
+    console.error('usage: brain-query.mjs (--question "…" | --ticket <file>) [--department build] [--limit 12] [--used-file <path>]');
     process.exit(2);
   }
   try {
-    const { digest } = await askBrain({
+    const { digest, slugs } = await askBrain({
       question,
       department: typeof args.department === 'string' ? args.department : null,
       limit: args.limit ? Number(args.limit) : undefined,
@@ -139,6 +143,17 @@ async function main() {
     if (!digest) {
       console.error('[brain] no relevant pages in the venture brain for this question');
       process.exit(3);
+    }
+    // The record of use, written where the reading happens (FB-156). A separate file rather than a
+    // second stream on stdout: the digest is captured by `$(...)` in bash and anything else printed
+    // there would land inside the model's prompt. Failing to write it must never fail the research —
+    // the lane's job is the ticket, and a missing record is a dash in a column, not a broken run.
+    if (typeof args.usedFile === 'string' && args.usedFile) {
+      try {
+        writeFileSync(args.usedFile, slugs.length ? `${slugs.join('\n')}\n` : '');
+      } catch (e) {
+        console.error(`[brain] could not record what was read: ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
     process.stdout.write(`${digest}\n`);
   } catch (e) {

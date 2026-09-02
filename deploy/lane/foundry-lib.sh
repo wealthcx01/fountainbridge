@@ -105,6 +105,54 @@ write_runreport() {
   fi
 }
 
+# record_readings <used-file> <work-kind> <work-id> <work-title> [work-url]
+# The record of what the venture has read (FB-156). Merges the corpus documents named in <used-file>
+# into readings.json on the state ref, so the studio's Memory screen can say what each document was
+# last used FOR — a link to the work, not a bare date.
+#
+# NEVER fatal. A lane's job is the ticket; a missing record is a dash in a column. Every failure path
+# here logs and returns 0, and the studio renders "we do not keep this record" rather than the lie
+# that nothing has read the document.
+record_readings() {
+  local used="$1" kind="${2:-ticket}" id="${3:-}" title="${4:-}" url="${5:-}"
+  [ -s "$used" ] || return 0
+  ensure_state_ref || { flog "readings: no state ref — what was read is not recorded"; return 0; }
+
+  local path="readings.json"
+  # Read-modify-write. Two departments' lanes on one box write to DIFFERENT repos (each surface has
+  # its own state ref), so they do not contend here; two wakes of the SAME lane are serialised by the
+  # supervisor's own lock. A lost update would cost one document one date, and is not worth a retry
+  # loop on the lane's critical path.
+  local existing_sha existing_json
+  existing_sha=$(gh_api "$API/repos/$REPO/contents/$path?ref=$STATE_REF" | jval '.sha')
+  existing_json=$(gh_api "$API/repos/$REPO/contents/$path?ref=$STATE_REF" | jval '.content' | base64 -d 2>/dev/null || true)
+
+  local merged rc
+  set +e
+  merged=$(printf '%s' "$existing_json" | node "$LANE_DIR/readings-record.mjs" "$used" "$kind" "$id" "$title" "$url")
+  rc=$?
+  set -e
+  # 3 = nothing from context/ or library/ was read. Not a failure, and not a write: pushing an
+  # identical file every wake would add a commit to the ref every five minutes for no new fact.
+  [ $rc -eq 3 ] && { flog "readings: nothing from the corpus was read this run"; return 0; }
+  [ $rc -ne 0 ] && { flog "readings: could not build the record (exit $rc)"; return 0; }
+
+  local b64; b64=$(printf '%s' "$merged" | base64 -w0)
+  local body="{\"message\":\"readings: ${id:-$kind}\",\"content\":\"$b64\",\"branch\":\"$STATE_REF\""
+  [ -n "$existing_sha" ] && body="$body,\"sha\":\"$existing_sha\""
+  body="$body}"
+  local resp; resp=$(gh_api -X PUT "$API/repos/$REPO/contents/$path" -d "$body")
+  if printf '%s' "$resp" | grep -q '"content"'; then
+    # Counted as what was RECORDED, not as what was retrieved. The brain returns tickets and code
+    # too, and logging those as recorded would make the log disagree with the file it just wrote.
+    flog "readings → $STATE_REF:$path ($(grep -cE '^(context|library)/' "$used") document(s), ${id:-$kind})"
+  else
+    # Loud (#10), but not fatal: the founder sees a dash, not a broken run.
+    flog "READINGS WRITE FAILED — $STATE_REF:$path — $(printf '%s' "$resp" | jval '.message')"
+  fi
+  return 0
+}
+
 # ---------------------------------------------------------------------------------------------------
 # Departments (FB-045). One box serves every department of ONE venture: Build works the product repo,
 # Sell works the marketing repo, Scale works the ops repo. Each has its own queue, its own base
@@ -547,12 +595,14 @@ read_prp() {
 # empty index all look identical in the log, the PR body and the RunReport (#10).
 BRAIN_RESEARCH_WHY=""
 brain_research() {
-  local ticket="$1" dept="${2:-}"
+  local ticket="$1" dept="${2:-}" used="${3:-}"
   local args=(--ticket "$ticket") err rc
   BRAIN_RESEARCH_WHY=""
   if [ ! -f "$BRAIN_QUERY_BIN" ]; then BRAIN_RESEARCH_WHY="brain not installed on this box"; return 1; fi
   if ! command -v gbrain >/dev/null 2>&1; then BRAIN_RESEARCH_WHY="gbrain is not on the lane's PATH"; return 1; fi
   [ -n "$dept" ] && args+=(--department "$dept")
+  # FB-156: where the pages that reached the digest get written, for record_readings to merge.
+  [ -n "$used" ] && args+=(--used-file "$used")
 
   err="$(mktemp)"
   set +e

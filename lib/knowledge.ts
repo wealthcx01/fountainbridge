@@ -20,6 +20,8 @@
  * Pure, with the read injected, like every other read model — so the UI gate runs offline.
  */
 
+import type { LastUse } from './readings';
+
 export type KnowledgeArea = 'context' | 'library';
 
 export interface KnowledgeDoc {
@@ -201,6 +203,14 @@ export interface KnowledgeRow {
   repo: string;
   doc: KnowledgeDoc;
   origin: DocOrigin;
+  /**
+   * Whether anything has read this document, and for what (FB-156).
+   *
+   * Three states rather than a nullable date, because "nothing on this venture keeps the record" and
+   * "the record is kept and this document is not in it" are different facts about the venture, and
+   * the column was empty for a whole ticket precisely so that they would not be printed as one dash.
+   */
+  lastUse: LastUse;
 }
 
 /** The identity of a row: the surface it came from AND its path. Never the path alone. */

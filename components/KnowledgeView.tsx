@@ -20,6 +20,7 @@ import { onDate } from '@/lib/when';
 import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } from '@/lib/routines';
 import { toneColor } from '@/lib/status';
 import { panelState } from '@/lib/read-failures';
+import { workHref, type LastUse } from '@/lib/readings';
 import { depositDocument } from '@/app/actions/knowledge';
 
 /**
@@ -37,13 +38,14 @@ import { depositDocument } from '@/app/actions/knowledge';
  * who gave it. So every row states its source in the founder's terms (you, your composer, your
  * team), read off the record that wrote it rather than assumed.
  *
- * ## Why a column can be empty
+ * ## Why a dash still has to say which dash it is (FB-156)
  *
- * "Last used" has no honest source yet: nothing records which documents your team reads when it
- * works. The column is in the design and it stays, empty, with the reason said in words underneath —
- * because the alternative is a plausible number on the one screen whose entire job is to say what
- * the machine actually read. That is the failure this studio has shipped before and it is worse
- * here than anywhere. Filling it is FB-156.
+ * "Last used" was empty for a ticket and a half, with the reason written underneath, because nothing
+ * recorded which documents the team read while it worked. The box records it now — but the column
+ * has three states, not two, and flattening them would undo the point of having waited. A document
+ * nothing has read, on a venture that keeps the record, is a real and useful finding: it is the
+ * founder learning that what they handed over is not reaching the work. A dash on a venture that
+ * keeps no record is not a finding at all. The cell renders one; the note underneath names which.
  */
 export function KnowledgeView({
   ventureId,
@@ -53,6 +55,7 @@ export function KnowledgeView({
   routines,
   routineErrors = [],
   provenanceMissing = false,
+  usedNote = null,
 }: {
   ventureId: string;
   ventureName: string;
@@ -61,6 +64,13 @@ export function KnowledgeView({
   routines: Routine[];
   routineErrors?: string[];
   provenanceMissing?: boolean;
+  /**
+   * What the dashes in `Last used` mean on THIS venture (FB-156).
+   *
+   * Passed in rather than derived here, because it is computed from the same records the cells were
+   * — a note explaining a state the rows are not in is the badge/destination disagreement again.
+   */
+  usedNote?: string | null;
 }) {
   const [open, setOpen] = useState<KnowledgeDoc | null>(null);
   const ordered = orderRows(rows);
@@ -137,8 +147,9 @@ export function KnowledgeView({
                       <td data-testid={`memory-added-${key}`}>
                         {describeOrigin(origin, onDate) ?? <Absent />}
                       </td>
-                      {/* Deliberately empty. See the note under the table, and the header comment. */}
-                      <td data-testid={`memory-used-${key}`}><Absent /></td>
+                      <td data-testid={`memory-used-${key}`} data-use={row.lastUse.kind}>
+                        <LastUsed use={row.lastUse} ventureId={ventureId} />
+                      </td>
                     </tr>
                   );
                 })}
@@ -146,11 +157,12 @@ export function KnowledgeView({
             </table>
           </div>
 
-          <p className="muted" data-testid="memory-used-note"
-             style={{ fontSize: 'var(--fs-meta-lg)', maxWidth: 'var(--content-narrow)', marginTop: '0.5rem' }}>
-            <strong>Last used</strong> is empty because nothing yet records which documents your team
-            read while it worked. It stays empty rather than showing you a number nobody measured.
-          </p>
+          {usedNote ? (
+            <p className="muted" data-testid="memory-used-note"
+               style={{ fontSize: 'var(--fs-meta-lg)', maxWidth: 'var(--content-narrow)', marginTop: '0.5rem' }}>
+              {usedNote}
+            </p>
+          ) : null}
 
           {provenanceMissing ? (
             <p className="muted" data-testid="memory-provenance-missing" style={{ fontSize: 'var(--fs-meta-lg)' }}>
@@ -224,6 +236,54 @@ export function MemoryWaiting({ ventureName }: { ventureName: string }) {
         Reading what your venture holds&hellip;
       </p>
     </section>
+  );
+}
+
+/**
+ * The `Last used` cell (FB-156).
+ *
+ * A link, not a bare date. The founder's question is *"is what I handed over actually being used?"*,
+ * and a date answers half of it — the other half is **what for**, which is the half that tells them
+ * whether the corpus is reaching the work or just being brushed past. So the cell names the piece of
+ * work and, when the work has a page, goes there.
+ *
+ * The two absences are rendered differently on purpose. `never` is a finding the founder can act on
+ * (a document nothing has read); `unrecorded` is the studio admitting it does not keep the record on
+ * this surface. Both are dashes to the eye — the table would be unreadable otherwise — but they are
+ * different sentences to a screen reader, and the note under the table names whichever is in play.
+ */
+function LastUsed({ use, ventureId }: { use: LastUse; ventureId: string }) {
+  if (use.kind === 'unrecorded') return <Absent />;
+  if (use.kind === 'never') {
+    return (
+      <>
+        <span aria-hidden="true" className="muted">&mdash;</span>
+        <span className="sr-only">Nothing has read this yet.</span>
+      </>
+    );
+  }
+
+  const when = onDate(use.at);
+  const work = use.work;
+  if (!work) {
+    // A reading the box could not attribute. The date is still true, and stating it beats dropping
+    // a real reading on the floor because half of it is missing.
+    return <>{when ?? <Absent />}</>;
+  }
+  const href = workHref(work, ventureId);
+  return (
+    <>
+      {href ? (
+        href.startsWith('/')
+          ? <Link href={href}>{work.title}</Link>
+          : <a href={href} target="_blank" rel="noopener noreferrer">{work.title}</a>
+      ) : (
+        work.title
+      )}
+      {when ? (
+        <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-meta)' }}>{when}</span>
+      ) : null}
+    </>
   );
 }
 

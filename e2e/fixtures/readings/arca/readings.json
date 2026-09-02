@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "readings": {
+    "context/sell/brand-positioning": {
+      "at": "2026-08-30T09:14:03Z",
+      "work": { "kind": "ticket", "id": "ARCA-58", "title": "Replace the tagline" }
+    },
+    "library/build/set-naming": {
+      "at": "2026-08-28T17:02:11Z",
+      "work": { "kind": "ticket", "id": "ARCA-31", "title": "Grading history on the card page" }
+    }
+  }
+}

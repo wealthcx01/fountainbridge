@@ -132,6 +132,7 @@ describe('ordering the memory table', () => {
     repo,
     doc: toDoc(path, null, 10)!,
     origin,
+    lastUse: { kind: 'unrecorded' },
   });
 
   it('puts the most recent first — a founder is checking this morning’s upload landed', () => {
@@ -189,7 +190,9 @@ describe('ordering the memory table', () => {
 });
 
 describe('the sentence over the table', () => {
-  const row = (path: string): KnowledgeRow => ({ repo: 'arca', doc: toDoc(path, null, 10)!, origin: { kind: 'unknown' } });
+  const row = (path: string): KnowledgeRow => ({
+    repo: 'arca', doc: toDoc(path, null, 10)!, origin: { kind: 'unknown' }, lastUse: { kind: 'unrecorded' },
+  });
 
   it('counts what is on the screen, by the areas it names', () => {
     expect(memorySummary([row('context/sell/a.md'), row('context/sell/b.md'), row('library/build/c.md')]))
