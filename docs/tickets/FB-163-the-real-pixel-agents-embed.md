@@ -1,5 +1,55 @@
 # FB-163 — The real pixel-agents embed (gap G6, properly)
 
+## Correction, 2026-09-02: the blocker I recorded was the wrong blocker
+
+The earlier investigation concluded this was "not buildable on the current stack" because **Next's
+App Router cannot proxy a WebSocket**. That is true, and it is beside the point: **an iframe does not
+go through Next at all.** The browser connects to the venture box directly. I rejected an
+architecture I had not evaluated, on the strength of a limitation in one I had.
+
+John was right to push: *"it links to a CLI, it should be straightforward to integrate via iframe."*
+
+**The infrastructure this needs is already running on the ARCA box, in production, today:**
+
+```
+# /etc/caddy/Caddyfile — already there
+chat.arca.bruntsfield.capital {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3080
+}
+```
+
+Caddy is `active`, `chat.arca.bruntsfield.capital` resolves to the box, TLS is automatic, and Caddy
+proxies WebSockets natively. Adding `office.arca.bruntsfield.capital → 127.0.0.1:<pixel-agents-port>`
+is a DNS record and four lines. The pattern is proven — the composer already reaches the founder
+through exactly it.
+
+## What the REAL blockers are
+
+Three, all ordinary work rather than architectural walls:
+
+1. **Authentication.** pixel-agents has none. An open `office.arca…` would publish the venture's
+   agent activity to anyone with the URL — and venture isolation is non-negotiable 6. Options, in
+   the order I would try them: Caddy `forward_auth` against a studio endpoint that checks the
+   session's venture scope; a short-lived signed URL minted per page load; `basic_auth` as a
+   stopgap, which an iframe handles badly.
+2. **Read-only.** `clientMessageHandler.ts` accepts `closeAgent` from any connection, so a viewer
+   could kill an agent. Caddy cannot filter WebSocket payloads — this needs either a patch upstream
+   or a small message-filtering proxy on the box. It is the reason a bare reverse-proxy is not
+   enough, and it is the part with real work in it.
+3. **`frame-ancestors`.** pixel-agents must permit being framed by the studio's origin, and by
+   nothing else.
+
+## What has NOT changed
+
+Heuristic mode still needs no hooks install — proven on this box, `~/.claude/settings.json`
+untouched. And ARCA's lane is parked at its daily budget most of the time, so the office would often
+be legitimately empty; that is a fact to render honestly, not a reason to defer.
+
+The design's own words: *"Each character is 1 agent on Arca's machine; a raised hand is a wait on
+you. The studio embeds it read-only."* Read-only is in the requirement, and item 2 is how it is met.
+
+
 **Status:** Todo · **Area:** Venture box + studio · **Depends on:** FB-139
 **Design:** `docs/design/foundry-desk/` — screen 3, "The office"; `README.md`: *"No raster assets. The
 pixel-office is a placeholder drawing; the real plate is the **pixel-agents embed** (G6)."*

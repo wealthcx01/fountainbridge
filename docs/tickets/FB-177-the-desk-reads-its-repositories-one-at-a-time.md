@@ -1,6 +1,20 @@
 # FB-177 — the desk reads its repositories one at a time, and opens 60 files to show 20
 
-**Status:** Open · **Phase:** 3 · **Raised by:** the `/admin/timing` readings, 2026-09-02
+**Status:** Done · **Phase:** 3 · **Raised by:** the `/admin/timing` readings, 2026-09-02
+
+> Shipped in #210. The repositories are now walked in parallel and the read budget is
+> `limit × READ_MARGIN` for the venture rather than for each repo — 60 files instead of 180.
+>
+> `READ_MARGIN` was **justified, not reduced**: write-order and start-order genuinely differ, and the
+> margin is what makes "newest by filename" a safe proxy for "newest by start time".
+>
+> The ticket asked for repository health and approvals to get the same treatment. They did not need
+> it — `health.ts` and `approvals.ts` already fan out with `Promise.all`. Their seconds are a
+> different cause and belong to FB-170.
+>
+> And the ordering was wrong: sorting raw filenames sorts by slug, so the desk had been showing run
+> reports from 31 July. That was not in the ticket's scope and is the more serious half of what
+> shipped.
 
 ## The measurement
 
