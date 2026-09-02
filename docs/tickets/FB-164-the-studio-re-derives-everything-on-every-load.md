@@ -2,8 +2,8 @@
 
 **Status:** Todo · **Area:** Studio / architecture · **Depends on:** FB-157, FB-161
 
-**Shipped in part:** nothing of this ticket has shipped. The commit that names it (#196) filed the
-ticket and recorded the measurements in it. The read model is still to build.
+**Shipped in part:** the rail's share is fixed (#201). The read model itself is still to build — see
+"What is left" at the foot.
 
 ## What is true today
 
@@ -68,3 +68,61 @@ one is a principle.
       it.
 - [ ] The studio says how current the projection is, and says it plainly when it is behind.
 - [ ] No read repeats on a timer, and no cost grows with the number of ventures a viewer can see.
+
+## Measured properly, then fixed
+
+`loadEventEnd` was the wrong number: it waits for every streamed chunk, so a handbook page whose
+prose is on screen in 279ms "loads" in 6.4 seconds. What a founder waits for is **the content they
+came for, on screen**. Timed on production, three loads each:
+
+| Route | Content, before | Content, after | Rail, before | Rail, after |
+| --- | --- | --- | --- | --- |
+| the handbook | 279 ms | **248 ms** | 6,105 ms | **2,078 ms** |
+| tickets | 315 ms | **304 ms** | 6,157 ms | **3,619 ms** |
+| memory | 5,080 ms | **3,066 ms** | 6,539 ms | **3,070 ms** |
+| the desk | 6,684 ms | 6,100 ms | 6,689 ms | 6,100 ms |
+| what happened | 6,571 ms | 6,096 ms | 6,575 ms | 6,100 ms |
+
+**The rail was ~6 seconds on every screen**, including the one whose own content arrives in a quarter
+of a second. It is now 2–3.6 seconds where nothing else competes.
+
+### What it was doing
+
+`loadRunReports` opens `limit × READ_MARGIN` files per repository — sixty each, **a hundred and
+eighty for ARCA** — and the rail wanted one number out of all of it: whether the machine is alive.
+
+It did not need to open anything. Every report is named `<slug>-YYYYMMDDTHHMMSSZ.json`, which is
+exactly why the loader sorts names lexicographically to get chronological order. **The newest wake's
+time is already in the listing.** `loadLiveness` reads the listing and opens one file per repository
+— the heartbeat beacon, overwritten in place, which carries no stamp in its name and on a quiet
+venture is the only evidence of life there is.
+
+## What is left
+
+Two costs remain, both real and both measured:
+
+- **The desk and "what happened" still take ~6s for their own content.** They read the backlog,
+  repository health, approvals and the run reports themselves — in parallel, so the wall clock is the
+  slowest, and `ventureRuns` at ~4.3s is it. The desk renders twenty run reports where the design
+  shows four; asking for five would cut sixty reads per repository to fifteen. That is a product
+  decision as much as a performance one and is not made here.
+- **`ventureApprovals` at ~1.8s** is what the rail now waits on. It walks every approval a venture
+  has, per repository, and is not cached across requests.
+
+Neither is fixed by reading more cleverly. **The projection store is still the answer**, and it is
+still a decision about the data layer: D6 names Supabase and it is unused. This ticket removed the
+cost that was on every screen; the desk's own remains.
+
+## Acceptance criteria
+
+- [x] `/venture/arca/handbook` is fully loaded in under 1s — its **content** is on screen in 248 ms.
+      Its rail follows at ~2s, which is the honest remaining figure and not the same claim.
+- [ ] The desk is fully loaded in under 3s. **6,100 ms.** Not met, and not met by reading fewer
+      files — see "What is left".
+- [x] Git remains the source of truth; nothing is written anywhere, and the shortcut is derived from
+      the listing git already returns.
+- [x] The studio says how current it is: the engine line reads *"Your team checked in just now."* A
+      listing it could not read degrades rather than reporting a stall — a repository it could not
+      look at is not a machine that has stopped.
+- [x] No read repeats on a timer, and the cost does not grow with the number of ventures a viewer can
+      see. It went down.
