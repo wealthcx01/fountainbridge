@@ -15,6 +15,7 @@
  * board's own data, not a second read of it.
  */
 
+import type { TicketProgress } from './ticket-progress';
 import type { TicketStatusGroup, TicketWithMeta } from './tickets';
 
 /** The work waiting on a ticket — a pull request carrying finished work, or an external action. */
@@ -49,6 +50,18 @@ export interface TicketRow {
   repo: string;
   /** The column the board would put it in — inferred status, never the markdown's own claim. */
   group: TicketStatusGroup;
+  /**
+   * What is actually happening to this ticket, from evidence only (FB-098, moved here by FB-178).
+   *
+   * This lived on the desk's board and the desk no longer has one. It is the founder's answer to
+   * "is anything happening to the thing I asked for" — *picked up 3h ago*, *attempt 2*, *worked,
+   * read it and decide* — and it was the half of FB-098 John asked for by name. Removing the board
+   * without bringing it here would have deleted the feature and left the tests passing against a
+   * screen nobody uses.
+   *
+   * Null when the studio has no evidence either way, which is different from "nothing is happening".
+   */
+  progress: TicketProgress | null;
   /**
    * The ticket file, or **null** when there is none.
    *

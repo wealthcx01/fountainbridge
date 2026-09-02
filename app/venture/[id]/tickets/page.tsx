@@ -13,7 +13,13 @@ import { TicketTrail } from '@/components/TicketTrail';
 import type { VentureSummary } from '@/lib/ventures';
 import { filterTickets, parseFilter, resolveSelected, rowKey, type TicketRow } from '@/lib/tickets-view';
 import { type ActiveGraphApproval } from '@/lib/approvals';
-import { type RunReport } from '@/lib/runreports';
+import { engineState, type RunReport } from '@/lib/runreports';
+import { ticketProgress } from '@/lib/ticket-progress';
+
+/** An empty runs shape, so a failed read costs the progress column and never the ticket list. */
+const NO_RUNS_FOR_PROGRESS = {
+  reports: [] as RunReport[], heartbeats: [] as RunReport[], checkIns: [] as RunReport[], total: 0,
+};
 import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
 import { GitHubClient } from '@/lib/github';
 import { trailSources } from '@/lib/trail-sources';
@@ -110,6 +116,13 @@ export default async function TicketsPage({
     [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => [`${repo} ${f.ticket.id}`, f.branch] as const)),
   );
 
+  // FB-178: the desk's board carried "what is happening to this ticket" and the desk no longer has
+  // a board, so it comes here — the only list of tickets a founder now has. `ventureRuns` is cached
+  // per request (FB-157), so the ticket detail below reading it again costs nothing.
+  const runsForProgress = await ventureRuns(venture).catch(() => NO_RUNS_FOR_PROGRESS);
+  const engineForProgress = engineState(runsForProgress.checkIns, new Date());
+  const nowForProgress = Date.now();
+
   const rows: TicketRow[] = [];
   for (const lane of inferred) {
     const filed = filedByRepo.get(lane.repo) ?? [];
@@ -124,6 +137,15 @@ export default async function TicketsPage({
           item,
           waiting: waitingFor.get(`${lane.repo} ${item.ticket.id}`) ?? null,
           surface: surfaceOf.get(lane.repo) ?? null,
+          progress: ticketProgress({
+            ticketId: item.ticket.id,
+            ventureId: venture.id,
+            group,
+            runs: runsForProgress.reports,
+            engine: { state: engineForProgress.state, ageMinutes: engineForProgress.ageMinutes },
+            waiting: waitingFor.get(`${lane.repo} ${item.ticket.id}`) ?? null,
+            now: nowForProgress,
+          }),
         });
       }
     }
@@ -143,6 +165,9 @@ export default async function TicketsPage({
       repo: pr.repo,
       group: 'pr-open',
       item: null,
+      // No ticket file, so there is no ticket for progress to be about. The row still belongs here
+      // — it waits on the founder — but "what is happening to this ticket" has no subject.
+      progress: null,
       waiting: { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, headSha: pr.headSha },
       surface: surfaceOf.get(pr.repo) ?? null,
     });

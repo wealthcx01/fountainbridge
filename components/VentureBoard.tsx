@@ -15,7 +15,6 @@ import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { ticketProgress } from '@/lib/ticket-progress';
 import { isUnnumbered } from '@/lib/ticket-ids';
-import { TicketDrawer } from './TicketDrawer';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
@@ -215,7 +214,6 @@ export function VentureBoard({
   const decided = approvals.filter(
     (a) => a.status === 'granted' || a.status === 'executing' || a.status === 'executed' || a.status === 'rejected',
   );
-  const [selected, setSelected] = useState<Selected | null>(null);
   // FB-109: which surface the founder is looking at, if any. Deliberately not routed and not
   // persisted — a filter that survives reload is navigation, and navigation is a bigger decision
   // than this ticket makes.
@@ -242,20 +240,6 @@ export function VentureBoard({
   };
 
   // Index every ticket by id so dependency chips in the drawer can jump to another ticket.
-  const index = useMemo(() => {
-    const m = new Map<string, Selected>();
-    for (const lane of lanes) {
-      for (const g of GROUPS) {
-        for (const item of lane.groups[g.key]) m.set(item.ticket.id, { repo: lane.repo, ref: lane.ref, item, group: g.key });
-      }
-    }
-    return m;
-  }, [lanes]);
-
-  const selectById = (id: string) => {
-    const hit = index.get(id);
-    if (hit) setSelected(hit);
-  };
 
   // FB-098's live board, affordable since FB-083: poll only while a run is genuinely in flight. The
   // same evidence the cards read from — a run with no outcome yet — so the page cannot poll over
@@ -696,20 +680,12 @@ export function VentureBoard({
         </div>
       ))}
 
-      {selected ? (
-        <TicketDrawer
-          item={selected.item}
-          repo={selected.repo}
-          gitRef={selected.ref}
-          org={org}
-          ventureId={venture.id}
-          statusGroup={selected.group}
-          waiting={openWork[`${selected.repo} ${selected.item.ticket.id}`] ?? null}
-          knownIds={index}
-          onSelectId={selectById}
-          onClose={() => setSelected(null)}
-        />
-      ) : null}
+      {/* The ticket drawer that stood here is gone (FB-178).
+          Nothing could open it once the desk's board went — `setSelected` was only ever called by a
+          ticket card — and an unreachable control is worse than none. It had already been superseded:
+          `TicketsView`'s own header reads "The list, the ticket and the decision are one screen.
+          Before this the drawer showed a ticket…", and that screen carries the accept, the
+          send-back, the dependency chips and the trail. */}
     </section>
   );
 }

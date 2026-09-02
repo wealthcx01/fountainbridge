@@ -44,11 +44,14 @@ test('nav shows the attention badge count', async ({ page }) => {
   await expect(page.getByTestId('nav-attention-badge')).toHaveText('4');
 });
 
-test('open PR moves its ticket to pr-open in the venture board (status inference)', async ({ page }) => {
+test('open PR moves its ticket to "Needs your OK" (status inference)', async ({ page }) => {
   await testLogin(page, 'john.gallagher@wealthcx.com');
-  await page.goto('/venture/arca');
-  // ARCA-1's markdown status is "In progress", but open PR #10 references it → pr-open column.
-  await expect(page.getByTestId('col-pr-open').getByTestId('ticket-ARCA-1')).toBeVisible();
+  // The desk's board is gone (FB-178); the inference it demonstrated is unchanged and is now read
+  // on the queue, which is the only list of tickets a founder has.
+  await page.goto('/venture/arca/tickets');
+  // ARCA-1's markdown status is "In progress", but open PR #10 references it → "Needs your OK".
+  // The point is that the inferred status wins over the file's own claim.
+  await expect(page.getByTestId('tickets-row-ARCA-1')).toContainText('Needs your OK');
 });
 
 test('a founder sees only their own ventures in the queue', async ({ page }) => {

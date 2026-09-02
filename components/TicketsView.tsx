@@ -11,6 +11,7 @@ import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/li
 import { toneColor } from '@/lib/status';
 import { howLongMs } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
+import { isUnnumbered } from '@/lib/ticket-ids';
 import type { ReactNode } from 'react';
 import {
   FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition, filterTickets,
@@ -185,7 +186,29 @@ export function TicketsView({
               >
                 <span style={{ display: 'block' }}>{r.title}</span>
                 <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>
-                  <span className="mono">{r.id}</span> · {STATUS_LABEL[r.group]}
+                  {/* FB-097's rule, on the screen that is now the only list of tickets (FB-178).
+                      It had only ever been applied on the desk's board, so removing that board would
+                      have quietly reintroduced the defect it was written to fix: four distinct
+                      pieces of work all displayed as "ARCA-NEW", as though it were a name. */}
+                  <span className="mono" data-testid={`tickets-id-${r.id}`}>
+                    {isUnnumbered(r.id) ? 'unnumbered' : r.id}
+                  </span> · {STATUS_LABEL[r.group]}
+                  {/* FB-098's "is anything happening to the thing I asked for", moved off the desk's
+                      board when FB-178 removed it. Rendered as text on the row rather than as a link:
+                      the row itself already opens the ticket, and a link inside a link is not a
+                      control a keyboard user can reach. Its destination is on the ticket. */}
+                  {r.progress ? (
+                    <>
+                      {' · '}
+                      <span
+                        data-testid={`ticket-progress-${r.id}`}
+                        data-state={r.progress.state}
+                        style={{ color: toneColor(r.progress.tone) }}
+                      >
+                        {r.progress.text}
+                      </span>
+                    </>
+                  ) : null}
                   {r.waiting ? (
                     <>
                       {' '}· waiting {howLongMs(r.waiting.ageMs)}
@@ -265,7 +288,9 @@ function Detail({
   return (
     <article className="card" style={{ padding: '1.25rem' }}>
       <p className="eyebrow" style={{ marginTop: 0 }}>
-        <span className="mono eyebrow-id">{row.id}</span>
+        <span className="mono eyebrow-id" data-testid="detail-id">
+          {isUnnumbered(row.id) ? 'unnumbered' : row.id}
+        </span>
         {row.surface ? <> · {row.surface}</> : null} · {STATUS_LABEL[row.group]}
       </p>
       <h2 data-testid="detail-title" style={{ margin: '0.25rem 0 0.75rem' }}>{row.title}</h2>

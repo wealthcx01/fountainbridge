@@ -79,7 +79,12 @@ test.describe('run reports and the founder brief', () => {
     await expect(list.locator('li').nth(1)).toContainText('ARCA-4');
     await expect(list.locator('li').nth(3)).toContainText('SELL-002');
     await expect(list.locator('li').nth(3)).toContainText('waiting for your approval');
-    await expect(list.locator('li').nth(4)).toContainText('ARCA-31');
+    // The desk shows the design's four (FB-178); the rest are behind the "What happened" link
+    // below the list, which is asserted in `the heartbeat is not shown as work`.
+    //
+    // The two ARCA-4 rows are NOT collapsed into one, and that is correct: `collapseRepeats` merges
+    // only rows a reader would see as duplicated, and these say different things — "First attempt at
+    // the animation polish stopped" and "Could not get the animation polish past its own check".
     // The contract-shaped record parsed as well as the lane-shaped ones.
     await expect(list.locator('li[data-outcome="awaiting-approval"]')).toHaveCount(1);
   });
@@ -91,16 +96,21 @@ test.describe('run reports and the founder brief', () => {
   });
 
   test('a run that finished something links to the work itself', async ({ page }) => {
-    const link = page.getByTestId('lane-activity-list').locator('a').first();
-    await expect(link).toHaveAttribute('href', /pull\/12/);
+    // On the activity page, which shows every run — the desk shows the design's four and the run
+    // that carries PR 12 is older than those (FB-178).
+    await page.goto('/venture/arca/activity');
+    const link = page.locator('a[href*="/pull/12"]').first();
+    await expect(link).toBeVisible();
   });
 
   test('the heartbeat is not shown as work', async ({ page }) => {
     // It is a liveness beacon overwritten on every wake, not run history — showing it would fill the
     // strip with "woke up, did nothing" and bury the runs that matter.
     await expect(page.getByTestId('lane-activity-list')).not.toContainText('heartbeat');
-    // Six runs in the fixtures since FB-098 added the in-flight and twice-parked ones; the heartbeat
-    // is the seventh record on the ref and must not be one of them.
-    await expect(page.getByTestId('lane-activity-list').locator('li')).toHaveCount(6);
+    // The desk shows four (FB-178, the design's own "Showing the 4 most recent of 31 runs"), and
+    // says how many there are in total. Six runs in the fixtures; the heartbeat is the seventh
+    // record on the ref and must not be counted among them — which is what "of 6" asserts.
+    await expect(page.getByTestId('lane-activity-list').locator('li')).toHaveCount(4);
+    await expect(page.getByTestId('lane-activity-more')).toContainText('4 most recent of 6 runs');
   });
 });
