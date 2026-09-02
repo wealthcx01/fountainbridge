@@ -5,9 +5,9 @@
 pixel-office is a placeholder drawing; the real plate is the **pixel-agents embed** (G6)."*
 **Upstream:** https://github.com/pixel-agents-hq/pixel-agents — MIT, TypeScript, ~9.2k stars.
 
-**Shipped in part:** nothing of this ticket has shipped. The commit that names it (#196) filed the
-ticket and marked FB-139's plate as the placeholder it is. The embed, the box service and the proxy
-are all still to build.
+**Shipped in part:** nothing of the embed has shipped. What has is the investigation this ticket
+asked for first — the three "known unknowns" below are now answered, and two of them change what
+should be built. **Read "What the box actually said" before writing any of it.**
 
 ## What FB-139 shipped, and what it is not
 
@@ -61,23 +61,94 @@ From the upstream README:
   their agents' office from the desk.
 - Replacing the ledger.
 
-## Known unknowns, to settle first
+## What the box actually said
 
-- **Delivery.** Box-side work in this repo has no sync path (`deploy/lane/*` is copied by hand;
-  three merged tickets are on no box today). This needs one, or it needs to be installed by hand and
-  said so.
-- **What the hooks see.** The lane runs Claude Code non-interactively from `run-once.sh`; whether
-  the hook events fire the same way there as in a terminal has to be proven on the box, not assumed.
-- **Cost per venture.** A long-running Node server per box, plus a WebSocket held open per viewer.
-  FB-083's rule is about reads, not sockets, but "bounded, and only while working and visible" is
-  the spirit and it should be checked.
+Settled on the ARCA box on 2026-09-02, then removed again — the box is exactly as it was found
+(binary uninstalled, `~/.pixel-agents` deleted, no process, `~/.claude/settings.json` **never
+touched**, lane timer still active).
+
+### 1. `--no-terminal` does not exist — and is not needed
+
+The README says *"Pass `--no-terminal` to disable the embedded terminal"*. It is not a flag. In
+published **1.4.1** and in `main`, `parseArgs` accepts `--port`/`-p`, `--host` and `--help`, and the
+CLI's own `--help` lists exactly those three.
+
+It does not need to. `server/src/clientMessageHandler.ts` says it plainly:
+
+> Standalone agents are always **external (no terminal)**, so mirror the VS Code external-agent
+> branch…
+
+The terminal is a VS Code feature. **The property this ticket called non-negotiable is structurally
+true in standalone**, which is a better guarantee than a flag — a flag can be forgotten.
+
+### 2. The hooks do not need installing at all
+
+The ticket assumed hooks, and hooks mean editing `~/.claude/settings.json` on a live venture box.
+They are not required: **heuristic mode** reads the JSONL transcripts Claude Code already writes
+under `~/.claude/projects/`, and the lane's are right there —
+
+```
+[Pixel Agents] Scanning project dir: /root/.claude/projects/-opt-foundry-lane-arca
+```
+
+Proven end to end: a real Claude session in a watched workspace produced `agentCreated` and
+`AGENTS: 1` over the WebSocket, with the settings file untouched throughout. That is a far lighter
+integration than this ticket was written around, and it removes the "what do the hooks see" unknown
+by removing the hooks.
+
+### 3. The studio cannot proxy it — and this is the one that matters
+
+The office is Canvas 2D driven over a **WebSocket** (`/ws`). **Next's App Router route handlers do
+not support a WebSocket upgrade**, and Railway runs `next start`, not a custom server. So *"the
+studio proxies it; the desk never iframes the box directly"* — the isolation design in this ticket's
+own scope — **is not buildable on the current stack.**
+
+There is no HTTP fallback to poll instead: the server exposes `/api/health` and the socket, and
+nothing else that carries agent state.
+
+### 4. And a naive proxy would not be read-only anyway
+
+Only the **hooks install** is token-gated. `closeAgent` is accepted from any connection and calls
+`dismissalTracker.dismiss` + `removeAgent` — an untokened viewer can remove agents from the office,
+and change its settings and layout. So a proxy would have to **filter client→server messages**
+(allow the `webviewReady` handshake, drop the rest), not merely forward them.
+
+### 5. ARCA's office would be empty most of the time regardless
+
+The lane is parked at its daily budget of 20 wakes: it writes a `blocked` report every five minutes
+*without starting a Claude session at all*. There is nothing for the office to draw for most of a
+day. That is a fact about the lane's budget, not about this integration, and it is worth knowing
+before anyone judges the result.
+
+## So what should be built
+
+One of these, and it is a decision rather than a detail:
+
+- **A second process next to the studio** that can hold a WebSocket — a small proxy service on
+  Railway that terminates the founder's socket, checks the session against the venture, and opens
+  its own socket to the box, forwarding only frames from box→browser and only `webviewReady` the
+  other way. Keeps isolation server-side, at the cost of a service to run.
+- **A per-venture subdomain with the box serving it directly**, which this ticket explicitly
+  rejected — and the rejection still stands: isolation would rest on the box's own auth rather than
+  on the studio's session, and the bearer token would have to reach a browser.
+- **Upstream a read-only mode**, which is the cleanest long-term answer and the slowest.
+
+Until one is chosen, FB-139's plate stays. It is a drawing, it says so in its own header, and it is
+live and honest.
 
 ## Acceptance criteria
 
-- [ ] `pixel-agents --no-terminal` runs on the ARCA box as a service, bound to localhost.
-- [ ] The lane's own Claude sessions appear as characters — proven by starting a wake and watching.
-- [ ] The studio embeds it read-only through a **server-side proxy**, scoped per venture, with a test
-      that one venture's office cannot be reached from another's desk.
+- [x] `pixel-agents` runs on the ARCA box, bound to localhost. Proven, then removed — there is no
+      service until the proxy question above is settled, because a service with nothing reading it is
+      a process to forget about.
+- [x] The `--no-terminal` requirement is **withdrawn**: the flag does not exist and standalone has no
+      terminal to disable.
+- [x] A real Claude session appears as a character, in **heuristic mode with no hooks installed**.
+      Proven in a scratch workspace rather than a lane's, so nothing about the lane was disturbed.
+- [ ] The *lane's own* sessions appear. Not observable today: ARCA's lane is parked at its daily
+      budget and starts no Claude session.
+- [ ] The studio embeds it read-only through a server-side proxy. **Blocked on a decision** — Next's
+      App Router cannot proxy a WebSocket. See "So what should be built".
 - [ ] No token, host or port of the box reaches the browser.
 - [ ] A venture with no embed shows FB-139's plate, still saying what it knows.
 - [ ] The ledger is unchanged and still readable without the picture.
