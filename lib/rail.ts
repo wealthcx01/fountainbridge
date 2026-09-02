@@ -4,8 +4,8 @@ import { loadVentureAttention } from './attention';
 import { departmentBudgets, type BudgetDisclosure } from './budgets';
 import { loadEnvelopes } from './budgets-load';
 import { toSpends, type ActiveGraphApproval } from './approvals';
-import { engineState, type EngineState } from './runreports';
-import { ventureApprovals, ventureRuns } from './venture-reads';
+import { engineStateAt, type EngineState } from './runreports';
+import { ventureApprovals, ventureLiveness } from './venture-reads';
 import { timed } from './timing';
 
 /**
@@ -89,8 +89,12 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
     // Shared with the page inside this layout (FB-157) — these were two full reads per request.
     timed('rail: your approvals', () => ventureApprovals(venture), venture.id)
       .catch(fell<ActiveGraphApproval[]>([])),
-    timed('rail: what your team did', () => ventureRuns(venture), venture.id)
-      .catch(fell<Awaited<ReturnType<typeof ventureRuns>> | null>(null)),
+    // FB-164: the listing, not sixty files per repository. The rail wants one instant out of the run
+    // history — whether the machine is alive — and reading the reports themselves to find it made
+    // every screen under a venture wait about six seconds, including a handbook page whose own
+    // content arrives in 279ms.
+    timed('rail: is your team alive', () => ventureLiveness(venture), venture.id)
+      .catch(fell<Awaited<ReturnType<typeof ventureLiveness>> | null>(null)),
   ]);
 
   // Envelopes are read from disk in this repo, not over the network — cheap, and synchronous.
@@ -111,7 +115,9 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
 
   // Both lists (FB-139) — see the note on `engineState`. The rail and the desk must not disagree
   // about whether the machine is alive, so they read the same thing the same way.
-  const engine = engineState(runs?.checkIns ?? [], new Date(nowMs));
+  const engine = engineStateAt(runs?.at ?? null, new Date(nowMs));
+  // A listing the studio could not read is not a machine that has stopped.
+  if (runs?.degraded) degraded = true;
 
   return {
     // Also not 0 when unread — see `RailData.needsYou`.
