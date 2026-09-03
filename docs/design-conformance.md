@@ -22,7 +22,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | — | — | **not compared** |
-| The desk | ~1,900px | **3,185px** | **5,190px** | rows not cards (FB-183); the rest is FB-186 |
+| The desk | ~1,900px | **2,603px** | **4,393px** | rows not cards (FB-183), one block (FB-186); the rest is FB-188 |
 | Tickets | 1,090px | **1,471px** | **1,470px** | **fixed, FB-185** (was 6,864 / 8,008) |
 | a ticket | — | **1,508px** | **1,945px** | **fixed, FB-185** (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,487px** | **2,910px** | **fixed, FB-180** (was 3,556 / 6,536) |
@@ -95,6 +95,21 @@ Two things came out of reading it that the ticket had not named. The meta column
 meaning as well as the surface — `Build — Product · shipped` — which the sentence beside it already
 said, and the width that cost wrapped eleven of twenty rows onto a second line. And the summary's
 `Most recently: A, B and C` names the three items that are the first three rows directly beneath it.
+
+**The desk stated its surfaces twice, and FB-186 made it once.** 2,912px to 2,603px. The second
+block repeated the three names, the three repositories and the three ticket counts already on the
+cards above, in different words, and every figure in both was correct — which is why nothing caught
+it and only looking did. Each card was also saying its own ticket count twice, once in its outcome
+sentence and again beside the door.
+
+**And the rest of the desk's height is not duplication at all.** The content column beside the rail
+is **766px**; the design's is **1,080px**. Ours is 29% narrower, so every sentence wraps sooner and
+every block is taller — on every screen with a rail, not just this one. The stylesheet says it meant
+to give the content about 1,080px, and the measure it uses includes the rail, so it does not. Filed
+as FB-188, because one line there moves every screen and each one needs looking at again.
+
+That is worth stating on a scorecard about heights: **several of these numbers are partly a column
+width, not the content on the screen.**
 
 **Memory was listing scaffolding as knowledge. FB-181** took it from eleven rows to five, and the
 five are the five a founder actually handed over or their team learned. Six of the eleven were

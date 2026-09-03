@@ -367,8 +367,22 @@ test.describe('the desk answers Claude Design (FB-182)', () => {
   test('a surface states a count and a door, not a breakdown of the queue', async ({ page }) => {
     // "20 waiting to be picked up · 14 being worked" restates the queue, which the banner and the
     // Tickets summary already count. The design's line is "14 tickets".
-    const line = page.getByTestId('lane-open-arca').locator('xpath=..');
-    await expect(line).toContainText(/\d+ tickets?/);
-    await expect(line, 'the line is restating the queue again').not.toContainText('waiting to be picked up');
+    //
+    // FB-186 widened this from the door's own line to the whole card. Scoped to the line, it passed
+    // while the card carried "4 waiting for your OK · 14 in progress" two lines above it — the rule
+    // was being applied to one line and not to the thing it is a rule about.
+    const card = page.getByTestId('dept-build');
+    await expect(card).toContainText(/\d+ tickets?/);
+    await expect(card, 'the card is restating the queue again').not.toContainText('waiting to be picked up');
+    await expect(card, 'the card is restating the queue again').not.toContainText('waiting for your OK');
+    await expect(card.getByTestId('lane-open-arca')).toBeVisible();
+  });
+
+  test('a surface says how much is in it exactly once', async ({ page }) => {
+    // FB-186: the desk stated each surface twice as two blocks, and then each card stated its own
+    // ticket count twice — once in the outcome sentence and again beside the door.
+    const text = await page.getByTestId('dept-build').innerText();
+    const counts = text.match(/\d+ tickets?/g) ?? [];
+    expect(counts.length, `the count appears ${counts.length} times: ${counts.join(', ')}`).toBe(1);
   });
 });

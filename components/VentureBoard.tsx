@@ -225,6 +225,17 @@ export function VentureBoard({
   // the whole time and the studio kept it to itself.
   const surfaceOf = (repo: string) => departments.find((d) => d.repo === repo) ?? null;
   const selectedRepo = surface ? (departments.find((d) => d.id === surface)?.repo ?? null) : null;
+  /** The queue behind a surface, when the venture has one for that repository. */
+  const laneOf = (repo: string | null | undefined) => (repo ? lanes.find((l) => l.repo === repo) ?? null : null);
+  /**
+   * A queue no surface claims (FB-186).
+   *
+   * `departments` is optional in the manifest, so a venture can have a repository with a lane and no
+   * surface named over it. Folding the queues into the surface cards would have made those
+   * disappear, which is the failure mode this whole run of tickets keeps finding: a screen that is
+   * correct about everything it shows and silent about what it dropped.
+   */
+  const orphanLanes = lanes.filter((l) => !departments.some((d) => d.repo === l.repo));
 
   /**
    * One queue, because a founder has one queue (FB-183).
@@ -241,19 +252,6 @@ export function VentureBoard({
     ...pendingApprovals.map((a) => externalWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
     ...openWorkQueue.map((a) => prWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
   ];
-
-  /** What a surface's queue is worth clicking for, from the same counts the lanes render. */
-  const queueOf = (repo: string | null) => {
-    const lane = repo ? lanes.find((l) => l.repo === repo) : null;
-    if (!lane) return null;
-    const waiting = lane.groups['pr-open'].length + (unmatchedWork[lane.repo]?.length ?? 0);
-    const working = lane.groups['in-progress'].length;
-    const parts: string[] = [];
-    if (waiting > 0) parts.push(`${waiting} waiting for your OK`);
-    if (working > 0) parts.push(`${working} in progress`);
-    if (parts.length === 0) parts.push(`${lane.total} ticket${lane.total === 1 ? '' : 's'}`);
-    return parts.join(' · ');
-  };
 
   // Index every ticket by id so dependency chips in the drawer can jump to another ticket.
 
@@ -474,7 +472,26 @@ export function VentureBoard({
               // budget line at 0.7 drops muted text to ~2.8:1, under WCAG AA, and a budget figure is
               // not something to render at reduced contrast.
               <div key={d.id} className="card" data-testid={`dept-${d.id}`}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
+                {/* FB-186: the surface and its queue, in one card.
+                    The desk stated each surface twice — this block of cards, and then a second list
+                    underneath repeating the same three names, the same repositories and the same
+                    ticket counts in different words. Every figure in both was correct, which is why
+                    nothing caught it; the two blocks together were 764px of a page that should come
+                    to about 1,900px in total.
+                    The lane's own id and its quiet state stay exactly where they were, on the block
+                    that holds the surface's heading and its queue — so a founder still selects a
+                    surface and sees the others stand back, and nothing that could be reached before
+                    has moved. */}
+                <div
+                  id={`lane-${d.repo}`}
+                  data-testid={`lane-${d.repo}`}
+                  data-quiet={selectedRepo && selectedRepo !== d.repo ? 'true' : 'false'}
+                  style={{
+                    opacity: selectedRepo && selectedRepo !== d.repo ? 0.45 : 1,
+                    transition: 'opacity var(--dur) var(--ease)',
+                  }}
+                >
+                <h3 style={{ fontSize: 'var(--fs-subhead)', margin: 0, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
                   {/* A real button, not a card-shaped div: the audit found the surface cards were the
                       most button-shaped objects on the page and the only ones that did nothing. The
                       NAME is the control rather than the whole card, because the card also holds the
@@ -503,7 +520,24 @@ export function VentureBoard({
                   <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
                     {d.provisioned ? 'active' : 'coming'}
                   </span>
-                </div>
+                </h3>
+                {/* The repository, and whether anything has happened in it lately. Both came off the
+                    second list; a founder no longer has to already know that "Build — Product" IS
+                    `arca` to connect a surface to its queue, because they are one thing now. */}
+                <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.2rem 0 0' }}>
+                  <span className="mono">{d.repo}</span>
+                  {stale.has(d.repo ?? '') ? (
+                    <span
+                      className="tag"
+                      data-testid={`lane-stale-${d.repo}`}
+                      tabIndex={0}
+                      title="Nothing has been built or changed here for over two weeks. That may be fine — it is only worth a look if you expected something to be happening."
+                      style={{ marginLeft: '0.4rem', color: toneColor('attention') }}
+                    >
+                      <span aria-hidden="true">⚠ </span>nothing here lately
+                    </span>
+                  ) : null}
+                </p>
                 <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
                   {d.provisioned
                     // Not `mono`: this is an explanation, and the code face made it read as a
@@ -511,13 +545,14 @@ export function VentureBoard({
                     ? <>{GATE_LABEL[d.gate] ?? `How work here gets approved is still being decided.`}</>
                     : <>Not open yet. Bruntsfield sets this side of the venture up when you need it.</>}
                 </p>
-                {/* FB-109: worth clicking BEFORE it is clicked. Same counts the lane below renders,
-                    so the card and the queue cannot disagree about how much is waiting. */}
-                {queueOf(d.repo) ? (
-                  <p className="muted" data-testid={`dept-${d.id}-queue`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.3rem 0 0' }}>
-                    {queueOf(d.repo)}
-                  </p>
-                ) : null}
+                {/* FB-186: the queue breakdown that stood here is gone.
+                    It read "4 waiting for your OK · 14 in progress" — a restatement of the banner at
+                    the top of this page and of the list directly above it, per surface. Claude
+                    Design ruled exactly this off the queue line on 2026-09-02 (*"restates the queue,
+                    which the banner and the Tickets summary already count"*), and the rule was
+                    applied to that line and not to this card, two lines above it. FB-109's point —
+                    that a card should be worth pressing before it is pressed — is carried by the
+                    outcome sentence below, which names the count and what the surface has produced. */}
                 {/* FB-128: what this surface has actually produced — the only place a founder learns
                     whether any of it worked. Sourced or silent (docs/decision-surface-outcomes.md):
                     Build's line is true today, Sell has no reporting until FB-142 and says so, and
@@ -592,6 +627,55 @@ export function VentureBoard({
                     </p>
                   )
                 ) : null}
+
+                {/* The queue itself — the second list's only unique content, now where the surface
+                    it belongs to is named. Order matters: a read that FAILED is not an empty queue,
+                    and an empty queue is not a queue with work in it (non-negotiable 10). */}
+                {laneOf(d.repo)?.error ? (
+                  <div
+                    className="card"
+                    data-testid="lane-error"
+                    data-error-kind={laneOf(d.repo)?.errorKind ?? 'error'}
+                    style={{
+                      marginTop: '0.6rem',
+                      borderColor: toneColor(laneErrorTone(laneOf(d.repo)?.errorKind ?? null)),
+                      color: toneColor(laneErrorTone(laneOf(d.repo)?.errorKind ?? null)),
+                    }}
+                  >
+                    <div>{laneOf(d.repo)?.error}</div>
+                    {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null) ? (
+                      <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: 'var(--fs-meta-lg)' }}>
+                        <strong>Next step:</strong> {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null)}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : !laneOf(d.repo) ? null : laneOf(d.repo)!.total === 0 ? (
+                  /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
+                     useless — a founder cannot tell from it whether they are waiting, whether
+                     something broke, or whether they were meant to do something first. */
+                  <div className="card" data-testid="lane-empty" style={{ marginTop: '0.6rem' }}>
+                    <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('tickets', venture.hasComposer).what}</p>
+                    <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
+                      {emptyPanel('tickets', venture.hasComposer).how}
+                    </p>
+                    <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.4rem 0 0' }}>
+                      This is the only place work for this side of the venture is read from.
+                    </p>
+                  </div>
+                ) : (
+                  /* A count and a door, not a breakdown (Claude Design, 2026-09-02): the design's
+                     own line is "14 tickets", and what earns the space beside it is an outcome —
+                     which the sentence above this one already carries. */
+                  /* The door alone. Every branch of `surfaceOutcome` already names the count in the
+                     sentence above, so printing it again here was the card saying "73 tickets"
+                     twice — the same fault as the two blocks, one level down. */
+                  <p style={{ fontSize: 'var(--fs-body-sm)', margin: '0.6rem 0 0' }}>
+                    <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${d.repo}`}>
+                      open the queue →
+                    </Link>
+                  </p>
+                )}
+                </div>
               </div>
               );
             })}
@@ -612,118 +696,29 @@ export function VentureBoard({
           ) : null}
         </div>
       ) : null}
-      <hr className="hr" />
-
-      {lanes.map((lane) => (
-        <div
-          key={lane.repo}
-          id={`lane-${lane.repo}`}
-          data-testid={`lane-${lane.repo}`}
-          /* FB-109: quieted, never hidden. Hiding two-thirds of the board behind a first click is how
-             a founder loses work they did not know to look for. */
-          data-quiet={selectedRepo && selectedRepo !== lane.repo ? 'true' : 'false'}
-          style={{
-            marginBottom: '2.5rem',
-            opacity: selectedRepo && selectedRepo !== lane.repo ? 0.45 : 1,
-            transition: 'opacity var(--dur) var(--ease)',
-          }}
-        >
-          {/* The surface's name leads; the repo slug is the aside. The two halves of the page finally
-              speak the same names — a founder no longer has to already know that "Build — Product"
-              IS `arca` to connect a card to its queue. */}
-          <h3 style={{ fontSize: 'var(--fs-subhead)' }}>
-            {surfaceOf(lane.repo)?.name ?? lane.repo}{' '}
-            <span className="muted mono" style={{ fontSize: 'var(--fs-meta)' }}>{lane.repo}</span>
-            <span className="muted">· {lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
-            {stale.has(lane.repo) ? (
-              <span
-                className="tag"
-                data-testid={`lane-stale-${lane.repo}`}
-                tabIndex={0}
-                title="Nothing has been built or changed here for over two weeks. That may be fine — it is only worth a look if you expected something to be happening."
-                style={{ marginLeft: '0.4rem', color: toneColor('attention') }}
-              >
-                <span aria-hidden="true">⚠ </span>nothing here lately
-              </span>
-            ) : null}
-            {/* FB-103: "· 8 non-ticket files skipped" used to sit here. It is a note the reader of
-                the tickets folder wrote to itself — a founder wants "42 tickets" and has no way to
-                act on the other number. `lane.skipped` is still counted and still on this object;
-                giving it an admin home is FB-100's item 4. */}
-          </h3>
-
-          {lane.error ? (
-            <div
-              className="card"
-              data-testid="lane-error"
-              data-error-kind={lane.errorKind ?? 'error'}
-              style={{
-                borderColor: toneColor(laneErrorTone(lane.errorKind)),
-                color: toneColor(laneErrorTone(lane.errorKind)),
-              }}
-            >
-              <div>{lane.error}</div>
-              {laneErrorNextStep(lane.errorKind) ? (
-                <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: 'var(--fs-meta-lg)' }}>
-                  <strong>Next step:</strong> {laneErrorNextStep(lane.errorKind)}
-                </div>
-              ) : null}
-            </div>
-          ) : lane.total === 0 ? (
-            /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
-               useless — a founder cannot tell from it whether they are waiting, whether something
-               broke, or whether they were meant to do something first. */
-            <div className="card" data-testid="lane-empty">
-              <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('tickets', venture.hasComposer).what}</p>
-              <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
-                {emptyPanel('tickets', venture.hasComposer).how}
-              </p>
-              {/* FB-103: this said "Reading main — a backlog on another branch will not show here",
-                  which asks a founder to know what a branch is before they can tell whether the
-                  emptiness is a problem. The fact worth keeping is that this list is the only one. */}
-              <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.4rem 0 0' }}>
-                This is the only place work for this side of the venture is read from.
-              </p>
-            </div>
-          ) : (
-            /*
-             * The board itself lives on Tickets, not here (FB-178).
-             *
-             * This rendered every ticket of every surface as a four-column board — on ARCA, 73
-             * tickets including **37 finished ones**, measured at 4,634px, on a desk whose whole
-             * page came to 9,908px against a design of roughly 1,900. Nearly half the desk was a
-             * duplicate of a screen one row away in the rail, and most of that half was work that
-             * had already been done.
-             *
-             * The desk's question is: what is happening, what waits on me, what did my team do, is
-             * any of it working. Finished tickets answer none of those. So the surface keeps what
-             * the desk needs — that it exists, how much is in it, whether it is stale, and whether
-             * it could be read at all — and the queue itself is one press away.
-             *
-             * Nothing is hidden that was not also somewhere else: `TicketsView` on
-             * `/venture/<id>/tickets` reads the same lanes. That is the difference between this and
-             * FB-109, which refused to hide two thirds of the board behind a click — there, the
-             * hidden work had nowhere else to be seen.
-             */
-            /*
-             * A count and a door, not a breakdown (Claude Design, 2026-09-02).
-             *
-             * The first version of this line read "20 waiting to be picked up · 14 being worked · 3
-             * needing your OK", and the note back was that it *"restates the queue, which the banner
-             * and the Tickets summary already count"*. The design's own line is "14 tickets", and
-             * what earns the space beside it is an OUTCOME — the running preview, the last send —
-             * which is the job of the surface cards below, not of this line.
-             */
-            <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
+      {/* FB-186: the second list of surfaces that stood here is gone.
+          It repeated the three names, the three repositories and the three ticket counts already on
+          the cards above, in different words — 139px of restatement plus its rule and its margins,
+          on a desk that is meant to be a page a founder reads rather than one they scroll. Every
+          figure in it was correct, which is why no test caught it and only looking did.
+          Nothing was dropped: the queue link, the stale flag, the read-failure panel and the empty
+          panel all moved up into the surface each belongs to, keeping their own ids.
+          A lane whose repository no department claims still renders, below. */}
+      {orphanLanes.length > 0 ? (
+        <div data-testid="lanes-unclaimed" style={{ marginTop: '1.25rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Other queues</p>
+          {orphanLanes.map((lane) => (
+            <p key={lane.repo} id={`lane-${lane.repo}`} data-testid={`lane-${lane.repo}`} style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.5rem' }}>
+              <span className="mono muted" style={{ fontSize: 'var(--fs-meta)' }}>{lane.repo}</span>{' '}
               <span className="muted">{lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
               {' — '}
               <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${lane.repo}`}>
                 open the queue
               </Link>
             </p>
-          )}
+          ))}
         </div>
-      ))}
+      ) : null}
 
       {/* The ticket drawer that stood here is gone (FB-178).
           Nothing could open it once the desk's board went — `setSelected` was only ever called by a
