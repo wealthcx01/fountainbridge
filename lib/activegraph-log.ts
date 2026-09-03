@@ -242,3 +242,75 @@ export async function nextSeq(
   const { events } = await readEvents(client, venture, repo, id, secret);
   return events.reduce((max, e) => Math.max(max, e.seq), 0) + 1;
 }
+
+/**
+ * Can the studio write its own record? (FB-187)
+ *
+ * ## Why this has to write something
+ *
+ * The obvious check is to ask GitHub what the token may do. That check lies. On the credential this
+ * ticket was written about, `GET /repos/wealthcx01/fountainbridge` returned `permissions.push:
+ * true` while every write to it returned 403 — the field describes the *account's* access, not the
+ * token's grants. Only a write proves a write.
+ *
+ * So this writes one small file and overwrites it in place, the same shape as the lane's heartbeat
+ * beacon. It costs one request, it never grows, and it is the only honest answer.
+ *
+ * ## What it is for
+ *
+ * The record is the studio's independent history of who agreed to what: two signed events on the
+ * studio's own ref, where the lane that proposed the action cannot author them (FB-071). When the
+ * write fails, approving and refusing still work and nothing goes out unapproved — but the history
+ * stops being kept, and the only thing left is a file on a ref the lane can write.
+ *
+ * Before this existed, that failure was visible in exactly one place: a sentence shown to the
+ * founder at the moment they decided, and a line in the server log. Nobody running the studio had
+ * any way to find out.
+ */
+export async function probeRecordWritable(
+  token: string | undefined,
+  /** Injected by tests. Production always builds its own from the write token. */
+  injected?: GitHubClient,
+): Promise<{ ok: boolean; detail: string }> {
+  if (!token && !injected) {
+    return { ok: false, detail: 'STUDIO_APPROVAL_GITHUB_TOKEN is not set, so no decision can be recorded' };
+  }
+  const repo = EVENT_REPO();
+  const client = injected ?? new GitHubClient({ token });
+
+  const ref = await ensureRef(client);
+  if (!ref.ok) return { ok: false, detail: `${repo}: ${ref.reason}` };
+
+  const path = 'activegraph/.writable';
+  try {
+    const existing = await client.getFileContent(repo, path, ACTIVEGRAPH_REF).catch(() => null);
+    await client.putFile(repo, path, {
+      content: `${new Date().toISOString()}\n`,
+      message: 'activegraph: the studio checked it can still write the record',
+      branch: ACTIVEGRAPH_REF,
+      ...(existing === null ? {} : { sha: await shaOf(client, repo, path) }),
+    });
+    return { ok: true, detail: `${repo} on ${ACTIVEGRAPH_REF}` };
+  } catch (err) {
+    const why = err instanceof Error ? err.message : String(err);
+    return {
+      ok: false,
+      // Named exactly, because the fix is a permission on one repository and the message is what an
+      // operator will act on. The failure this was written for reads: GitHub 403.
+      detail: `${repo}: the studio cannot write its own record — ${why}. `
+        + `Give STUDIO_APPROVAL_GITHUB_TOKEN Contents: write on ${repo}. `
+        + `Pointing STUDIO_EVENT_REPO at a venture repository is NOT a fix: the record exists to sit `
+        + `where the proposing lane cannot author it.`,
+    };
+  }
+}
+
+/** The blob sha of a file on the record's ref, or undefined when it is not there yet. */
+async function shaOf(client: GitHubClient, repo: string, path: string): Promise<string | undefined> {
+  try {
+    const r = await client.getFileWithSha(repo, path, ACTIVEGRAPH_REF);
+    return r?.sha;
+  } catch {
+    return undefined;
+  }
+}
