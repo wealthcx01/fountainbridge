@@ -22,7 +22,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | — | — | **not compared** |
-| The desk | ~1,900px | **2,395px** | **4,393px** | rows not cards (FB-183), one block (FB-186), full width (FB-188) |
+| The desk | ~1,900px | **2,395px** | **2,745px** | rows not cards (FB-183), one block (FB-186), full width (FB-188) |
 | Tickets | 1,090px | **1,202px** | **1,470px** | fixed FB-185, widened FB-188 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
@@ -30,7 +30,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | Composer | ~1,000px | **1,096px** | 1,142px | **matches** |
 | Handbook | 1,000px | **1,096px** | **1,760px** | matches on desktop; phone still unexplained |
 | a chapter | ~1,000px | **3,318–16,198px** | — | **the 1,188px reading was wrong** — see below |
-| The pocket studio | ~600px | — | **2,745px** | **fixed, FB-160** (was 4,221px) |
+| The pocket studio | ~600px | — | **2,745px** | **fixed, FB-160** (was 4,221px) — the desk's phone row IS this screen |
 
 No screen scrolls sideways at either size. That was not true two weeks ago (FB-153, FB-124).
 
