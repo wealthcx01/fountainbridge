@@ -386,3 +386,37 @@ test.describe('the desk answers Claude Design (FB-182)', () => {
     expect(counts.length, `the count appears ${counts.length} times: ${counts.join(', ')}`).toBe(1);
   });
 });
+
+/**
+ * FB-188 — the column beside the rail is the width the design draws into.
+ *
+ * The studio spent a month rendering a 1,080px design into a 766px column, because the 68rem
+ * measure was set on the element that holds the rail as well as the content. Every screen with a
+ * rail was taller than its design, and it read as too much content when it was partly too little
+ * width.
+ *
+ * Pinned because it is invisible: nothing failed, every figure on every screen was correct, and the
+ * only symptom was heights that no test asserts.
+ */
+test.describe('the reading column (FB-188)', () => {
+  test('is the width the design draws into, not the rail plus the content', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/venture/arca');
+    const width = await page.evaluate(() => {
+      const main = document.querySelector('.rail')?.parentElement?.querySelector('main');
+      return main ? Math.round(main.getBoundingClientRect().width) : 0;
+    });
+    // The design's own block measures 1,080px at this viewport. 5% either way.
+    expect(width, `the column is ${width}px; the design draws into 1,080px`).toBeGreaterThan(1026);
+    expect(width, `the column is ${width}px; the design draws into 1,080px`).toBeLessThan(1134);
+  });
+
+  test('a narrow window is unaffected — nothing binds below the measure', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.setViewportSize({ width: 1180, height: 900 });
+    await page.goto('/venture/arca');
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
