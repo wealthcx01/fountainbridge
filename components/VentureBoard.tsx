@@ -404,6 +404,29 @@ export function VentureBoard({
         </div>
       ) : null}
 
+      {/* "Decided — what happened next" — kept, against Claude Design's instruction to move it, and
+          the reason is worth having on the record.
+
+          The instruction (2026-09-02) was: *"The desk is forward-looking only… the record of what
+          left the company is What happened's whole job."* As a layout judgement that is right, and
+          this section is 356px of finished business on a forward-looking page.
+
+          But it is not only a record. It is the only place a founder can see whether a COMPLETED
+          approval's signature was genuine — `ApprovalCard`'s provenance element distinguishes an
+          attested grant from a forged one and from a proposal that changed after it was approved
+          (FB-046). What happened lists decisions in prose ("john.gallagher@… approved: …") and
+          carries none of that. Removing this section would make a forged grant on a past send
+          invisible, which is non-negotiable 4 — a recorded, VERIFIABLE human approval — failing
+          quietly.
+
+          Found by the gate: three tests went red, and their own comment says why they exist —
+          *"`granted` rendered NOWHERE. A founder clicked Approve on something irreversible and the
+          card vanished."*
+
+          So it moves when What happened can carry the attestation, and not before. FB-180 (which is
+          rewriting that screen) and FB-183 (which gives an external approval its own page) are where
+          that happens. Claude Design has been asked which of the two should hold it. */}
+
       {decided.length > 0 ? (
         <div data-testid="approvals-decided" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Decided — what happened next</p>
@@ -666,11 +689,17 @@ export function VentureBoard({
              * FB-109, which refused to hide two thirds of the board behind a click — there, the
              * hidden work had nowhere else to be seen.
              */
+            /*
+             * A count and a door, not a breakdown (Claude Design, 2026-09-02).
+             *
+             * The first version of this line read "20 waiting to be picked up · 14 being worked · 3
+             * needing your OK", and the note back was that it *"restates the queue, which the banner
+             * and the Tickets summary already count"*. The design's own line is "14 tickets", and
+             * what earns the space beside it is an OUTCOME — the running preview, the last send —
+             * which is the job of the surface cards below, not of this line.
+             */
             <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
-              <span className="muted">
-                {lane.groups.todo.length} waiting to be picked up · {lane.groups['in-progress'].length} being worked
-                {lane.groups['pr-open'].length > 0 ? ` · ${lane.groups['pr-open'].length} needing your OK` : ''}
-              </span>
+              <span className="muted">{lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
               {' — '}
               <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${lane.repo}`}>
                 open the queue
