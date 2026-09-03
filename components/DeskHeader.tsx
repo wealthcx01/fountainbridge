@@ -17,6 +17,9 @@ import type { DegradedGroup } from '@/lib/desk';
 export function DeskSummary({ sentence }: { sentence: string }) {
   return (
     <p
+      // FB-160: not on a phone. The amber banner directly beneath it already says what a founder is
+      // blocking, which is the one thing the design's pocket studio leads with.
+      className="not-in-pocket"
       data-testid="desk-summary"
       style={{
         // `--fs-subhead` is 15px — SMALLER than body. It is a label size, and this is the lead

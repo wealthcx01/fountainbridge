@@ -79,13 +79,13 @@ export default async function VenturePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ refresh?: string }>;
+  searchParams: Promise<{ refresh?: string; full?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.email) redirect('/login');
 
   const { id } = await params;
-  const { refresh } = await searchParams;
+  const { refresh, full } = await searchParams;
 
   const ventures = loadVentures();
   const access = authorizeVentures(
@@ -108,7 +108,7 @@ export default async function VenturePage({
         <DeskWaiting ventureName={venture.name} ventureStatus={venture.status} />
       }
     >
-      <Desk venture={venture} access={access} email={session.user.email} refreshing={refresh === '1'} />
+      <Desk venture={venture} access={access} email={session.user.email} refreshing={refresh === '1'} full={full === '1'} />
     </Suspense>
   );
 }
@@ -119,11 +119,19 @@ async function Desk({
   access,
   email,
   refreshing,
+  full,
 }: {
   venture: VentureSummary;
   access: ReturnType<typeof authorizeVentures>;
   email: string;
   refreshing: boolean;
+  /**
+   * `?full=1` — show the whole desk on a phone (FB-160).
+   *
+   * A query parameter rather than client state, so the choice survives a reload and can be linked
+   * to. Nothing is hidden from a wide screen either way; this only reaches the pocket studio.
+   */
+  full: boolean;
 }) {
 
   // ---- The reads ---------------------------------------------------------------------------
@@ -452,6 +460,7 @@ async function Desk({
       summary={summarySentence}
       blocker={blocker}
       degraded={degraded}
+      full={full}
       runs={runs.reports}
       runsTotal={runs.total}
       engine={engine}

@@ -260,11 +260,36 @@ body:has(.signin) .main { max-width: none; margin: 0; padding: 0; }
   .desk { display: flex; flex-direction: column; }
   /* Everything not named keeps its source order, after the four. */
   .desk > * { order: 5; }
+  .desk > .pocket-0 { order: 0; }
   .desk > .pocket-1 { order: 1; }
+  /* Between the banner and the office: what is stuck, which the banner counts but does not name. */
+  .desk > .pocket-1b { order: 1; }
   .desk > .pocket-2 { order: 2; }
   .desk > .pocket-3 { order: 3; }
   .desk > .pocket-4 { order: 4; }
+
+  /* FB-160: what the pocket studio does NOT carry.
+   *
+   * The design's own words for this screen: *"The same events, one column: the blocker banner, the
+   * live office, the queue, the prompt."* Four things. Ours put the whole desk on the phone —
+   * 4,398px of it, most of it below the prompt bar.
+   *
+   * Stood down, not removed, and not duplicated: this is the same markup the desk renders, so there
+   * is never a second copy of a control in the document. `?full=1` brings it all back, and the link
+   * at the end of the pocket studio is how a founder gets there.
+   *
+   * What stays is the four, plus everything a founder can ACT on — the blocker banner, the queue
+   * with its decisions, the prompt, the wiring warning, and the strip of what could not be read. A
+   * lane's read failure reaches that strip too (`page.tsx` builds it from the lanes), so standing
+   * the surface cards down hides no failure. */
+  .desk:not(.desk-full) .not-in-pocket { display: none; }
+  .pocket-more { order: 6; }
 }
+
+/* The way to the whole desk, and back. Only ever on a phone: at a desk there is nothing to expand,
+   and a control that does nothing is worse than none (design contract, `dead-control`). */
+.pocket-more { display: none; }
+@media (max-width: 48rem) { .pocket-more { display: block; } }
 
 /* Main content column */
 .main {
@@ -673,4 +698,27 @@ body:has(.rail) .main {
   .activity-when { order: 2; }
   .activity-said { order: 1; }
   .activity-meta { order: 3; text-align: left; }
+}
+
+/* A row of the queue: what it is, and how long it has waited (FB-128, restructured by FB-160).
+   In the stylesheet and not inline, for the reason this file gives three times already: a media
+   query cannot override an inline style, and this row has to change shape on a phone.
+   Inline flex put the title and "waiting 34 days Decide →" side by side in a 345px column, so every
+   title wrapped to three lines and nine rows came to 1,129px. */
+.waiting-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--color-border);
+}
+.waiting-when { flex-shrink: 0; font-size: var(--fs-meta-lg); }
+
+/* On a phone the row is two lines, which is the design's own shape: the title, then the reference,
+   the surface, how long it has waited and the way in. Nothing is dropped; it stops competing for
+   width with itself. */
+@media (max-width: 48rem) {
+  .waiting-row { display: block; padding: 0.7rem 0; }
+  .waiting-when { display: block; margin-top: 0.25rem; }
 }

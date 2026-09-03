@@ -58,7 +58,7 @@ test('empty / not-provisioned repos render a clear state, not a crash', async ({
   await testLogin(page, 'john.gallagher@wealthcx.com');
   await page.goto('/venture/the-reset'); // its repos have no fixtures → empty lanes
   await expect(page.getByTestId('lane-thereset-platform')).toBeVisible();
-  await expect(page.getByTestId('lane-thereset-platform').getByTestId('lane-empty')).toBeVisible();
+  await expect(page.getByTestId('lane-empty-thereset-platform')).toBeVisible();
 });
 
 

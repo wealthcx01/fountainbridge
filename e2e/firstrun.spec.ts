@@ -25,7 +25,7 @@ test.describe('a founder’s first ten seconds', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Welcome');
 
     // The empty panels the ticket is about are gone — not reworded, gone.
-    await expect(page.getByTestId('lane-empty')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="lane-empty-"]')).toHaveCount(0);
     await expect(page.getByTestId('lane-activity-empty')).toHaveCount(0);
   });
 
