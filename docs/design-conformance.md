@@ -25,7 +25,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | The desk | ~1,900px | 3,830px | 4,221px | gap: the approval cards (FB-183) |
 | Tickets | 1,090px | **1,471px** | **1,470px** | **fixed, FB-185** (was 6,864 / 8,008) |
 | a ticket | — | **1,508px** | **1,945px** | **fixed, FB-185** (was 6,864 / 8,859) |
-| What happened | ~1,000px | **3,556px** | — | FB-180 |
+| What happened | ~1,000px | **1,487px** | **2,910px** | **fixed, FB-180** (was 3,556 / 6,536) |
 | Memory | ~1,000px | 1,570px | — | FB-181 |
 | Composer | ~1,000px | 1,096px | 990px | **matches** |
 | Handbook | 1,000px | 1,096px | 1,782px | matches on desktop; phone unexplained |
@@ -71,6 +71,19 @@ neither of which the design puts on a phone at all.
 
 **Three screens match and should be left alone**: the Composer, a Handbook chapter, and the Handbook
 on desktop. The Composer matching matters — it is the screen with the most behaviour on it.
+
+**"What happened" was a commit log and is now an account. FB-180** took it from 3,556px to 1,487px
+on desktop and 6,536px to 2,910px on a phone, and the height was the smallest part of it. All six
+faults the audit named are gone: twenty identical rows are one row with a count, slugs read as
+`ARCA-061, saved card lists not persisting`, commit prefixes and pull request numbers are stripped,
+a push and its pull request are one row, dates are `Today 00:57 / Yesterday / 27 August` with the
+calendar date still on the row for anyone who needs it, and the meta column names `Build — Product`
+rather than `arca`.
+
+Two things came out of reading it that the ticket had not named. The meta column was saying the
+meaning as well as the surface — `Build — Product · shipped` — which the sentence beside it already
+said, and the width that cost wrapped eleven of twenty rows onto a second line. And the summary's
+`Most recently: A, B and C` names the three items that are the first three rows directly beneath it.
 
 **Handbook is 1,782px on a phone against 1,096px on desktop.** A page of prose should get *shorter*
 in a narrower column only if the type scales; growing by 62% suggests something is not reflowing.

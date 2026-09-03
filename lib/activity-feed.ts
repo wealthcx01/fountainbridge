@@ -23,8 +23,9 @@
 import type { ActivityEvent } from './health';
 import type { RunReport } from './runreports';
 import type { ActiveGraphApproval } from './approvals';
-import { describeRun } from './runreports';
-import { classifyActivity, MEANING_LABEL } from './activity-kind';
+import { collapseRepeats, describeRun } from './runreports';
+import { founderSentence, readableSlugs } from './founder-sentence';
+import { classifyActivity } from './activity-kind';
 import { approvalTone, type Tone } from './status';
 
 export interface FeedItem {
@@ -41,6 +42,14 @@ export interface FeedItem {
   href?: string;
   /** Survives the render cap. For entries that must never be orderable out of sight. */
   pinned?: boolean;
+  /**
+   * How many identical records this row stands for (FB-180).
+   *
+   * 1 for almost everything. A lane at its daily budget re-parks every five minutes and each wake
+   * writes a record, so twenty of them arrived as twenty rows saying the same sentence — one fact,
+   * filling the screen, pushing everything a founder had not read off the bottom.
+   */
+  repeats?: number;
 }
 
 export interface FeedInput {
@@ -61,6 +70,19 @@ export interface FeedInput {
   approvals: ActiveGraphApproval[];
   /** Rendered at most this many. Bounded because the page is, not because the truth is. */
   limit?: number;
+  /**
+   * Repository → the surface and department that owns it, e.g. `arca` → `Build — Product` (FB-180).
+   *
+   * The meta column named the repository: `arca · your team`. The design names the surface and its
+   * department — `Build · Product`, `Sell · Marketing`, `Research` — which is the vocabulary the
+   * rest of the studio already uses and the only one a founder chose. A repository name is an
+   * engineering address that happens to be visible.
+   *
+   * A repository with no department falls back to the venture's own name, never to the repo.
+   */
+  surfaces?: Record<string, string>;
+  /** The venture's name, for a repository no department claims. */
+  ventureName?: string;
 }
 
 /**
@@ -164,29 +186,42 @@ function runTone(r: RunReport): Tone {
 export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boolean } {
   const items: FeedItem[] = [];
 
+  // Where a repository sits in the venture, in the founder's words rather than in git's.
+  const surfaceOf = (repo: string): string =>
+    input.surfaces?.[repo] ?? input.ventureName ?? 'Your venture';
+
   for (const event of input.activity) {
     const at = iso(event.at);
     if (!at) continue;
+    const meaning = classifyActivity(event);
     items.push({
       at,
-      text: event.title,
-      meta: `${event.repo} · ${MEANING_LABEL[classifyActivity(event)]}`,
+      // Built from what the event MEANS, not from what was typed into the commit. `event.title` is
+      // an engineering artefact — `build: ARCA-062-arca-brand-redesign (Foundry lane)` — and every
+      // row in the design is a sentence about the venture.
+      text: founderSentence(meaning, event.title),
+      // The surface and its department, and nothing else. The meaning is in the sentence — saying
+      // it twice cost this column enough width to wrap most rows onto a second line.
+      meta: surfaceOf(event.repo),
       tone: repoTone(event),
       source: 'repo',
       href: event.url || undefined,
     });
   }
 
-  for (const r of input.runs) {
+  // Collapsed BEFORE anything else looks at them (FB-178's `collapseRepeats`, reused rather than
+  // written a second time). Twenty identical parkings are one fact; the count says how many.
+  for (const r of collapseRepeats(input.runs)) {
     const at = iso(r.startedAt);
     if (!at) continue;
     items.push({
       at,
-      text: describeRun(r),
-      meta: `${r.repo} · your team`,
+      text: readableSlugs(describeRun(r)),
+      meta: surfaceOf(r.repo),
       tone: runTone(r),
       source: 'run',
       href: r.prUrl ?? undefined,
+      repeats: r.repeats,
     });
   }
 
@@ -196,7 +231,7 @@ export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boo
       // is not a history — the same rule the trail follows.
       const at = iso(d.at);
       if (!at) continue;
-      items.push({ at, text: d.text, meta: `${a.repo} · a decision`, tone: d.tone, source: 'decision', pinned: d.pinned });
+      items.push({ at, text: d.text, meta: surfaceOf(a.repo), tone: d.tone, source: 'decision', pinned: d.pinned });
     }
   }
 

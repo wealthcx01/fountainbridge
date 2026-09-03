@@ -617,3 +617,31 @@ body:has(.rail) .main {
 }
 .surface-name:hover { border-bottom-color: var(--color-border-strong); }
 .surface-name[aria-pressed='true'] { border-bottom-color: var(--color-accent); color: var(--color-accent); }
+
+/* FB-180: a row of the record — when, what, and which surface it belongs to.
+   In the stylesheet and not inline, for the reason this file already gives twice: a media query
+   cannot override an inline style, and this layout has to change shape on a phone. Inline flex here
+   put three columns in a 393px window and took the page to 10,233px. */
+.activity-row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--color-border);
+}
+.activity-when { font-size: var(--fs-meta); }
+.activity-said { min-width: 0; }
+.activity-meta { font-size: var(--fs-meta-lg); text-align: right; }
+
+/* A phone has room for one column, so the row becomes two lines: the sentence, then when and where
+   under it. Three columns in 393px is what made this screen taller than the one it replaced. */
+@media (max-width: 48rem) {
+  .activity-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+  .activity-when { order: 2; }
+  .activity-said { order: 1; }
+  .activity-meta { order: 3; text-align: left; }
+}
