@@ -7,15 +7,16 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { STATUS_LABEL } from '@/lib/glossary';
-import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/lib/markdown';
+import { showAngleBrackets, splitTicketBody, withoutStatusClaim, withoutTitleHeading } from '@/lib/markdown';
 import { toneColor } from '@/lib/status';
 import { howLongMs } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
 import { isUnnumbered } from '@/lib/ticket-ids';
 import type { ReactNode } from 'react';
 import {
-  FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition, filterTickets,
-  nextDecision, resolveSelected, rowKey, ticketsSummary, type TicketFilter, type TicketRow,
+  DEFAULT_FILTER, FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition,
+  filterTickets, nextDecision, resolveSelected, rowKey, ticketsSummary, type TicketFilter,
+  type TicketRow,
 } from '@/lib/tickets-view';
 
 /**
@@ -43,6 +44,7 @@ export function TicketsView({
   rows,
   filter,
   selectedId,
+  opened = false,
   trail = null,
   refs,
   filedBranches = {},
@@ -54,6 +56,16 @@ export function TicketsView({
   rows: TicketRow[];
   filter: TicketFilter;
   selectedId: string | null;
+  /**
+   * True when the founder actually opened a ticket (`?t=` is in the URL), as opposed to the screen
+   * resolving a default selection (FB-185).
+   *
+   * Only the phone layout uses it. On a wide screen the list and the ticket sit side by side and
+   * both are always shown; below 60rem they stack, and stacking put the whole list ABOVE the ticket
+   * a founder had just opened — 8,242px of it on ARCA's backlog. The design shows one column at a
+   * time on a phone, so this says which one.
+   */
+  opened?: boolean;
   /**
    * The selected ticket's history (FB-130), as a **node** rather than as data.
    *
@@ -98,7 +110,10 @@ export function TicketsView({
   // stepping between tickets is navigation a founder expects Back to undo.
   const go = (nextFilter: TicketFilter, id: string | null, mode: 'push' | 'replace' = 'push') => {
     const q = new URLSearchParams();
-    if (nextFilter !== 'all') q.set('filter', nextFilter);
+    // Omit the filter that a bare URL already means, and no other. This tracked `'all'` when `'all'`
+    // was the default (FB-185 changed it to `needs`); left alone, pressing **All** would have
+    // dropped the query and navigated to a URL that now means the opposite.
+    if (nextFilter !== DEFAULT_FILTER) q.set('filter', nextFilter);
     if (id) q.set('t', id);
     // `.toString()`, not `.size`: the latter is recent enough that on an older browser it is
     // `undefined`, the query is dropped silently, and every filter tab and row click navigates to
@@ -162,8 +177,8 @@ export function TicketsView({
         </p>
       ) : null}
 
-      <div className="tickets-split">
-        <ol data-testid="tickets-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+      <div className={opened ? 'tickets-split is-reading' : 'tickets-split'}>
+        <ol className="tickets-list" data-testid="tickets-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {/* "The queue is clear" is the most reassuring sentence on this screen. It must never be
               said about a list the studio could not read. */}
           {shown.length === 0 && panel !== 'unreadable' ? (
@@ -221,7 +236,20 @@ export function TicketsView({
           ))}
         </ol>
 
-        <div data-testid="tickets-detail">
+        <div className="tickets-detail" data-testid="tickets-detail">
+          {/* FB-185: the way back, on a phone only — where the list is now hidden while a ticket is
+              open. On a wide screen the list is still sitting right there and this would be a
+              control pointing at something already visible, so the stylesheet hides it. */}
+          {opened ? (
+            <button
+              type="button"
+              className="btn back-to-list"
+              data-testid="tickets-back-to-list"
+              onClick={() => go(filter, null)}
+            >
+              ← All tickets
+            </button>
+          ) : null}
           {selected ? (
             <Detail
               // Keyed, or the panel keeps its own state across tickets. Concretely: refuse ticket A,
@@ -312,11 +340,7 @@ function Detail({
       ) : null}
 
       {ticket ? (
-        <div className="ticket-body" style={{ fontSize: 'var(--fs-body-sm)' }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {showAngleBrackets(withoutStatusClaim(withoutTitleHeading(ticket.body_md)))}
-          </ReactMarkdown>
-        </div>
+        <TicketBody md={showAngleBrackets(withoutStatusClaim(withoutTitleHeading(ticket.body_md)))} />
       ) : null}
 
       <p style={{ fontSize: 'var(--fs-body-sm)', margin: '1rem 0 0' }}>
@@ -487,6 +511,35 @@ function Fact({ label, value }: { label: string; value: string }) {
     <div style={{ display: 'flex', gap: '0.6rem', margin: '0 0 0.3rem' }}>
       <dt className="muted" style={{ flex: '0 0 4.5rem' }}>{label}</dt>
       <dd style={{ margin: 0, minWidth: 0 }}>{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * A ticket, read beside the list: the opening first, the rest one press away (FB-185).
+ *
+ * A ticket file is written for whoever builds the thing — scope, out of scope, acceptance criteria,
+ * quoted research. On ARCA's backlog that is 1,730px under a heading a founder has already read the
+ * point of, and it sits directly above the box where they approve the work. The design's ticket
+ * detail is a couple of paragraphs and then the decision.
+ *
+ * So the opening is shown and the remainder goes in a `<details>`: one press, in place, no
+ * navigation, and nothing removed. `<details>` rather than state, because it works before the
+ * JavaScript arrives and browsers already give it the right keyboard and screen-reader behaviour —
+ * and because a founder who expands it, decides, and comes back should not find it collapsed by a
+ * re-render they did not cause.
+ */
+function TicketBody({ md }: { md: string }) {
+  const { summary, rest } = splitTicketBody(md);
+  return (
+    <div className="ticket-body" style={{ fontSize: 'var(--fs-body-sm)' }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary}</ReactMarkdown>
+      {rest ? (
+        <details data-testid="ticket-body-rest">
+          <summary className="ticket-body-more">Read the whole ticket</summary>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{rest}</ReactMarkdown>
+        </details>
+      ) : null}
     </div>
   );
 }
