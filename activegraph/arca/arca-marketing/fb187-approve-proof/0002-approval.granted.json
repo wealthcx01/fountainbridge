@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "seq": 2,
+  "venture": "arca",
+  "repo": "arca-marketing",
+  "id": "fb187-approve-proof",
+  "type": "approval.granted",
+  "at": "2026-09-03T09:22:46.843Z",
+  "actor": {
+    "kind": "human",
+    "id": "arca.founder@bruntsfield.capital"
+  },
+  "data": {
+    "proposal_sha": "e2eda1f8f77aaebef64138f681fde43bf1b77e48"
+  },
+  "attestation": "993cd7f1ab31ed2052f620d0fd2048f8db2f88faf26bf51bb89108d2099f6a6d"
+}
