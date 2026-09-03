@@ -23,9 +23,9 @@ designed to". Every gap below was found by the number and then confirmed by read
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | — | — | **not compared** |
 | The desk | ~1,900px | 3,830px | 4,221px | gap: the approval cards (FB-183) |
-| Tickets | **1,090px** | **6,864px** | **8,008px** | **worst gap in the studio** |
-| a ticket | — | 6,864px | **8,859px** | as above; the detail sits on the list |
-| What happened | ~1,000px | **3,556px** | — | FB-180 |
+| Tickets | 1,090px | **1,471px** | **1,470px** | **fixed, FB-185** (was 6,864 / 8,008) |
+| a ticket | — | **1,508px** | **1,945px** | **fixed, FB-185** (was 6,864 / 8,859) |
+| What happened | ~1,000px | **1,487px** | **2,910px** | **fixed, FB-180** (was 3,556 / 6,536) |
 | Memory | ~1,000px | 1,570px | — | FB-181 |
 | Composer | ~1,000px | 1,096px | 990px | **matches** |
 | Handbook | 1,000px | 1,096px | 1,782px | matches on desktop; phone unexplained |
@@ -36,14 +36,32 @@ No screen scrolls sideways at either size. That was not true two weeks ago (FB-1
 
 ## What the numbers turned out to mean
 
-**Tickets is now the worst screen, at six to eight times its design.** The design's Tickets is
-1,090px — a filtered list. Ours renders every ticket the venture has ever had, finished ones
-included, and the detail pane sits on the same page, so "a ticket" is the same 6,864px.
+**Tickets was the worst screen, at six to eight times its design. FB-185 fixed it** — 6,864px to
+1,471px on desktop, 8,008px to 1,470px on a phone.
 
-This is worth stating plainly because FB-178 made it more important, not less: the desk's board was
-removed on the grounds that Tickets is where the queue lives. It is — and it is the least
-design-conformant screen we have. The likely cause is the default filter; the design shows open work
-and ours appears to show everything.
+The ticket predicted one cause and there were two.
+
+The predicted one was right and was the larger: the screen opened on **All**, which is every ticket
+the venture ever had — 80 on ARCA, 37 of them finished — against a design that opens on **Needs you**
+(`filter: 'needs'` in the wireframe's own state, twice). That is one line, and it took desktop from
+7,123px to 2,967px.
+
+The second was not in the ticket. The detail pane **rendered the whole ticket file**, at the global
+heading sizes, in a column beside the list: `Context`, `Scope`, `Out of scope`, `Acceptance
+criteria`, research bullets carrying full URLs. ARCA-068 is 1,730px of that on its own, sitting
+directly above the box where a founder approves the work. The design's ticket detail is the opening
+of the ticket and then the decision — it shows no scope list anywhere. So the opening is shown and
+the rest is one press away behind **Read the whole ticket**, and nothing is removed.
+
+A third thing the height could not have found, and the picture did: on a phone the two columns
+stacked, so the screen showed the whole queue *and* the full text of whichever ticket it had selected
+by default underneath it. Opening a ticket then meant scrolling past all eighty to reach it. The
+design's phone treatment is one column at a time, and it is now one column at a time.
+
+**How the after numbers were taken.** The before numbers are production. The after numbers are a
+local production build running on production's own configuration and reading the same live GitHub
+data — ARCA's real 80 tickets — because the change is not deployed until it merges. Same data, same
+build, different host. Re-confirm on production once it has deployed.
 
 **The pocket studio shows two sections the design does not have on a phone.** The design's own
 description is exact: *"The same events, one column: the blocker banner, the live office, the queue,
@@ -53,6 +71,19 @@ neither of which the design puts on a phone at all.
 
 **Three screens match and should be left alone**: the Composer, a Handbook chapter, and the Handbook
 on desktop. The Composer matching matters — it is the screen with the most behaviour on it.
+
+**"What happened" was a commit log and is now an account. FB-180** took it from 3,556px to 1,487px
+on desktop and 6,536px to 2,910px on a phone, and the height was the smallest part of it. All six
+faults the audit named are gone: twenty identical rows are one row with a count, slugs read as
+`ARCA-061, saved card lists not persisting`, commit prefixes and pull request numbers are stripped,
+a push and its pull request are one row, dates are `Today 00:57 / Yesterday / 27 August` with the
+calendar date still on the row for anyone who needs it, and the meta column names `Build — Product`
+rather than `arca`.
+
+Two things came out of reading it that the ticket had not named. The meta column was saying the
+meaning as well as the surface — `Build — Product · shipped` — which the sentence beside it already
+said, and the width that cost wrapped eleven of twenty rows onto a second line. And the summary's
+`Most recently: A, B and C` names the three items that are the first three rows directly beneath it.
 
 **Handbook is 1,782px on a phone against 1,096px on desktop.** A page of prose should get *shorter*
 in a narrower column only if the type scales; growing by 62% suggests something is not reflowing.

@@ -129,3 +129,20 @@ describe('composeActivitySummary', () => {
     expect(sentences[0]).toContain('finished 2 pieces of work');
   });
 });
+
+describe('the summary beside its own list (FB-180)', () => {
+  const ev = (title: string, at: string) => ({ title, at, paths: ['src/app.ts'] });
+
+  it('drops "Most recently" when the caller prints the list underneath it', () => {
+    const events = [ev('one', '2026-09-01T10:00:00.000Z'), ev('two', '2026-08-31T10:00:00.000Z')];
+    const withList = composeActivitySummary({ events, windowDays: 14, withoutList: true });
+    expect(withList.sentences.join(' ')).not.toContain('Most recently');
+    expect(withList.sentences.length).toBeGreaterThan(0);
+  });
+
+  it('keeps it for a caller that summarises without the list, which is what it is for', () => {
+    const events = [ev('one', '2026-09-01T10:00:00.000Z'), ev('two', '2026-08-31T10:00:00.000Z')];
+    const alone = composeActivitySummary({ events, windowDays: 14 });
+    expect(alone.sentences.join(' ')).toContain('Most recently');
+  });
+});

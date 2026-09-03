@@ -92,7 +92,9 @@ test.describe('the loop is visible on the queue (FB-098)', () => {
     // The Tickets screen, not the desk. FB-178 took the board off the desk and this moved with it —
     // it is the founder's answer to "is anything happening to the thing I asked for", and it now
     // lives on the only list of tickets they have.
-    await page.goto('/venture/arca/tickets');
+    // `filter=all` explicitly: FB-185 made "Needs you" the default, and these are assertions about
+    // how any ticket renders, not about which ones the screen opens on.
+    await page.goto('/venture/arca/tickets?filter=all');
   });
 
   test('a worked ticket says so, and the ticket carries the way through', async ({ page }) => {
@@ -210,7 +212,9 @@ test.describe('an unnumbered ticket is flagged, not named (FB-097)', () => {
     // The Tickets screen, not the desk. The desk's board is gone (FB-178), and this rule had only
     // ever been applied THERE — so removing the board would have quietly reintroduced the defect
     // FB-097 exists to fix, on the screen that is now the only list of tickets a founder has.
-    await page.goto('/venture/arca/tickets');
+    // `filter=all` explicitly: an unnumbered ticket is not necessarily waiting on the founder, and
+    // FB-185 made "Needs you" what the screen opens on.
+    await page.goto('/venture/arca/tickets?filter=all');
   });
 
   test('the list says "unnumbered" instead of pretending -NEW is a name', async ({ page }) => {

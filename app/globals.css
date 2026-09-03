@@ -331,6 +331,37 @@ body:has(.rail) .main {
 /* A wide table scrolls inside its own box rather than taking the page with it. */
 .ticket-body table { display: block; overflow-x: auto; max-width: 100%; }
 
+/* FB-185: a ticket read inside a panel is body copy, not a page.
+   A ticket file's own `## Context` / `## Scope` / `## Acceptance criteria` were rendering at the
+   global heading sizes — the same scale as the `Tickets` title at the top of the screen — inside a
+   column beside the list. On ARCA's real backlog one open research ticket was most of a 2,967px
+   page on its own, and the design's ticket detail has no headings that size anywhere in it.
+   Scaled down rather than hidden: the founder still gets every word their team wrote, at the size
+   the surrounding sentence is set in. */
+.ticket-body h1,
+.ticket-body h2,
+.ticket-body h3,
+.ticket-body h4 {
+  font-size: var(--fs-body);
+  line-height: 1.3;
+  font-weight: 600;
+  margin: 1.1rem 0 0.35rem;
+}
+.ticket-body h1:first-child,
+.ticket-body h2:first-child { margin-top: 0; }
+.ticket-body p, .ticket-body ul, .ticket-body ol { margin: 0 0 0.6rem; }
+.ticket-body li { margin: 0 0 0.2rem; }
+
+/* The press that opens the rest of the ticket. Looks like the link it behaves as. */
+.ticket-body-more {
+  cursor: pointer;
+  font-size: var(--fs-body-sm);
+  color: var(--color-accent);
+  text-decoration: underline;
+  margin: 0.2rem 0 0.6rem;
+}
+.ticket-body details[open] > .ticket-body-more { margin-bottom: 0.8rem; }
+
 /* FB-129: the tickets screen — list beside detail, stacking on a narrow screen.
    In the stylesheet rather than inline, because a media query cannot override an inline style:
    FB-124 shipped a 250px rail on a 393px phone for exactly that reason and it took four
@@ -345,7 +376,20 @@ body:has(.rail) .main {
 
 @media (max-width: 60rem) {
   .tickets-split { grid-template-columns: minmax(0, 1fr); }
+
+  /* FB-185: one column at a time, which is the design's phone treatment.
+     Stacking showed both: the queue, and then the full text of whichever ticket the screen had
+     selected by default underneath it — 8,242px on ARCA's data, and 8,859px once a founder opened
+     one. So exactly one column is shown. No ticket open: the queue, which is what a founder came
+     for. A ticket open: the ticket, with `← All tickets` to get back.
+     Wide screens keep both columns — there the list is beside the ticket, not on top of it. */
+  .tickets-split.is-reading > .tickets-list { display: none; }
+  .tickets-split:not(.is-reading) > .tickets-detail { display: none; }
+  .back-to-list { display: inline-block; margin-bottom: 0.9rem; }
 }
+
+/* The way back only exists where the list is hidden. */
+.back-to-list { display: none; }
 
 @media (max-width: 60rem) {
   /* The class, not the test id — see the note above `body:has(.rail) .topbar`. This catches the
@@ -573,3 +617,31 @@ body:has(.rail) .main {
 }
 .surface-name:hover { border-bottom-color: var(--color-border-strong); }
 .surface-name[aria-pressed='true'] { border-bottom-color: var(--color-accent); color: var(--color-accent); }
+
+/* FB-180: a row of the record — when, what, and which surface it belongs to.
+   In the stylesheet and not inline, for the reason this file already gives twice: a media query
+   cannot override an inline style, and this layout has to change shape on a phone. Inline flex here
+   put three columns in a 393px window and took the page to 10,233px. */
+.activity-row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--color-border);
+}
+.activity-when { font-size: var(--fs-meta); }
+.activity-said { min-width: 0; }
+.activity-meta { font-size: var(--fs-meta-lg); text-align: right; }
+
+/* A phone has room for one column, so the row becomes two lines: the sentence, then when and where
+   under it. Three columns in 393px is what made this screen taller than the one it replaced. */
+@media (max-width: 48rem) {
+  .activity-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+  .activity-when { order: 2; }
+  .activity-said { order: 1; }
+  .activity-meta { order: 3; text-align: left; }
+}

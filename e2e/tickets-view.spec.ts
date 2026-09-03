@@ -36,8 +36,10 @@ test.describe('tickets', () => {
   });
 
   test('the selected ticket and the filter are in the URL, and a link restores both', async ({ page }) => {
-    await page.getByTestId('tickets-filter-needs').click();
-    await expect(page).toHaveURL(/filter=needs/);
+    // A filter that is NOT the default, because the default is the one a bare URL already means and
+    // so is deliberately absent from the query (FB-185). `settled` proves the round trip.
+    await page.getByTestId('tickets-filter-settled').click();
+    await expect(page).toHaveURL(/filter=settled/);
 
     const first = page.getByTestId('tickets-list').locator('li button').first();
     const id = ((await first.textContent()) ?? '').match(/([A-Z]+-\d+)/)?.[1];
@@ -51,6 +53,28 @@ test.describe('tickets', () => {
     await page.goto('/venture/arca');
     await page.goto(url);
     await expect(page.getByTestId('detail-title')).toBeVisible();
+    await expect(page.getByTestId('tickets-filter-settled')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  /**
+   * FB-185: the screen opens on what needs the founder, and the bare URL means exactly that.
+   *
+   * Pinned here as well as in the unit test because the two halves have to agree: `parseFilter`
+   * decides what a bare URL means, and `go()` decides which filter is left out of the query. If
+   * they ever disagree, pressing a tab navigates somewhere that shows a different list than the tab
+   * it came from, and nothing else in the suite would notice.
+   */
+  test('opens on what needs the founder, and says so in the tab', async ({ page }) => {
+    await page.goto('/venture/arca/tickets');
+    await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
+
+    // Pressing All is a real navigation to a real filter, not a fall back to the bare URL.
+    await page.getByTestId('tickets-filter-all').click();
+    await expect(page).toHaveURL(/filter=all/);
+    await expect(page.getByTestId('tickets-filter-all')).toHaveAttribute('aria-selected', 'true');
+
+    // And back again, which is where the default being absent from the query has to hold.
+    await page.getByTestId('tickets-filter-needs').click();
     await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
   });
 
@@ -58,7 +82,9 @@ test.describe('tickets', () => {
     await page.getByTestId('tickets-filter-needs').click();
     // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
     // list re-renders — clicking straight after could land on the previous filter's DOM.
-    await expect(page).toHaveURL(/filter=needs/);
+    // The tab, not the URL: "Needs you" is the default since FB-185, so it is the one filter
+    // deliberately absent from the query. Waiting on the tab still waits for the navigation.
+    await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('tickets-list').locator('li button').first().click();
 
     const decision = page.getByTestId('detail-decision');
@@ -75,7 +101,9 @@ test.describe('tickets', () => {
     await page.getByTestId('tickets-filter-needs').click();
     // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
     // list re-renders — clicking straight after could land on the previous filter's DOM.
-    await expect(page).toHaveURL(/filter=needs/);
+    // The tab, not the URL: "Needs you" is the default since FB-185, so it is the one filter
+    // deliberately absent from the query. Waiting on the tab still waits for the navigation.
+    await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('tickets-list').locator('li button').first().click();
     await page.getByTestId('detail-refuse').click();
 
@@ -100,7 +128,9 @@ test.describe('tickets', () => {
     await page.getByTestId('tickets-filter-needs').click();
     // Wait for the filter to land before clicking a row. Selecting is a server navigation, so the
     // list re-renders — clicking straight after could land on the previous filter's DOM.
-    await expect(page).toHaveURL(/filter=needs/);
+    // The tab, not the URL: "Needs you" is the default since FB-185, so it is the one filter
+    // deliberately absent from the query. Waiting on the tab still waits for the navigation.
+    await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('tickets-list').locator('li button').first().click();
 
     await page.getByTestId('detail-approve').click();
@@ -218,10 +248,31 @@ test.describe('tickets', () => {
     await page.goto('/venture/arca/tickets?t=arca%2FARCA-6');
     await expect(page.getByTestId('detail-title')).toContainText('Price history');
     await expect(page.getByTestId('tickets-detail')).toContainText('developer.ebay.com');
-    await expect(page.getByTestId('tickets-list')).toBeVisible();
+
+    // FB-185: one column at a time, which is the design's phone treatment. This used to assert that
+    // BOTH were visible, and both being visible is the defect: the whole queue sat above the ticket
+    // the founder had just opened, so reading one ticket meant scrolling past all of them —
+    // 8,859px on ARCA's real backlog.
     await expect(page.getByTestId('tickets-detail')).toBeVisible();
+    await expect(page.getByTestId('tickets-list')).toBeHidden();
+
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     await page.screenshot({ path: `${SHOTS}/21-mobile-tickets.png`, fullPage: true });
+
+    // The way back, and the queue is whole when you get there.
+    await page.getByTestId('tickets-back-to-list').click();
+    await expect(page.getByTestId('tickets-list')).toBeVisible();
+    await expect(page.getByTestId('tickets-detail')).toBeHidden();
+  });
+
+  test('on a phone with nothing open, the queue is the screen', async ({ page }) => {
+    // The other half of one-column-at-a-time. The screen resolves a default selection even when
+    // nobody has opened anything, and rendering it under the list put a full ticket below the queue
+    // on every phone visit.
+    await page.setViewportSize({ width: 393, height: 851 });
+    await page.goto('/venture/arca/tickets');
+    await expect(page.getByTestId('tickets-list')).toBeVisible();
+    await expect(page.getByTestId('tickets-detail')).toBeHidden();
   });
 });
