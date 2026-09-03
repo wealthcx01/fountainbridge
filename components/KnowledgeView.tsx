@@ -5,14 +5,7 @@ import { useState, useTransition } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
-  AREA_LABEL,
-  describeOrigin,
-  describeSize,
-  docKey,
-  memorySummary,
-  orderRows,
-  type KnowledgeDoc,
-  type KnowledgeRow,
+  AREA_LABEL, describeOrigin, describeSize, docKey, memorySummary, orderRows, type KnowledgeDoc, type KnowledgeRow, surfaceFor,
 } from '@/lib/knowledge';
 import { ACCEPTED_DESCRIPTION } from '@/lib/documents';
 import { showAngleBrackets } from '@/lib/markdown';
@@ -56,6 +49,8 @@ export function KnowledgeView({
   routineErrors = [],
   provenanceMissing = false,
   usedNote = null,
+  surfaces,
+  departmentNames,
 }: {
   ventureId: string;
   ventureName: string;
@@ -64,6 +59,20 @@ export function KnowledgeView({
   routines: Routine[];
   routineErrors?: string[];
   provenanceMissing?: boolean;
+  /**
+   * Repository → the surface that owns it, e.g. `arca-ops` → `Scale — Growth & Ops` (FB-181).
+   *
+   * Falls back to the document's own department slug when a repository has no department, so a
+   * venture with no surfaces declared reads exactly as it did before.
+   */
+  surfaces?: Record<string, string>;
+  /**
+   * Department id → its name, e.g. `sell` → `Sell — Go-to-market` (FB-181).
+   *
+   * Preferred over `surfaces`, because a document's path says which surface it belongs to and its
+   * repository only says where it is kept. The two disagree on ARCA today.
+   */
+  departmentNames?: Record<string, string>;
   /**
    * What the dashes in `Last used` mean on THIS venture (FB-156).
    *
@@ -136,8 +145,21 @@ export function KnowledgeView({
                         >
                           {doc.title}
                         </button>
+                        {/* FB-181: name the surface, and name the RIGHT one.
+                            `context/README.md` existed in three of ARCA's repositories, so three
+                            genuine and distinct files rendered as three identical rows differing
+                            only by *581 bytes* and *572 bytes* — which reads as a bug. `docKey`
+                            already keys on repo AND path for exactly this reason; the column that
+                            would make it visible was what was missing.
+                            The document's own path wins over its repository, and that is not a
+                            detail: `context/sell/brand-positioning.md` lives in the `arca` repo and
+                            is a Sell document. Keying this off the repository relabelled it
+                            "Build — Product" — replacing something true with something false, on
+                            the screen whose whole complaint was rows that mislead. The repository's
+                            surface is the fallback, for a document filed under no department at
+                            all. */}
                         <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-meta)' }}>
-                          {AREA_LABEL[doc.area]} · {doc.department} · {describeSize(doc.bytes)}
+                          {AREA_LABEL[doc.area]} · {surfaceFor(doc.department, row.repo, departmentNames, surfaces)} · {describeSize(doc.bytes)}
                           {doc.text === null ? ' · too large to show here' : null}
                         </span>
                       </td>
