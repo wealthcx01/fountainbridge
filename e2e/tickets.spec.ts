@@ -252,13 +252,23 @@ test.describe('a surface is the door to its queue (FB-109)', () => {
 
   test('the lane leads with the surface’s name, with the repo demoted to an aside', async ({ page }) => {
     // A founder had to already know that "Build — Product" IS `arca`.
+    //
+    // FB-186 merged the surface's card and its queue into one block, so the repository sits on the
+    // line under the heading rather than inside it. The rule is unchanged and is what is asserted:
+    // the NAME leads, and the repository is an aside beneath it, not the other way round.
     const lane = page.getByTestId('lane-arca');
     await expect(lane.locator('h3')).toContainText('Build — Product');
-    await expect(lane.locator('h3')).toContainText('arca');
+    await expect(lane.locator('h3'), 'the repo is leading again').not.toContainText('arca-');
+    await expect(lane).toContainText('arca');
   });
 
   test('the card says what its queue is worth before it is clicked', async ({ page }) => {
-    await expect(page.getByTestId('dept-build-queue')).toContainText('waiting for your OK');
+    // FB-109's point, carried by the outcome sentence since FB-186 removed the queue breakdown that
+    // restated the banner. A founder can still see how much is in a surface, and what it produced,
+    // without pressing anything.
+    const card = page.getByTestId('dept-build');
+    await expect(card.getByTestId('dept-build-outcome')).toContainText(/\d+ tickets?/);
+    await expect(card.getByTestId('lane-open-arca')).toBeVisible();
   });
 
   test('selecting a surface brings its queue forward and quiets the others', async ({ page }) => {

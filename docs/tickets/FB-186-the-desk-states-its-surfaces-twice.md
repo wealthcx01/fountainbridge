@@ -1,6 +1,6 @@
 # FB-186 — the desk states its surfaces twice, and is still 700px over its design
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-183, 2026-09-03
+**Status:** Shipped in part · **Phase:** 3 · **Found by:** FB-183, 2026-09-03
 
 ## The measurement
 
@@ -38,8 +38,17 @@ is the kind of thing only looking finds — every count in both blocks is correc
 - Keep whichever of the two carries the links a founder actually presses; the other's facts fold in.
 - Re-measure both viewports and put the numbers in the PR (CLAUDE.md rule 11).
 
+**Shipped in part.** The desk states each surface once now, and each card states its own ticket
+count once. The desk came down from 2,912px to 2,603px, against a 2,500px target it does not meet.
+
+The remaining 103px is not more duplication. It is that **the content column beside the rail is
+766px where the design's is 1,080px** — 29% narrower, so every sentence wraps sooner and every block
+is taller. Our own stylesheet says it meant to give the content ~1,080px; the 68rem measure includes
+the rail, so it does not. That is one line and it moves every screen in the studio, which is why it
+is FB-188 and not folded in here.
+
 ## Acceptance criteria
 
-- [ ] The desk states each surface once.
-- [ ] The desk is under 2,500px on ARCA's production data at 1440×1000.
-- [ ] Nothing reachable from either block today becomes unreachable.
+- [x] The desk states each surface once.
+- [ ] The desk is under 2,500px on ARCA's production data at 1440×1000. **2,603px — the rest is FB-188.**
+- [x] Nothing reachable from either block today becomes unreachable.
