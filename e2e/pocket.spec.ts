@@ -102,3 +102,82 @@ test.describe('the pocket studio (FB-138)', () => {
     await expect(page.getByTestId('composer-input')).toHaveValue('Draft the pricing page');
   });
 });
+
+/**
+ * FB-160 — what the pocket studio contains.
+ *
+ * FB-138 put the four sections in the design's order and left the rest of the desk underneath, on
+ * purpose: hiding is not safe by guess, and the obvious rule would have taken the approval gate off
+ * the phone. This is the decision about contents.
+ *
+ * The rule: the four the design names, plus everything a founder can act on, plus one press to the
+ * rest. Nothing duplicated — one markup, sections stood down.
+ */
+test.describe('what the pocket studio contains (FB-160)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca');
+  });
+
+  test('the venture is named before anything else, not after the prompt', async ({ page }) => {
+    // Everything the pocket order does not name falls to `order: 5`, and that included the title —
+    // so a founder scrolled the whole screen before being told which venture they were looking at.
+    const title = page.locator('.desk .pocket-0').first();
+    const banner = page.getByTestId('blocker-banner');
+    const titleY = (await title.boundingBox())?.y ?? 0;
+    const bannerY = (await banner.boundingBox())?.y ?? 0;
+    expect(titleY).toBeLessThan(bannerY);
+  });
+
+  test('the sections the design does not put on a phone are stood down', async ({ page }) => {
+    await expect(page.getByTestId('dept-surfaces')).toBeHidden();
+    await expect(page.getByTestId('desk-summary')).toBeHidden();
+  });
+
+  test('nothing a founder can act on is hidden', async ({ page }) => {
+    // The queue, with its decisions — external sends included since FB-183 — and the thing that is
+    // stuck, which the banner counts but does not name.
+    await expect(page.getByTestId('waiting-on-you')).toBeVisible();
+    await expect(page.getByTestId('blocker-banner')).toBeVisible();
+    await expect(page.getByTestId('founder-brief')).toBeVisible();
+    await expect(page.getByTestId('prompt-bar')).toBeVisible();
+  });
+
+  test('the whole desk is one press away, and one press back', async ({ page }) => {
+    await page.getByTestId('pocket-more').click();
+    await expect(page).toHaveURL(/\?full=1$/);
+    await expect(page.getByTestId('dept-surfaces')).toBeVisible();
+    await expect(page.getByTestId('desk-summary')).toBeVisible();
+
+    await page.getByTestId('pocket-less').click();
+    await expect(page).toHaveURL(/\/venture\/arca$/);
+    await expect(page.getByTestId('dept-surfaces')).toBeHidden();
+  });
+
+  /**
+   * The rule FB-158 and FB-136 both learned the hard way: a phone-only second copy of a section is
+   * how two of every control end up in one document.
+   */
+  test('no section is rendered twice, in either mode', async ({ page }) => {
+    for (const url of ['/venture/arca', '/venture/arca?full=1']) {
+      await page.goto(url);
+      // Scoped to the DESK's own sections, which is what the rule is about. The rail streams its
+      // numbers behind a Suspense boundary (FB-151), so during the fallback the rail and its shell
+      // are both in the document by design — that is FB-158's rule, with its own test, not this one.
+      await expect(page.getByTestId('desk')).toBeVisible();
+      const dupes = await page.evaluate(() => {
+        const desk = document.querySelector('[data-testid="desk"]');
+        if (!desk) return [['no desk', 0]] as [string, number][];
+        const seen = new Map<string, number>();
+        for (const el of desk.querySelectorAll('[data-testid]')) {
+          const id = el.getAttribute('data-testid') as string;
+          seen.set(id, (seen.get(id) ?? 0) + 1);
+        }
+        // `pixel-agent-<state>` is keyed on the agent's state, not on its desk, so three desks in
+        // one state share an id. Decorative, aria-hidden, and not a section — noted, not fixed here.
+        return [...seen].filter(([id, n]) => n > 1 && !id.startsWith('pixel-agent-'));
+      });
+      expect(dupes, `${url} renders these twice`).toEqual([]);
+    }
+  });
+});

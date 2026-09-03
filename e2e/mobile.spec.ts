@@ -36,13 +36,18 @@ test('mobile: attention queue reachable from nav', async ({ page }) => {
   await page.screenshot({ path: `${SHOTS}/09-mobile-attention.png`, fullPage: true });
 });
 
+/*
+ * The readiness signal in these three is the QUEUE, not a surface card. FB-160 stands the surfaces
+ * block down on a phone — it is not on the design's pocket studio — and `lane-arca` lives inside it.
+ * What these tests are actually about is the rail and the horizontal scroll, and that is unchanged.
+ */
 test('mobile: the venture shell fits the phone it is on', async ({ page }) => {
   // FB-124 shipped a 250px rail with no phone handling: 620px of content in a 390px viewport,
   // horizontal scrolling, and — because the rail hides the top bar — no navigation at all. Every
   // unit test, every linter and the build were green. Only a browser at 390px could see it.
   await testLogin(page, JOHN);
   await page.goto('/venture/arca');
-  await expect(page.getByTestId('lane-arca')).toBeVisible();
+  await expect(page.getByTestId('waiting-on-you')).toBeVisible();
 
   const { scrollW, clientW } = await page.evaluate(() => ({
     scrollW: document.documentElement.scrollWidth,
@@ -86,7 +91,7 @@ test('health endpoint is public (uptime monitor path)', async ({ page }) => {
 test('the rail and its waiting shell are never the same thing', async ({ page }) => {
   await testLogin(page, JOHN);
   await page.goto('/venture/arca');
-  await expect(page.getByTestId('lane-arca')).toBeVisible();
+  await expect(page.getByTestId('waiting-on-you')).toBeVisible();
   await expect(page.getByTestId('rail')).toHaveCount(1);
   await expect(page.getByTestId('rail-waiting')).toHaveCount(0);
 });
@@ -100,7 +105,7 @@ test('neither the rail nor its shell is ever on the phone', async ({ page }) => 
     Math.max(0, ...[...document.querySelectorAll('.rail')].map((e) => e.getBoundingClientRect().right)));
   expect(widestAtLoad, 'a rail or its shell is drawn on the phone').toBeLessThanOrEqual(1);
 
-  await expect(page.getByTestId('lane-arca')).toBeVisible();
+  await expect(page.getByTestId('waiting-on-you')).toBeVisible();
   const { scrollW, clientW } = await page.evaluate(() => ({
     scrollW: document.documentElement.scrollWidth,
     clientW: document.documentElement.clientWidth,

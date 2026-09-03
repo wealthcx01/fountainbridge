@@ -30,7 +30,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | Composer | ~1,000px | **1,096px** | 1,142px | **matches** |
 | Handbook | 1,000px | **1,096px** | **1,760px** | matches on desktop; phone still unexplained |
 | a chapter | ~1,000px | **3,318–16,198px** | — | **the 1,188px reading was wrong** — see below |
-| The pocket studio | ~600px | — | 4,221px | FB-160 |
+| The pocket studio | ~600px | — | **2,745px** | **fixed, FB-160** (was 4,221px) |
 
 No screen scrolls sideways at either size. That was not true two weeks ago (FB-153, FB-124).
 
@@ -95,6 +95,17 @@ Two things came out of reading it that the ticket had not named. The meta column
 meaning as well as the surface — `Build — Product · shipped` — which the sentence beside it already
 said, and the width that cost wrapped eleven of twenty rows onto a second line. And the summary's
 `Most recently: A, B and C` names the three items that are the first three rows directly beneath it.
+
+**The pocket studio carries the four things the design names, and the rest is one press away.**
+FB-160 took it from 4,221px to 2,745px at 390×844. What came off is what the design does not put on
+a phone: the surfaces block, what the team has been doing, the desk summary and two header lines.
+What stayed is everything a founder can act on — including "Where things stand", which names the
+ticket that is stuck, and which appears nowhere else on that screen.
+
+Two faults there that the height had not shown. The venture's **name** was rendering after the
+prompt bar, because everything the pocket order does not name falls to `order: 5`. And the queue rows
+put the title and `waiting 34 days Decide →` side by side in a 345px column, so every title wrapped
+to three lines.
 
 **Every screen with a rail was drawing a 1,080px design into a 766px column. FB-188 gave it the
 width back.** The rail sits inside the element the 68rem measure was set on, so 68rem was the rail

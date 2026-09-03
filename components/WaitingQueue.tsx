@@ -97,14 +97,7 @@ export function WaitingQueue({ items }: { items: WaitingItem[] }) {
   return (
     <ul data-testid="waiting-queue" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
       {items.map((it) => (
-        <li
-          key={it.key}
-          data-testid={`waiting-${it.testId}`}
-          style={{
-            display: 'flex', gap: '0.75rem', alignItems: 'baseline', justifyContent: 'space-between',
-            padding: '0.55rem 0', borderTop: '1px solid var(--color-border)',
-          }}
-        >
+        <li key={it.key} className="waiting-row" data-testid={`waiting-${it.testId}`}>
           <div style={{ minWidth: 0 }}>
             <span className="mono" style={{ fontSize: 'var(--fs-meta)' }}>{it.ref}</span>{' '}
             <span>{it.title}</span>
@@ -139,7 +132,7 @@ export function WaitingQueue({ items }: { items: WaitingItem[] }) {
            * send, its own page, where Approve signs the grant and Refuse takes a note. Same path on
            * a phone as at a desk — a founder who can only READ on mobile stays the bottleneck until
            * they get home. */}
-          <span className="muted" style={{ flexShrink: 0, fontSize: 'var(--fs-meta-lg)' }}>
+          <span className="muted waiting-when">
             {it.since && howLong(it.since) ? `waiting ${howLong(it.since)}` : 'waiting on you'}{' '}
             <Link href={it.href} data-testid={`waiting-decide-${it.testId}`}>Decide →</Link>
           </span>

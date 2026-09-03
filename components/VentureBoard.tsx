@@ -116,6 +116,7 @@ export function VentureBoard({
   summary = null,
   blocker = null,
   degraded = [],
+  full = false,
   runs = [],
   runsTotal = 0,
   engine = null,
@@ -155,6 +156,14 @@ export function VentureBoard({
   blocker?: string | null;
   /** What could not be read, grouped by cause (FB-128). Empty when every read succeeded. */
   degraded?: DegradedGroup[];
+  /**
+   * `?full=1` — the whole desk on a phone (FB-160).
+   *
+   * The pocket studio is the desk with the sections the design does not put on a phone stood down.
+   * This is the way to all of it, for a founder who wants the surfaces or the run reports while they
+   * are out. Nothing about a wide screen changes.
+   */
+  full?: boolean;
   /** What the agent lanes did, newest first (FB-042). */
   runs?: RunReport[];
   runsTotal?: number;
@@ -262,12 +271,16 @@ export function VentureBoard({
 
   return (
     // `desk` is what the phone media query reorders (FB-138). See `app/globals.css`.
-    <section className="desk" data-testid="desk">
+    <section className={full ? 'desk desk-full' : 'desk'} data-testid="desk" data-pocket={full ? 'full' : 'pocket'}>
       <WhileWorking working={somethingInFlight} />
-      <p className="eyebrow">
+      {/* FB-160: the venture's name comes FIRST on a phone, not after the prompt bar.
+          Everything the pocket order does not name falls to `order: 5`, and that included the title
+          — so a founder scrolled the whole screen before being told which venture they were looking
+          at. The design's phone leads with the wordmark and the venture. */}
+      <p className="eyebrow pocket-0">
         <span className="eyebrow-id">{venture.id}</span> — Venture
       </p>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <div className="pocket-0" style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0 }}>{venture.name}</h1>
         <span className={`tag ${venture.status === 'active' ? 'tag-accent' : ''}`}>{venture.status}</span>
         {/* FB-068: a badge that cannot be interrogated trains people to ignore badges. It says what
@@ -284,7 +297,7 @@ export function VentureBoard({
           </span>
         ) : null}
       </div>
-      <p className="muted" data-testid="board-founder" style={{ fontSize: 'var(--fs-body-sm)' }}>
+      <p className="muted not-in-pocket" data-testid="board-founder" style={{ fontSize: 'var(--fs-body-sm)' }}>
         {/* FB-100's item 7: "Founder: John Gallagher" while signed in AS the founder reads as the
             studio introducing someone to themselves. The manifest is right; this is presentation. */}
         {venture.founderName ? <>Founder: {viewerIsFounder ? 'you' : venture.founderName} · </> : null}
@@ -298,7 +311,7 @@ export function VentureBoard({
       {/* FB-103: the one introduction of the one name. Every panel below this line says "your team"
           and none of them explains itself — which only works if the name is introduced above the
           first thing that uses it. */}
-      <p className="muted" data-testid="team-intro" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '-0.35rem' }}>
+      <p className="muted not-in-pocket" data-testid="team-intro" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '-0.35rem' }}>
         <strong>{TEAM_TITLE}</strong> — {TEAM_INTRO}
       </p>
 
@@ -317,7 +330,14 @@ export function VentureBoard({
       {/* FB-042: the brief's own lines — the specifics behind the sentence, each a way in. Kept
           because they link: a summary that states a number a founder then has to go and find is a
           summary that costs them a search. */}
-      {brief ? <FounderBrief brief={brief} headline={false} /> : null}
+      {/* FB-160: kept on a phone, and kept near the top. It names the ticket that is stuck and
+          needs a human — which appears nowhere else on the pocket studio, because a stuck ticket is
+          not waiting for an approval and so is not in the queue. The ticket's rule is that nothing a
+          founder can act on is hidden, and this is the clearest thing on the screen they can act
+          on. */}
+      <div className="pocket-1b">
+        {brief ? <FounderBrief brief={brief} headline={false} /> : null}
+      </div>
 
       {/* FB-087. The composer was broken in production for weeks and the only way anyone could find
           out was a founder pressing the button and getting an error. This is the same fact, told to
@@ -397,7 +417,14 @@ export function VentureBoard({
       </div>
 
       {/* ---- 6. What the engine did -------------------------------------------------------------- */}
-      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} /> : null}
+      {/* FB-160: not on a phone. The design's pocket studio is the blocker banner, the office, the
+          queue and the prompt. What your team has been doing is a record, and a record is what
+          "What happened" is for. Stood down rather than removed: `?full=1` shows it. */}
+      {engine ? (
+        <div className="not-in-pocket">
+          <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} />
+        </div>
+      ) : null}
       {/* ---- 7. Waiting on you -------------------------------------------------------------------
           Where "Decide now →" lands, so it has to hold the work the banner just counted. The
           external-approval cards alone were not that: on a venture whose waiting items are all open
@@ -462,7 +489,7 @@ export function VentureBoard({
           The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately. */}
       {departments.length > 0 ? (
-        <div data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
+        <div className="not-in-pocket" data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(11.25rem, 1fr))', gap: '0.75rem' }}>
             {departments.map((d) => {
@@ -653,7 +680,12 @@ export function VentureBoard({
                   /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
                      useless — a founder cannot tell from it whether they are waiting, whether
                      something broke, or whether they were meant to do something first. */
-                  <div className="card" data-testid="lane-empty" style={{ marginTop: '0.6rem' }}>
+                  /* Keyed on the repository, like every other id on this screen (FB-058): two
+                     surfaces with an empty queue rendered two elements answering to one id, which
+                     Playwright's strict mode treats as an error and which made this panel's coverage
+                     quietly conditional on no venture ever having two empty surfaces. Found by
+                     FB-160's "no section twice" check. */
+                  <div className="card" data-testid={`lane-empty-${d.repo}`} style={{ marginTop: '0.6rem' }}>
                     <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('tickets', venture.hasComposer).what}</p>
                     <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
                       {emptyPanel('tickets', venture.hasComposer).how}
@@ -719,6 +751,21 @@ export function VentureBoard({
           ))}
         </div>
       ) : null}
+
+      {/* FB-160: the way to the rest of the desk, and back.
+          A link and a query, not client state, so the choice survives a reload and can be sent to
+          somebody. One element, rendered once, whichever mode the desk is in — a phone-only second
+          copy of anything is how the rail's waiting shell and the ledger's fallback table each
+          shipped a duplicate test id (FB-158, FB-136). */}
+      <p className="pocket-more" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '1.5rem' }}>
+        {full ? (
+          <Link href={`/venture/${venture.id}`} data-testid="pocket-less">← Back to the pocket studio</Link>
+        ) : (
+          <Link href={`/venture/${venture.id}?full=1`} data-testid="pocket-more">
+            See the whole desk — your surfaces, and what your team has been doing →
+          </Link>
+        )}
+      </p>
 
       {/* The ticket drawer that stood here is gone (FB-178).
           Nothing could open it once the desk's board went — `setSelected` was only ever called by a

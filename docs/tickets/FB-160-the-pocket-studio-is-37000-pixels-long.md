@@ -24,7 +24,7 @@ And two sections it does not have are adding another 1,336px, which is a questio
 a phone at all.
 
 
-**Status:** Todo · **Area:** Studio / mobile · **Depends on:** FB-138
+**Status:** Done · **Area:** Studio / mobile · **Depends on:** FB-138
 
 ## What was measured
 
@@ -70,11 +70,45 @@ So the length was measured and left, deliberately, rather than fixed by guess.
 
 - The PWA shell and push — FB-141.
 
+## What shipped, 2026-09-03
+
+**2,745px at 390×844**, down from 4,221px when this was written and 4,398px on the day it was done.
+2,698px at 430×932. The whole desk is still there behind `?full=1`, at 4,360px.
+
+The pocket studio carries what the design names — the blocker banner, the office, the queue, the
+prompt — plus everything a founder can act on, plus one press to the rest:
+
+| stood down on a phone | why |
+| --- | --- |
+| `Founder: you · updated just now` | not on the design's phone |
+| `Your team — AI working on this venture's own machine` | not on the design's phone |
+| the desk summary | the amber banner beneath it already says what a founder is blocking |
+| what your team has been doing | a record, and What happened is the screen for records |
+| your surfaces | not on the design's phone; 1,104px of it |
+
+**What stayed, and why.** "Where things stand" names the ticket that is stuck and needs a human, and
+that appears nowhere else on the pocket studio — a stuck ticket is not waiting for an approval, so it
+is not in the queue. The rule is that nothing a founder can act on is hidden, and that is the
+clearest thing on the screen they can act on. Since FB-183 the external sends are rows in the queue,
+so the approval gate is on the phone by construction rather than by exception.
+
+A lane's read failure reaches the top-level degraded strip as well as the surface card
+(`page.tsx` builds the strip from the lanes), so standing the cards down hides no failure.
+
+**Two things looking found that measuring had not.** The venture's NAME was rendering after the
+prompt bar — everything the pocket order does not name falls to `order: 5`, and that included the
+title, so a founder scrolled the whole screen before being told which venture they were looking at.
+And the queue rows put the title and "waiting 34 days Decide →" side by side in a 345px column, so
+every title wrapped to three lines; on a phone the row is two lines now, which is the design's shape.
+
+**And one duplicate id.** Two surfaces with an empty queue rendered two elements answering to
+`lane-empty`. Keyed on the repository now, like everything else on that screen (FB-058).
+
 ## Acceptance criteria
 
-- [ ] The pocket studio is under 6,000px tall on a venture with a real backlog, measured on
-      production at 390×844.
-- [ ] Nothing a founder can act on is hidden: approvals, refusals and the degraded strip all remain.
-- [ ] The full desk is one press away, and the pocket studio one press back.
-- [ ] No section appears twice in the document at any width.
-- [ ] Measured on production at 390×844 and 430×932, with the page height recorded here.
+- [x] The pocket studio is under 6,000px tall on a venture with a real backlog, measured on
+      production at 390×844. **2,745px.**
+- [x] Nothing a founder can act on is hidden: approvals, refusals and the degraded strip all remain.
+- [x] The full desk is one press away, and the pocket studio one press back. `?full=1`.
+- [x] No section appears twice in the document at any width. **Pinned by a test, which found one.**
+- [x] Measured at 390×844 (**2,745px**) and 430×932 (**2,698px**), recorded above.
