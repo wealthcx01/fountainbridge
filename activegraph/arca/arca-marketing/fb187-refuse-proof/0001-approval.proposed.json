@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "seq": 1,
+  "venture": "arca",
+  "repo": "arca-marketing",
+  "id": "fb187-refuse-proof",
+  "type": "approval.proposed",
+  "at": "2026-09-03T09:22:58.693Z",
+  "actor": {
+    "kind": "agent",
+    "id": "foundry-lane"
+  },
+  "data": {
+    "proposal_sha": "2cb1ba4002474595a1b08a1a0682086f83645d2f",
+    "summary": "FB-187 proof: a refusal that must reach the record (nothing is wired to send this)"
+  },
+  "attestation": "7ec68c93aecbf52d8f4e2438312d6f04b180786aa39e7c7602599ccdea15b6c8"
+}
