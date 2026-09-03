@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "seq": 1,
+  "venture": "arca",
+  "repo": "arca-marketing",
+  "id": "fb187-approve-proof",
+  "type": "approval.proposed",
+  "at": "2026-09-03T09:22:46.843Z",
+  "actor": {
+    "kind": "agent",
+    "id": "foundry-lane"
+  },
+  "data": {
+    "proposal_sha": "e2eda1f8f77aaebef64138f681fde43bf1b77e48",
+    "summary": "FB-187 proof: an approval that must reach the record (nothing is wired to send this)"
+  },
+  "attestation": "5ca4fbdffe0d40d6279db73714f41e8b0bf174f6cea9ba4d56bbe6d8c2733b24"
+}
