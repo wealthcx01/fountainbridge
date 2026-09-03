@@ -1,6 +1,6 @@
 # FB-180 — "What happened" is a commit log, not an account of what happened
 
-**Status:** Open · **Phase:** 3 · **Found by:** the FB-175 screen audit, 2026-09-02
+**Status:** Shipped in part · **Phase:** 3 · **Found by:** the FB-175 screen audit, 2026-09-02
 
 ## Both sides, rendered at 1440×1000 and read
 
@@ -33,6 +33,12 @@ Ours:
 27 August 2026    ARCA: ARCA-062-arca-brand-redesign (worked by the Foundry
                   lane) (#80) ↗                                                  arca · changed
 ```
+
+**Shipped in part:** all six faults are fixed and every acceptance criterion is met. The last scope
+line — folding in the desk's "Decided — what happened next" — is deliberately not done. PR #215
+reversed that instruction: that section is the only place a founder can see whether a completed
+approval's signature was genuine, and moving it here would make a forged grant on a past send
+invisible. It lands in FB-183, which gives an external approval its own page.
 
 ## Six distinct faults
 

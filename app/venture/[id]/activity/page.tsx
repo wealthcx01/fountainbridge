@@ -129,11 +129,18 @@ async function Record({
   const activity = dedupeActivity(health.activity).filter((e) => isFounderVisible(classifyActivity(e)));
 
   // `loadRunReports` already partitions heartbeats out; they arrive in their own field.
-  const { items: feed, truncated } = buildFeed({ activity, runs: runs.reports, approvals, limit: FEED_LIMIT });
+  // FB-180: the meta column names the surface a founder owns, not the repository git happens to
+  // keep it in. Built here because the manifest is the only place that knows the mapping.
+  const surfaces = Object.fromEntries((venture.departments ?? []).map((d) => [d.repo, d.name]));
+  const { items: feed, truncated } = buildFeed({
+    activity, runs: runs.reports, approvals, limit: FEED_LIMIT, surfaces, ventureName: venture.name,
+  });
   // Composed from the SAME list the rows come from. `lib/activity-summary.ts` states that invariant
   // in its own header — "there is no second pass that could drift" — and composing it from the
   // undeduplicated events made the paragraph count changes the list below did not show.
-  const summary = composeActivitySummary({ events: activity, windowDays: 14, openAreas: [] });
+  // `withoutList`: the rows are printed directly below this, so "Most recently: A, B and C" would
+  // name the first three of them (FB-180). The design's summary here is the counts sentence alone.
+  const summary = composeActivitySummary({ events: activity, windowDays: 14, openAreas: [], withoutList: true });
 
   const failures = health.repos.filter((r) => r.error).map((r) => r.error as string);
   // How far back the list actually reaches, from the list itself rather than from any window.
@@ -201,5 +208,15 @@ async function Record({
   );
 }
 
-/** Bounded because the page is, not because the truth is — and it says so when it caps. */
-const FEED_LIMIT = 40;
+/**
+ * Bounded because the page is, not because the truth is — and it says so when it caps.
+ *
+ * Forty on ARCA's real record is 3,556px, against a design that fits one screen and shows six rows
+ * for a week. FB-178 settled this argument on the desk: a screen a founder reads beats a screen a
+ * founder scrolls, and "everything, in order" is a shape that only ever grows.
+ *
+ * Twenty is a fortnight of a working venture with room to spare, and the line under the list says
+ * plainly that it is the twenty most recent and that the rest is still in the venture's records.
+ * Nothing is lost and nothing is implied to be complete that is not.
+ */
+const FEED_LIMIT = 20;
