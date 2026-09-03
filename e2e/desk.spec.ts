@@ -144,7 +144,10 @@ test.describe('the desk', () => {
   test('it fits a phone', async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 851 });
     await page.goto('/venture/arca');
-    await expect(page.getByTestId('desk-summary')).toBeVisible();
+    // The queue, not the desk summary: FB-160 stands the summary down on a phone, because the amber
+    // banner beneath it already says what a founder is blocking. This line is a "the page has
+    // rendered" signal, and it needs to be something the pocket studio actually carries.
+    await expect(page.getByTestId('waiting-on-you')).toBeVisible();
     await expect(page.getByTestId('prompt-bar-input')).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
