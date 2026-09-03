@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "seq": 2,
+  "venture": "arca",
+  "repo": "arca-marketing",
+  "id": "fb187-refuse-proof",
+  "type": "approval.rejected",
+  "at": "2026-09-03T09:22:58.693Z",
+  "actor": {
+    "kind": "human",
+    "id": "arca.founder@bruntsfield.capital"
+  },
+  "data": {
+    "proposal_sha": "2cb1ba4002474595a1b08a1a0682086f83645d2f",
+    "note": "Proving the record write for FB-187."
+  },
+  "attestation": "7a29ec1c430d9d66c9c95df24941b2181ecee74a8d185da0fa0127d260e5a55e"
+}
