@@ -22,14 +22,14 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | — | — | **not compared** |
-| The desk | ~1,900px | **2,603px** | **4,393px** | rows not cards (FB-183), one block (FB-186); the rest is FB-188 |
-| Tickets | 1,090px | **1,471px** | **1,470px** | **fixed, FB-185** (was 6,864 / 8,008) |
-| a ticket | — | **1,508px** | **1,945px** | **fixed, FB-185** (was 6,864 / 8,859) |
-| What happened | ~1,000px | **1,487px** | **2,910px** | **fixed, FB-180** (was 3,556 / 6,536) |
-| Memory | ~1,000px | **1,134px** | **1,988px** | **fixed, FB-181** (was 1,570 / 2,881) |
-| Composer | ~1,000px | 1,096px | 990px | **matches** |
-| Handbook | 1,000px | 1,096px | 1,782px | matches on desktop; phone unexplained |
-| a chapter | ~1,000px | 1,188px | 899px | **matches** |
+| The desk | ~1,900px | **2,395px** | **4,393px** | rows not cards (FB-183), one block (FB-186), full width (FB-188) |
+| Tickets | 1,090px | **1,202px** | **1,470px** | fixed FB-185, widened FB-188 (was 6,864 / 8,008) |
+| a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
+| What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
+| Memory | ~1,000px | **1,096px** | **1,988px** | fixed FB-181, widened FB-188 (was 1,570 / 2,881) |
+| Composer | ~1,000px | **1,096px** | 1,142px | **matches** |
+| Handbook | 1,000px | **1,096px** | **1,760px** | matches on desktop; phone still unexplained |
+| a chapter | ~1,000px | **3,318–16,198px** | — | **the 1,188px reading was wrong** — see below |
 | The pocket studio | ~600px | — | 4,221px | FB-160 |
 
 No screen scrolls sideways at either size. That was not true two weeks ago (FB-153, FB-124).
@@ -95,6 +95,35 @@ Two things came out of reading it that the ticket had not named. The meta column
 meaning as well as the surface — `Build — Product · shipped` — which the sentence beside it already
 said, and the width that cost wrapped eleven of twenty rows onto a second line. And the summary's
 `Most recently: A, B and C` names the three items that are the first three rows directly beneath it.
+
+**Every screen with a rail was drawing a 1,080px design into a 766px column. FB-188 gave it the
+width back.** The rail sits inside the element the 68rem measure was set on, so 68rem was the rail
+plus the content and the content got 766px — 29% under the figure the stylesheet's own comment says
+it is aiming at. The measure now covers the rail, the column is 1,078px against the design's 1,080px,
+and five screens came down at once with no content removed from any of them:
+
+| | before | after |
+| --- | --- | --- |
+| The desk | 2,603px | **2,395px** |
+| Tickets | 1,471px | **1,202px** |
+| a ticket | 1,508px | **1,202px** |
+| What happened | 1,487px | **1,264px** |
+| Memory | 1,134px | **1,096px** |
+
+That is the desk under the 2,500px target FB-186 could not reach, and it was never about the desk's
+content.
+
+**Two things the sweep found that the audit had not.**
+
+*Every handbook chapter scrolled sideways on a phone.* FB-153 found that `.ticket-body` was a class
+name with no rule behind it, so a long URL pushed the page sideways; it fixed that class and did not
+look at `.playbook-prose`, which was the identical case. Chapter one carries an ASCII diagram 644px
+wide in a 393px window, and the page moved with it. The same four rules are on both classes now.
+
+*This scorecard's "a chapter — 1,188px — matches" was wrong.* Every real chapter is thousands of
+pixels: 3,318px for the shortest and 16,198px for the longest. Nothing measured 1,188px. A chapter is
+long-form reading and its length is not a fault — but the line said the studio matched its design on
+a screen nobody had actually measured.
 
 **The desk stated its surfaces twice, and FB-186 made it once.** 2,912px to 2,603px. The second
 block repeated the three names, the three repositories and the three ticket counts already on the

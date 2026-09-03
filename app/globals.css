@@ -276,9 +276,25 @@ body:has(.signin) .main { max-width: none; margin: 0; padding: 0; }
 /* Beside a rail the column is left-aligned rather than centred — the rail is the left edge — but it
  * still needs a measure and its own padding. The first version set `padding: 0; max-width: none`,
  * which was too blunt: text ran from the rail's rule to the far edge of a 1440px window at line
- * lengths nobody can read. The design's own figures are 32px/36px/64px against a ~1080px column. */
+ * lengths nobody can read. The design's own figures are 32px/36px/64px against a ~1080px column.
+ *
+ * FB-188: the measure has to cover the rail, because the rail is INSIDE this element.
+ *
+ * 68rem was right for the column and wrong for the box it was set on. `.main` holds the flex row of
+ * rail-and-content, so 68rem was the rail plus the content: 1,088px, less 72px of padding, less the
+ * rail's 250px, left the content **766px** — 29% narrower than the 1,080px this comment says it is
+ * aiming at. Every sentence wrapped sooner and every screen with a rail was taller than its design,
+ * which read as too much content and was partly just too little width.
+ *
+ *   15.625rem  the rail
+ * +  4.5rem    this element's own left and right padding
+ * + 67.5rem    the column the design draws (1,080px)
+ * = 87.625rem
+ *
+ * Rounded down to 87.5rem, which puts the column at 1,078px. Below about 1,400px nothing binds and
+ * the column simply takes what is there, so narrow laptops are unaffected. */
 body:has(.rail) .main {
-  max-width: 68rem;
+  max-width: 87.5rem;
   margin: 0;
   padding: 2rem 2.25rem 4rem;
 }
@@ -330,6 +346,19 @@ body:has(.rail) .main {
 .ticket-body img { max-width: 100%; height: auto; }
 /* A wide table scrolls inside its own box rather than taking the page with it. */
 .ticket-body table { display: block; overflow-x: auto; max-width: 100%; }
+
+/* The handbook's prose, and the same four rules for the same reason (FB-188).
+   FB-153 found `.ticket-body` was a class name with no rule behind it, so a ticket citing a long URL
+   pushed the page sideways on a phone. It fixed that class. `.playbook-prose` — the handbook and the
+   playbook — was the identical case and was not looked at: no rule behind the name, and chapter one
+   carries an ASCII diagram in a `<pre>` that is 644px wide in a 393px window. The page scrolled
+   sideways, in production, on the screen a founder is asked to read first.
+   Found by FB-188's sweep of every screen, not by its change. The audit measured "a chapter" on a
+   short one and recorded that it matched. */
+.playbook-prose { overflow-wrap: anywhere; }
+.playbook-prose pre { overflow-x: auto; max-width: 100%; }
+.playbook-prose img { max-width: 100%; height: auto; }
+.playbook-prose table { display: block; overflow-x: auto; max-width: 100%; }
 
 /* FB-185: a ticket read inside a panel is body copy, not a page.
    A ticket file's own `## Context` / `## Scope` / `## Acceptance criteria` were rendering at the
