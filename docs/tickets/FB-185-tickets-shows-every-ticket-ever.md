@@ -1,6 +1,6 @@
 # FB-185 — Tickets shows every ticket the venture has ever had
 
-**Status:** Open · **Phase:** 3 · **Found by:** the FB-175 audit, 2026-09-02
+**Status:** Done · **Phase:** 3 · **Found by:** the FB-175 audit, 2026-09-02 · **Shipped:** PR #217
 
 ## The measurement
 
