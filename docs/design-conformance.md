@@ -22,7 +22,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | — | — | **not compared** |
-| The desk | ~1,900px | 3,830px | 4,221px | gap: the approval cards (FB-183) |
+| The desk | ~1,900px | **3,185px** | **5,190px** | rows not cards (FB-183); the rest is FB-186 |
 | Tickets | 1,090px | **1,471px** | **1,470px** | **fixed, FB-185** (was 6,864 / 8,008) |
 | a ticket | — | **1,508px** | **1,945px** | **fixed, FB-185** (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,487px** | **2,910px** | **fixed, FB-180** (was 3,556 / 6,536) |
@@ -35,6 +35,17 @@ designed to". Every gap below was found by the number and then confirmed by read
 No screen scrolls sideways at either size. That was not true two weeks ago (FB-153, FB-124).
 
 ## What the numbers turned out to mean
+
+**The desk's gap was not the approval cards.** FB-183 turned them into rows, which is right and is
+what the design asks for — and the desk barely moved: 3,217px to 3,185px. On ARCA that is one card
+removed, while the design's own row shape adds a line of meta to all ten waiting rows. The two
+roughly cancel.
+
+Reading the screen rather than the number found the real cause: the venture's three surfaces are
+stated **twice**, as a 505px block of cards and then again as a list underneath it, with the same
+counts in different words. Filed as FB-186. This is the clearest case yet of the thing this
+scorecard says about itself — height found a screen showing too much, and only the picture said
+what.
 
 **Tickets was the worst screen, at six to eight times its design. FB-185 fixed it** — 6,864px to
 1,471px on desktop, 8,008px to 1,470px on a phone.

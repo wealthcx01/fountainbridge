@@ -21,7 +21,7 @@ import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
 import type { Office } from '@/lib/office';
 import { lastSend, outboxUrl } from '@/lib/sends';
-import { WaitingQueue } from './WaitingQueue';
+import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
 import { LaneActivity } from './LaneActivity';
@@ -226,6 +226,22 @@ export function VentureBoard({
   const surfaceOf = (repo: string) => departments.find((d) => d.repo === repo) ?? null;
   const selectedRepo = surface ? (departments.find((d) => d.id === surface)?.repo ?? null) : null;
 
+  /**
+   * One queue, because a founder has one queue (FB-183).
+   *
+   * Pull requests waiting on the founder and external sends waiting on the founder are the same
+   * question — "what is blocked on me?" — and were two lists on one screen, the second of them 282px
+   * of card per item. The design has one, and the send is told apart from the work by its own meta
+   * line saying `external send`, not by living somewhere else.
+   *
+   * Sends first: nothing leaves the company without one of these, and the pull requests behind them
+   * are internal.
+   */
+  const waitingItems = [
+    ...pendingApprovals.map((a) => externalWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
+    ...openWorkQueue.map((a) => prWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
+  ];
+
   /** What a surface's queue is worth clicking for, from the same counts the lanes render. */
   const queueOf = (repo: string | null) => {
     const lane = repo ? lanes.find((l) => l.repo === repo) : null;
@@ -391,18 +407,18 @@ export function VentureBoard({
           was scrolled past the office to nothing. */}
       <section id="waiting-on-you" data-testid="waiting-on-you" className="pocket-3" style={{ marginTop: '1.5rem' }}>
         <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Waiting on you</p>
-        <WaitingQueue work={openWorkQueue} ventureId={venture.id} />
+        <WaitingQueue items={waitingItems} />
       </section>
-      {/* FB-046: external actions awaiting the founder's OK (the ActiveGraph gate). The founder
-          approves here — never on github.com; Approve signs the grant the executor verifies. */}
-      {pendingApprovals.length > 0 ? (
-        <div data-testid="approvals-queue" style={{ marginTop: '1.25rem' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Needs your OK — before anything goes out</p>
-          {pendingApprovals.map((a) => (
-            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} history={histories[`${a.repo}/${a.id}`]} />
-          ))}
-        </div>
-      ) : null}
+      {/* FB-183: the external-send cards that used to stand here are rows in "Waiting on you" above,
+          and the decision is made on the page each row opens.
+          Claude Design's rule is "one decision surface, everywhere else is a pointer to it", and
+          this section was 282px of card per send on a page that should be about 1,900px in total.
+          It could not become rows until there was somewhere for the rows to point, because
+          `ApprovalCard` carried the only approve control in the studio — turning it into a row first
+          would have deleted the only way a founder can approve anything leaving their company
+          (non-negotiable 4). The page came first; this section went second.
+          The desk cannot sign now: every `ApprovalCard` below renders read-only, because `decide`
+          defaults to false and only the approval page passes it. */}
 
       {/* "Decided — what happened next" — kept, against Claude Design's instruction to move it, and
           the reason is worth having on the record.

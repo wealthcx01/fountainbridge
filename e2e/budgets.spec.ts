@@ -19,6 +19,8 @@ test.describe('department budget disclosure', () => {
   });
 
   test('the card states what THIS action costs, and nothing else (FB-068)', async ({ page }) => {
+    // FB-183: the card is on the send's own decision page now; the desk carries a row pointing at it.
+    await page.goto('/venture/arca/approvals/arca/over-budget-send');
     // Moved by FB-068, not weakened. Four cards each carried the identical department paragraph in
     // red — one fact about a department repeated as though it were four facts about four actions —
     // which flattened the hierarchy so an unverifiable grant read no louder than a routine spend.
