@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import { formatMoney } from '@/lib/budgets';
 import { toneColor } from '@/lib/status';
-import { approveExternalAction } from '@/app/actions/approvals';
+import { approveExternalAction, refuseExternalAction } from '@/app/actions/approvals';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
 // policy checks[] (a "policy engine clear / N failing" read) + Approve. The founder never touches
@@ -32,7 +32,28 @@ export interface ApprovalHistory {
   refused: number;
 }
 
-export function ApprovalCard({ ventureId, approval, history }: { ventureId: string; approval: ActiveGraphApproval; history?: ApprovalHistory }) {
+export function ApprovalCard({
+  ventureId,
+  approval,
+  history,
+  decide = false,
+}: {
+  ventureId: string;
+  approval: ActiveGraphApproval;
+  history?: ApprovalHistory;
+  /**
+   * May this rendering of the approval SIGN (FB-183)?
+   *
+   * Default false, and only `/venture/<id>/approvals/<repo>/<id>` passes true — so there is exactly
+   * one surface in the studio that can grant or refuse an external send, and every other place that
+   * shows one is a pointer to it.
+   *
+   * A default of false rather than true is the whole safety of this prop. A new screen that renders
+   * an approval and forgets to think about it gets a read-only card, which is the harmless mistake;
+   * the other default would silently add a second signing surface and nothing would fail.
+   */
+  decide?: boolean;
+}) {
   // Test ids are repo-qualified (FB-058). Since FB-045 an approval id is unique only WITHIN its
   // department's repo, so two departments with an identically-named ticket produced duplicate ids —
   // which Playwright's strict mode treats as an error and which made the UI gate's coverage of this
@@ -40,8 +61,13 @@ export function ApprovalCard({ ventureId, approval, history }: { ventureId: stri
   const tid = `${approval.repo}/${approval.id}`;
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [refusing, setRefusing] = useState(false);
+  const [note, setNote] = useState('');
   const failing = approval.checks.filter((c) => !c.passed).length;
   const done = result?.ok || approval.status !== 'proposed';
+  // Read-only unless this rendering is the decision surface. `done` still applies on top: a decided
+  // approval shows its state, here as everywhere else.
+  const canDecide = decide && !done;
 
   return (
     <div className="card" data-testid={`approval-${tid}`} style={{ marginBottom: '0.75rem' }}>
@@ -120,7 +146,7 @@ export function ApprovalCard({ ventureId, approval, history }: { ventureId: stri
         </ul>
       ) : null}
       <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {done ? (
+        {!canDecide ? (
           <span
             className={`tag ${approval.status === 'failed' || approval.status === 'unverified-action' ? '' : 'tag-accent'}`}
             data-testid={`approval-${tid}-state`}
@@ -128,7 +154,7 @@ export function ApprovalCard({ ventureId, approval, history }: { ventureId: stri
               ? { color: toneColor('blocked') }
               : undefined}
           >
-            {result?.ok ? 'approved' : STATE_LABEL[approval.status] ?? approval.status}
+            {result?.ok ? (result.message.startsWith('Refused') ? 'refused' : 'approved') : STATE_LABEL[approval.status] ?? approval.status}
           </span>
         ) : (
           <button
@@ -151,6 +177,20 @@ export function ApprovalCard({ ventureId, approval, history }: { ventureId: stri
             {pending ? 'Approving…' : 'Approve'}
           </button>
         )}
+        {/* FB-183: the other answer. A founder could approve a send and could not refuse one — the
+            only way to say no was to leave it in the queue for ever, which reads on every screen as
+            a decision not yet made rather than one that has been. */}
+        {canDecide && !refusing ? (
+          <button
+            type="button"
+            className="btn"
+            data-testid={`approval-${tid}-refuse`}
+            disabled={pending}
+            onClick={() => setRefusing(true)}
+          >
+            Refuse, and say why
+          </button>
+        ) : null}
         {approval.outcome ? (
           <span className="muted" data-testid={`approval-${tid}-outcome`} style={{ fontSize: 'var(--fs-meta)' }}>
             {approval.outcome}
@@ -162,6 +202,62 @@ export function ApprovalCard({ ventureId, approval, history }: { ventureId: stri
           </span>
         ) : null}
       </div>
+
+      {/* The note is required, and the button stays disabled until there is one. A refusal with no
+          reason gives the lane nothing to come back with — the rule pull requests have followed
+          since FB-064, applied to the decision that actually stops something leaving the company. */}
+      {canDecide && refusing ? (
+        <div data-testid={`approval-${tid}-refuse-form`} style={{ marginTop: '0.75rem' }}>
+          <label htmlFor={`refuse-note-${tid}`} style={{ fontSize: 'var(--fs-body-sm)', display: 'block', marginBottom: '0.3rem' }}>
+            Why are you refusing this? Your team reads this and comes back with a revision.
+          </label>
+          <textarea
+            id={`refuse-note-${tid}`}
+            data-testid={`approval-${tid}-refuse-note`}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            style={{
+              width: '100%', maxWidth: 'var(--content-narrow)', fontSize: 'var(--fs-body-sm)',
+              border: '1px solid var(--color-border)', borderRadius: '0.25rem', padding: '0.4rem',
+            }}
+          />
+          <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              data-testid={`approval-${tid}-refuse-send`}
+              disabled={pending || note.trim().length < 3}
+              onClick={() =>
+                startTransition(async () => {
+                  setResult(await refuseExternalAction(
+                    ventureId, approval.id, approval.repo, approval.proposalSha ?? undefined, note,
+                  ));
+                })
+              }
+            >
+              {pending ? 'Sending it back…' : 'Send it back'}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              data-testid={`approval-${tid}-refuse-cancel`}
+              disabled={pending}
+              onClick={() => { setRefusing(false); setNote(''); }}
+            >
+              Never mind
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* A refusal that has been made says who made it and why, wherever the approval is shown. */}
+      {approval.refusal ? (
+        <p data-testid={`approval-${tid}-refusal`} className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.6rem 0 0', maxWidth: 'var(--content-narrow)' }}>
+          Refused by {approval.refusal.refusedBy}. Nothing went out.
+          {approval.refusal.note ? <> They said: &ldquo;{approval.refusal.note}&rdquo;</> : null}
+        </p>
+      ) : null}
 
       {/* FB-071: the whole story, in order. Not an event dump — sentences. This is the thing a
           founder can point at and say "a person agreed to this, and here is what followed". */}

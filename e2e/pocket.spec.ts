@@ -55,7 +55,9 @@ test.describe('the pocket studio (FB-138)', () => {
     // It was `?work=<repo>#<number>` — a parameter the desk ignores. The row the amber banner sends
     // a founder to did nothing at all when pressed.
     await page.goto('/venture/arca');
-    const decide = page.locator('[data-testid^="waiting-decide-"]').first();
+    // A pull request row specifically. FB-183 put external sends in this same queue, above the work
+    // — nothing leaves the company without one — so "the first row" is no longer a pull request.
+    const decide = page.locator('[data-testid^="waiting-decide-"]:not([data-testid^="waiting-decide-external-"])').first();
     await expect(decide).toHaveText(/Decide/);
     await decide.click();
     await expect(page).toHaveURL(/\/venture\/arca\/work\/[^/]+\/\d+$/);

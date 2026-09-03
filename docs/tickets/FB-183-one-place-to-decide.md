@@ -1,7 +1,6 @@
 # FB-183 — one place to make a decision, and the desk is not it
 
-**Status:** Open · **Phase:** 3 · **Depends on:** a decision surface for external sends
-· **Raised by:** Claude Design, 2026-09-02
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-02
 
 ## What was asked for
 
@@ -42,10 +41,17 @@ followed rather than learned again.
 3. Remove the approve control from the desk entirely once (1) exists. Two places to approve is two
    places to get the signing wrong.
 
+**Shipped in part.** An external send has its own page, the desk carries rows and cannot sign, and a
+founder can now refuse as well as approve. The height criterion is **not met and cannot be met by
+this ticket's scope** — see FB-186. The measurement that shows why: the desk is 3,185px with the
+cards already gone, because ARCA has one external send and the design's row shape adds a line of
+meta to all ten waiting rows, so the two roughly cancel. The desk's real remaining height is its
+surfaces, stated twice.
+
 ## Acceptance criteria
 
 - [ ] An external send can be approved and refused from its own page.
 - [ ] The desk carries rows, not cards, and no approve control.
-- [ ] The desk is under 2,500px on ARCA's production data at 1440×1000.
+- [ ] The desk is under 2,500px on ARCA's production data at 1440×1000. **Not met — FB-186.**
 - [ ] A test proves the ActiveGraph grant is signed on exactly one surface.
 - [ ] No approval is left unreachable at any point in the change.

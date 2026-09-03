@@ -38,7 +38,7 @@ function committedAtOf(grant: unknown, execution: unknown): string | null {
   }
   return null;
 }
-import { verifyGrant, describeProvenance, type GrantProvenance, type VerifiedGrant } from './provenance';
+import { verifyGrant, describeProvenance, type GrantProvenance, type VerifiedGrant, verifyRefusal, type ApprovalRefusal } from './provenance';
 
 export const APPROVALS_REF = 'foundry-approvals';
 
@@ -84,6 +84,14 @@ export interface ActiveGraphApproval {
   ventureId: string;
   repo: string;
   status: ApprovalStatus;
+  /**
+   * The founder's refusal, when there is a verified one (FB-183).
+   *
+   * Null for everything else, including an approval carrying an UNSIGNED refusal file — that is not
+   * a refusal, and the approval stays waiting rather than being quietly closed by something no
+   * human signed.
+   */
+  refusal: ApprovalRefusal | null;
   proposalSha: string | null;
   ticket: string | null;
   department: string | null;
@@ -148,7 +156,7 @@ export interface ActiveGraphApproval {
 export interface ApprovalSource {
   /** approval ids under `approvals/` on the ref. */
   listIds(repo: string): Promise<string[]>;
-  read(repo: string, id: string, file: 'proposal' | 'grant' | 'execution'): Promise<{ json: unknown; sha: string } | null>;
+  read(repo: string, id: string, file: 'proposal' | 'grant' | 'execution' | 'refusal'): Promise<{ json: unknown; sha: string } | null>;
   // NOTE: budget envelopes are deliberately NOT read through this source. They live in the STUDIO
   // repo (`ventures/budgets/<id>.yaml`), because this source reads the venture ref that the
   // proposing lane can write — an agent must not be able to edit the limits that police it.
@@ -217,7 +225,7 @@ export function fixtureApprovalSource(dir: string): ApprovalSource {
  * `{status:'executed'}` with no grant at all and have the studio report a completed external action
  * naming nobody — forging a grant gets a red warning, so deleting one must not buy silence.
  */
-function statusOf(grant: VerifiedGrant, execution: unknown): ApprovalStatus {
+function statusOf(grant: VerifiedGrant, execution: unknown, refusal: ApprovalRefusal | null): ApprovalStatus {
   const ex = execution as { status?: string } | null;
   const terminal = ex?.status === 'executed' || ex?.status === 'executing'
     || ex?.status === 'rejected' || ex?.status === 'failed';
@@ -226,7 +234,12 @@ function statusOf(grant: VerifiedGrant, execution: unknown): ApprovalStatus {
   if (ex?.status === 'executing') return 'executing';
   if (ex?.status === 'rejected') return 'rejected';
   if (ex?.status === 'failed') return 'failed';
-  return grant.provenance === 'attested' ? 'granted' : 'proposed';
+  if (grant.provenance === 'attested') return 'granted';
+  // A refusal is only read where nothing has gone out. Deliberately AFTER every execution branch:
+  // if the executor has already acted, what happened is the fact, and a refusal written afterwards
+  // must never repaint a completed send as though it had been stopped (FB-183).
+  if (refusal) return 'rejected';
+  return 'proposed';
 }
 
 /**
@@ -266,10 +279,11 @@ async function loadApprovalsForRepo(
   const ids = await source.listIds(repo);
   const out: ActiveGraphApproval[] = [];
   for (const id of ids) {
-    const [proposalR, grantR, execR] = await Promise.all([
+    const [proposalR, grantR, execR, refusalR] = await Promise.all([
       source.read(repo, id, 'proposal'),
       source.read(repo, id, 'grant'),
       source.read(repo, id, 'execution'),
+      source.read(repo, id, 'refusal'),
     ]);
     if (!proposalR || !proposalR.json) continue; // an approval is defined by its proposal
     const p = proposalR.json as ApprovalProposal;
@@ -279,6 +293,9 @@ async function loadApprovalsForRepo(
     // expects (its REPO env is `owner/slug`). Signing and verifying over the bare slug would
     // produce grants the executor refuses as forged (FB-094).
     const grant = verifyGrant(fullRepoName(repo), id, proposalR.sha || null, grantR?.json as never, secret);
+    // A refusal is attested exactly as a grant is, and for the same reason: a lane can write this
+    // file, and an unsigned one must not be able to close a decision the founder never made.
+    const refusal = verifyRefusal(fullRepoName(repo), id, proposalR.sha || null, refusalR?.json, secret);
 
     out.push({
       id,
@@ -287,7 +304,8 @@ async function loadApprovalsForRepo(
       repo,
       // Status comes from the records the EXECUTOR acts on, so the studio and the executor cannot
       // disagree about what happened. A grant that does not verify is not shown as granted.
-      status: statusOf(grant, execR?.json ?? null),
+      status: statusOf(grant, execR?.json ?? null, refusal),
+      refusal,
       proposalSha: proposalR.sha || null,
       // Every founder-visible field is read from the sha-pinned proposal — the artefact the
       // attestation covers and the executor performs. The previous design rendered the summary from

@@ -21,7 +21,7 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { GitHubClient } from '@/lib/github';
 import { APPROVALS_REF, approvalRepos, type ApprovalProposal } from '@/lib/approvals';
 import { fullRepoName } from '@/lib/venture-repos';
-import { attestationFor, approverRoleForDepartment, canApprove } from '@/lib/approval-attestation';
+import { approverRoleForDepartment, attestationFor, canApprove, refusalAttestationFor } from '@/lib/approval-attestation';
 import { verifyGrant } from '@/lib/provenance';
 import { appendEvent } from '@/lib/activegraph-log';
 
@@ -187,4 +187,146 @@ export async function approveExternalAction(
   }
 
   return { ok: true, message: 'Approved. The action will run shortly, and you\'ll see it recorded here.' };
+}
+
+/**
+ * Refuse an external action from the studio (FB-183).
+ *
+ * The founder could approve a send and could not refuse one. The only way to say no was to leave it
+ * sitting in the queue for ever, which reads on every screen as a decision the founder has not got
+ * round to rather than one they have made.
+ *
+ * Mirrors the approve path deliberately, check for check — same session, same venture access, same
+ * D7 approver, same pinned proposal sha — because the two are the same decision with opposite
+ * answers, and a refusal that anyone may write is a way to stop a founder's send without being the
+ * founder.
+ *
+ * What it does NOT do is write `grant.json`. Nothing goes out on a refusal; the executor runs on a
+ * verified grant and there is none. The refusal file is the record, not the mechanism.
+ *
+ * A note is required. A refusal with no reason gives the lane nothing to come back with — the same
+ * rule `sendBackWork` has applied to pull requests since FB-064.
+ */
+export async function refuseExternalAction(
+  ventureId: string,
+  approvalId: string,
+  repoParam: string | undefined,
+  /** The proposal the founder was reading. Same guard as approving: refusing what changed is wrong. */
+  seenProposalSha: string | undefined,
+  note: string,
+): Promise<ApproveResult> {
+  if (!/^[A-Za-z0-9._-]+$/.test(approvalId)) return { ok: false, message: 'Invalid approval id.' };
+
+  const reason = (note ?? '').trim();
+  if (reason.length < 3) {
+    return { ok: false, message: 'Say why you are refusing this, so your team knows what to change.' };
+  }
+
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) return { ok: false, message: 'You need to sign in.' };
+
+  const admins = parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS);
+  const ventures = loadVentures();
+  const access = authorizeVentures(email, ventures, admins);
+  const venture = ventures.find((v) => v.id === ventureId);
+  if (!venture || !canAccessVenture(access, ventureId)) {
+    return { ok: false, message: 'You do not have access to this venture.' };
+  }
+
+  const secret = process.env.FOUNDRY_APPROVAL_SECRET;
+  const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
+  if (!secret || !writeToken) {
+    return { ok: false, message: 'Approvals are not set up on the studio yet (missing signing secret or write token).' };
+  }
+
+  const allowedRepos = approvalRepos(venture);
+  const repo = repoParam ?? allowedRepos[0];
+  if (!repo) return { ok: false, message: 'This venture has no repo configured.' };
+  if (!allowedRepos.includes(repo)) {
+    return { ok: false, message: 'That approval is not in one of this venture’s repositories.' };
+  }
+
+  const ghRepo = fullRepoName(repo);
+  const reader = new GitHubClient();
+  const proposalR = await reader.getFileWithSha(ghRepo, `approvals/${approvalId}/proposal.json`, APPROVALS_REF);
+  if (!proposalR) return { ok: false, message: 'That approval no longer exists.' };
+  if (seenProposalSha && seenProposalSha !== proposalR.sha) {
+    return {
+      ok: false,
+      message: 'This request changed after the page loaded, so it was not refused. Refresh and read it again.',
+    };
+  }
+
+  let proposal: ApprovalProposal;
+  try { proposal = JSON.parse(proposalR.text) as ApprovalProposal; } catch { return { ok: false, message: 'The proposal could not be read.' }; }
+
+  // Refusing something that has already gone out would be a lie on the record. Checked in the same
+  // order approving checks it, and for the stronger reason: approving twice is refused as
+  // redundant, but a refusal written over a completed send would claim the founder stopped
+  // something that had already left the company.
+  const existingGrant = await reader.getFileContent(ghRepo, `approvals/${approvalId}/grant.json`, APPROVALS_REF);
+  if (existingGrant) {
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(existingGrant); } catch { parsed = null; }
+    const verified = verifyGrant(ghRepo, approvalId, proposalR.sha, parsed as never, secret);
+    if (verified.provenance === 'attested') {
+      return { ok: false, message: `This was already approved by ${verified.approver}, so it cannot be refused now.` };
+    }
+  }
+  const alreadyDone = await reader.getFileContent(ghRepo, `approvals/${approvalId}/execution.json`, APPROVALS_REF);
+  if (alreadyDone) return { ok: false, message: 'This approval has already been actioned — it cannot be refused now.' };
+
+  const role = approverRoleForDepartment(venture, proposal.department ?? 'general');
+  if (!canApprove(email, role, venture, admins)) {
+    return { ok: false, message: `This change is decided by ${role === 'dual' ? 'the founder and Bruntsfield' : role}; you are not that approver.` };
+  }
+
+  const refusedAt = new Date().toISOString();
+  const attestation = refusalAttestationFor(ghRepo, approvalId, proposalR.sha, email, secret);
+  const refusal = {
+    id: approvalId, repo: ghRepo, decision: 'refused', refused_by: email,
+    proposal_sha: proposalR.sha, attestation, refused_at: refusedAt, note: reason,
+  };
+  const writer = new GitHubClient({ token: writeToken });
+  try {
+    await writer.putFile(ghRepo, `approvals/${approvalId}/refusal.json`, {
+      content: JSON.stringify(refusal, null, 2),
+      message: `refuse ${approvalId} (refused by ${email})`,
+      branch: APPROVALS_REF,
+    });
+  } catch (err) {
+    console.error('[refuse] refusal write failed', { ventureId, approvalId, err });
+    return { ok: false, message: 'Could not record the refusal on GitHub — please try again.' };
+  }
+
+  // The record, on the studio's own ref, signed with the secret no lane holds — the same two-event
+  // shape approving writes, so the history of a refused send reads like the history of an approved
+  // one and neither can be authored by the party being audited.
+  const recorded = await appendEvent(writeToken, {
+    v: 1, seq: 1, venture: ventureId, repo, id: approvalId,
+    type: 'approval.proposed', at: refusedAt,
+    actor: { kind: 'agent', id: 'foundry-lane' },
+    data: { proposal_sha: proposalR.sha, ...(proposal.summary ? { summary: proposal.summary } : {}) },
+  }, secret);
+
+  const refusalRecorded = recorded.ok
+    ? await appendEvent(writeToken, {
+        v: 1, seq: 2, venture: ventureId, repo, id: approvalId,
+        type: 'approval.rejected', at: refusedAt,
+        actor: { kind: 'human', id: email },
+        data: { proposal_sha: proposalR.sha, note: reason },
+      }, secret)
+    : recorded;
+
+  if (!refusalRecorded.ok) {
+    console.error('[refuse] activegraph append failed', { ventureId, approvalId, reason: refusalRecorded.reason });
+    return {
+      ok: true,
+      message: 'Refused, and nothing will go out. The studio could not write it to the history, so this '
+        + 'decision will show fewer details than usual — nothing else is affected.',
+    };
+  }
+
+  return { ok: true, message: 'Refused. Nothing goes out, and your team can see why.' };
 }
