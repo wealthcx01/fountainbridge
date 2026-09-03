@@ -183,3 +183,46 @@ describe('appending', () => {
     expect(await appendEvent('', ev(), SECRET)).toEqual({ ok: false, reason: 'no write credential is configured' });
   });
 });
+
+/**
+ * FB-187: the studio noticing it can no longer keep its own record.
+ *
+ * The failure this covers ran for a month in production. Approving and refusing kept working,
+ * nothing went out unapproved, and the only sign was one sentence shown to the founder after they
+ * had already decided.
+ */
+describe('can the studio still write its record (FB-187)', () => {
+  const client = (put: () => Promise<unknown>) => ({
+    request: async (path: string) =>
+      (path.includes('/git/ref/heads/') ? { object: { sha: 'abc' } } : { object: { sha: 'abc' }, default_branch: 'main' }),
+    getFileContent: async () => null,
+    getFileWithSha: async () => null,
+    putFile: put,
+  }) as never;
+
+  it('says so plainly when there is no credential at all', async () => {
+    const { probeRecordWritable } = await import('../activegraph-log');
+    const r = await probeRecordWritable(undefined);
+    expect(r.ok).toBe(false);
+    expect(r.detail).toContain('STUDIO_APPROVAL_GITHUB_TOKEN');
+  });
+
+  it('reports a refused write, and names the permission that fixes it', async () => {
+    const { probeRecordWritable } = await import('../activegraph-log');
+    const r = await probeRecordWritable('a-token', client(async () => {
+      throw new Error('GitHub 403 for /repos/wealthcx01/fountainbridge/contents/activegraph/.writable');
+    }));
+    expect(r.ok).toBe(false);
+    expect(r.detail).toContain('403');
+    expect(r.detail).toContain('Contents: write');
+    // And it refuses the shortcut. Moving the record into a venture repository would make it
+    // writable and would delete the only property it has — that the lane cannot author it.
+    expect(r.detail).toContain('NOT a fix');
+  });
+
+  it('reports success when the write goes through', async () => {
+    const { probeRecordWritable } = await import('../activegraph-log');
+    const r = await probeRecordWritable('a-token', client(async () => ({})));
+    expect(r.ok).toBe(true);
+  });
+});
