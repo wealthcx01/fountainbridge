@@ -62,6 +62,21 @@ export function titleOf(path: string, text: string | null): string {
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : path;
 }
 
+/**
+ * The directory's own readme is scaffolding, not knowledge (FB-181).
+ *
+ * `context/README.md` and `library/README.md` are the files committed when the corpus directories
+ * were created. On ARCA they were **six of eleven rows** on a screen whose own sentence is
+ * *"Everything you have handed over or your team has learned"* — a founder handed over none of them,
+ * and they are the same file repeated once per repository.
+ *
+ * Excluded rather than marked, which is what the ticket asks for and is the right call: a founder
+ * does not need to be told the directory has a readme. Nothing is lost — the file is still in the
+ * repository, where the person who wrote it put it.
+ */
+export const isScaffolding = (path: string): boolean =>
+  /^(context|library)\/README\.md$/i.test(path.trim());
+
 /** `context/sell/brand-positioning.md` → area `context`, department `sell`. */
 export function placeOf(path: string): { area: KnowledgeArea; department: string } | null {
   const m = path.match(/^(context|library)\/(?:([^/]+)\/)?[^/]+$/);
@@ -71,6 +86,10 @@ export function placeOf(path: string): { area: KnowledgeArea; department: string
 
 /** Build one document from a path and whatever text the read produced. */
 export function toDoc(path: string, text: string | null, bytes: number): KnowledgeDoc | null {
+  // Dropped HERE rather than in the view, so every reader of the corpus agrees on what is in it —
+  // the count in "11 documents" is composed from the same list the rows come from, and excluding a
+  // row in one place and not the other is how a screen starts contradicting its own heading.
+  if (isScaffolding(path)) return null;
   const place = placeOf(path);
   if (!place) return null;
   return { path, area: place.area, department: place.department, title: titleOf(path, text), bytes, text };
@@ -152,20 +171,38 @@ export interface DocCommit {
 export const STUDIO_DEPOSIT_PREFIX = 'knowledge:';
 export const COMPOSER_DEPOSIT_PREFIX = 'context:';
 
-export function whoAdded(commit: Pick<DocCommit, 'messageHeadline' | 'authorName'>): string {
+export function whoAdded(
+  commit: Pick<DocCommit, 'messageHeadline' | 'authorName'>,
+  /**
+   * The GitHub organisation this venture lives in (FB-181).
+   *
+   * `wealthcx01` was appearing in a column headed **From**, beside "John Gallagher" — a company
+   * rendered where a person's name goes. The existing `|| 'Your team'` fallback never fired, because
+   * the author name is present and IS the organisation.
+   *
+   * Passed in from the manifest rather than pattern-matched, so this is a comparison and not a guess
+   * about which logins look like companies.
+   */
+  org?: string | null,
+): string {
   const headline = commit.messageHeadline.trim();
   if (headline.startsWith(STUDIO_DEPOSIT_PREFIX)) return 'You';
   // Not "You": the composer's deposit tool is called by the agent during a founder's conversation,
   // and attributing the agent's judgement to the founder is the kind of small lie this screen exists
   // to avoid.
   if (headline.startsWith(COMPOSER_DEPOSIT_PREFIX)) return 'Your composer';
-  return commit.authorName?.trim() || 'Your team';
+  const author = commit.authorName?.trim() ?? '';
+  if (!author) return 'Your team';
+  // The organisation is not a person. "Your team" is what the column already says for anything the
+  // studio cannot attribute to one.
+  if (org && author.toLowerCase() === org.trim().toLowerCase()) return 'Your team';
+  return author;
 }
 
 /** Fold one path's commit into the union above. Null in — `unknown` out, never a default date. */
-export function originOf(commit: DocCommit | null): DocOrigin {
+export function originOf(commit: DocCommit | null, org?: string | null): DocOrigin {
   if (!commit || !commit.committedDate) return { kind: 'unknown' };
-  const who = whoAdded(commit);
+  const who = whoAdded(commit, org);
   return commit.totalCount === 1
     ? { kind: 'added', who, at: commit.committedDate }
     : { kind: 'changed', who, at: commit.committedDate };
@@ -270,3 +307,19 @@ export const AREA_SHORT: Record<KnowledgeArea, { one: string; many: string }> = 
   context: { one: 'piece of background', many: 'pieces of background' },
   library: { one: 'artifact', many: 'artifacts' },
 };
+/**
+ * The surface to print on a document's row (FB-181).
+ *
+ * The path first: `context/sell/…` is a Sell document wherever it is stored. The repository's own
+ * surface only when the path names no department, which is what `general` means. The slug itself is
+ * the last resort, so a venture that declares no departments reads exactly as it did before.
+ */
+export function surfaceFor(
+  department: string,
+  repo: string,
+  names?: Record<string, string>,
+  surfaces?: Record<string, string>,
+): string {
+  if (department && department !== 'general') return names?.[department] ?? department;
+  return surfaces?.[repo] ?? department;
+}

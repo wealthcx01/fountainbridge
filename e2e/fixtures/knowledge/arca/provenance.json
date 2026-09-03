@@ -22,5 +22,11 @@
     "messageHeadline": "knowledge: supplier-terms.pdf",
     "authorName": "foundry-studio",
     "totalCount": 1
+  },
+  "context/README.md": {
+    "committedDate": "2026-07-01T08:00:00Z",
+    "messageHeadline": "add the corpus directories",
+    "authorName": "wealthcx01",
+    "totalCount": 1
   }
 }

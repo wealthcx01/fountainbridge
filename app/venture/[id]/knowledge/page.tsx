@@ -107,7 +107,9 @@ async function Memory({ venture }: { venture: VentureSummary }) {
         const rows: KnowledgeRow[] = corpus.docs.map((doc) => ({
           repo,
           doc,
-          origin: originOf(commits?.get(doc.path) ?? null),
+          // FB-181: the organisation's login is not a person. Passed from the environment the
+          // repositories are read from, so this is a comparison and not a guess.
+          origin: originOf(commits?.get(doc.path) ?? null, process.env.GITHUB_ORG ?? 'wealthcx01'),
           lastUse: lastUse(readings, doc.path),
         }));
         return { rows, error: corpus.error, provenanceRead: commits !== null, readings };
@@ -141,6 +143,10 @@ async function Memory({ venture }: { venture: VentureSummary }) {
       routineErrors={routineResult.errors}
       provenanceMissing={provenanceMissing}
       usedNote={usedNote}
+      // FB-181: the surface a founder owns, so three real files sharing one title read as three
+      // real files rather than as a duplicated row.
+      surfaces={Object.fromEntries((venture.departments ?? []).map((d) => [d.repo, d.name]))}
+      departmentNames={Object.fromEntries((venture.departments ?? []).map((d) => [d.id, d.name]))}
     />
   );
 }

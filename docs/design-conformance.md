@@ -26,7 +26,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | Tickets | 1,090px | **1,471px** | **1,470px** | **fixed, FB-185** (was 6,864 / 8,008) |
 | a ticket | — | **1,508px** | **1,945px** | **fixed, FB-185** (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,487px** | **2,910px** | **fixed, FB-180** (was 3,556 / 6,536) |
-| Memory | ~1,000px | 1,570px | — | FB-181 |
+| Memory | ~1,000px | **1,134px** | **1,988px** | **fixed, FB-181** (was 1,570 / 2,881) |
 | Composer | ~1,000px | 1,096px | 990px | **matches** |
 | Handbook | 1,000px | 1,096px | 1,782px | matches on desktop; phone unexplained |
 | a chapter | ~1,000px | 1,188px | 899px | **matches** |
@@ -95,6 +95,24 @@ Two things came out of reading it that the ticket had not named. The meta column
 meaning as well as the surface — `Build — Product · shipped` — which the sentence beside it already
 said, and the width that cost wrapped eleven of twenty rows onto a second line. And the summary's
 `Most recently: A, B and C` names the three items that are the first three rows directly beneath it.
+
+**Memory was listing scaffolding as knowledge. FB-181** took it from eleven rows to five, and the
+five are the five a founder actually handed over or their team learned. Six of the eleven were
+`context/README.md` and `library/README.md` — the files committed when the corpus directories were
+created, one per repository — on a screen whose own sentence is *"Everything you have handed over or
+your team has learned"*. `wealthcx01` no longer appears in a column headed **From**, and every row
+names its surface.
+
+The screen's own summary told the truth about this the moment the readmes went: *"11 documents — 8
+pieces of background, 3 artifacts"* became *"5 documents — 5 pieces of background"*. **All three
+"artifacts" were readmes.** ARCA's `library/` holds nothing yet, and the screen had been saying
+otherwise.
+
+One thing worth recording, because only looking found it: the first fix keyed each row's surface off
+its **repository**, which relabelled `context/sell/brand-positioning.md` as *"Build — Product"* —
+it is a Sell document kept in the product repo. That replaced something true with something false,
+on the screen whose whole complaint was rows that mislead. The document's own path wins now, and a
+test pins it.
 
 **Handbook is 1,782px on a phone against 1,096px on desktop.** A page of prose should get *shorter*
 in a narrower column only if the type scales; growing by 62% suggests something is not reflowing.

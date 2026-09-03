@@ -1,6 +1,6 @@
 # FB-181 — Memory lists repository scaffolding as founder knowledge, and shows an org login as a person
 
-**Status:** Open · **Phase:** 3 · **Found by:** the FB-175 screen audit, 2026-09-02
+**Status:** Done · **Phase:** 3 · **Found by:** the FB-175 screen audit, 2026-09-02
 
 ## What is on the screen
 
