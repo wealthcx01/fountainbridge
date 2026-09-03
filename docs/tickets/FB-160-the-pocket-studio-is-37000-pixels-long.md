@@ -1,5 +1,29 @@
 # FB-160 — The pocket studio is right, and then the page goes on for 37,000 pixels
 
+## Re-measured 2026-09-02, after FB-178
+
+The 37,678px in this ticket's title is stale — that was before the desk's ticket board was removed.
+On an iPhone 13 profile against production today:
+
+```
+the phone desk, total                4,221px
+  blocker banner                        85px   the design has this
+  the office                           568px   the design has this
+  waiting on you                       668px   the design has this
+  the prompt bar                       112px   the design has this
+  what the engine did                  305px   THE DESIGN DOES NOT PUT THIS ON A PHONE
+  your surfaces                      1,031px   THE DESIGN DOES NOT PUT THIS ON A PHONE
+```
+
+The design's own description of this screen is exact: *"The same events, one column: the blocker
+banner, the live office, the queue, the prompt."* Four things, about 600px.
+
+So there are two separate problems and they want different fixes. The four sections the design does
+have are together 1,433px — more than twice the design's whole screen — which is a density problem.
+And two sections it does not have are adding another 1,336px, which is a question of what belongs on
+a phone at all.
+
+
 **Status:** Todo · **Area:** Studio / mobile · **Depends on:** FB-138
 
 ## What was measured
