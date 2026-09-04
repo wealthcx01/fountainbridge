@@ -21,7 +21,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
-| Sign in | one screen | — | — | **not compared** |
+| Sign in | one screen | **1,000px** | **851px** | **compared, FB-189** — matched on height, wrong on everything else |
 | The desk | ~1,900px | **2,395px** | **2,745px** | rows not cards (FB-183), one block (FB-186), full width (FB-188) |
 | Tickets | 1,090px | **1,202px** | **1,470px** | fixed FB-185, widened FB-188 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
@@ -95,6 +95,20 @@ Two things came out of reading it that the ticket had not named. The meta column
 meaning as well as the surface — `Build — Product · shipped` — which the sentence beside it already
 said, and the width that cost wrapped eleven of twenty rows onto a second line. And the summary's
 `Most recently: A, B and C` names the three items that are the first three rows directly beneath it.
+
+**Sign in matched its design exactly on height and was wrong about almost everything else.** One
+screen, no scroll, 1,000px and 851px on both sides — identical numbers, before and after FB-189
+changed the wordmark, the heading size, the fields, the second button, the divider and the footer.
+
+That is the sharpest thing this scorecard can say about itself. A number that agrees with the design
+is not evidence the screen does. This one was never compared because it fits on a screen, and fitting
+on a screen was never the question.
+
+What was wrong: the wordmark was `Bruntsfield` at 21.6px with no rule, against the design's 24px
+`BRUNTSFIELD` over a hairline; the heading was 56px against 32px, so the page shouted the verb and
+whispered whose studio it is; the fields were boxes where the design draws underlines. The product
+also carried **two wordmarks** — the rail in caps, the top bar and this page in mixed case. It
+carries one now.
 
 **The pocket studio carries the four things the design names, and the rest is one press away.**
 FB-160 took it from 4,221px to 2,745px at 390×844. What came off is what the design does not put on
