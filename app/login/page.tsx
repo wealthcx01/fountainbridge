@@ -37,8 +37,11 @@ export default async function LoginPage({
 
   return (
     <section className="signin" data-testid="signin">
-      <div className="wordmark" style={{ alignItems: 'center' }}>
+      {/* FB-189: the design's wordmark — the name, a hairline rule, then the studio. Centring and
+          spacing live in the stylesheet with the rest of this screen, not inline. */}
+      <div className="wordmark">
         <span className="wordmark-name">Bruntsfield</span>
+        <span className="wordmark-rule" aria-hidden="true" />
         <span className="wordmark-sub">Foundry Studio</span>
       </div>
 
@@ -110,7 +113,7 @@ export default async function LoginPage({
             aria-label="Password"
             data-testid="password-password"
           />
-          <button className="btn" type="submit" data-testid="password-submit">Sign in</button>
+          <button className="btn signin-submit" type="submit" data-testid="password-submit">Sign in</button>
           {error === 'password' ? (
             <p role="alert" data-testid="password-error"
                style={{ color: toneColor('blocked'), fontSize: 'var(--fs-body-sm)', margin: 0 }}>
@@ -144,9 +147,11 @@ export default async function LoginPage({
         </form>
       ) : null}
 
-      <p className="muted" data-testid="signin-footer" style={{ fontSize: 'var(--fs-meta)', margin: 0 }}>
-        A Bruntsfield Capital venture · Edinburgh
-      </p>
+      <div className="signin-foot">
+        <p className="muted" data-testid="signin-footer" style={{ fontSize: 'var(--fs-meta)', margin: 0 }}>
+          A Bruntsfield Capital venture · Edinburgh
+        </p>
+      </div>
     </section>
   );
 }

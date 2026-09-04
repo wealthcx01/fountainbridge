@@ -90,23 +90,29 @@ test.describe('the sign-in screen (FB-135)', () => {
     expect(google!.y, 'Google is the primary door and sits above').toBeLessThan(password!.y);
   });
 
-  test('the fields carry the studio’s own border, not the browser’s', async ({ page }) => {
+  test('the fields carry the studio’s own rule, not the browser’s border', async ({ page }) => {
     // FB-150: two design tokens that do not exist left inputs borderless — an undefined custom
     // property invalidates the whole declaration, silently.
     //
     // Asserting "has a border" is not enough, and this test was written that way first: every input
     // has a border from the browser, so it passed with the rule deleted. What must be true is that
-    // the border is OURS — the token, resolved.
+    // the rule is OURS — the token, resolved.
+    //
+    // FB-189 moved it from a box to an underline, which is what the design draws on this screen, so
+    // the rule to check is the bottom one. The width is checked too: an invalidated declaration
+    // leaves a colour behind and no line, which is the exact failure FB-150 was written for.
     await page.goto('/login');
-    const border = await page.getByTestId('password-email').evaluate((e) => {
+    const rule = await page.getByTestId('password-email').evaluate((e) => {
       const probe = document.createElement('div');
       probe.style.color = 'var(--color-border-strong)';
       document.body.appendChild(probe);
       const token = getComputedStyle(probe).color;
       probe.remove();
-      return { actual: getComputedStyle(e).borderTopColor, token };
+      const cs = getComputedStyle(e);
+      return { colour: cs.borderBottomColor, width: cs.borderBottomWidth, token };
     });
-    expect(border.actual, 'the field border is the token, not a browser default').toBe(border.token);
+    expect(rule.colour, 'the field rule is the token, not a browser default').toBe(rule.token);
+    expect(parseFloat(rule.width), 'the field has no rule at all').toBeGreaterThan(0);
   });
 
   test('it fits a phone', async ({ page }) => {
@@ -116,5 +122,47 @@ test.describe('the sign-in screen (FB-135)', () => {
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
+  });
+});
+
+/**
+ * FB-189 — the sign-in screen against its design.
+ *
+ * The FB-175 audit scored nine screens and said of this one: *"Sign in was never compared. It is the
+ * one screen a founder sees before they trust anything, and it is not in this table because I did
+ * not do it."* It has been compared now, and these are the parts of it worth holding.
+ */
+test.describe('sign in, against its design (FB-189)', () => {
+  test('the wordmark leads and the verb does not shout over it', async ({ page }) => {
+    await page.goto('/login');
+    const sizes = await page.evaluate(() => {
+      const px = (s: string | undefined) => parseFloat(s ?? '0');
+      return {
+        wordmark: px(getComputedStyle(document.querySelector('.signin .wordmark-name')!).fontSize),
+        heading: px(getComputedStyle(document.querySelector('.signin h1')!).fontSize),
+      };
+    });
+    // The design: wordmark 24px, heading 32px. Ours was 21.6px against 56px — the page shouted
+    // "Sign in" and whispered whose studio it is.
+    expect(sizes.heading, 'the heading is back at page-title size').toBeLessThan(40);
+    expect(sizes.heading / sizes.wordmark, 'the heading dwarfs the wordmark').toBeLessThan(1.7);
+  });
+
+  test('one wordmark in the product, in the design’s form', async ({ page }) => {
+    // The rail hard-codes BRUNTSFIELD; the top bar and this page rendered "Bruntsfield". The design
+    // draws it in caps in all three places, so the product carried two wordmarks and the one a
+    // founder meets first was the odd one out.
+    await page.goto('/login');
+    await expect(page.locator('.signin .wordmark-name')).toHaveCSS('text-transform', 'uppercase');
+    await expect(page.locator('.signin .wordmark-name')).toHaveText('Bruntsfield');
+  });
+
+  test('the second door is a modest control, not a second primary button', async ({ page }) => {
+    await page.goto('/login');
+    const [submit, google] = await Promise.all([
+      page.getByTestId('password-submit').boundingBox(),
+      page.getByRole('button', { name: /continue with google/i }).boundingBox(),
+    ]);
+    expect(submit!.width, 'the password button is as wide as Google’s').toBeLessThan(google!.width * 0.75);
   });
 });
