@@ -1,6 +1,19 @@
 # FB-170 — the studio has no database
 
-**Status:** Open · **Phase:** 3 · **Blocks:** FB-171, FB-172, FB-174 · **Raised by:** John, 2026-09-02
+**Status:** Shipped in part · **Phase:** 3 · **Blocks:** FB-171, FB-172, FB-174 · **Raised by:** John, 2026-09-02
+
+> **Slice 1 (done):** the schema and the isolation guarantee, proven against real Postgres. No
+> production wiring and no read path swapped — deliberately, because both need a Supabase project
+> that does not exist yet.
+>
+> **Blocked on John:** create the Supabase project and hand over the connection string. Everything
+> below it is written and tested and cannot be pointed at anything until then.
+>
+> **The finding worth carrying forward:** `force row level security` binds the table *owner* but not
+> a **superuser**, which reads straight through every policy with no error and no log line. The first
+> run of the isolation suite passed every cross-venture query for exactly that reason. In production
+> the same mistake is using Supabase's default `postgres` user — the connection string its dashboard
+> offers first. The studio connects as `foundry_studio`, which has `select` and nothing else.
 
 ## The fact
 
