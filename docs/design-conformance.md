@@ -28,7 +28,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
 | Memory | ~1,000px | **1,096px** | **1,988px** | fixed FB-181, widened FB-188 (was 1,570 / 2,881) |
 | Composer | ~1,000px | **1,096px** | 1,142px | **matches** |
-| Handbook | 1,000px | **1,096px** | **1,760px** | matches on desktop; phone still unexplained |
+| Handbook | 1,000px | **1,096px** | **1,581px** | **explained and fixed, FB-190** — see below |
 | a chapter | ~1,000px | **3,318–16,198px** | — | **the 1,188px reading was wrong** — see below |
 | The pocket studio | ~600px | — | **2,745px** | **fixed, FB-160** (was 4,221px) — the desk's phone row IS this screen |
 
@@ -183,9 +183,23 @@ it is a Sell document kept in the product repo. That replaced something true wit
 on the screen whose whole complaint was rows that mislead. The document's own path wins now, and a
 test pins it.
 
-**Handbook is 1,782px on a phone against 1,096px on desktop.** A page of prose should get *shorter*
-in a narrower column only if the type scales; growing by 62% suggests something is not reflowing.
-Unexplained, and worth ten minutes.
+**The Handbook's "phone unexplained" was three wrong things in one line, and FB-190 unpicked them.**
+
+It is not a page of prose. It is nine chapter cards in a 3×3, and three across becomes one across on
+a phone — nine stacked cards are *expected* to be taller. Growing 62% is less than the change in
+columns would suggest, not more.
+
+The desktop number is not the content. The cards end around 660px; the page measures 1,096px because
+the rail sets the floor. The comparison was a card grid against an empty space.
+
+And the phone had nothing to compare against. The design bundle is a fixed-width prototype — at 393px
+it still draws the 250px rail and the three-column grid, crushed. Its "phone" reading is the desktop
+layout squeezed, not a phone design. **The design has no phone handbook.**
+
+There was no phone defect. What there was, at both sizes, is that the design draws the chapter index
+as **one block with hairline rules between the cells** and ours drew nine separately bordered cards
+with gaps. That is fixed, and the phone came down to 1,581px — eight gaps and eighteen borders the
+design does not spend.
 
 **Sign in was never compared.** It is the one screen a founder sees before they trust anything, and
 it is not in this table because I did not do it.
