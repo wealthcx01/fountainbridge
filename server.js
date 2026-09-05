@@ -173,7 +173,30 @@ app.prepare().then(() => {
       });
 
       const pending = [];
-      const shut = () => {
+      const openedAt = Date.now();
+      let ended = null;
+
+      // Which side ended it, and how long it lasted.
+      //
+      // FB-193 left one question open: from Railway the browser's socket dies about five
+      // milliseconds after the handshake, with close code 1006, while the studio's own connection to
+      // the box — proved by `/venture/<id>/office-ready`, from the same container — is fine. The old
+      // `shut()` said nothing about which of the four events fired, so the only error in the log was
+      // `WebSocket was closed before the connection was established`, which is the CONSEQUENCE of
+      // shutting down mid-connect and names no cause at all.
+      //
+      // One line, once, naming the side and the age. That is the difference between "something
+      // closes it" and a sentence.
+      const shut = (why) => {
+        if (ended) return;
+        ended = why;
+        console.log('[office] the office socket ended', {
+          venture: claim.ventureId,
+          endedBy: why,
+          afterMs: Date.now() - openedAt,
+          browser: client.readyState,
+          box: upstream.readyState,
+        });
         try { client.close(); } catch {}
         try { upstream.close(); } catch {}
       };
@@ -199,15 +222,10 @@ app.prepare().then(() => {
         else if (pending.length < 8) pending.push(raw);
       });
 
-      client.on('close', shut);
-      client.on('error', shut);
-      upstream.on('close', shut);
-      upstream.on('error', (err) => {
-        console.error('[office] could not reach the venture office', {
-          venture: claim.ventureId, message: err.message,
-        });
-        shut();
-      });
+      client.on('close', (code, reason) => shut(`the browser closed it (${code}${reason?.length ? ` ${reason}` : ''})`));
+      client.on('error', (err) => shut(`the browser's socket errored (${err.message})`));
+      upstream.on('close', (code) => shut(`the box closed it (${code})`));
+      upstream.on('error', (err) => shut(`the box could not be reached (${err.message})`));
     });
   });
 
