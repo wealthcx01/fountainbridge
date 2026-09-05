@@ -176,6 +176,27 @@ app.prepare().then(() => {
       const openedAt = Date.now();
       let ended = null;
 
+      // Say something to the browser at once, and keep saying it.
+      //
+      // FB-195. The studio was silent on a freshly upgraded socket for as long as it took to dial
+      // the box — from Railway to Hetzner that is about 400ms of TLS, and the browser's connection
+      // was being closed at around 240ms, every time, before the box had answered. The studio had
+      // sent nothing at all by then. A proxy that drops an upgraded connection carrying no traffic
+      // is ordinary; a socket that says nothing for half a second while it waits on somewhere else
+      // is what makes that ordinary behaviour fatal.
+      //
+      // A ping is the right thing to say: it is part of the WebSocket protocol rather than part of
+      // the office's, so the app never sees it, there is nothing for it to misparse, and the browser
+      // answers automatically. One immediately, then one every twenty seconds for the life of the
+      // connection — which also keeps it alive through the quiet spells when nobody's team is doing
+      // anything.
+      const beat = () => {
+        if (client.readyState !== WebSocket.OPEN) return;
+        try { client.ping(); } catch { /* it is going away anyway */ }
+      };
+      beat();
+      const heartbeat = setInterval(beat, 20_000);
+
       // Which side ended it, and how long it lasted.
       //
       // FB-193 left one question open: from Railway the browser's socket dies about five
@@ -190,6 +211,7 @@ app.prepare().then(() => {
       const shut = (why) => {
         if (ended) return;
         ended = why;
+        clearInterval(heartbeat);
         console.log('[office] the office socket ended', {
           venture: claim.ventureId,
           endedBy: why,
