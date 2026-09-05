@@ -799,3 +799,40 @@ body:has(.rail) .main {
   .waiting-row { display: block; padding: 0.7rem 0; }
   .waiting-when { display: block; margin-top: 0.25rem; }
 }
+
+/* FB-192 — the venture office on the desk.
+ *
+ * The frame is taller than the space it is shown in, and the window clips the difference. See the
+ * note in `components/OfficeEmbed.tsx`: pixel-agents draws its room low in whatever height it is
+ * given, so a frame short enough to be polite showed the ceiling and a frame tall enough to show
+ * the room was a third empty. This shows the room, in the height of the shorter one.
+ *
+ * The offset is tied to the frame's height, not to the window's — move one and move both. */
+.office-embed { margin-bottom: 1.5rem; }
+.office-embed-title { margin-bottom: 0.4rem; }
+
+.office-embed-window {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: var(--content-narrow);
+  height: 26rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-paper-sunken);
+}
+
+.office-embed-frame {
+  display: block;
+  position: absolute;
+  top: -17rem;
+  left: 0;
+  width: 100%;
+  height: 44rem;
+  border: 0;
+}
+
+.office-embed-note {
+  font-size: var(--fs-meta-lg);
+  margin: 0.4rem 0 0;
+  max-width: var(--content-narrow);
+}

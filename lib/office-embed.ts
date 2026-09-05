@@ -28,8 +28,24 @@
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/** How long a minted office token is good for. Long enough to open a socket, short enough to be dull. */
-export const OFFICE_TOKEN_TTL_MS = 10 * 60_000;
+/**
+ * How long a minted office token is good for, and the step it is rounded to.
+ *
+ * The step is not decoration. The token goes in the iframe's URL, so a token that changes changes
+ * the `src`, and a changed `src` reloads the frame — which closes the office socket and redraws the
+ * room from nothing. The desk re-renders itself once a minute while a venture is working
+ * (`WhileWorking`), and every one of those renders used to mint a token with a new expiry in it. So
+ * the founder's office reset every sixty seconds, measured: the socket closed at 60.8s and opened
+ * again at 60.9s, on a page nobody had touched.
+ *
+ * Measuring the expiry from the START of the half hour the render happens in, rather than from the
+ * instant of the render, makes the minted string identical for every render inside that half hour,
+ * so the frame is left alone. A token is therefore good for between thirty and sixty minutes rather
+ * than exactly ten — a longer life for a capability that only ever buys a read of one venture's
+ * office, and cannot write anything (`OFFICE_ALLOWED_CLIENT_MESSAGES`).
+ */
+export const OFFICE_TOKEN_TTL_MS = 30 * 60_000;
+export const OFFICE_TOKEN_STEP_MS = 30 * 60_000;
 
 /**
  * The environment variable holding a venture's office host.
@@ -89,7 +105,10 @@ export function officeConfigured(
  * studio is entitled to make.
  */
 export function mintOfficeToken(ventureId: string, secret: string, now = Date.now()): string {
-  const exp = now + OFFICE_TOKEN_TTL_MS;
+  // Every render inside the same half hour mints the same string, because the expiry is measured
+  // from the start of that half hour rather than from the instant of the render. See the note on
+  // OFFICE_TOKEN_STEP_MS: this is what stops the office reloading under the founder.
+  const exp = Math.floor(now / OFFICE_TOKEN_STEP_MS) * OFFICE_TOKEN_STEP_MS + OFFICE_TOKEN_STEP_MS + OFFICE_TOKEN_TTL_MS;
   const body = `${ventureId}.${exp}`;
   return `${body}.${sign(body, secret)}`;
 }
@@ -140,4 +159,82 @@ export function officeMessageAllowed(raw: string): boolean {
   if (!parsed || typeof parsed !== 'object') return false;
   const type = (parsed as { type?: unknown }).type;
   return typeof type === 'string' && OFFICE_ALLOWED_CLIENT_MESSAGES.has(type);
+}
+
+/**
+ * The studio's own stylesheet, added to the office's document.
+ *
+ * pixel-agents is an editor extension, and its interface says so: a Layout button, a Settings
+ * button, a "what's new" card for the version it just updated to, and a version number in the
+ * corner. In an editor those are right. On a founder's desk they are wrong twice over — they are
+ * addressed to whoever installed the extension, and the studio drops every client message but the
+ * handshake, so pressing Layout or Settings does nothing at all. A control that does nothing is
+ * worse than no control.
+ *
+ * The zoom buttons go too, for a different reason. They work — they are the founder's own view and
+ * say nothing to the box — but the studio shows the office through a window that clips the empty
+ * space above the room, and zooming moves the room out from under that window. A control that makes
+ * the picture worse is not worth the two buttons.
+ *
+ * These are position classes because the bundle offers nothing better: no ids, no data attributes,
+ * Tailwind utilities only. That is exactly as brittle as it looks, so it is pinned two ways — the
+ * office version is fixed on the box, and `officeChromeHidden` below is what a test asserts against.
+ * A version bump that moves a button is a deliberate act that has to re-check this list.
+ */
+export const OFFICE_CHROME_HIDDEN = [
+  '.absolute.top-8.left-8',        // zoom
+  '.absolute.bottom-10.left-10',   // Layout and Settings
+  '.absolute.bottom-42.right-28',  // "Updated to v1.4! / See what's new"
+  '.absolute.bottom-8.right-28',   // the version watermark
+] as const;
+
+/** The `<style>` block the studio adds to the office document. */
+export function officeChromeStyle(): string {
+  return `<style data-foundry="office-chrome">${OFFICE_CHROME_HIDDEN.join(',')}{display:none !important}</style>`;
+}
+
+/** An office file, addressed through the studio and carrying the token that authorises it. */
+export function officeAssetUrl(ventureId: string, file: string, token: string): string {
+  const clean = file.replace(/^(\.\.?\/)+/, '');
+  return `/venture/${encodeURIComponent(ventureId)}/office/${clean}?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * The office's document, addressed through the studio.
+ *
+ * Root-relative references are rewritten FIRST, on purpose. The relative rewrite produces
+ * root-relative URLs of its own, and running it the other way round rewrote its own output: every
+ * asset came out addressed `/venture/arca/office/venture/arca/office/assets/…` and the frame loaded
+ * nothing at all.
+ *
+ * `/vite.svg` is the app's favicon, written from the site root. Through the studio that root is the
+ * studio's, so it 404s on every load; a frame has no tab to put an icon in anyway, and it is pointed
+ * at the office's own copy rather than left as a failing request.
+ */
+export function rewriteOfficeHtml(html: string, ventureId: string, token: string): string {
+  return html
+    .replace(/(src|href)="\/([^"/][^"]*)"/g,
+      (_m, attr: string, file: string) => `${attr}="${officeAssetUrl(ventureId, file, token)}"`)
+    .replace(/(src|href)="\.\/assets\/([^"]+)"/g,
+      (_m, attr: string, file: string) => `${attr}="${officeAssetUrl(ventureId, `assets/${file}`, token)}"`)
+    .replace('</head>', `${officeChromeStyle()}</head>`);
+}
+
+/**
+ * The office's stylesheet, addressed through the studio.
+ *
+ * The stylesheet reaches for the office's own font with a relative `url(...)`. That resolves against
+ * the stylesheet's address, inside `/office/assets/`, so the browser asks the studio for it — with
+ * no token, because a `url()` in CSS carries only what is written in it.
+ *
+ * Untokened, the office route falls through to the session check, the frame has no cookie to offer,
+ * and the answer is 401. The browser reports that as a CORS failure, which is true and unhelpful: a
+ * 401 carries no `access-control-allow-origin`. The office then drew its whole interface in the
+ * browser's fallback sans-serif and looked broken, while every automated check stayed green.
+ */
+export function rewriteOfficeCss(css: string, ventureId: string, token: string): string {
+  return css.replace(
+    /url\(\s*['"]?(?!data:|https?:|\/\/)([^)'"]+?)['"]?\s*\)/g,
+    (_m, ref: string) => `url("${officeAssetUrl(ventureId, ref, token)}")`,
+  );
 }

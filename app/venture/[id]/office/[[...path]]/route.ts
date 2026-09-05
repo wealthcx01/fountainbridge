@@ -1,7 +1,9 @@
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
-import { officeEndpoint, officeSecretEnvName, readOfficeToken } from '@/lib/office-embed';
+import {
+  officeEndpoint, officeSecretEnvName, readOfficeToken, rewriteOfficeCss, rewriteOfficeHtml,
+} from '@/lib/office-embed';
 
 /**
  * The venture office's own files, served through the studio (FB-163).
@@ -54,9 +56,9 @@ export async function GET(
     }
   }
 
-  const base = officeEndpoint(id, process.env);
+  const boxBase = officeEndpoint(id, process.env);
   const secret = process.env[officeSecretEnvName(id)];
-  if (!base || !secret) {
+  if (!boxBase || !secret) {
     // Not an error. Most ventures have no box, and the desk shows the drawn plate for them.
     return new Response('This venture has no office yet.', { status: 404 });
   }
@@ -64,7 +66,7 @@ export async function GET(
   // The path is rebuilt from the segments Next parsed, never taken from the raw URL: a path that
   // travelled through as text could climb out of `/office` on the box.
   const suffix = (path ?? []).filter((p) => p !== '..' && p !== '.').map(encodeURIComponent).join('/');
-  const target = `${base}/${suffix}`;
+  const target = `${boxBase}/${suffix}`;
 
   let upstream: Response;
   try {
@@ -81,26 +83,36 @@ export async function GET(
 
   const type = upstream.headers.get('content-type');
 
-  // The app's own HTML asks for `./assets/…`, which resolves against the URL the browser is on. The
-  // browser is on `/venture/<id>/office` with no trailing slash — Next redirects that slash away —
-  // so a relative asset would resolve one level too high and 404.
-  //
-  // A `<base>` fixes it in one place and makes the base explicit rather than a consequence of how
-  // the path happened to be spelled. Only the document is touched; every other file is passed
+  // The office's own HTML and CSS point at files by paths that mean something on the box and
+  // nothing through the studio, and they carry no token — an opaque origin sends no cookie, so an
+  // untokened file is refused. Both are rewritten on the way past. Everything else is passed
   // through untouched.
+  const carry = new URL(req.url).searchParams.get('token') ?? '';
+
+  // Both rewrites live in `lib/office-embed.ts`, with the reasons, so they can be tested without a
+  // box to fetch from. The UI gate has no venture machine to reach and must not grow one.
   if (type?.includes('text/html')) {
-    const html = await upstream.text();
-    const base = `/venture/${encodeURIComponent(id)}/office/`;
-    const carry = new URL(req.url).searchParams.get('token') ?? '';
-    // The app's own files must carry the token too, for the same reason the document did: an opaque
-    // origin sends no cookie. Two references, rewritten explicitly rather than by serving the whole
-    // frame from a cookie-less path — so the change is visible here and nowhere else.
-    const based = html
-      .replace(/(src|href)="\.\/assets\/([^"]+)"/g,
-        (_m, attr: string, file: string) => `${attr}="${base}assets/${file}?token=${encodeURIComponent(carry)}"`);
-    return new Response(based, { status: upstream.status, headers: htmlHeaders(type) });
+    return new Response(rewriteOfficeHtml(await upstream.text(), id, carry), {
+      status: upstream.status,
+      headers: htmlHeaders(type),
+    });
   }
 
+  if (type?.includes('text/css')) {
+    return new Response(rewriteOfficeCss(await upstream.text(), id, carry), {
+      status: upstream.status,
+      headers: assetHeaders(type),
+    });
+  }
+
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers: assetHeaders(type),
+  });
+}
+
+/** The response headers for everything that is not the office's own document. */
+function assetHeaders(type: string | null): Headers {
   const headers = new Headers();
   if (type) headers.set('content-type', type);
   // The office is live: a cached sprite sheet is fine, a cached frame of the room is not.
@@ -108,12 +120,11 @@ export async function GET(
   // It is framed by the studio and by nothing else.
   headers.set('content-security-policy', "frame-ancestors 'self'");
   headers.set('x-content-type-options', 'nosniff');
-  // The frame has an opaque origin, so every file it pulls is a cross-origin module fetch. The token
-  // on the URL is what authorises it; this header only tells the browser the fetch may proceed, and
-  // it is safe precisely because these requests carry no credentials to borrow.
+  // The frame has an opaque origin, so every file it pulls is a cross-origin fetch. The token on the
+  // URL is what authorises it; this header only tells the browser the fetch may proceed, and it is
+  // safe precisely because these requests carry no credentials to borrow.
   headers.set('access-control-allow-origin', '*');
-
-  return new Response(upstream.body, { status: upstream.status, headers });
+  return headers;
 }
 
 /** The response headers for the office's own document. */
