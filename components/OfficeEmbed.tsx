@@ -39,10 +39,13 @@ import { useEffect, useState } from 'react';
  */
 export function OfficeEmbed({
   src,
+  readyHref,
   fallback,
 }: {
   /** The studio's own path, with a short-lived token naming the venture. Never the box's address. */
   src: string;
+  /** Where the studio answers whether the office socket actually holds (FB-193). */
+  readyHref: string;
   /** FB-139's plate, rendered by the server and handed in — not a second implementation of it. */
   fallback: React.ReactNode;
 }) {
@@ -60,9 +63,13 @@ export function OfficeEmbed({
   // reloads the page, which is what they would do anyway on seeing an empty room.
   const [frameSrc] = useState(src);
 
-  // A frame that never loads must not sit there empty. The office is one HTTP fetch away from
-  // being knowable, so the studio asks before it draws — the same read the frame is about to do,
-  // through the same proxy, so the two cannot disagree.
+  // A frame that never loads must not sit there empty, so the studio asks before it draws.
+  //
+  // FB-193: it used to ask the box for one HTTP file. That answered 200 on a day when the socket was
+  // dying five milliseconds after every handshake, and a founder got a frame that said "Loading…"
+  // for ever — strictly worse than the plate it replaced. `office-ready` asks the question the frame
+  // actually depends on: it opens the office socket from the studio and waits for the office to say
+  // something. The plate is the answer whenever it does not.
   //
   // The width is asked first and the frame is never mounted on a phone, rather than mounted and
   // hidden: a hidden iframe still loads the app and still holds a socket open, and a founder on a
@@ -73,10 +80,9 @@ export function OfficeEmbed({
 
     const look = () => {
       if (!wideEnough.matches) { setState('pocket'); return; }
-      const probe = new URL(frameSrc, window.location.origin);
-      probe.pathname = probe.pathname.replace(/\/$/, '') + '/api/health';
-      fetch(probe.toString(), { cache: 'no-store' })
-        .then((r) => { if (!cancelled) setState(r.ok ? 'live' : 'unreachable'); })
+      fetch(readyHref, { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((body: { ready?: boolean }) => { if (!cancelled) setState(body?.ready ? 'live' : 'unreachable'); })
         .catch(() => { if (!cancelled) setState('unreachable'); });
     };
 
@@ -85,7 +91,7 @@ export function OfficeEmbed({
     // office without a reload.
     wideEnough.addEventListener('change', look);
     return () => { cancelled = true; wideEnough.removeEventListener('change', look); };
-  }, [frameSrc]);
+  }, [readyHref]);
 
   if (state !== 'live') {
     return (

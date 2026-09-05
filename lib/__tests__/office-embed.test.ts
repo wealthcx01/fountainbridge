@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   mintOfficeToken, readOfficeToken, officeEndpoint, officeConfigured,
   officeSecretEnvName, officeHostEnvName, officeMessageAllowed, OFFICE_TOKEN_TTL_MS, OFFICE_TOKEN_STEP_MS,
-  rewriteOfficeCss, rewriteOfficeHtml, OFFICE_CHROME_HIDDEN,
+  rewriteOfficeCss, rewriteOfficeHtml, OFFICE_CHROME_HIDDEN, probeOfficeSocket,
 } from '../office-embed';
 
 /**
@@ -204,5 +204,74 @@ describe('the office is addressed through the studio (FB-192)', () => {
       '.absolute.bottom-42.right-28',
       '.absolute.bottom-8.right-28',
     ]);
+  });
+});
+
+describe('the studio proves the office before drawing it (FB-193)', () => {
+  /** A stand-in for `ws`, driven by the test rather than by a network. */
+  function fakeSocket() {
+    const handlers: Record<string, ((...a: unknown[]) => void)[]> = {};
+    let closed = false;
+    class Fake {
+      constructor(public url: string, public opts: Record<string, unknown>) { made.push(this); }
+      on(event: string, cb: (...a: unknown[]) => void) { (handlers[event] ??= []).push(cb); }
+      send(data: string) { sent.push(data); }
+      close() { closed = true; }
+    }
+    const made: Fake[] = [];
+    const sent: string[] = [];
+    const fire = (event: string, ...args: unknown[]) => (handlers[event] ?? []).forEach((h) => h(...args));
+    return { Fake, made, sent, fire, wasClosed: () => closed };
+  }
+
+  it('is ready once the office actually says something', async () => {
+    const { Fake, fire, sent, wasClosed } = fakeSocket();
+    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
+    // The office waits to be asked, so the probe has to ask. A probe that only listened sat there
+    // for the full timeout against a perfectly healthy office.
+    fire('open');
+    expect(sent).toEqual(['{"type":"webviewReady"}']);
+    fire('message', '{"type":"providerCapabilities"}');
+    await expect(probe).resolves.toEqual({ ok: true, detail: 'the office answered' });
+    // The probe is a question, not a connection to keep.
+    expect(wasClosed()).toBe(true);
+  });
+
+  it('is not ready when the socket closes before the office says anything', async () => {
+    // This is the production failure exactly: the handshake succeeded and the connection died five
+    // milliseconds later, having sent nothing. A door that opens onto nothing is not an office.
+    const { Fake, fire } = fakeSocket();
+    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
+    fire('close');
+    await expect(probe).resolves.toEqual({ ok: false, detail: 'closed before the office said anything' });
+  });
+
+  it('is not ready when the socket errors, and keeps the reason for the log', async () => {
+    const { Fake, fire } = fakeSocket();
+    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
+    fire('error', new Error('Unexpected server response: 403'));
+    await expect(probe).resolves.toEqual({ ok: false, detail: 'Unexpected server response: 403' });
+  });
+
+  it('is not ready when nothing happens at all', async () => {
+    const { Fake } = fakeSocket();
+    await expect(probeOfficeSocket('https://box.test/office', 'sec', Fake as never, 5))
+      .resolves.toEqual({ ok: false, detail: 'no message within 5ms' });
+  });
+
+  it('asks the box over wss, at the office socket, carrying the secret', () => {
+    const { Fake, made } = fakeSocket();
+    void probeOfficeSocket('https://chat.arca.test/office', 'shared-secret', Fake as never, 5);
+    expect(made[0].url).toBe('wss://chat.arca.test/office/ws');
+    expect(made[0].opts.headers).toEqual({ 'X-Foundry-Office': 'shared-secret' });
+  });
+
+  it('answers once, however many things happen', async () => {
+    const { Fake, fire } = fakeSocket();
+    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
+    fire('message', 'first');
+    fire('error', new Error('and then this'));
+    fire('close');
+    await expect(probe).resolves.toEqual({ ok: true, detail: 'the office answered' });
   });
 });

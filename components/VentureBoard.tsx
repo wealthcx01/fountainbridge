@@ -428,7 +428,11 @@ export function VentureBoard({
           still. */}
       <div className="pocket-2">
         {officeSrc ? (
-          <OfficeEmbed src={officeSrc} fallback={<OfficePlate office={office} />} />
+          <OfficeEmbed
+            src={officeSrc}
+            readyHref={`/venture/${encodeURIComponent(venture.id)}/office-ready`}
+            fallback={<OfficePlate office={office} />}
+          />
         ) : (
           <OfficePlate office={office} />
         )}

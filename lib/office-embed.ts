@@ -238,3 +238,61 @@ export function rewriteOfficeCss(css: string, ventureId: string, token: string):
     (_m, ref: string) => `url("${officeAssetUrl(ventureId, ref, token)}")`,
   );
 }
+
+/** What a socket probe found. `detail` is for the studio's log, never for a founder. */
+export type OfficeSocketProbe = { ok: boolean; detail: string };
+
+/**
+ * Open the office socket the way the browser's frame will, and see whether it holds.
+ *
+ * FB-193. The desk used to decide whether to draw the office by asking the box for one HTTP file.
+ * That answered 200 while the socket was dying five milliseconds after every handshake, so a founder
+ * on production got a frame that said "Loading…" for ever — strictly worse than the drawn plate it
+ * replaced, and every automated check stayed green because the probe it was watching passed.
+ *
+ * A view is only worth drawing if the thing it views can be reached. So the studio makes the
+ * connection itself, from the same place the browser's frame will be proxied from, waits for the
+ * office to actually say something, and reports what happened. One real message is the bar: a
+ * handshake proves the door opens, not that anything is behind it.
+ */
+export async function probeOfficeSocket(
+  base: string,
+  secret: string,
+  WebSocketImpl: new (url: string, opts: Record<string, unknown>) => {
+    on(event: string, cb: (...args: unknown[]) => void): void;
+    send(data: string): void;
+    close(): void;
+  },
+  timeoutMs = 8_000,
+): Promise<OfficeSocketProbe> {
+  const url = `${base.replace(/^https:/, 'wss:')}/ws`;
+  return new Promise<OfficeSocketProbe>((resolve) => {
+    let done = false;
+    const finish = (ok: boolean, detail: string) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { ws.close(); } catch { /* already gone */ }
+      resolve({ ok, detail });
+    };
+    const timer = setTimeout(() => finish(false, `no message within ${timeoutMs}ms`), timeoutMs);
+
+    const ws = new WebSocketImpl(url, {
+      headers: { 'X-Foundry-Office': secret },
+      handshakeTimeout: Math.min(timeoutMs, 5_000),
+    });
+
+    // The office waits to be asked. It says nothing at all until the handshake arrives, and then
+    // sends everything at once — measured against the real box: `webviewReady` at 45ms, the first
+    // answer at 47ms. A probe that only listened sat there for the full timeout on a working office,
+    // which is how this was found.
+    //
+    // `webviewReady` is the one message the studio ever forwards from a browser
+    // (OFFICE_ALLOWED_CLIENT_MESSAGES), so the probe says exactly what a frame would say and nothing
+    // a frame could not.
+    ws.on('open', () => ws.send(JSON.stringify({ type: 'webviewReady' })));
+    ws.on('message', () => finish(true, 'the office answered'));
+    ws.on('error', (err: unknown) => finish(false, (err as Error)?.message ?? 'socket error'));
+    ws.on('close', () => finish(false, 'closed before the office said anything'));
+  });
+}
