@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testLogin } from './helpers';
+import { inTopDownOrder, testLogin } from './helpers';
 
 // The page a founder actually makes a decision on had no picture in the UI-gate gallery, which is
 // how it came to be reviewed by reading code rather than by looking at it (FB-107).
@@ -78,9 +78,10 @@ test.describe('reading and accepting a piece of work', () => {
     const host = page.locator('a[href*="github.com"]');
     await expect(host).toHaveCount(1);
     await expect(host).not.toHaveClass(/btn/);
-    const reference = await host.boundingBox();
-    const summary = await page.getByTestId('work-description').boundingBox();
-    expect(reference!.y).toBeGreaterThan(summary!.y);
+    await inTopDownOrder([
+      ['what the work did', page.getByTestId('work-description')],
+      ['the GitHub reference', host],
+    ]);
   });
 
   test('the evidence is a decision, not a transcript (FB-081)', async ({ page }) => {
@@ -103,9 +104,10 @@ test.describe('reading and accepting a piece of work', () => {
     // the transcript moves BELOW the button, which is what FB-081 was actually protecting. The
     // bounded file list above it is a few lines, not four thousand words.
     await page.goto('/venture/arca/work/arca/10');
-    const decision = await page.getByTestId('work-decision').boundingBox();
-    const record = await page.getByTestId('work-record-toggle').boundingBox();
-    expect(decision!.y).toBeLessThan(record!.y);
+    await inTopDownOrder([
+      ['the decision', page.getByTestId('work-decision')],
+      ['the record', page.getByTestId('work-record-toggle')],
+    ]);
   });
 
   test('the whole decision page, for the gallery (FB-107)', async ({ page }) => {
@@ -118,15 +120,13 @@ test.describe('reading and accepting a piece of work', () => {
     // John read the page top-down as a person making a decision and every complaint was the same
     // one: the order was inverted. His own ask was at the BOTTOM, as a diff fragment of its ticket.
     await page.goto('/venture/arca/work/arca/10');
-    const y = async (id: string) => (await page.getByTestId(id).boundingBox())!.y;
-    const order = [
-      await y('work-ask'),
-      await y('work-description'),
-      await y('work-changes'),
-      await y('work-decision'),
-      await y('work-record-toggle'),
-    ];
-    expect(order).toEqual([...order].sort((a, b) => a - b));
+    await inTopDownOrder([
+      ['the ask', page.getByTestId('work-ask')],
+      ['what it did', page.getByTestId('work-description')],
+      ['what changed', page.getByTestId('work-changes')],
+      ['the decision', page.getByTestId('work-decision')],
+      ['the record', page.getByTestId('work-record-toggle')],
+    ]);
   });
 
   test('the ask is the founder’s own ticket, whole and readable (FB-107)', async ({ page }) => {

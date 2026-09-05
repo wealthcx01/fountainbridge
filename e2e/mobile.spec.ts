@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testLogin } from './helpers';
+import { boxOf, testLogin } from './helpers';
 
 // FB-009 mobile UI-gate: the studio must be usable at phone size (~393×851, Pixel 5) — runs under
 // the `mobile` project (Chromium-based, so no separate WebKit install in CI).
@@ -19,9 +19,8 @@ test('mobile: shell + ventures render, nav is thumb-reachable, no horizontal scr
   const nav = page.getByTestId('topnav');
   await expect(nav).toBeVisible();
   // Nav pill is a ≥44px thumb target.
-  const box = await page.getByRole('link', { name: /Needs you/ }).boundingBox();
-  expect(box).not.toBeNull();
-  expect(box!.height).toBeGreaterThanOrEqual(40);
+  const box = await boxOf(page.getByRole('link', { name: /Needs you/ }), 'the "Needs you" nav pill');
+  expect(box.height, 'the nav pill is not a thumb target').toBeGreaterThanOrEqual(40);
 
   expect(await noHorizontalScroll(page)).toBe(true);
   await page.screenshot({ path: `${SHOTS}/09-mobile-home.png`, fullPage: true });

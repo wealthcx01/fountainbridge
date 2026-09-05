@@ -1,6 +1,6 @@
 # FB-191 — the pocket title test fails when the page is not ready, and calls it a layout fault
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-163's CI run, 2026-09-05
+**Status:** Done · **Phase:** 3 · **Found by:** FB-163's CI run, 2026-09-05
 
 ## What happened
 
@@ -30,46 +30,85 @@ const bannerY = (await banner.boundingBox())?.y ?? 0;
 expect(titleY).toBeLessThan(bannerY);
 ```
 
-Neither element is waited for. `boundingBox()` returns `null` for an element that is not laid out
-yet, and `?? 0` turns that `null` into a real-looking measurement of zero.
+`boundingBox()` returns `null` for an element it cannot measure, and `?? 0` turns that `null` into a
+real-looking measurement of zero — a position at the very top of the page. That is exactly the value
+that makes the assertion false. So the test reports that the venture is named *after* the prompt,
+when the page is fine and nothing was measured at all.
 
-Two ways that ends badly:
+That much was clear from reading it. **It was not the whole cause**, and the difference matters.
 
-- Both are still null. The assertion becomes `0 < 0`, which is false.
-- The title has rendered and the banner has not. The assertion becomes `140 < 0`, which is false.
+### What the first fix got wrong
 
-In both cases the test reports that the venture is named *after* the prompt. The page is fine. The
-test measured nothing and treated nothing as a position at the top of the screen.
+The obvious repair is to wait for both elements to be visible before measuring. That was written,
+and the test still failed twice in twenty runs.
 
-`?? 0` is the whole fault. It converts "I could not measure this" into "I measured this at zero",
-and zero is exactly the value that makes the assertion fail.
+So the test was run twenty-five times with the page's own numbers printed beside Playwright's.
+Caught in the act, on the run that failed:
 
-## What to do
+- Playwright's `boundingBox()` for the venture name returned **`null`**.
+- The page's own `getBoundingClientRect()` for the same element, read a moment later, returned
+  **y = 222**, in a laid-out flex container, with one stylesheet loaded.
 
-Wait for both elements before measuring, and fail loudly if a box is missing rather than
-substituting a number for it (CLAUDE.md #10):
+The element was on the screen. It had a position. Playwright still could not measure it.
 
-```ts
-const title = page.locator('.desk .pocket-0').first();
-const banner = page.getByTestId('blocker-banner');
-await expect(title).toBeVisible();
-await expect(banner).toBeVisible();
-const titleBox = await title.boundingBox();
-const bannerBox = await banner.boundingBox();
-expect(titleBox, 'the venture title has no box').not.toBeNull();
-expect(bannerBox, 'the blocker banner has no box').not.toBeNull();
-expect(titleBox!.y).toBeLessThan(bannerBox!.y);
-```
+### The real cause
 
-Then check the rest of the suite for the same shape. `?? 0` after a `boundingBox()` is the pattern
-to search for; anywhere it appears, a missing element is being read as a position.
+The desk is server-rendered, streamed (FB-157), and then hydrated. A locator that has been resolved
+to a node measures *that* node — and if React replaces it during hydration, the handle is left
+pointing at a node that is no longer in the document. A detached node has no box, so `boundingBox()`
+answers `null`.
 
-## How we will know it is fixed
+Waiting for visibility cannot fix this. The element **is** visible. It is simply a different element
+a millisecond later.
 
-The gate goes green on a re-run without a re-run being needed. Concretely: run the mobile project
-twenty times in a row on an unchanged tree and get twenty passes.
+This was already half-known. `e2e/pocket.spec.ts` carried the comment:
+
+> Measure a settled page. The desk streams (FB-157), so a bounding box read the instant the shell
+> arrives is a box for markup that is about to move.
+
+The diagnosis was right and the remedy — waiting for visibility — does not cover the case where the
+node is replaced rather than moved.
+
+### The second fault, in the same place
+
+Two positions read one after the other come from two different moments. If the page re-renders
+between them, they describe two different layouts, and an ordering assertion can fail on a page that
+was never out of order. Rarer than the first fault, same shape, and fixed by the same change.
+
+## What was done
+
+Two helpers in `e2e/helpers.ts`, and every measurement in the suite moved onto them.
+
+**`boxOf(locator, name)`** — waits for the element, then retries the measurement for up to ten
+seconds, so a node replaced by hydration is simply re-resolved and measured again. If there is still
+no box, it fails by name and says so (CLAUDE.md #10). It never substitutes a number for a
+measurement that did not happen.
+
+**`inTopDownOrder([[name, locator], ...])`** — asserts that things appear down the page in the order
+given. Every position is read inside one retried block, so they all come from the same render. The
+failure message names what it found, in the reader's words:
+
+> the page reads the blocker banner → the venture name, not the venture name → the blocker banner
+
+Seven ordering assertions across five spec files moved onto it, replacing hand-rolled comparisons in
+`pocket`, `activity`, `attention`, `work` (three) and `password-login`. Three size assertions moved
+onto `boxOf`. After this, no spec file calls `boundingBox()` directly — the pattern cannot come back
+by copy-and-paste, because there is nothing left to copy.
+
+The `?? 0` is gone. So is `!` on a box that might be null.
+
+## How we knew it was fixed
+
+The failing case, isolated and run **100 times in a row** on an unchanged tree: 100 passes.
+
+Before the change the same rig failed 2 in 25, twice over. The full suite is 280 passed, 12 skipped.
 
 ## Why this matters beyond one test
 
 A required check that fails at random teaches people to press "re-run" instead of reading. The next
-real failure gets re-run too. This is the second cost of the flake and the larger one.
+real failure gets re-run too. That is the second cost of a flake and the larger one.
+
+There is a narrower lesson here as well. The first fix was reasoned from the code and was wrong —
+`?? 0` was a real fault and not the cause. What found the cause was running the thing twenty times
+and printing what the page actually said. The ticket asked for twenty runs as proof; it turned out
+to be the diagnosis.

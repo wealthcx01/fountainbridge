@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { boxOf, inTopDownOrder } from './helpers';
 
 // FB-092: the email+password door, end to end against a real production build. The account is
 // ARCA's founder (FB-090), so this also proves the property that matters most: WHICH door you
@@ -83,11 +84,10 @@ test.describe('the sign-in screen (FB-135)', () => {
 
   test('Google is above the password form, and both are still reachable', async ({ page }) => {
     await page.goto('/login');
-    const google = await page.getByRole('button', { name: /continue with google/i }).boundingBox();
-    const password = await page.getByTestId('password-submit').boundingBox();
-    expect(google, 'the Google door is on the page').not.toBeNull();
-    expect(password, 'the password door is on the page').not.toBeNull();
-    expect(google!.y, 'Google is the primary door and sits above').toBeLessThan(password!.y);
+    await inTopDownOrder([               // Google is the primary door and sits above
+      ['the Google door', page.getByRole('button', { name: /continue with google/i })],
+      ['the password door', page.getByTestId('password-submit')],
+    ]);
   });
 
   test('the fields carry the studio’s own rule, not the browser’s border', async ({ page }) => {
@@ -159,10 +159,8 @@ test.describe('sign in, against its design (FB-189)', () => {
 
   test('the second door is a modest control, not a second primary button', async ({ page }) => {
     await page.goto('/login');
-    const [submit, google] = await Promise.all([
-      page.getByTestId('password-submit').boundingBox(),
-      page.getByRole('button', { name: /continue with google/i }).boundingBox(),
-    ]);
-    expect(submit!.width, 'the password button is as wide as Google’s').toBeLessThan(google!.width * 0.75);
+    const submit = await boxOf(page.getByTestId('password-submit'), 'the password door');
+    const google = await boxOf(page.getByRole('button', { name: /continue with google/i }), 'the Google door');
+    expect(submit.width, 'the password button is as wide as Google’s').toBeLessThan(google.width * 0.75);
   });
 });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testLogin } from './helpers';
+import { inTopDownOrder, testLogin } from './helpers';
 
 // FB-007: the attention queue + PR-derived ticket status inference. Runs against fixture PRs
 // (PRS_FIXTURE_DIR) so it's deterministic.
@@ -104,9 +104,10 @@ test('read failures sit below the work and are grouped by cause', async ({ page 
   await page.goto('/attention');
   const failures = page.getByTestId('attention-errors');
   if (await failures.count()) {
-    const queueBox = await page.getByTestId('attention-queue').boundingBox();
-    const failBox = await failures.boundingBox();
-    expect(failBox!.y).toBeGreaterThan(queueBox!.y);   // below, not above
+    await inTopDownOrder([               // below the work, not above it
+      ['the work', page.getByTestId('attention-queue')],
+      ['the read failures', failures],
+    ]);
     // Never a repository owner in front of a founder.
     expect((await failures.textContent()) ?? '').not.toContain('wealthcx01/');
   }

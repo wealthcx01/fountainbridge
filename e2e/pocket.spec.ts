@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testLogin } from './helpers';
+import { boxOf, inTopDownOrder, testLogin } from './helpers';
 
 /**
  * FB-138 — the pocket studio.
@@ -13,12 +13,6 @@ import { testLogin } from './helpers';
 const JOHN = 'john.gallagher@wealthcx.com';
 const SHOTS = 'e2e/__screenshots__';
 
-const topOf = async (page: import('@playwright/test').Page, testId: string) => {
-  const box = await page.getByTestId(testId).first().boundingBox();
-  expect(box, `${testId} is not on the screen`).not.toBeNull();
-  return box!.y;
-};
-
 test.describe('the pocket studio (FB-138)', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page, JOHN);
@@ -29,21 +23,18 @@ test.describe('the pocket studio (FB-138)', () => {
     // wide page differently; this is the design's screen 11.
     await page.goto('/venture/arca');
     await expect(page.getByTestId('desk')).toBeVisible();
-    // Measure a settled page. The desk streams (FB-157), so a bounding box read the instant the
-    // shell arrives is a box for markup that is about to move.
-    await expect(page.getByTestId('waiting-on-you')).toBeVisible();
-    await expect(page.getByTestId('office-plate')).toBeVisible();
-    await expect(page.getByTestId('prompt-bar-input')).toBeVisible();
 
+    // Measure a settled page. The desk streams (FB-157) and then hydrates, so a box read the instant
+    // the shell arrives is a box for markup that is about to move — or for a node that is about to
+    // be replaced, which measures as nothing at all. `inTopDownOrder` waits and retries, and reads
+    // every position from one render (FB-191).
     const hasBanner = (await page.getByTestId('blocker-banner').count()) > 0;
-    const blocker = await topOf(page, hasBanner ? 'blocker-banner' : 'blocker-none');
-    const office = await topOf(page, 'office-plate');
-    const queue = await topOf(page, 'waiting-on-you');
-    const prompt = await topOf(page, 'prompt-bar-input');
-
-    expect(blocker, 'what you are blocking comes first').toBeLessThan(office);
-    expect(office, 'then what your team is doing').toBeLessThan(queue);
-    expect(queue, 'then the queue').toBeLessThan(prompt);
+    await inTopDownOrder([
+      ['what you are blocking', page.getByTestId(hasBanner ? 'blocker-banner' : 'blocker-none')],
+      ['what your team is doing', page.getByTestId('office-plate')],
+      ['the queue', page.getByTestId('waiting-on-you')],
+      ['the prompt', page.getByTestId('prompt-bar-input')],
+    ]);
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -67,12 +58,11 @@ test.describe('the pocket studio (FB-138)', () => {
   test('a founder can approve from a phone, through the same signed path', async ({ page }) => {
     await page.goto('/venture/arca/work/arca/10');
     const accept = page.getByTestId('work-accept');
-    await expect(accept).toBeVisible();
     // Reachable and pressable at this width — a control that exists off-screen is not a decision.
-    const box = await accept.boundingBox();
-    expect(box!.x + box!.width, 'the Approve button is off the side of the phone')
+    const box = await boxOf(accept, 'the Approve button');
+    expect(box.x + box.width, 'the Approve button is off the side of the phone')
       .toBeLessThanOrEqual(page.viewportSize()!.width);
-    expect(box!.height, 'the Approve button is not a thumb target').toBeGreaterThanOrEqual(32);
+    expect(box.height, 'the Approve button is not a thumb target').toBeGreaterThanOrEqual(32);
     await accept.click();
     // It reached the server and answered — this rig holds no write credential, so the honest
     // refusal is what proves the path, exactly as the desk's own test does.
@@ -122,11 +112,10 @@ test.describe('what the pocket studio contains (FB-160)', () => {
   test('the venture is named before anything else, not after the prompt', async ({ page }) => {
     // Everything the pocket order does not name falls to `order: 5`, and that included the title —
     // so a founder scrolled the whole screen before being told which venture they were looking at.
-    const title = page.locator('.desk .pocket-0').first();
-    const banner = page.getByTestId('blocker-banner');
-    const titleY = (await title.boundingBox())?.y ?? 0;
-    const bannerY = (await banner.boundingBox())?.y ?? 0;
-    expect(titleY).toBeLessThan(bannerY);
+    await inTopDownOrder([
+      ['the venture name', page.locator('.desk .pocket-0').first()],
+      ['the blocker banner', page.getByTestId('blocker-banner')],
+    ]);
   });
 
   test('the sections the design does not put on a phone are stood down', async ({ page }) => {
