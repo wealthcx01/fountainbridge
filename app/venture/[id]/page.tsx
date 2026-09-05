@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { mintOfficeToken, officeConfigured } from '@/lib/office-embed';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures, ventureChatUrl, type VentureSummary } from '@/lib/ventures';
@@ -388,6 +389,17 @@ async function Desk({
   const blocker = blockerLine({ ...waiting, oldestMs });
   const degraded = degradedGroups(failures);
 
+  // FB-163: the venture office, when this venture has one wired up.
+  //
+  // Both halves of the office read the SAME environment variables — this route for the app's files,
+  // `server.js` for the socket — so a venture is either fully wired or has no office at all, rather
+  // than serving a frame that can never connect.
+  const officeSrc = officeConfigured(venture.id, process.env)
+    ? `/venture/${venture.id}/office?token=${encodeURIComponent(
+        mintOfficeToken(venture.id, process.env.FOUNDRY_APPROVAL_SECRET ?? ''),
+      )}`
+    : null;
+
   const state = boardState({
     ticketCount: lanes.reduce((n, l) => n + l.total, 0),
     runCount: runs.total,
@@ -461,6 +473,9 @@ async function Desk({
       blocker={blocker}
       degraded={degraded}
       full={full}
+      // FB-163: minted here, after the venture check above, and short-lived. The token names the
+      // venture and nothing else — no host, no port, no secret of the box.
+      officeSrc={officeSrc}
       runs={runs.reports}
       runsTotal={runs.total}
       engine={engine}
