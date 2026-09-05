@@ -26,6 +26,16 @@ import { useEffect, useState } from 'react';
  * The plate takes over. It is a drawing, it says so in its own header, and it is honest about a
  * venture with no box — which is every venture that has not been provisioned. This component never
  * shows an empty frame in place of it.
+ *
+ * ## Not on a phone
+ *
+ * The plate takes over there too, and that is a decision rather than a shortcut. pixel-agents draws
+ * its room at a fixed scale and does not shrink it to fit: at 393px the room is wider than the
+ * screen, so a phone shows a corner of a floor and part of a sofa, at every frame height that was
+ * tried. A fragment of a room tells a founder nothing.
+ *
+ * It also keeps the pocket studio what FB-160 decided it should be — the four things a founder can
+ * act on, and a live animation is not one of them.
  */
 export function OfficeEmbed({
   src,
@@ -36,20 +46,46 @@ export function OfficeEmbed({
   /** FB-139's plate, rendered by the server and handed in — not a second implementation of it. */
   fallback: React.ReactNode;
 }) {
-  const [state, setState] = useState<'loading' | 'live' | 'unreachable'>('loading');
+  const [state, setState] = useState<'loading' | 'live' | 'unreachable' | 'pocket'>('loading');
+
+  // The address the frame keeps for as long as it is on the screen.
+  //
+  // Rounding the token's expiry (OFFICE_TOKEN_STEP_MS) already stops the usual churn, but it only
+  // narrows the window: a desk open across a step boundary would still be handed a new `src`, and a
+  // new `src` reloads the frame, closes the socket and redraws the room. There is no reason for a
+  // frame that is already connected to be restarted because the page around it re-rendered.
+  //
+  // So the first address wins for the life of the mount. If the office does need a fresh token —
+  // after a very long sitting, if the socket ever drops and cannot get back in — the founder
+  // reloads the page, which is what they would do anyway on seeing an empty room.
+  const [frameSrc] = useState(src);
 
   // A frame that never loads must not sit there empty. The office is one HTTP fetch away from
   // being knowable, so the studio asks before it draws — the same read the frame is about to do,
   // through the same proxy, so the two cannot disagree.
+  //
+  // The width is asked first and the frame is never mounted on a phone, rather than mounted and
+  // hidden: a hidden iframe still loads the app and still holds a socket open, and a founder on a
+  // train would pay for a room they cannot see.
   useEffect(() => {
+    const wideEnough = window.matchMedia('(min-width: 40rem)');
     let cancelled = false;
-    const probe = new URL(src, window.location.origin);
-    probe.pathname = probe.pathname.replace(/\/$/, '') + '/api/health';
-    fetch(probe.toString(), { cache: 'no-store' })
-      .then((r) => { if (!cancelled) setState(r.ok ? 'live' : 'unreachable'); })
-      .catch(() => { if (!cancelled) setState('unreachable'); });
-    return () => { cancelled = true; };
-  }, [src]);
+
+    const look = () => {
+      if (!wideEnough.matches) { setState('pocket'); return; }
+      const probe = new URL(frameSrc, window.location.origin);
+      probe.pathname = probe.pathname.replace(/\/$/, '') + '/api/health';
+      fetch(probe.toString(), { cache: 'no-store' })
+        .then((r) => { if (!cancelled) setState(r.ok ? 'live' : 'unreachable'); })
+        .catch(() => { if (!cancelled) setState('unreachable'); });
+    };
+
+    look();
+    // A window dragged narrow is the same case as a phone, and a window dragged wide should get the
+    // office without a reload.
+    wideEnough.addEventListener('change', look);
+    return () => { cancelled = true; wideEnough.removeEventListener('change', look); };
+  }, [frameSrc]);
 
   if (state !== 'live') {
     return (
@@ -60,28 +96,33 @@ export function OfficeEmbed({
   }
 
   return (
-    <section data-testid="office-embed" style={{ marginBottom: '1.5rem' }}>
-      <p className="eyebrow" style={{ marginBottom: '0.4rem' }}>
+    <section data-testid="office-embed" className="office-embed">
+      <p className="eyebrow office-embed-title">
         <span className="eyebrow-id">The office</span> — live from your venture&rsquo;s own machine
       </p>
-      <iframe
-        src={src}
-        title="Your venture's office — your team at work on its own machine"
-        data-testid="office-frame"
-        // `allow-scripts` and nothing else. No same-origin, so the frame cannot reach the studio's
-        // cookies; no forms, no popups, no top-level navigation.
-        sandbox="allow-scripts"
-        loading="lazy"
-        style={{
-          display: 'block',
-          width: '100%',
-          maxWidth: 'var(--content-narrow)',
-          height: '19rem',
-          border: '1px solid var(--color-border)',
-          background: 'var(--color-paper-sunken)',
-        }}
-      />
-      <p className="muted" data-testid="office-embed-note" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0', maxWidth: 'var(--content-narrow)' }}>
+      {/*
+        A window onto the room, not the room's own viewport.
+
+        pixel-agents draws its office low and left inside whatever space it is given, and fills the
+        rest with empty background. Given enough height to show the whole room — about 44rem — over
+        a third of that height is nothing at all. So the frame is tall and the window over it is
+        short: the studio clips the dead space instead of buying it, and a founder sees the room and
+        no padding. `.office-embed-window` holds the height a reader pays for; the offset in
+        `.office-embed-frame` is what is scrolled past.
+      */}
+      <div className="office-embed-window">
+        <iframe
+          src={frameSrc}
+          title="Your venture's office — your team at work on its own machine"
+          data-testid="office-frame"
+          className="office-embed-frame"
+          // `allow-scripts` and nothing else. No same-origin, so the frame cannot reach the studio's
+          // cookies; no forms, no popups, no top-level navigation.
+          sandbox="allow-scripts"
+          loading="lazy"
+        />
+      </div>
+      <p className="muted office-embed-note" data-testid="office-embed-note">
         Each figure is one of your team at work on this venture&rsquo;s own machine. You are watching; nothing here
         can be changed from the studio.
       </p>

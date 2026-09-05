@@ -39,7 +39,28 @@ function portFromArgs(argv) {
 }
 
 const port = portFromArgs(process.argv.slice(2)) || Number(process.env.PORT || 3000);
-const dev = process.env.NODE_ENV !== 'production';
+
+/**
+ * Production unless someone asks for development, and `NODE_ENV` set to match.
+ *
+ * `next start` sets `NODE_ENV=production` itself before it boots. A custom server does not, and
+ * nothing else in the stack does it either — so `process.env.NODE_ENV !== 'production'` was true
+ * everywhere the studio was not handed the variable, and this file quietly started Next in
+ * DEVELOPMENT mode against a production build.
+ *
+ * That is the whole of FB-163's "the custom server destabilises the suite". The UI gate does
+ * `next build` and then starts this server with no `NODE_ENV`, so every gate run since has been a
+ * dev server compiling routes on demand, serving a build it was not reading, and running an HMR
+ * socket the upgrade handler below was destroying. Measured on the same commit: 280 passed with
+ * `NODE_ENV=production`, 3 failures in 52 tests without it, and a run that died outright with
+ * `uncaughtException: [Error: aborted] { code: 'ECONNRESET' }`.
+ *
+ * `--dev` is how you ask for the other thing. Nothing in the studio does; it exists so that running
+ * a dev server through this file is a deliberate act rather than an accident of an unset variable.
+ */
+const dev = process.argv.includes('--dev');
+process.env.NODE_ENV = dev ? 'development' : 'production';
+
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
@@ -69,6 +90,9 @@ function officeMessageAllowed(raw) {
 const envName = (id) => `OFFICE_SECRET_${String(id).replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
 
 app.prepare().then(() => {
+  // Both handlers come from Next and both are only available once `prepare()` has resolved.
+  const upgradeToNext = app.getUpgradeHandler();
+
   const server = createServer((req, res) => {
     // A client that walks away mid-request is ordinary — a founder closing a tab, a browser
     // cancelling a prefetch. Node reports it by emitting 'error' on the request and the response,
@@ -106,8 +130,13 @@ app.prepare().then(() => {
 
     const { pathname, query } = parse(req.url || '', true);
     if (pathname !== '/ws') {
-      // Next has no upgrade of its own to serve. Anything else is refused rather than left hanging.
-      socket.destroy();
+      // Next's own upgrades — the dev HMR socket is the one that matters — go to Next.
+      //
+      // This used to call `socket.destroy()`, on the belief that Next had no upgrade of its own.
+      // In production that is nearly true; in development it is false, and the studio was tearing
+      // down the browser's HMR socket as fast as it could open one. Handing them over costs
+      // nothing and means this file cannot silently break a part of Next it does not know about.
+      upgradeToNext(req, socket, head);
       return;
     }
 
