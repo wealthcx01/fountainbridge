@@ -136,7 +136,11 @@ if [ "$DRY_RUN" -eq 0 ]; then
   without=$(curl -s -o /dev/null -w '%{http_code}' "https://${HOST}/office/" || true)
   with=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Foundry-Office: ${OFFICE_SECRET}" "https://${HOST}/office/" || true)
   log "without the secret: ${without} (want 403) · with it: ${with} (want 200)"
-  [ "$without" = "403" ] && [ "$with" = "200" ] || warn "the gate is not answering as it should — do not switch the studio on"
+  if [ "$without" = "403" ] && [ "$with" = "200" ]; then
+    log "the gate is answering correctly"
+  else
+    warn "the gate is not answering as it should — do not switch the studio on"
+  fi
 fi
 
 cat <<MANUAL
