@@ -19,6 +19,7 @@ import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
+import { OfficeEmbed } from './OfficeEmbed';
 import type { Office } from '@/lib/office';
 import { lastSend, outboxUrl } from '@/lib/sends';
 import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue';
@@ -117,6 +118,7 @@ export function VentureBoard({
   blocker = null,
   degraded = [],
   full = false,
+  officeSrc = null,
   runs = [],
   runsTotal = 0,
   engine = null,
@@ -164,6 +166,14 @@ export function VentureBoard({
    * are out. Nothing about a wide screen changes.
    */
   full?: boolean;
+  /**
+   * The studio's own path to this venture's office, with a short-lived token naming the venture
+   * (FB-163). Null when the venture has no box, which is most of them — then the plate stands alone.
+   *
+   * Minted on the server after the venture check, so the token is a statement the studio is entitled
+   * to make. It carries nothing about the box.
+   */
+  officeSrc?: string | null;
   /** What the agent lanes did, newest first (FB-042). */
   runs?: RunReport[];
   runsTotal?: number;
@@ -410,10 +420,18 @@ export function VentureBoard({
         </p>
       ) : null}
       {/* ---- 5. The office ----------------------------------------------------------------------
-          A placeholder until the venture box reports agent state (FB-139), and it says so. A frozen
-          last-known scene would read as a team sitting still. */}
+          FB-139's plate is a drawing and says so in its own header. FB-163 puts the real thing in
+          front of it where a venture has one: pixel-agents on the venture's own machine, proxied by
+          the studio so no address or credential of the box reaches the browser.
+          The plate is the fallback, not a second office — it is passed in, rendered once, and shown
+          whenever the embed cannot be. A frozen last-known scene would read as a team sitting
+          still. */}
       <div className="pocket-2">
-        <OfficePlate office={office} />
+        {officeSrc ? (
+          <OfficeEmbed src={officeSrc} fallback={<OfficePlate office={office} />} />
+        ) : (
+          <OfficePlate office={office} />
+        )}
       </div>
 
       {/* ---- 6. What the engine did -------------------------------------------------------------- */}
