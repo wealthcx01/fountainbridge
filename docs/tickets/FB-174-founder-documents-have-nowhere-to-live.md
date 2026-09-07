@@ -1,6 +1,6 @@
 # FB-174 — founder documents have nowhere to live but git
 
-**Status:** Shipped in part · **Phase:** 3 · **Depends on:** FB-170 · **Raised by:** John, 2026-09-02
+**Status:** Done · **Phase:** 3 · **Depends on:** FB-170 · **Raised by:** John, 2026-09-02
 
 ## What happens today
 
@@ -136,24 +136,76 @@ what non-negotiables 6 and 8 forbid. It has to deposit *through* the studio inst
 endpoint that does not exist yet, and is arguably FB-200's `add to the corpus` tool rather than this
 ticket's.
 
-## Still to do before this is finished
+## The bytes have a home, 2026-09-07
 
-- [ ] A database connection, so the `documents` row is written (FB-170's remaining half)
+John: *"you should have access to supabase and can set that up yourself."* Nearly. The machine holds
+two Postgres connections to the project and **no service key**, so Supabase Storage is out of reach;
+the database is not. So the bytes went in the database — behind the port that already existed, which
+is what the port was for.
+
+### And that decision turned up a contradiction worth catching
+
+`001_read_model.sql` opens with the argument that makes a database safe to add at all:
+
+> Every row here is derived from a git ref and can be dropped and rebuilt. That property is what
+> makes it safe to add a database to a product whose entire premise is that git is the record.
+
+**A document's bytes are derived from nothing.** They exist there and nowhere else — that is the
+whole of this ticket. Putting them in the read model would have quietly made its central claim
+false, and the next person to read that header would have believed something that had stopped being
+true.
+
+So `db/003_document_bytes.sql` is a separate schema with the opposite guarantee, said out loud:
+
+| | |
+|---|---|
+| `public` | a cache. Derived from git. Safe to drop and rebuild. |
+| `docstore` | a store. Derived from nothing. **Never drop this.** |
+
+No foreign key to `ventures`, deliberately: `docstore` must not depend on a table designed to be
+dropped, or a rebuild of the read model would cascade a founder's documents away.
+
+### Proven against the real database, as the role the studio actually uses
+
+Not pglite, and not as `postgres` — which has `rolbypassrls` and reads straight through every policy
+there is. As `foundry_studio`, through the pooler, against the hosted project:
+
+| | |
+|---|---|
+| A 300,000-byte document, stored and read back | **byte for byte identical** |
+| Another venture asking for it **by its checksum** | 0 rows — refused |
+| Another venture naming `arca` explicitly | 0 rows — refused |
+| A connection naming no venture at all | 0 rows — refused |
+| The studio trying to **delete** a document | `permission denied for table blobs` |
+
+That last one is a grant, not a policy, and it is deliberate: `docstore.blobs` gives the studio
+`insert` and `select` and nothing else. A document is addressed by the hash of its own contents, so
+an update could only ever make the address a lie — and losing a founder's document is not among the
+things a bad deploy should be able to do.
+
+### And it is checkable from outside now
+
+`/api/readiness` reports whether documents have somewhere to live, and it **reaches** the store
+rather than merely building one. That distinction is FB-193's lesson: a check that proves the wrong
+half answers "ready" on a day when the thing is unusable. It does not count towards `ok`, because a
+studio with no store is a setup and not a fault.
+
+Without it, the only way to know the store really worked in production would have been to hand over
+a document and see — which writes to a venture's repository. A poor way to test a thing.
+
+## Still to do
+
 - [ ] Retrieval on a screen — a founder can fetch back what they handed over
 - [ ] The larger cap, and an honest answer for a file too big to read
+- [ ] The `public.documents` row, once something writes it; the pointer in git is the record today
 - [ ] The composer's deposit path, through the studio rather than beside it
+- [ ] **Object storage, when size says so.** A 12MB row is fine and a 100MB one is not, and a
+      database is a more expensive place to keep bytes than a bucket. `DOCUMENT_STORE=supabase` is
+      already written and waiting for a service key; moving is one variable and no caller changes.
 
-## [MANUAL] What John has to do to switch it on
+## Switched on
 
-Two variables, and the bucket must be **private**:
+`DATABASE_URL` and `DOCUMENT_STORE=postgres` are set. Nothing is left for John to do for documents.
 
-```
-DOCUMENT_STORE=supabase
-SUPABASE_URL=https://<project>.supabase.co
-SUPABASE_SERVICE_KEY=<service role key>
-DOCUMENT_STORE_BUCKET=documents        # optional; this is the default
-```
-
-Until they are set, `DOCUMENT_STORE` is `none`, documents are accepted exactly as before, and the
-screen says the original was not kept. That sentence is true today and becomes untrue the moment the
-variables are set, which is the way round it should be.
+For the eventual move to object storage, when size calls for it: `DOCUMENT_STORE=supabase`,
+`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and a **private** bucket.

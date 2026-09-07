@@ -120,6 +120,20 @@ describe('choosing a store', () => {
       .toThrow(/SUPABASE_SERVICE_KEY/);
   });
 
+  it('needs a database before it will keep documents in one', () => {
+    expect(() => buildDocumentStore({ DOCUMENT_STORE: 'postgres' })).toThrow(/DATABASE_URL/);
+    expect(buildDocumentStore({ DOCUMENT_STORE: 'postgres', DATABASE_URL: 'postgres://x' })?.name)
+      .toBe('postgres');
+  });
+
+  it('lets the database store serve production, because it is not a test double', () => {
+    // The distinction the refusal above is drawing is durability, not convenience. A container disk
+    // is thrown away on the next deploy; the studio's Postgres is not.
+    expect(buildDocumentStore({
+      DOCUMENT_STORE: 'postgres', DATABASE_URL: 'postgres://x', NODE_ENV: 'production',
+    })?.name).toBe('postgres');
+  });
+
   it('builds the real store in production when it is properly configured', () => {
     const built = buildDocumentStore({
       DOCUMENT_STORE: 'supabase',
