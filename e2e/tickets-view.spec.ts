@@ -37,13 +37,27 @@ test.describe('tickets', () => {
 
   test('the selected ticket and the filter are in the URL, and a link restores both', async ({ page }) => {
     // A filter that is NOT the default, because the default is the one a bare URL already means and
-    // so is deliberately absent from the query (FB-185). `settled` proves the round trip.
-    await page.getByTestId('tickets-filter-settled').click();
-    await expect(page).toHaveURL(/filter=settled/);
+    // so is deliberately absent from the query (FB-185). `all` proves the round trip.
+    await page.getByTestId('tickets-filter-all').click();
+    await expect(page).toHaveURL(/filter=all/);
+    await expect(page.getByTestId('tickets-filter-all')).toHaveAttribute('aria-selected', 'true');
 
-    const first = page.getByTestId('tickets-list').locator('li button').first();
-    const id = ((await first.textContent()) ?? '').match(/([A-Z]+-\d+)/)?.[1];
-    await first.click();
+    // A ticket that is NOT the one already open — and that is the whole of FB-199.
+    //
+    // This screen always has something open: with no `t=` in the address it falls back to the first
+    // row of the current filter. This test used to press `settled`, which has exactly one ticket, so
+    // the only row it could press was the one already showing. Pressing it asks to navigate to what
+    // is on the screen already, and the address does not reliably change for that — the test failed
+    // about one run in five, and clicking any row that was NOT already open passed 100 times out of
+    // 100.
+    //
+    // `aria-current` is how the screen says which row is open, so the test can simply ask for one
+    // that is not.
+    const unopened = page.getByTestId('tickets-list').locator('li button:not([aria-current="true"])').first();
+    await expect(unopened, 'every row was already open, so nothing could be selected').toBeVisible();
+    const id = ((await unopened.getAttribute('data-testid')) ?? '').replace('tickets-row-', '');
+    expect(id, 'the row does not name its ticket').not.toBe('');
+    await unopened.click();
     // Addressed by repository AND id — two repos in one venture may share an id namespace, so an id
     // alone is not a name. The `/` is percent-encoded in the query.
     await expect(page).toHaveURL(new RegExp(`t=[^&]*${id}`));
@@ -53,7 +67,8 @@ test.describe('tickets', () => {
     await page.goto('/venture/arca');
     await page.goto(url);
     await expect(page.getByTestId('detail-title')).toBeVisible();
-    await expect(page.getByTestId('tickets-filter-settled')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('tickets-filter-all')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId(`tickets-row-${id}`)).toHaveAttribute('aria-current', 'true');
   });
 
   /**
