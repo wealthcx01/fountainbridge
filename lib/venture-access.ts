@@ -17,14 +17,39 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from './authz';
  * founder's name.
  *
  * Returned, never thrown, so each caller decides how to speak about a refusal.
+ *
+ * ## Two doors, one guard (FB-200)
+ *
+ * A browser has a session. A tool call from Claude has a ticket instead — one the studio minted for
+ * somebody who had already passed this check. Rather than give the tools their own copy of the
+ * rules, they hand in an `Actor` and the check stays here, because *"a security check that exists
+ * twice is a security check that will one day differ"* is the sentence this file was written
+ * around, and a second door is exactly how FB-140's scanned-and-unscanned deposit paths happened.
+ *
+ * An actor is **narrower** than a session, never wider: `scopedTo` pins it to one venture, so a
+ * ticket minted for arca cannot be pointed at another venture even by an admin whose session could
+ * have reached it.
  */
+export interface Actor {
+  email: string;
+  /** The one venture this actor may touch. Set for a tool ticket; absent for a browser session. */
+  scopedTo?: string;
+}
 export type VentureAccess =
   | { ok: true; venture: VentureSummary; email: string }
   | { ok: false; error: string };
 
-export async function requireVentureRepo(ventureId: string, repo: string): Promise<VentureAccess> {
-  const session = await auth();
-  const email = session?.user?.email;
+export async function requireVentureRepo(
+  ventureId: string,
+  repo: string,
+  actor?: Actor,
+): Promise<VentureAccess> {
+  // A ticket that names one venture may only ever be used on that venture. Checked before anything
+  // else, because it is the narrowest rule and the cheapest to be sure of.
+  if (actor?.scopedTo && actor.scopedTo !== ventureId) {
+    return { ok: false, error: 'That credential is for a different venture.' };
+  }
+  const email = actor?.email ?? (await auth())?.user?.email;
   if (!email) return { ok: false, error: 'You need to sign in.' };
 
   const admins = parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS);

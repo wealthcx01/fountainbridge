@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   STUDIO_TOOLS, VERBS_NO_TOOL_MAY_CARRY, toolFor,
   mintMcpTicket, readMcpTicket, MCP_TICKET_TTL_MS,
+  handleMcp, MCP_PROTOCOL_VERSION, type McpCaller,
 } from '../mcp';
 
 /**
@@ -26,11 +27,10 @@ describe('nothing here grants', () => {
         expect(t.name.includes(verb), `${t.name} is named for "${verb}"`).toBe(false);
       }
     }
-    // `propose_approval` is the one tool allowed to say the word, because saying it is its job —
-    // and its description has to make plain that it does not do it.
-    const propose = toolFor('propose_approval')!;
-    expect(propose.kind).toBe('propose');
-    expect(propose.description).toMatch(/does not answer it|nothing happens until/);
+    // And nothing offered says it can act, either — a description is the part a model reads.
+    for (const t of STUDIO_TOOLS) {
+      expect(t.description, t.name).not.toMatch(/\b(approve|grant|send it|spend|merge|deploy)\b/i);
+    }
   });
 
   it('is exactly this surface, so adding to it is a deliberate act', () => {
@@ -39,12 +39,7 @@ describe('nothing here grants', () => {
     expect(STUDIO_TOOLS.map((t) => `${t.kind}:${t.name}`)).toEqual([
       'read:whats_waiting',
       'read:read_ticket',
-      'read:what_happened',
-      'read:budgets',
-      'read:venture_memory',
-      'write:file_ticket',
       'write:comment_on_ticket',
-      'propose:propose_approval',
     ]);
   });
 
@@ -55,15 +50,10 @@ describe('nothing here grants', () => {
   });
 });
 
-describe('the guidance that makes a filed ticket a good one travels with the tool', () => {
-  it('tells the model how the studio writes a ticket', () => {
-    // FB-200 warned that moving the door to Claude would quietly lose the composer's guidance
-    // (FB-079) and that ticket quality would drop with nobody noticing. A description is the only
-    // place it can travel, so it is asserted.
-    const filed = toolFor('file_ticket')!;
-    expect(filed.description).toMatch(/outcome rather than the task/);
-    expect(filed.description).toMatch(/one piece of work/);
-    expect(filed.description).toMatch(/nothing is built until/);
+describe('what the tools tell the model about themselves', () => {
+  it('a comment says plainly that it starts nothing', () => {
+    // A model that believes commenting begins work will tell a founder their thing is under way.
+    expect(toolFor('comment_on_ticket')!.description).toMatch(/changes nothing|starts no work/);
   });
 
   it('every tool says something, because an unexplained tool is used wrongly', () => {
@@ -103,5 +93,70 @@ describe('which venture a caller may reach', () => {
       expect(readMcpTicket(junk as string, SECRET, NOW)).toBeNull();
     }
     expect(readMcpTicket(mintMcpTicket('arca', SECRET, NOW), undefined, NOW)).toBeNull();
+  });
+});
+
+describe('the protocol', () => {
+  const caller: McpCaller = { ventureId: 'arca', email: 'studio-tools@arca' };
+  const never = async () => { throw new Error('should not have been called'); };
+
+  it('introduces itself, and tells the model what it cannot do', async () => {
+    const r = await handleMcp({ id: 1, method: 'initialize' }, caller, never) as never as
+      { result: { protocolVersion: string; instructions: string } };
+    expect(r.result.protocolVersion).toBe(MCP_PROTOCOL_VERSION);
+    // Said once, at the start, so a model does not spend a turn hunting for the tool that signs off.
+    expect(r.result.instructions).toMatch(/arca/);
+    expect(r.result.instructions).toMatch(/cannot approve, send, spend, merge or deploy/);
+  });
+
+  it('lists only the tools that work', async () => {
+    const r = await handleMcp({ id: 2, method: 'tools/list' }, caller, never) as never as
+      { result: { tools: { name: string; inputSchema: unknown }[] } };
+    expect(r.result.tools.map((t) => t.name)).toEqual(STUDIO_TOOLS.map((t) => t.name));
+    for (const t of r.result.tools) expect(t.inputSchema).toBeTruthy();
+  });
+
+  it('refuses a tool it does not have, and says which it does', async () => {
+    // Named, so a model corrects itself rather than guessing at a synonym.
+    const r = await handleMcp(
+      { id: 3, method: 'tools/call', params: { name: 'approve_approval' } }, caller, never,
+    ) as never as { error: { code: number; message: string } };
+    expect(r.error.code).toBe(-32602);
+    expect(r.error.message).toMatch(/no tool called "approve_approval"/);
+    expect(r.error.message).toMatch(/whats_waiting/);
+  });
+
+  it('scopes every call to the caller’s venture, whatever the arguments say', async () => {
+    let sawVenture = '';
+    await handleMcp(
+      // The argument a model would send if it were trying, or merely confused.
+      { id: 4, method: 'tools/call', params: { name: 'whats_waiting', arguments: { venture: 'the-reset' } } },
+      caller,
+      async (_n, _a, c) => { sawVenture = c.ventureId; return 'ok'; },
+    );
+    expect(sawVenture).toBe('arca');
+  });
+
+  it('turns a failing tool into an answer rather than a crash', async () => {
+    const r = await handleMcp(
+      { id: 5, method: 'tools/call', params: { name: 'whats_waiting' } }, caller,
+      async () => { throw new Error('the box is not answering'); },
+    ) as never as { result: { isError: boolean; content: { text: string }[] } };
+    expect(r.result.isError).toBe(true);
+    // And says nothing happened, because a model told only "that failed" will offer to retry a write.
+    expect(r.result.content[0].text).toMatch(/the box is not answering/);
+    expect(r.result.content[0].text).toMatch(/Nothing changed/);
+  });
+
+  it('refuses a method it does not answer, rather than throwing', async () => {
+    const r = await handleMcp({ id: 6, method: 'resources/list' }, caller, never) as never as
+      { error: { code: number } };
+    expect(r.error.code).toBe(-32601);
+  });
+
+  it('shrugs at rubbish', async () => {
+    for (const junk of [{}, { method: null }, { method: 42 }, { id: 1 }]) {
+      await expect(handleMcp(junk, caller, never)).resolves.toHaveProperty('error');
+    }
   });
 });

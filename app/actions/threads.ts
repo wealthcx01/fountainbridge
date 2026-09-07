@@ -20,7 +20,7 @@
  */
 
 import { GitHubClient } from '@/lib/github';
-import { requireVentureRepo } from '@/lib/venture-access';
+import { requireVentureRepo, type Actor } from '@/lib/venture-access';
 import { fullRepoName } from '@/lib/venture-repos';
 import {
   THREADS_REF,
@@ -40,17 +40,19 @@ export interface ThreadResult {
 }
 
 /** Everything both entry points must check before touching a venture's state. */
-async function guard(ventureId: string, repo: string, ticketId: string) {
+async function guard(ventureId: string, repo: string, ticketId: string, actor?: Actor) {
   if (!isSafeTicketId(ticketId)) return { error: 'That is not a ticket.' as const };
   // Sign-in, venture scope, and the repo actually belonging to this venture — shared with the plan
   // filer (FB-127) rather than written twice, because the second copy is the one that drifts.
-  const access = await requireVentureRepo(ventureId, repo);
+  const access = await requireVentureRepo(ventureId, repo, actor);
   return access.ok ? { venture: access.venture, email: access.email } : { error: access.error };
 }
 
 /** The thread for a ticket, or an empty one. Never null: a conversation nobody has started is a real state. */
-export async function readThread(ventureId: string, repo: string, ticketId: string): Promise<ThreadResult> {
-  const g = await guard(ventureId, repo, ticketId);
+export async function readThread(
+  ventureId: string, repo: string, ticketId: string, actor?: Actor,
+): Promise<ThreadResult> {
+  const g = await guard(ventureId, repo, ticketId, actor);
   if ("error" in g && g.error) return { ok: false, message: g.error };
 
   const client = new GitHubClient();
@@ -90,8 +92,10 @@ export async function appendToThread(
   ticketId: string,
   role: ThreadRole,
   text: string,
+  /** Set when the caller is a tool rather than a browser (FB-200). Narrower than a session. */
+  actor?: Actor,
 ): Promise<ThreadResult> {
-  const g = await guard(ventureId, repo, ticketId);
+  const g = await guard(ventureId, repo, ticketId, actor);
   if ("error" in g && g.error) return { ok: false, message: g.error };
   if (!text.trim()) return { ok: false, message: 'Nothing to add.' };
 
