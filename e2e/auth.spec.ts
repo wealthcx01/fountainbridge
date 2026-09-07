@@ -65,3 +65,30 @@ test('middleware gates a placeholder route for a signed-out visitor', async ({ p
   await page.waitForURL((url) => url.pathname.startsWith('/login'));
   await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible();
 });
+
+/**
+ * FB-200 — a tool client cannot follow a login redirect.
+ *
+ * The MCP endpoint is reached by a machine holding a ticket in a header, with no cookie and no
+ * browser. Gated by the middleware it answered `307` to a login page, which a tool client cannot
+ * follow and cannot report: from the outside it looked exactly like a studio that was up and
+ * refusing to talk.
+ */
+test('the tool endpoint refuses in words, never with a redirect to a login page', async ({ request }) => {
+  const res = await request.post('/api/mcp', {
+    data: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    maxRedirects: 0,
+  });
+  expect(res.status(), 'a machine cannot follow a redirect').toBe(401);
+  const body = await res.json();
+  expect(body.error.message).toMatch(/ticket/i);
+});
+
+test('the tool endpoint refuses a ticket the studio did not issue', async ({ request }) => {
+  const res = await request.post('/api/mcp', {
+    headers: { authorization: 'Bearer arca.9999999999999.not-a-signature' },
+    data: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    maxRedirects: 0,
+  });
+  expect(res.status()).toBe(401);
+});

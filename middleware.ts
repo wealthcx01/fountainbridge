@@ -45,6 +45,15 @@ export const config = {
     // token naming this venture, or a session that passes `canAccessVenture`. Nothing is open here —
     // the check moved, it did not go away. `app/venture/[id]/office/[[...path]]/route.ts` is where
     // it lives, and it is the first thing in the file.
-    '/((?!api/auth/|api/health$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
+    // FB-200: `api/mcp` is excluded, and the route does its own check.
+    //
+    // Not a weakening — the opposite. A tool client presents a ticket in a header and has no cookie
+    // and no browser; gated here it was answered with a 307 to a login page, which a machine cannot
+    // follow and cannot report. It would have looked, from the outside, exactly like a studio that
+    // was up and refusing to talk.
+    //
+    // So the route answers 401 with a sentence instead, and reads the ticket itself. Anchored, so a
+    // future `/api/mcp-something` stays gated.
+    '/((?!api/auth/|api/mcp$|api/health$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
   ],
 };
