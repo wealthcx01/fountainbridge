@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  describeExtraction, documentKind, emptyRefusal, looksEmpty, refusalFor, tooLargeRefusal,
-  MAX_DOCUMENT_BYTES,
-} from '../documents';
+import { MAX_DOCUMENT_BYTES, describeExtraction, documentKind, emptyRefusal, keptDescription, looksEmpty, refusalFor, tooLargeRefusal } from '../documents';
 
 describe('what a founder handed over', () => {
   it('reads the documents founders actually have', () => {
@@ -152,5 +149,21 @@ describe('office documents (FB-084)', () => {
       expect(refusalFor(f), f).not.toContain('Export it as a PDF');
       expect(refusalFor(f), f).toContain('transcript');
     }
+  });
+});
+
+describe('what a founder is told happens to their file (FB-174)', () => {
+  it('says the file is kept when it is', () => {
+    expect(keptDescription(true)).toBe('The file itself is kept, alongside its text.');
+  });
+
+  it('says it is not when it is not, rather than saying nothing', () => {
+    // Before FB-174 the studio discarded every original and this screen said nothing about it. A
+    // founder had no way to learn that the file they handed over no longer existed anywhere.
+    expect(keptDescription(false)).toBe('Its text is kept; the file itself is not.');
+  });
+
+  it('never claims to keep something it has not', () => {
+    expect(keptDescription(false)).not.toMatch(/file itself is kept/);
   });
 });

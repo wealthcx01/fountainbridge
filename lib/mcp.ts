@@ -52,101 +52,57 @@ export const VERBS_NO_TOOL_MAY_CARRY = [
 
 const str = (description: string) => ({ type: 'string', description });
 
+/**
+ * The tools, and only the ones that work.
+ *
+ * FB-200's design named eight. Five are not wired yet, and they are **not listed here**, because a
+ * tool a model can see and cannot use is a dead control — the same fault FB-192 removed from the
+ * office when it hid Layout and Settings. A model offered a tool that fails will try it, tell the
+ * founder it did something, and be wrong.
+ *
+ * What is missing is on the ticket, with why.
+ */
 export const STUDIO_TOOLS: readonly StudioTool[] = [
   {
     name: 'whats_waiting',
     kind: 'read',
     description:
-      'What is waiting on the founder in this venture: decisions to make, finished work to read, and '
-      + 'anything stuck. This is the same queue the desk shows, in the same order — oldest first.',
+      'What is waiting on the founder of this venture: decisions to make and finished work to read. '
+      + 'The same queue the studio shows on the desk, oldest first, because the oldest is the one '
+      + 'costing the most.',
     input: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'read_ticket',
     kind: 'read',
     description:
-      'One ticket and its trail: what was asked for, what has happened to it, and where it stands. '
-      + 'Addressed by repository and id, because two repositories in one venture may share an id.',
-    input: {
-      type: 'object',
-      properties: { repo: str('the repository, e.g. arca-marketing'), id: str('the ticket id, e.g. ARCA-61') },
-      required: ['repo', 'id'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'what_happened',
-    kind: 'read',
-    description:
-      'What the venture’s team has actually done recently, newest first — one line per thing that '
-      + 'happened, not repository housekeeping.',
-    input: {
-      type: 'object',
-      properties: { limit: { type: 'integer', minimum: 1, maximum: 50, description: 'how many, default 10' } },
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'budgets',
-    kind: 'read',
-    description: 'What this venture is allowed to spend this month, per surface, and what it has spent.',
-    input: { type: 'object', properties: {}, additionalProperties: false },
-  },
-  {
-    name: 'venture_memory',
-    kind: 'read',
-    description:
-      'What the venture knows: the documents it has been handed and what its team has learned. '
-      + 'Returns what each document is and when it was last used, never the document’s contents.',
-    input: { type: 'object', properties: {}, additionalProperties: false },
-  },
-  {
-    name: 'file_ticket',
-    kind: 'write',
-    // FB-079's guidance, carried where it can still reach the writing.
-    description:
-      'File a ticket for this venture’s team to work on. Write it the way the studio writes them: a '
-      + 'title that names the outcome rather than the task, and a body that says what a founder '
-      + 'wants and why, not how to build it. One ticket is one piece of work — if it needs the word '
-      + '"and", it is two. It is filed as a proposal on a branch and nothing is built until the '
-      + 'founder accepts it.',
+      'One ticket: what was asked for, what state it is in, and the conversation on it. Addressed by '
+      + 'repository AND id, because two repositories in one venture may use the same id.',
     input: {
       type: 'object',
       properties: {
-        surface: { type: 'string', enum: ['build', 'sell', 'scale'], description: 'which side of the venture' },
-        title: str('what the outcome is'),
-        body: str('what the founder wants and why'),
+        repo: str('the repository, e.g. arca-marketing'),
+        id: str('the ticket id, e.g. ARCA-61'),
       },
-      required: ['surface', 'title', 'body'],
+      required: ['repo', 'id'],
       additionalProperties: false,
     },
   },
   {
     name: 'comment_on_ticket',
     kind: 'write',
-    description: 'Add a note to a ticket. Notes are for the founder and the team to read; they change nothing.',
-    input: {
-      type: 'object',
-      properties: { repo: str('the repository'), id: str('the ticket id'), note: str('the note') },
-      required: ['repo', 'id', 'note'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'propose_approval',
-    kind: 'propose',
     description:
-      'Put something in front of the founder to decide — an email to send, money to spend, anything '
-      + 'that would reach outside the company. This RAISES the question and does not answer it: the '
-      + 'founder decides on the studio’s own screen, and nothing happens until they do.',
+      'Add a note to a ticket, for the founder and the team to read. It changes nothing on its own '
+      + 'and starts no work — say what you observed or what you would suggest, not what you have '
+      + 'done.',
     input: {
       type: 'object',
       properties: {
-        repo: str('the repository the action belongs to'),
-        what: str('what would happen, in one sentence a founder can decide on'),
-        why: str('why it is worth doing'),
+        repo: str('the repository'),
+        id: str('the ticket id'),
+        note: str('what to add, in plain English'),
       },
-      required: ['repo', 'what', 'why'],
+      required: ['repo', 'id', 'note'],
       additionalProperties: false,
     },
   },
@@ -196,4 +152,91 @@ export function readMcpTicket(
   // was the right length.
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   return { ventureId };
+}
+
+/** What a caller is, once its ticket has been read. */
+export interface McpCaller { ventureId: string; email: string }
+
+/** A JSON-RPC request, as far as this server cares. */
+export interface McpRequest { jsonrpc?: unknown; id?: unknown; method?: unknown; params?: unknown }
+
+export const MCP_PROTOCOL_VERSION = '2024-11-05';
+
+/**
+ * The server's answer to one request.
+ *
+ * A pure function of the request and a set of tool implementations, so the protocol can be tested
+ * without a socket and the implementations can be tested without the protocol. Errors are JSON-RPC
+ * errors rather than thrown, because a transport that throws mid-stream tells a model nothing it can
+ * act on.
+ */
+export type ToolRunner = (
+  name: string,
+  args: Record<string, unknown>,
+  caller: McpCaller,
+) => Promise<string>;
+
+const fail = (id: unknown, code: number, message: string) =>
+  ({ jsonrpc: '2.0' as const, id: id ?? null, error: { code, message } });
+const ok = (id: unknown, result: unknown) => ({ jsonrpc: '2.0' as const, id: id ?? null, result });
+
+export async function handleMcp(
+  req: McpRequest,
+  caller: McpCaller,
+  run: ToolRunner,
+): Promise<Record<string, unknown>> {
+  const { id, method, params } = req;
+
+  if (method === 'initialize') {
+    return ok(id, {
+      protocolVersion: MCP_PROTOCOL_VERSION,
+      capabilities: { tools: {} },
+      serverInfo: { name: 'foundry-studio', version: '1' },
+      // Said to the model, once, at the start. Everything else here enforces it; this explains it,
+      // so a model does not spend a turn looking for the tool that signs things off.
+      instructions:
+        `You are connected to the Foundry Studio for the venture "${caller.ventureId}", and to that `
+        + 'venture only. You can read what is waiting and comment on tickets. You cannot approve, '
+        + 'send, spend, merge or deploy anything — the founder decides those on the studio’s own '
+        + 'screen, and no tool here will do them however they are asked.',
+    });
+  }
+
+  if (method === 'notifications/initialized') return ok(id, {});
+
+  if (method === 'tools/list') {
+    return ok(id, {
+      tools: STUDIO_TOOLS.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.input,
+      })),
+    });
+  }
+
+  if (method === 'tools/call') {
+    const p = (params ?? {}) as { name?: unknown; arguments?: unknown };
+    const tool = toolFor(p.name);
+    if (!tool) {
+      // Named, so a model can correct itself rather than guessing at a synonym — and it is a refusal
+      // rather than a crash, because an unknown name is an ordinary thing for a model to try.
+      return fail(id, -32602, `There is no tool called "${String(p.name)}". This studio offers: `
+        + `${STUDIO_TOOLS.map((t) => t.name).join(', ')}.`);
+    }
+    const args = (p.arguments ?? {}) as Record<string, unknown>;
+    try {
+      const text = await run(tool.name, args, caller);
+      return ok(id, { content: [{ type: 'text', text }] });
+    } catch (e) {
+      // Loud, and naming the venture. A tool that fails quietly inside a chat is worse than one that
+      // fails on a screen, because nobody is looking at it (CLAUDE.md #10).
+      console.error('[mcp] a tool failed', { venture: caller.ventureId, tool: tool.name, message: (e as Error)?.message });
+      return ok(id, {
+        content: [{ type: 'text', text: `That did not work: ${(e as Error)?.message ?? 'unknown fault'}. Nothing changed.` }],
+        isError: true,
+      });
+    }
+  }
+
+  return fail(id, -32601, `This studio does not answer "${String(method)}".`);
 }
