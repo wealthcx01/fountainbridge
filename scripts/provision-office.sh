@@ -127,7 +127,7 @@ else
   # whoever asks.
   printf 'OFFICE_VENTURE=%s\nOFFICE_SECRET=%s\nOFFICE_GATE_PORT=%s\nOFFICE_UPSTREAM_PORT=%s\nOFFICE_FRAME_ANCESTORS=%s\n' \
     "$VENTURE" "$OFFICE_SECRET" "$OFFICE_GATE_PORT" "$OFFICE_PORT" "$STUDIO_ORIGINS" \
-    | ssh "root@${HOST}" "cat > ${GATE_DIR}/gate.env && chmod 600 ${GATE_DIR}/gate.env"
+    | ssh "root@${HOST}" 'cat > /opt/foundry/office-gate/gate.env && chmod 600 /opt/foundry/office-gate/gate.env' 
   remote "systemctl daemon-reload && systemctl enable --now foundry-office-gate && systemctl is-active foundry-office-gate"
 fi
 
