@@ -2,6 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { withVenture } from './db';
 
 /**
  * Where a founder's document actually lives (FB-174).
@@ -88,7 +89,7 @@ export interface DocumentStore {
   get(ventureId: string, key: string): Promise<Uint8Array>;
 }
 
-export const DOCUMENT_STORE_PROVIDERS = ['none', 'filesystem', 'supabase'] as const;
+export const DOCUMENT_STORE_PROVIDERS = ['none', 'filesystem', 'postgres', 'supabase'] as const;
 export type DocumentStoreProvider = (typeof DOCUMENT_STORE_PROVIDERS)[number];
 /** Providers that are development conveniences, not places to keep a founder's only copy. */
 export const TEST_DOUBLE_PROVIDERS: ReadonlySet<string> = new Set(['filesystem']);
@@ -126,6 +127,72 @@ export class FilesystemDocumentStore implements DocumentStore {
   async get(ventureId: string, key: string): Promise<Uint8Array> {
     if (!keyBelongsTo(ventureId, key)) throw new Error('that document belongs to another venture');
     return new Uint8Array(await readFile(this.path(key)));
+  }
+}
+
+/**
+ * The studio's own Postgres, in the `docstore` schema — the store this studio actually runs.
+ *
+ * ## Why this and not object storage
+ *
+ * Object storage is the right answer at scale and this is the right answer now. Supabase Storage
+ * needs a service key, which does not exist on this machine; the database credential does. Rather
+ * than wait on a credential, the bytes go in the database — behind the same port, so the day a key
+ * appears the change is one variable and no caller moves.
+ *
+ * That is not a shrug. Three things are genuinely better here than they would be in a bucket:
+ *
+ *   - **The isolation is the isolation we already proved.** One forced row-level policy, the same
+ *     one FB-170 established and FB-174 tested, rather than a second and separate mechanism in
+ *     another product that would have to be got right independently.
+ *   - **The bytes are in the backup.** A document and the record of it are restored together or not
+ *     at all.
+ *   - **The studio cannot delete one.** `docstore.blobs` grants insert and select and nothing else,
+ *     so losing a founder's document is not among the things a bad deploy can do.
+ *
+ * And one thing is genuinely worse, which is why this is not the end state: a 12MB row is fine and a
+ * 100MB one is not, and a database is a more expensive place to keep bytes than a bucket. The
+ * trigger to move is size, and it is written on FB-174.
+ */
+export class PostgresDocumentStore implements DocumentStore {
+  readonly name = 'postgres';
+
+  async put(ventureId: string, body: Uint8Array, contentType: string): Promise<StoredDocument> {
+    const checksum = checksumOf(body);
+    const key = documentKey(ventureId, checksum);
+    await withVenture(ventureId, async (client) => {
+      // Content-addressed, so a second deposit of the same file is the same row and the same bytes.
+      // `do nothing` rather than `do update`: the address is the hash of the contents, so an update
+      // could only ever write the same bytes back.
+      await client.query(
+        `insert into docstore.blobs (venture_id, checksum, content_type, bytes)
+         values ($1, $2, $3, $4)
+         on conflict (venture_id, checksum) do nothing`,
+        [ventureId, checksum, contentType, Buffer.from(body)],
+      );
+    });
+    return { key, checksum, bytes: body.byteLength, contentType, store: this.name };
+  }
+
+  async get(ventureId: string, key: string): Promise<Uint8Array> {
+    if (!keyBelongsTo(ventureId, key)) throw new Error('that document belongs to another venture');
+    const checksum = key.split('/')[1];
+    const rows = await withVenture(ventureId, async (client) => {
+      const r = await client.query<{ bytes: Buffer }>(
+        'select bytes from docstore.blobs where venture_id = $1 and checksum = $2',
+        [ventureId, checksum],
+      );
+      return r.rows;
+    });
+    if (!rows.length) throw new Error('there is no such document for this venture');
+    const got = new Uint8Array(rows[0].bytes);
+    // Checked rather than hoped for, for the reason the Supabase store gives below: a store that
+    // returns something other than what was put in is the failure every other layer would carry on
+    // through, treating it as the document.
+    if (checksumOf(got) !== checksum) {
+      throw new Error('the document that came back is not the document that was stored');
+    }
+    return got;
   }
 }
 
@@ -213,6 +280,13 @@ export function buildDocumentStore(
       `DOCUMENT_STORE is "${provider}", which is a development convenience and not a place to keep `
       + 'a founder’s only copy — a container disk does not survive a deploy.',
     );
+  }
+
+  if (provider === 'postgres') {
+    if (!env.DATABASE_URL?.trim()) {
+      throw new DocumentStoreNotConfiguredError('The Postgres store needs DATABASE_URL.');
+    }
+    return new PostgresDocumentStore();
   }
 
   if (provider === 'filesystem') {
