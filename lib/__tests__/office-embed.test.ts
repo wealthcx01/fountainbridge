@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   mintOfficeToken, readOfficeToken, officeEndpoint, officeConfigured,
   officeSecretEnvName, officeHostEnvName, officeMessageAllowed, OFFICE_TOKEN_TTL_MS, OFFICE_TOKEN_STEP_MS,
-  rewriteOfficeCss, rewriteOfficeHtml, OFFICE_CHROME_HIDDEN, probeOfficeSocket,
+  officeWatchUrl, officeSocketUrl,
 } from '../office-embed';
 
 /**
@@ -152,126 +152,54 @@ describe('the token does not change under a re-rendering page (FB-192)', () => {
   });
 });
 
-describe('the office is addressed through the studio (FB-192)', () => {
-  const T = 'arca.123.sig';
 
-  it('gives the stylesheet a token, so the font is not refused', () => {
-    // Untokened, the route falls to the session check, the frame has no cookie, and the answer is
-    // 401 — which the browser reports as a CORS failure and which left the whole office drawn in
-    // the browser's fallback sans-serif.
-    const css = '@font-face{src:url(../fonts/FSPixelSansUnicode-Regular.ttf)}';
-    expect(rewriteOfficeCss(css, 'arca', T)).toBe(
-      '@font-face{src:url("/venture/arca/office/fonts/FSPixelSansUnicode-Regular.ttf?token=arca.123.sig")}',
-    );
+
+describe('where the browser watches the office (FB-198)', () => {
+  const env = {
+    OFFICE_HOST_ARCA: 'chat.arca.bruntsfield.capital',
+    OFFICE_SECRET_ARCA: 'arca-office-secret',
+  };
+  const NOW = Date.UTC(2026, 8, 7, 12, 0, 0);
+
+  it('sends the browser to the venture’s own box, not to the studio', () => {
+    const url = officeWatchUrl('arca', env, NOW)!;
+    expect(url.startsWith('https://chat.arca.bruntsfield.capital/office/?token=')).toBe(true);
   });
 
-  it('leaves data and absolute URLs in CSS alone', () => {
-    for (const ref of ['data:font/ttf;base64,AAA', 'https://example.test/a.png', '//example.test/b.png']) {
-      const css = `a{background:url(${ref})}`;
-      expect(rewriteOfficeCss(css, 'arca', T)).toBe(css);
+  it('sends the socket to the box’s root, because the office builds that address itself', () => {
+    const url = officeSocketUrl('arca', env, NOW)!;
+    expect(url.startsWith('wss://chat.arca.bruntsfield.capital/ws?token=')).toBe(true);
+  });
+
+  it('carries a ticket the box will accept for this venture', () => {
+    const ticket = decodeURIComponent(officeWatchUrl('arca', env, NOW)!.split('token=')[1]);
+    expect(readOfficeToken(ticket, env.OFFICE_SECRET_ARCA, NOW)).toEqual({ ventureId: 'arca' });
+  });
+
+  it('signs with the venture’s own office secret, never the studio’s approval secret', () => {
+    // A venture box that was broken into must not be able to forge a grant (CLAUDE.md #4), so it
+    // never learns the secret that signs one.
+    const ticket = decodeURIComponent(officeWatchUrl('arca', env, NOW)!.split('token=')[1]);
+    expect(readOfficeToken(ticket, 'the-studios-approval-secret', NOW)).toBeNull();
+  });
+
+  it('gives the page and the socket the same ticket, so one check answers for both', () => {
+    const a = decodeURIComponent(officeWatchUrl('arca', env, NOW)!.split('token=')[1]);
+    const b = decodeURIComponent(officeSocketUrl('arca', env, NOW)!.split('token=')[1]);
+    expect(a).toBe(b);
+  });
+
+  it('offers nothing at all for a venture with no box', () => {
+    expect(officeWatchUrl('sonder', env, NOW)).toBeNull();
+    expect(officeSocketUrl('sonder', env, NOW)).toBeNull();
+    // Half-wired is the same as not wired: a frame that can never connect is worse than the plate.
+    expect(officeWatchUrl('arca', { OFFICE_HOST_ARCA: env.OFFICE_HOST_ARCA }, NOW)).toBeNull();
+    expect(officeSocketUrl('arca', { OFFICE_SECRET_ARCA: env.OFFICE_SECRET_ARCA }, NOW)).toBeNull();
+  });
+
+  it('never puts the office secret in a URL', () => {
+    for (const url of [officeWatchUrl('arca', env, NOW)!, officeSocketUrl('arca', env, NOW)!]) {
+      expect(url).not.toContain(env.OFFICE_SECRET_ARCA);
     }
-  });
-
-  it('does not rewrite its own output', () => {
-    // The relative rewrite produces root-relative URLs, and running the two in the wrong order
-    // rewrote them a second time: every asset came out addressed
-    // `/venture/arca/office/venture/arca/office/assets/…` and the frame loaded nothing.
-    const html = '<head><link href="./assets/x.css"><script src="./assets/y.js"></script></head>';
-    const out = rewriteOfficeHtml(html, 'arca', T);
-    expect(out).toContain('href="/venture/arca/office/assets/x.css?token=arca.123.sig"');
-    expect(out).toContain('src="/venture/arca/office/assets/y.js?token=arca.123.sig"');
-    expect(out).not.toContain('office/venture');
-  });
-
-  it('points the favicon at the office rather than at the studio root', () => {
-    const out = rewriteOfficeHtml('<head><link href="/vite.svg"></head>', 'arca', T);
-    expect(out).toContain('href="/venture/arca/office/vite.svg?token=arca.123.sig"');
-  });
-
-  it('hides the extension chrome a founder cannot use', () => {
-    const out = rewriteOfficeHtml('<head></head>', 'arca', T);
-    expect(out).toContain('data-foundry="office-chrome"');
-    for (const selector of OFFICE_CHROME_HIDDEN) expect(out).toContain(selector);
-    expect(out).toContain('display:none !important');
-  });
-
-  it('keeps the chrome list to what was actually seen on the pinned version', () => {
-    // Zoom, Layout and Settings, the "what's new" card, and the version watermark. If a version bump
-    // moves any of them this list is what has to be re-checked — so it is asserted, not assumed.
-    expect([...OFFICE_CHROME_HIDDEN]).toEqual([
-      '.absolute.top-8.left-8',
-      '.absolute.bottom-10.left-10',
-      '.absolute.bottom-42.right-28',
-      '.absolute.bottom-8.right-28',
-    ]);
-  });
-});
-
-describe('the studio proves the office before drawing it (FB-193)', () => {
-  /** A stand-in for `ws`, driven by the test rather than by a network. */
-  function fakeSocket() {
-    const handlers: Record<string, ((...a: unknown[]) => void)[]> = {};
-    let closed = false;
-    class Fake {
-      constructor(public url: string, public opts: Record<string, unknown>) { made.push(this); }
-      on(event: string, cb: (...a: unknown[]) => void) { (handlers[event] ??= []).push(cb); }
-      send(data: string) { sent.push(data); }
-      close() { closed = true; }
-    }
-    const made: Fake[] = [];
-    const sent: string[] = [];
-    const fire = (event: string, ...args: unknown[]) => (handlers[event] ?? []).forEach((h) => h(...args));
-    return { Fake, made, sent, fire, wasClosed: () => closed };
-  }
-
-  it('is ready once the office actually says something', async () => {
-    const { Fake, fire, sent, wasClosed } = fakeSocket();
-    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
-    // The office waits to be asked, so the probe has to ask. A probe that only listened sat there
-    // for the full timeout against a perfectly healthy office.
-    fire('open');
-    expect(sent).toEqual(['{"type":"webviewReady"}']);
-    fire('message', '{"type":"providerCapabilities"}');
-    await expect(probe).resolves.toEqual({ ok: true, detail: 'the office answered' });
-    // The probe is a question, not a connection to keep.
-    expect(wasClosed()).toBe(true);
-  });
-
-  it('is not ready when the socket closes before the office says anything', async () => {
-    // This is the production failure exactly: the handshake succeeded and the connection died five
-    // milliseconds later, having sent nothing. A door that opens onto nothing is not an office.
-    const { Fake, fire } = fakeSocket();
-    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
-    fire('close');
-    await expect(probe).resolves.toEqual({ ok: false, detail: 'closed before the office said anything' });
-  });
-
-  it('is not ready when the socket errors, and keeps the reason for the log', async () => {
-    const { Fake, fire } = fakeSocket();
-    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
-    fire('error', new Error('Unexpected server response: 403'));
-    await expect(probe).resolves.toEqual({ ok: false, detail: 'Unexpected server response: 403' });
-  });
-
-  it('is not ready when nothing happens at all', async () => {
-    const { Fake } = fakeSocket();
-    await expect(probeOfficeSocket('https://box.test/office', 'sec', Fake as never, 5))
-      .resolves.toEqual({ ok: false, detail: 'no message within 5ms' });
-  });
-
-  it('asks the box over wss, at the office socket, carrying the secret', () => {
-    const { Fake, made } = fakeSocket();
-    void probeOfficeSocket('https://chat.arca.test/office', 'shared-secret', Fake as never, 5);
-    expect(made[0].url).toBe('wss://chat.arca.test/office/ws');
-    expect(made[0].opts.headers).toEqual({ 'X-Foundry-Office': 'shared-secret' });
-  });
-
-  it('answers once, however many things happen', async () => {
-    const { Fake, fire } = fakeSocket();
-    const probe = probeOfficeSocket('https://box.test/office', 'sec', Fake as never);
-    fire('message', 'first');
-    fire('error', new Error('and then this'));
-    fire('close');
-    await expect(probe).resolves.toEqual({ ok: true, detail: 'the office answered' });
   });
 });

@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { mintOfficeToken, officeConfigured } from '@/lib/office-embed';
+import { officeSocketUrl, officeWatchUrl } from '@/lib/office-embed';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures, ventureChatUrl, type VentureSummary } from '@/lib/ventures';
@@ -389,16 +389,15 @@ async function Desk({
   const blocker = blockerLine({ ...waiting, oldestMs });
   const degraded = degradedGroups(failures);
 
-  // FB-163: the venture office, when this venture has one wired up.
+  // FB-163, rebuilt in FB-198: the venture office, when this venture has one wired up.
   //
-  // Both halves of the office read the SAME environment variables — this route for the app's files,
-  // `server.js` for the socket — so a venture is either fully wired or has no office at all, rather
-  // than serving a frame that can never connect.
-  const officeSrc = officeConfigured(venture.id, process.env)
-    ? `/venture/${venture.id}/office?token=${encodeURIComponent(
-        mintOfficeToken(venture.id, process.env.FOUNDRY_APPROVAL_SECRET ?? ''),
-      )}`
-    : null;
+  // Both addresses read the SAME two environment variables — the box's hostname and the office
+  // secret it shares with the studio — so a venture is either fully wired or has no office at all,
+  // rather than being handed a frame that can never connect.
+  // Two addresses on the venture's own box, each carrying a ticket this studio signed: the office's
+  // page, and the socket the desk checks before it draws anything. See `officeWatchUrl`.
+  const officeSrc = officeWatchUrl(venture.id, process.env);
+  const officeSocket = officeSocketUrl(venture.id, process.env);
 
   const state = boardState({
     ticketCount: lanes.reduce((n, l) => n + l.total, 0),
@@ -476,6 +475,7 @@ async function Desk({
       // FB-163: minted here, after the venture check above, and short-lived. The token names the
       // venture and nothing else — no host, no port, no secret of the box.
       officeSrc={officeSrc}
+      officeSocket={officeSocket}
       runs={runs.reports}
       runsTotal={runs.total}
       engine={engine}

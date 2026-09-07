@@ -119,6 +119,7 @@ export function VentureBoard({
   degraded = [],
   full = false,
   officeSrc = null,
+  officeSocket = null,
   runs = [],
   runsTotal = 0,
   engine = null,
@@ -174,6 +175,8 @@ export function VentureBoard({
    * to make. It carries nothing about the box.
    */
   officeSrc?: string | null;
+  /** The office's live socket on the venture's box, for the desk's own check (FB-198). */
+  officeSocket?: string | null;
   /** What the agent lanes did, newest first (FB-042). */
   runs?: RunReport[];
   runsTotal?: number;
@@ -427,10 +430,10 @@ export function VentureBoard({
           whenever the embed cannot be. A frozen last-known scene would read as a team sitting
           still. */}
       <div className="pocket-2">
-        {officeSrc ? (
+        {officeSrc && officeSocket ? (
           <OfficeEmbed
             src={officeSrc}
-            readyHref={`/venture/${encodeURIComponent(venture.id)}/office-ready`}
+            socket={officeSocket}
             fallback={<OfficePlate office={office} />}
           />
         ) : (

@@ -162,137 +162,51 @@ export function officeMessageAllowed(raw: string): boolean {
 }
 
 /**
- * The studio's own stylesheet, added to the office's document.
+ * Where the founder's browser watches this venture's office (FB-198).
  *
- * pixel-agents is an editor extension, and its interface says so: a Layout button, a Settings
- * button, a "what's new" card for the version it just updated to, and a version number in the
- * corner. In an editor those are right. On a founder's desk they are wrong twice over — they are
- * addressed to whoever installed the extension, and the studio drops every client message but the
- * handshake, so pressing Layout or Settings does nothing at all. A control that does nothing is
- * worse than no control.
+ * The browser goes straight to the venture's box. It used to go through the studio, and that cannot
+ * work: Railway's edge will not carry a WebSocket for the studio — measured at ~75ms to a cut, with
+ * the box disconnected, from two continents (FB-197).
  *
- * The zoom buttons go too, for a different reason. They work — they are the founder's own view and
- * say nothing to the box — but the studio shows the office through a window that clips the empty
- * space above the room, and zooming moves the room out from under that window. A control that makes
- * the picture worse is not worth the two buttons.
+ * Taking the studio out of the live path does not take the studio out of the decision. The ticket in
+ * this URL is signed with the venture's office secret and issued only to someone who has already
+ * passed `canAccessVenture`, so which venture a person may watch is still settled here, server-side
+ * (CLAUDE.md #6). The box's gate only checks that the studio said so, and refuses everything a
+ * browser might try to send back (`deploy/office/office-gate-lib.mjs`).
  *
- * These are position classes because the bundle offers nothing better: no ids, no data attributes,
- * Tailwind utilities only. That is exactly as brittle as it looks, so it is pinned two ways — the
- * office version is fixed on the box, and `officeChromeHidden` below is what a test asserts against.
- * A version bump that moves a button is a deliberate act that has to re-check this list.
+ * The ticket is signed with the venture's OWN office secret and never with the studio's approval
+ * secret: a venture box that was broken into must not be able to forge a grant (CLAUDE.md #4).
  */
-export const OFFICE_CHROME_HIDDEN = [
-  '.absolute.top-8.left-8',        // zoom
-  '.absolute.bottom-10.left-10',   // Layout and Settings
-  '.absolute.bottom-42.right-28',  // "Updated to v1.4! / See what's new"
-  '.absolute.bottom-8.right-28',   // the version watermark
-] as const;
-
-/** The `<style>` block the studio adds to the office document. */
-export function officeChromeStyle(): string {
-  return `<style data-foundry="office-chrome">${OFFICE_CHROME_HIDDEN.join(',')}{display:none !important}</style>`;
-}
-
-/** An office file, addressed through the studio and carrying the token that authorises it. */
-export function officeAssetUrl(ventureId: string, file: string, token: string): string {
-  const clean = file.replace(/^(\.\.?\/)+/, '');
-  return `/venture/${encodeURIComponent(ventureId)}/office/${clean}?token=${encodeURIComponent(token)}`;
+export function officeWatchUrl(
+  ventureId: string,
+  env: Record<string, string | undefined>,
+  now = Date.now(),
+): string | null {
+  const base = officeEndpoint(ventureId, env);
+  const secret = env[officeSecretEnvName(ventureId)]?.trim();
+  if (!base || !secret) return null;
+  const ticket = mintOfficeToken(ventureId, secret, now);
+  return `${base}/?token=${encodeURIComponent(ticket)}`;
 }
 
 /**
- * The office's document, addressed through the studio.
+ * The office's live socket, for the browser's own check that there is anything to watch.
  *
- * Root-relative references are rewritten FIRST, on purpose. The relative rewrite produces
- * root-relative URLs of its own, and running it the other way round rewrote its own output: every
- * asset came out addressed `/venture/arca/office/venture/arca/office/assets/…` and the frame loaded
- * nothing at all.
+ * The path is `/ws` at the host's root because the office's client builds it that way from the
+ * page's address, and it cannot be moved without patching their bundle.
  *
- * `/vite.svg` is the app's favicon, written from the site root. Through the studio that root is the
- * studio's, so it 404s on every load; a frame has no tab to put an icon in anyway, and it is pointed
- * at the office's own copy rather than left as a failing request.
+ * The desk asks this question from the BROWSER rather than from the studio, and that is the whole
+ * lesson of FB-193: the studio's own check answered "ready" on a day when the office was unusable,
+ * because it proved the studio could reach the box and said nothing about whether a founder could.
+ * Only the browser knows the leg that matters.
  */
-export function rewriteOfficeHtml(html: string, ventureId: string, token: string): string {
-  return html
-    .replace(/(src|href)="\/([^"/][^"]*)"/g,
-      (_m, attr: string, file: string) => `${attr}="${officeAssetUrl(ventureId, file, token)}"`)
-    .replace(/(src|href)="\.\/assets\/([^"]+)"/g,
-      (_m, attr: string, file: string) => `${attr}="${officeAssetUrl(ventureId, `assets/${file}`, token)}"`)
-    .replace('</head>', `${officeChromeStyle()}</head>`);
-}
-
-/**
- * The office's stylesheet, addressed through the studio.
- *
- * The stylesheet reaches for the office's own font with a relative `url(...)`. That resolves against
- * the stylesheet's address, inside `/office/assets/`, so the browser asks the studio for it — with
- * no token, because a `url()` in CSS carries only what is written in it.
- *
- * Untokened, the office route falls through to the session check, the frame has no cookie to offer,
- * and the answer is 401. The browser reports that as a CORS failure, which is true and unhelpful: a
- * 401 carries no `access-control-allow-origin`. The office then drew its whole interface in the
- * browser's fallback sans-serif and looked broken, while every automated check stayed green.
- */
-export function rewriteOfficeCss(css: string, ventureId: string, token: string): string {
-  return css.replace(
-    /url\(\s*['"]?(?!data:|https?:|\/\/)([^)'"]+?)['"]?\s*\)/g,
-    (_m, ref: string) => `url("${officeAssetUrl(ventureId, ref, token)}")`,
-  );
-}
-
-/** What a socket probe found. `detail` is for the studio's log, never for a founder. */
-export type OfficeSocketProbe = { ok: boolean; detail: string };
-
-/**
- * Open the office socket the way the browser's frame will, and see whether it holds.
- *
- * FB-193. The desk used to decide whether to draw the office by asking the box for one HTTP file.
- * That answered 200 while the socket was dying five milliseconds after every handshake, so a founder
- * on production got a frame that said "Loading…" for ever — strictly worse than the drawn plate it
- * replaced, and every automated check stayed green because the probe it was watching passed.
- *
- * A view is only worth drawing if the thing it views can be reached. So the studio makes the
- * connection itself, from the same place the browser's frame will be proxied from, waits for the
- * office to actually say something, and reports what happened. One real message is the bar: a
- * handshake proves the door opens, not that anything is behind it.
- */
-export async function probeOfficeSocket(
-  base: string,
-  secret: string,
-  WebSocketImpl: new (url: string, opts: Record<string, unknown>) => {
-    on(event: string, cb: (...args: unknown[]) => void): void;
-    send(data: string): void;
-    close(): void;
-  },
-  timeoutMs = 8_000,
-): Promise<OfficeSocketProbe> {
-  const url = `${base.replace(/^https:/, 'wss:')}/ws`;
-  return new Promise<OfficeSocketProbe>((resolve) => {
-    let done = false;
-    const finish = (ok: boolean, detail: string) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      try { ws.close(); } catch { /* already gone */ }
-      resolve({ ok, detail });
-    };
-    const timer = setTimeout(() => finish(false, `no message within ${timeoutMs}ms`), timeoutMs);
-
-    const ws = new WebSocketImpl(url, {
-      headers: { 'X-Foundry-Office': secret },
-      handshakeTimeout: Math.min(timeoutMs, 5_000),
-    });
-
-    // The office waits to be asked. It says nothing at all until the handshake arrives, and then
-    // sends everything at once — measured against the real box: `webviewReady` at 45ms, the first
-    // answer at 47ms. A probe that only listened sat there for the full timeout on a working office,
-    // which is how this was found.
-    //
-    // `webviewReady` is the one message the studio ever forwards from a browser
-    // (OFFICE_ALLOWED_CLIENT_MESSAGES), so the probe says exactly what a frame would say and nothing
-    // a frame could not.
-    ws.on('open', () => ws.send(JSON.stringify({ type: 'webviewReady' })));
-    ws.on('message', () => finish(true, 'the office answered'));
-    ws.on('error', (err: unknown) => finish(false, (err as Error)?.message ?? 'socket error'));
-    ws.on('close', () => finish(false, 'closed before the office said anything'));
-  });
+export function officeSocketUrl(
+  ventureId: string,
+  env: Record<string, string | undefined>,
+  now = Date.now(),
+): string | null {
+  const host = env[officeHostEnvName(ventureId)]?.trim();
+  const secret = env[officeSecretEnvName(ventureId)]?.trim();
+  if (!host || !secret) return null;
+  return `wss://${host}/ws?token=${encodeURIComponent(mintOfficeToken(ventureId, secret, now))}`;
 }
