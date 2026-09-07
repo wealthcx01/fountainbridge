@@ -144,7 +144,10 @@ test.describe('the desk', () => {
   test('it fits a phone', async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 851 });
     await page.goto('/venture/arca');
-    await expect(page.getByTestId('desk-summary')).toBeVisible();
+    // The queue, not the desk summary: FB-160 stands the summary down on a phone, because the amber
+    // banner beneath it already says what a founder is blocking. This line is a "the page has
+    // rendered" signal, and it needs to be something the pocket studio actually carries.
+    await expect(page.getByTestId('waiting-on-you')).toBeVisible();
     await expect(page.getByTestId('prompt-bar-input')).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
@@ -325,5 +328,98 @@ test.describe('the desk fits on a desk (FB-178)', () => {
     const h = await page.evaluate(() => document.documentElement.scrollHeight);
     expect(h, `the desk is ${h}px; it was 9,908px on production before FB-178`)
       .toBeLessThan(4300);
+  });
+});
+
+/**
+ * Claude Design's rulings on the desk, 2026-09-02 (FB-182).
+ *
+ * Three of the five were implementable at once; the fourth needs a place to approve an external
+ * send that is not the desk, and the fifth changes the ticket schema. Both are filed.
+ */
+test.describe('the desk answers Claude Design (FB-182)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('desk-summary')).toBeVisible();
+  });
+
+  test('a completed approval still shows whether its signature was genuine', async ({ page }) => {
+    // Claude Design asked for "Decided — what happened next" to move to What happened, and as a
+    // layout judgement that is right. It is staying until that screen can carry the ATTESTATION.
+    //
+    // This section is the only place a founder can see whether a completed approval's signature was
+    // genuine, forged, or made against a proposal that changed afterwards (FB-046). What happened
+    // lists decisions in prose and carries none of that. Moving it as instructed would make a forged
+    // grant on a past send invisible — non-negotiable 4 failing quietly.
+    //
+    // Asserted here rather than left implicit, so that whoever finally moves the section has to move
+    // this property with it.
+    await expect(page.getByTestId('approvals-decided')).toBeVisible();
+    await expect(page.getByTestId('approval-arca/past-send-provenance'))
+      .toHaveAttribute('data-grant-provenance', 'attested');
+  });
+
+  test('the office says it is a stand-in, because it is one', async ({ page }) => {
+    // Claude Design confirmed the room is the pixel-agents embed and allowed three figures as an
+    // interim "ONLY if labelled as placeholder". Unlabelled, a founder cannot tell that what they
+    // are looking at is a stand-in for something much richer.
+    await expect(page.getByTestId('office-placeholder-note')).toContainText('stand-in');
+  });
+
+  test('a surface states a count and a door, not a breakdown of the queue', async ({ page }) => {
+    // "20 waiting to be picked up · 14 being worked" restates the queue, which the banner and the
+    // Tickets summary already count. The design's line is "14 tickets".
+    //
+    // FB-186 widened this from the door's own line to the whole card. Scoped to the line, it passed
+    // while the card carried "4 waiting for your OK · 14 in progress" two lines above it — the rule
+    // was being applied to one line and not to the thing it is a rule about.
+    const card = page.getByTestId('dept-build');
+    await expect(card).toContainText(/\d+ tickets?/);
+    await expect(card, 'the card is restating the queue again').not.toContainText('waiting to be picked up');
+    await expect(card, 'the card is restating the queue again').not.toContainText('waiting for your OK');
+    await expect(card.getByTestId('lane-open-arca')).toBeVisible();
+  });
+
+  test('a surface says how much is in it exactly once', async ({ page }) => {
+    // FB-186: the desk stated each surface twice as two blocks, and then each card stated its own
+    // ticket count twice — once in the outcome sentence and again beside the door.
+    const text = await page.getByTestId('dept-build').innerText();
+    const counts = text.match(/\d+ tickets?/g) ?? [];
+    expect(counts.length, `the count appears ${counts.length} times: ${counts.join(', ')}`).toBe(1);
+  });
+});
+
+/**
+ * FB-188 — the column beside the rail is the width the design draws into.
+ *
+ * The studio spent a month rendering a 1,080px design into a 766px column, because the 68rem
+ * measure was set on the element that holds the rail as well as the content. Every screen with a
+ * rail was taller than its design, and it read as too much content when it was partly too little
+ * width.
+ *
+ * Pinned because it is invisible: nothing failed, every figure on every screen was correct, and the
+ * only symptom was heights that no test asserts.
+ */
+test.describe('the reading column (FB-188)', () => {
+  test('is the width the design draws into, not the rail plus the content', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/venture/arca');
+    const width = await page.evaluate(() => {
+      const main = document.querySelector('.rail')?.parentElement?.querySelector('main');
+      return main ? Math.round(main.getBoundingClientRect().width) : 0;
+    });
+    // The design's own block measures 1,080px at this viewport. 5% either way.
+    expect(width, `the column is ${width}px; the design draws into 1,080px`).toBeGreaterThan(1026);
+    expect(width, `the column is ${width}px; the design draws into 1,080px`).toBeLessThan(1134);
+  });
+
+  test('a narrow window is unaffected — nothing binds below the measure', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.setViewportSize({ width: 1180, height: 900 });
+    await page.goto('/venture/arca');
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 });

@@ -19,9 +19,10 @@ import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { FounderBrief } from './FounderBrief';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
+import { OfficeEmbed } from './OfficeEmbed';
 import type { Office } from '@/lib/office';
 import { lastSend, outboxUrl } from '@/lib/sends';
-import { WaitingQueue } from './WaitingQueue';
+import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
 import { LaneActivity } from './LaneActivity';
@@ -116,6 +117,9 @@ export function VentureBoard({
   summary = null,
   blocker = null,
   degraded = [],
+  full = false,
+  officeSrc = null,
+  officeSocket = null,
   runs = [],
   runsTotal = 0,
   engine = null,
@@ -155,6 +159,24 @@ export function VentureBoard({
   blocker?: string | null;
   /** What could not be read, grouped by cause (FB-128). Empty when every read succeeded. */
   degraded?: DegradedGroup[];
+  /**
+   * `?full=1` — the whole desk on a phone (FB-160).
+   *
+   * The pocket studio is the desk with the sections the design does not put on a phone stood down.
+   * This is the way to all of it, for a founder who wants the surfaces or the run reports while they
+   * are out. Nothing about a wide screen changes.
+   */
+  full?: boolean;
+  /**
+   * The studio's own path to this venture's office, with a short-lived token naming the venture
+   * (FB-163). Null when the venture has no box, which is most of them — then the plate stands alone.
+   *
+   * Minted on the server after the venture check, so the token is a statement the studio is entitled
+   * to make. It carries nothing about the box.
+   */
+  officeSrc?: string | null;
+  /** The office's live socket on the venture's box, for the desk's own check (FB-198). */
+  officeSocket?: string | null;
   /** What the agent lanes did, newest first (FB-042). */
   runs?: RunReport[];
   runsTotal?: number;
@@ -225,19 +247,33 @@ export function VentureBoard({
   // the whole time and the studio kept it to itself.
   const surfaceOf = (repo: string) => departments.find((d) => d.repo === repo) ?? null;
   const selectedRepo = surface ? (departments.find((d) => d.id === surface)?.repo ?? null) : null;
+  /** The queue behind a surface, when the venture has one for that repository. */
+  const laneOf = (repo: string | null | undefined) => (repo ? lanes.find((l) => l.repo === repo) ?? null : null);
+  /**
+   * A queue no surface claims (FB-186).
+   *
+   * `departments` is optional in the manifest, so a venture can have a repository with a lane and no
+   * surface named over it. Folding the queues into the surface cards would have made those
+   * disappear, which is the failure mode this whole run of tickets keeps finding: a screen that is
+   * correct about everything it shows and silent about what it dropped.
+   */
+  const orphanLanes = lanes.filter((l) => !departments.some((d) => d.repo === l.repo));
 
-  /** What a surface's queue is worth clicking for, from the same counts the lanes render. */
-  const queueOf = (repo: string | null) => {
-    const lane = repo ? lanes.find((l) => l.repo === repo) : null;
-    if (!lane) return null;
-    const waiting = lane.groups['pr-open'].length + (unmatchedWork[lane.repo]?.length ?? 0);
-    const working = lane.groups['in-progress'].length;
-    const parts: string[] = [];
-    if (waiting > 0) parts.push(`${waiting} waiting for your OK`);
-    if (working > 0) parts.push(`${working} in progress`);
-    if (parts.length === 0) parts.push(`${lane.total} ticket${lane.total === 1 ? '' : 's'}`);
-    return parts.join(' · ');
-  };
+  /**
+   * One queue, because a founder has one queue (FB-183).
+   *
+   * Pull requests waiting on the founder and external sends waiting on the founder are the same
+   * question — "what is blocked on me?" — and were two lists on one screen, the second of them 282px
+   * of card per item. The design has one, and the send is told apart from the work by its own meta
+   * line saying `external send`, not by living somewhere else.
+   *
+   * Sends first: nothing leaves the company without one of these, and the pull requests behind them
+   * are internal.
+   */
+  const waitingItems = [
+    ...pendingApprovals.map((a) => externalWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
+    ...openWorkQueue.map((a) => prWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
+  ];
 
   // Index every ticket by id so dependency chips in the drawer can jump to another ticket.
 
@@ -248,12 +284,16 @@ export function VentureBoard({
 
   return (
     // `desk` is what the phone media query reorders (FB-138). See `app/globals.css`.
-    <section className="desk" data-testid="desk">
+    <section className={full ? 'desk desk-full' : 'desk'} data-testid="desk" data-pocket={full ? 'full' : 'pocket'}>
       <WhileWorking working={somethingInFlight} />
-      <p className="eyebrow">
+      {/* FB-160: the venture's name comes FIRST on a phone, not after the prompt bar.
+          Everything the pocket order does not name falls to `order: 5`, and that included the title
+          — so a founder scrolled the whole screen before being told which venture they were looking
+          at. The design's phone leads with the wordmark and the venture. */}
+      <p className="eyebrow pocket-0">
         <span className="eyebrow-id">{venture.id}</span> — Venture
       </p>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <div className="pocket-0" style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0 }}>{venture.name}</h1>
         <span className={`tag ${venture.status === 'active' ? 'tag-accent' : ''}`}>{venture.status}</span>
         {/* FB-068: a badge that cannot be interrogated trains people to ignore badges. It says what
@@ -270,7 +310,7 @@ export function VentureBoard({
           </span>
         ) : null}
       </div>
-      <p className="muted" data-testid="board-founder" style={{ fontSize: 'var(--fs-body-sm)' }}>
+      <p className="muted not-in-pocket" data-testid="board-founder" style={{ fontSize: 'var(--fs-body-sm)' }}>
         {/* FB-100's item 7: "Founder: John Gallagher" while signed in AS the founder reads as the
             studio introducing someone to themselves. The manifest is right; this is presentation. */}
         {venture.founderName ? <>Founder: {viewerIsFounder ? 'you' : venture.founderName} · </> : null}
@@ -284,7 +324,7 @@ export function VentureBoard({
       {/* FB-103: the one introduction of the one name. Every panel below this line says "your team"
           and none of them explains itself — which only works if the name is introduced above the
           first thing that uses it. */}
-      <p className="muted" data-testid="team-intro" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '-0.35rem' }}>
+      <p className="muted not-in-pocket" data-testid="team-intro" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '-0.35rem' }}>
         <strong>{TEAM_TITLE}</strong> — {TEAM_INTRO}
       </p>
 
@@ -303,7 +343,14 @@ export function VentureBoard({
       {/* FB-042: the brief's own lines — the specifics behind the sentence, each a way in. Kept
           because they link: a summary that states a number a founder then has to go and find is a
           summary that costs them a search. */}
-      {brief ? <FounderBrief brief={brief} headline={false} /> : null}
+      {/* FB-160: kept on a phone, and kept near the top. It names the ticket that is stuck and
+          needs a human — which appears nowhere else on the pocket studio, because a stuck ticket is
+          not waiting for an approval and so is not in the queue. The ticket's rule is that nothing a
+          founder can act on is hidden, and this is the clearest thing on the screen they can act
+          on. */}
+      <div className="pocket-1b">
+        {brief ? <FounderBrief brief={brief} headline={false} /> : null}
+      </div>
 
       {/* FB-087. The composer was broken in production for weeks and the only way anyone could find
           out was a founder pressing the button and getting an error. This is the same fact, told to
@@ -376,14 +423,33 @@ export function VentureBoard({
         </p>
       ) : null}
       {/* ---- 5. The office ----------------------------------------------------------------------
-          A placeholder until the venture box reports agent state (FB-139), and it says so. A frozen
-          last-known scene would read as a team sitting still. */}
+          FB-139's plate is a drawing and says so in its own header. FB-163 puts the real thing in
+          front of it where a venture has one: pixel-agents on the venture's own machine, proxied by
+          the studio so no address or credential of the box reaches the browser.
+          The plate is the fallback, not a second office — it is passed in, rendered once, and shown
+          whenever the embed cannot be. A frozen last-known scene would read as a team sitting
+          still. */}
       <div className="pocket-2">
-        <OfficePlate office={office} />
+        {officeSrc && officeSocket ? (
+          <OfficeEmbed
+            src={officeSrc}
+            socket={officeSocket}
+            fallback={<OfficePlate office={office} />}
+          />
+        ) : (
+          <OfficePlate office={office} />
+        )}
       </div>
 
       {/* ---- 6. What the engine did -------------------------------------------------------------- */}
-      {engine ? <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} /> : null}
+      {/* FB-160: not on a phone. The design's pocket studio is the blocker banner, the office, the
+          queue and the prompt. What your team has been doing is a record, and a record is what
+          "What happened" is for. Stood down rather than removed: `?full=1` shows it. */}
+      {engine ? (
+        <div className="not-in-pocket">
+          <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} />
+        </div>
+      ) : null}
       {/* ---- 7. Waiting on you -------------------------------------------------------------------
           Where "Decide now →" lands, so it has to hold the work the banner just counted. The
           external-approval cards alone were not that: on a venture whose waiting items are all open
@@ -391,18 +457,41 @@ export function VentureBoard({
           was scrolled past the office to nothing. */}
       <section id="waiting-on-you" data-testid="waiting-on-you" className="pocket-3" style={{ marginTop: '1.5rem' }}>
         <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Waiting on you</p>
-        <WaitingQueue work={openWorkQueue} ventureId={venture.id} />
+        <WaitingQueue items={waitingItems} />
       </section>
-      {/* FB-046: external actions awaiting the founder's OK (the ActiveGraph gate). The founder
-          approves here — never on github.com; Approve signs the grant the executor verifies. */}
-      {pendingApprovals.length > 0 ? (
-        <div data-testid="approvals-queue" style={{ marginTop: '1.25rem' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Needs your OK — before anything goes out</p>
-          {pendingApprovals.map((a) => (
-            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} history={histories[`${a.repo}/${a.id}`]} />
-          ))}
-        </div>
-      ) : null}
+      {/* FB-183: the external-send cards that used to stand here are rows in "Waiting on you" above,
+          and the decision is made on the page each row opens.
+          Claude Design's rule is "one decision surface, everywhere else is a pointer to it", and
+          this section was 282px of card per send on a page that should be about 1,900px in total.
+          It could not become rows until there was somewhere for the rows to point, because
+          `ApprovalCard` carried the only approve control in the studio — turning it into a row first
+          would have deleted the only way a founder can approve anything leaving their company
+          (non-negotiable 4). The page came first; this section went second.
+          The desk cannot sign now: every `ApprovalCard` below renders read-only, because `decide`
+          defaults to false and only the approval page passes it. */}
+
+      {/* "Decided — what happened next" — kept, against Claude Design's instruction to move it, and
+          the reason is worth having on the record.
+
+          The instruction (2026-09-02) was: *"The desk is forward-looking only… the record of what
+          left the company is What happened's whole job."* As a layout judgement that is right, and
+          this section is 356px of finished business on a forward-looking page.
+
+          But it is not only a record. It is the only place a founder can see whether a COMPLETED
+          approval's signature was genuine — `ApprovalCard`'s provenance element distinguishes an
+          attested grant from a forged one and from a proposal that changed after it was approved
+          (FB-046). What happened lists decisions in prose ("john.gallagher@… approved: …") and
+          carries none of that. Removing this section would make a forged grant on a past send
+          invisible, which is non-negotiable 4 — a recorded, VERIFIABLE human approval — failing
+          quietly.
+
+          Found by the gate: three tests went red, and their own comment says why they exist —
+          *"`granted` rendered NOWHERE. A founder clicked Approve on something irreversible and the
+          card vanished."*
+
+          So it moves when What happened can carry the attestation, and not before. FB-180 (which is
+          rewriting that screen) and FB-183 (which gives an external approval its own page) are where
+          that happens. Claude Design has been asked which of the two should hold it. */}
 
       {decided.length > 0 ? (
         <div data-testid="approvals-decided" style={{ marginTop: '1.25rem' }}>
@@ -425,7 +514,7 @@ export function VentureBoard({
           The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately. */}
       {departments.length > 0 ? (
-        <div data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
+        <div className="not-in-pocket" data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(11.25rem, 1fr))', gap: '0.75rem' }}>
             {departments.map((d) => {
@@ -435,7 +524,26 @@ export function VentureBoard({
               // budget line at 0.7 drops muted text to ~2.8:1, under WCAG AA, and a budget figure is
               // not something to render at reduced contrast.
               <div key={d.id} className="card" data-testid={`dept-${d.id}`}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
+                {/* FB-186: the surface and its queue, in one card.
+                    The desk stated each surface twice — this block of cards, and then a second list
+                    underneath repeating the same three names, the same repositories and the same
+                    ticket counts in different words. Every figure in both was correct, which is why
+                    nothing caught it; the two blocks together were 764px of a page that should come
+                    to about 1,900px in total.
+                    The lane's own id and its quiet state stay exactly where they were, on the block
+                    that holds the surface's heading and its queue — so a founder still selects a
+                    surface and sees the others stand back, and nothing that could be reached before
+                    has moved. */}
+                <div
+                  id={`lane-${d.repo}`}
+                  data-testid={`lane-${d.repo}`}
+                  data-quiet={selectedRepo && selectedRepo !== d.repo ? 'true' : 'false'}
+                  style={{
+                    opacity: selectedRepo && selectedRepo !== d.repo ? 0.45 : 1,
+                    transition: 'opacity var(--dur) var(--ease)',
+                  }}
+                >
+                <h3 style={{ fontSize: 'var(--fs-subhead)', margin: 0, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
                   {/* A real button, not a card-shaped div: the audit found the surface cards were the
                       most button-shaped objects on the page and the only ones that did nothing. The
                       NAME is the control rather than the whole card, because the card also holds the
@@ -464,7 +572,24 @@ export function VentureBoard({
                   <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
                     {d.provisioned ? 'active' : 'coming'}
                   </span>
-                </div>
+                </h3>
+                {/* The repository, and whether anything has happened in it lately. Both came off the
+                    second list; a founder no longer has to already know that "Build — Product" IS
+                    `arca` to connect a surface to its queue, because they are one thing now. */}
+                <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.2rem 0 0' }}>
+                  <span className="mono">{d.repo}</span>
+                  {stale.has(d.repo ?? '') ? (
+                    <span
+                      className="tag"
+                      data-testid={`lane-stale-${d.repo}`}
+                      tabIndex={0}
+                      title="Nothing has been built or changed here for over two weeks. That may be fine — it is only worth a look if you expected something to be happening."
+                      style={{ marginLeft: '0.4rem', color: toneColor('attention') }}
+                    >
+                      <span aria-hidden="true">⚠ </span>nothing here lately
+                    </span>
+                  ) : null}
+                </p>
                 <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
                   {d.provisioned
                     // Not `mono`: this is an explanation, and the code face made it read as a
@@ -472,13 +597,14 @@ export function VentureBoard({
                     ? <>{GATE_LABEL[d.gate] ?? `How work here gets approved is still being decided.`}</>
                     : <>Not open yet. Bruntsfield sets this side of the venture up when you need it.</>}
                 </p>
-                {/* FB-109: worth clicking BEFORE it is clicked. Same counts the lane below renders,
-                    so the card and the queue cannot disagree about how much is waiting. */}
-                {queueOf(d.repo) ? (
-                  <p className="muted" data-testid={`dept-${d.id}-queue`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.3rem 0 0' }}>
-                    {queueOf(d.repo)}
-                  </p>
-                ) : null}
+                {/* FB-186: the queue breakdown that stood here is gone.
+                    It read "4 waiting for your OK · 14 in progress" — a restatement of the banner at
+                    the top of this page and of the list directly above it, per surface. Claude
+                    Design ruled exactly this off the queue line on 2026-09-02 (*"restates the queue,
+                    which the banner and the Tickets summary already count"*), and the rule was
+                    applied to that line and not to this card, two lines above it. FB-109's point —
+                    that a card should be worth pressing before it is pressed — is carried by the
+                    outcome sentence below, which names the count and what the surface has produced. */}
                 {/* FB-128: what this surface has actually produced — the only place a founder learns
                     whether any of it worked. Sourced or silent (docs/decision-surface-outcomes.md):
                     Build's line is true today, Sell has no reporting until FB-142 and says so, and
@@ -553,6 +679,60 @@ export function VentureBoard({
                     </p>
                   )
                 ) : null}
+
+                {/* The queue itself — the second list's only unique content, now where the surface
+                    it belongs to is named. Order matters: a read that FAILED is not an empty queue,
+                    and an empty queue is not a queue with work in it (non-negotiable 10). */}
+                {laneOf(d.repo)?.error ? (
+                  <div
+                    className="card"
+                    data-testid="lane-error"
+                    data-error-kind={laneOf(d.repo)?.errorKind ?? 'error'}
+                    style={{
+                      marginTop: '0.6rem',
+                      borderColor: toneColor(laneErrorTone(laneOf(d.repo)?.errorKind ?? null)),
+                      color: toneColor(laneErrorTone(laneOf(d.repo)?.errorKind ?? null)),
+                    }}
+                  >
+                    <div>{laneOf(d.repo)?.error}</div>
+                    {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null) ? (
+                      <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: 'var(--fs-meta-lg)' }}>
+                        <strong>Next step:</strong> {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null)}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : !laneOf(d.repo) ? null : laneOf(d.repo)!.total === 0 ? (
+                  /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
+                     useless — a founder cannot tell from it whether they are waiting, whether
+                     something broke, or whether they were meant to do something first. */
+                  /* Keyed on the repository, like every other id on this screen (FB-058): two
+                     surfaces with an empty queue rendered two elements answering to one id, which
+                     Playwright's strict mode treats as an error and which made this panel's coverage
+                     quietly conditional on no venture ever having two empty surfaces. Found by
+                     FB-160's "no section twice" check. */
+                  <div className="card" data-testid={`lane-empty-${d.repo}`} style={{ marginTop: '0.6rem' }}>
+                    <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('tickets', venture.hasComposer).what}</p>
+                    <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
+                      {emptyPanel('tickets', venture.hasComposer).how}
+                    </p>
+                    <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.4rem 0 0' }}>
+                      This is the only place work for this side of the venture is read from.
+                    </p>
+                  </div>
+                ) : (
+                  /* A count and a door, not a breakdown (Claude Design, 2026-09-02): the design's
+                     own line is "14 tickets", and what earns the space beside it is an outcome —
+                     which the sentence above this one already carries. */
+                  /* The door alone. Every branch of `surfaceOutcome` already names the count in the
+                     sentence above, so printing it again here was the card saying "73 tickets"
+                     twice — the same fault as the two blocks, one level down. */
+                  <p style={{ fontSize: 'var(--fs-body-sm)', margin: '0.6rem 0 0' }}>
+                    <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${d.repo}`}>
+                      open the queue →
+                    </Link>
+                  </p>
+                )}
+                </div>
               </div>
               );
             })}
@@ -573,112 +753,44 @@ export function VentureBoard({
           ) : null}
         </div>
       ) : null}
-      <hr className="hr" />
-
-      {lanes.map((lane) => (
-        <div
-          key={lane.repo}
-          id={`lane-${lane.repo}`}
-          data-testid={`lane-${lane.repo}`}
-          /* FB-109: quieted, never hidden. Hiding two-thirds of the board behind a first click is how
-             a founder loses work they did not know to look for. */
-          data-quiet={selectedRepo && selectedRepo !== lane.repo ? 'true' : 'false'}
-          style={{
-            marginBottom: '2.5rem',
-            opacity: selectedRepo && selectedRepo !== lane.repo ? 0.45 : 1,
-            transition: 'opacity var(--dur) var(--ease)',
-          }}
-        >
-          {/* The surface's name leads; the repo slug is the aside. The two halves of the page finally
-              speak the same names — a founder no longer has to already know that "Build — Product"
-              IS `arca` to connect a card to its queue. */}
-          <h3 style={{ fontSize: 'var(--fs-subhead)' }}>
-            {surfaceOf(lane.repo)?.name ?? lane.repo}{' '}
-            <span className="muted mono" style={{ fontSize: 'var(--fs-meta)' }}>{lane.repo}</span>
-            <span className="muted">· {lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
-            {stale.has(lane.repo) ? (
-              <span
-                className="tag"
-                data-testid={`lane-stale-${lane.repo}`}
-                tabIndex={0}
-                title="Nothing has been built or changed here for over two weeks. That may be fine — it is only worth a look if you expected something to be happening."
-                style={{ marginLeft: '0.4rem', color: toneColor('attention') }}
-              >
-                <span aria-hidden="true">⚠ </span>nothing here lately
-              </span>
-            ) : null}
-            {/* FB-103: "· 8 non-ticket files skipped" used to sit here. It is a note the reader of
-                the tickets folder wrote to itself — a founder wants "42 tickets" and has no way to
-                act on the other number. `lane.skipped` is still counted and still on this object;
-                giving it an admin home is FB-100's item 4. */}
-          </h3>
-
-          {lane.error ? (
-            <div
-              className="card"
-              data-testid="lane-error"
-              data-error-kind={lane.errorKind ?? 'error'}
-              style={{
-                borderColor: toneColor(laneErrorTone(lane.errorKind)),
-                color: toneColor(laneErrorTone(lane.errorKind)),
-              }}
-            >
-              <div>{lane.error}</div>
-              {laneErrorNextStep(lane.errorKind) ? (
-                <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: 'var(--fs-meta-lg)' }}>
-                  <strong>Next step:</strong> {laneErrorNextStep(lane.errorKind)}
-                </div>
-              ) : null}
-            </div>
-          ) : lane.total === 0 ? (
-            /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
-               useless — a founder cannot tell from it whether they are waiting, whether something
-               broke, or whether they were meant to do something first. */
-            <div className="card" data-testid="lane-empty">
-              <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('tickets', venture.hasComposer).what}</p>
-              <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
-                {emptyPanel('tickets', venture.hasComposer).how}
-              </p>
-              {/* FB-103: this said "Reading main — a backlog on another branch will not show here",
-                  which asks a founder to know what a branch is before they can tell whether the
-                  emptiness is a problem. The fact worth keeping is that this list is the only one. */}
-              <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.4rem 0 0' }}>
-                This is the only place work for this side of the venture is read from.
-              </p>
-            </div>
-          ) : (
-            /*
-             * The board itself lives on Tickets, not here (FB-178).
-             *
-             * This rendered every ticket of every surface as a four-column board — on ARCA, 73
-             * tickets including **37 finished ones**, measured at 4,634px, on a desk whose whole
-             * page came to 9,908px against a design of roughly 1,900. Nearly half the desk was a
-             * duplicate of a screen one row away in the rail, and most of that half was work that
-             * had already been done.
-             *
-             * The desk's question is: what is happening, what waits on me, what did my team do, is
-             * any of it working. Finished tickets answer none of those. So the surface keeps what
-             * the desk needs — that it exists, how much is in it, whether it is stale, and whether
-             * it could be read at all — and the queue itself is one press away.
-             *
-             * Nothing is hidden that was not also somewhere else: `TicketsView` on
-             * `/venture/<id>/tickets` reads the same lanes. That is the difference between this and
-             * FB-109, which refused to hide two thirds of the board behind a click — there, the
-             * hidden work had nowhere else to be seen.
-             */
-            <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
-              <span className="muted">
-                {lane.groups.todo.length} waiting to be picked up · {lane.groups['in-progress'].length} being worked
-                {lane.groups['pr-open'].length > 0 ? ` · ${lane.groups['pr-open'].length} needing your OK` : ''}
-              </span>
+      {/* FB-186: the second list of surfaces that stood here is gone.
+          It repeated the three names, the three repositories and the three ticket counts already on
+          the cards above, in different words — 139px of restatement plus its rule and its margins,
+          on a desk that is meant to be a page a founder reads rather than one they scroll. Every
+          figure in it was correct, which is why no test caught it and only looking did.
+          Nothing was dropped: the queue link, the stale flag, the read-failure panel and the empty
+          panel all moved up into the surface each belongs to, keeping their own ids.
+          A lane whose repository no department claims still renders, below. */}
+      {orphanLanes.length > 0 ? (
+        <div data-testid="lanes-unclaimed" style={{ marginTop: '1.25rem' }}>
+          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Other queues</p>
+          {orphanLanes.map((lane) => (
+            <p key={lane.repo} id={`lane-${lane.repo}`} data-testid={`lane-${lane.repo}`} style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.5rem' }}>
+              <span className="mono muted" style={{ fontSize: 'var(--fs-meta)' }}>{lane.repo}</span>{' '}
+              <span className="muted">{lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
               {' — '}
               <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${lane.repo}`}>
                 open the queue
               </Link>
             </p>
-          )}
+          ))}
         </div>
-      ))}
+      ) : null}
+
+      {/* FB-160: the way to the rest of the desk, and back.
+          A link and a query, not client state, so the choice survives a reload and can be sent to
+          somebody. One element, rendered once, whichever mode the desk is in — a phone-only second
+          copy of anything is how the rail's waiting shell and the ledger's fallback table each
+          shipped a duplicate test id (FB-158, FB-136). */}
+      <p className="pocket-more" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '1.5rem' }}>
+        {full ? (
+          <Link href={`/venture/${venture.id}`} data-testid="pocket-less">← Back to the pocket studio</Link>
+        ) : (
+          <Link href={`/venture/${venture.id}?full=1`} data-testid="pocket-more">
+            See the whole desk — your surfaces, and what your team has been doing →
+          </Link>
+        )}
+      </p>
 
       {/* The ticket drawer that stood here is gone (FB-178).
           Nothing could open it once the desk's board went — `setSelected` was only ever called by a

@@ -65,6 +65,19 @@ export function OfficePlate({ office }: { office: Office }) {
         ))}
       </div>
 
+      {/* Claude Design, 2026-09-02, confirming the design's own room — BUILD/SELL/SCALE columns,
+          desk labels, a needs-you flag, an "N on you" badge: *"that is the pixel-agents embed,
+          read-only from the venture box. Three figures is fine as an interim ONLY if labelled as
+          placeholder; don't hand-build the room in the studio."*
+
+          So this says what it is. One figure per surface is not the room, and a founder looking at
+          three figures has no way to know they are looking at a stand-in for something richer. */}
+      <p className="muted" data-testid="office-placeholder-note"
+         style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
+        This is a stand-in. The real view shows each person at their desk, live from your
+        venture&rsquo;s own machine — that is being connected.
+      </p>
+
       <p className="muted" data-testid="office-summary" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0.9rem' }}>
         {officeSummary(office)} Each figure is one of your surfaces on this venture&rsquo;s own
         machine; a raised hand is a wait on you.

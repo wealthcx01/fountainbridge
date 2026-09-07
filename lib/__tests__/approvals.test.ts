@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { refusalAttestationFor } from '../approval-attestation';
 import { loadApprovals, approvalRepos, attachBudgetDisclosure, toSpends, type ApprovalSource } from '../approvals';
 import { attestationFor } from '../approval-attestation';
 import type { VentureSummary } from '../ventures';
@@ -9,7 +10,7 @@ const venture: VentureSummary = {
 };
 
 // In-memory source: id → { proposal, grant, execution } (any omitted = 404/null).
-function stub(data: Record<string, { proposal?: unknown; grant?: unknown; execution?: unknown }>): ApprovalSource {
+function stub(data: Record<string, { proposal?: unknown; grant?: unknown; execution?: unknown; refusal?: unknown }>): ApprovalSource {
   return {
     async listIds() { return Object.keys(data); },
     async read(_repo, id, file) {
@@ -289,5 +290,44 @@ describe('approvalRepos', () => {
 
   it('drops empty entries rather than reading a repo called ""', () => {
     expect(approvalRepos({ repos: ['arca', ''], departments: [{ id: 'x', repo: '' }] } as never)).toEqual(['arca']);
+  });
+});
+
+describe('a refused send, read back (FB-183)', () => {
+  const SECRET = 'test-secret';
+  const proposal = { id: 'send', summary: 'The September note' };
+
+  const refusal = (over: Record<string, unknown> = {}) => ({
+    id: 'send', decision: 'refused', refused_by: 'founder@example.com',
+    proposal_sha: 'sha-send-proposal', refused_at: '2026-09-03T00:00:00.000Z',
+    note: 'Numbers are not final.',
+    attestation: refusalAttestationFor('wealthcx01/arca', 'send', 'sha-send-proposal', 'founder@example.com', SECRET),
+    ...over,
+  });
+
+  it('reads as refused, and carries who and why', async () => {
+    const [a] = await loadApprovals(venture, stub({ send: { proposal, refusal: refusal() } }), 'arca', SECRET);
+    expect(a.status).toBe('rejected');
+    expect(a.refusal?.refusedBy).toBe('founder@example.com');
+    expect(a.refusal?.note).toBe('Numbers are not final.');
+  });
+
+  it('an UNSIGNED refusal leaves the send waiting, not closed', () => {
+    // The safe direction. A lane that could close a decision by writing a file would be a way to
+    // stop a founder's send without being the founder.
+    return loadApprovals(venture, stub({ send: { proposal, refusal: refusal({ attestation: 'forged' }) } }), 'arca', SECRET)
+      .then(([a]) => {
+        expect(a.status).toBe('proposed');
+        expect(a.refusal).toBeNull();
+      });
+  });
+
+  it('never repaints a send that already went out as one that was stopped', async () => {
+    // Ordering, deliberately: every execution branch is read before the refusal. What happened is
+    // the fact, and a refusal written afterwards must not claim the founder stopped it.
+    const [a] = await loadApprovals(venture, stub({
+      send: { proposal, execution: { status: 'executed' }, refusal: refusal() },
+    }), 'arca', SECRET);
+    expect(a.status).not.toBe('rejected');
   });
 });

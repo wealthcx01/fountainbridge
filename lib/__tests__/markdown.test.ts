@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '../markdown';
+import { showAngleBrackets, splitTicketBody, withoutStatusClaim, withoutTitleHeading } from '../markdown';
 
 /**
  * The audit's finding, pinned. A ticket that says `(<slug>, <path>)` reached the founder as `(, )` —
@@ -65,5 +65,67 @@ describe('one name per ticket, per screen', () => {
   it('leaves a body that never had one alone', () => {
     const body = '## Why this matters\n\nBecause.';
     expect(withoutTitleHeading(body)).toBe(body);
+  });
+});
+
+describe('splitTicketBody (FB-185)', () => {
+  it('keeps the ticket’s first section and folds the rest away', () => {
+    // The shape every ticket file here is written in: a heading glued to its prose, no blank line.
+    const md = '## Why this matters\nBecause the data is fake.\n\n## Scope\n- one\n- two\n';
+    const { summary, rest } = splitTicketBody(md);
+    expect(summary).toBe('## Why this matters\nBecause the data is fake.');
+    expect(rest).toBe('## Scope\n- one\n- two');
+  });
+
+  it('folds the research bullets away rather than stacking them above the decision', () => {
+    // ARCA-068's real shape: the opening, then a Context section of URL-bearing bullets that was
+    // 1,730px of the screen a founder approves work on.
+    const md = [
+      '**Area:** Research · **Depends on:** —',
+      '',
+      '## Why this matters',
+      'We need to know which sources give live data.',
+      '',
+      '## Context',
+      'Auctions are spread across houses:',
+      '- eBay has a public API (https://example.com/a).',
+      '- Goldin does not (https://example.com/b).',
+      '',
+      '## Acceptance criteria',
+      '- Written findings.',
+    ].join('\n');
+    const { summary, rest } = splitTicketBody(md);
+    expect(summary).toContain('Why this matters');
+    expect(summary).not.toContain('https://example.com/a');
+    expect(rest).toContain('## Context');
+    expect(rest).toContain('## Acceptance criteria');
+  });
+
+  it('a ticket written without headings falls back to its opening paragraphs', () => {
+    const { summary, rest } = splitTicketBody('One.\n\nTwo.\n\nThree.\n\nFour.\n');
+    expect(summary).toBe('One.\n\nTwo.');
+    expect(rest).toBe('Three.\n\nFour.');
+  });
+
+  it('never cuts inside a fenced code block', () => {
+    // A `#` inside a fence is a comment, not a heading. Cutting on it would render the rest as code.
+    const md = '## One\nIntro.\n\n```\n# not a heading\n\nstill code\n```\n\n## Two\nAfter.\n';
+    const { summary, rest } = splitTicketBody(md);
+    expect(summary).toContain('# not a heading');
+    expect((summary.match(/```/g) ?? []).length % 2).toBe(0);
+    expect(rest).toBe('## Two\nAfter.');
+  });
+
+  it('returns everything as the summary when there is nothing to fold away', () => {
+    const { summary, rest } = splitTicketBody('## Only\nJust the one section.\n');
+    expect(summary).toBe('## Only\nJust the one section.');
+    expect(rest).toBe('');
+  });
+
+  it('loses no words: summary and rest together still hold the whole ticket', () => {
+    const md = '## A\nOne.\n\n## B\nTwo.\n\n- three\n\n## C\nFour.\n';
+    const { summary, rest } = splitTicketBody(md);
+    const words = (x: string) => x.split(/\s+/).filter(Boolean);
+    expect(words(`${summary} ${rest}`).sort()).toEqual(words(md).sort());
   });
 });

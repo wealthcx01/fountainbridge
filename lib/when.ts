@@ -89,3 +89,38 @@ export function onDate(iso: string): string | null {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     .format(new Date(at));
 }
+
+/**
+ * The day, as the design's record says it: `Today 08:00`, `Yesterday`, `Monday`, `27 August` (FB-180).
+ *
+ * "What happened" is the screen whose whole axis is recency, and it was printing `2 September 2026`
+ * on every row — including the ones from this morning. A founder reading it has to do arithmetic to
+ * answer "is this today?", which is the only question the column exists to answer.
+ *
+ * Today keeps its clock time, because on today's rows the hour is the information. Anything inside
+ * the last week gets its weekday. Older than that, the calendar date without the year, which the
+ * year beside it would only repeat — the absolute date is still on the row, in `title`, for anyone
+ * who needs to quote it.
+ */
+export function relativeDay(iso: string, now = studioNow()): string | null {
+  const at = Date.parse(iso);
+  if (!Number.isFinite(at)) return null;
+
+  const startOf = (ms: number) => {
+    const d = new Date(ms);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const days = Math.round((startOf(now) - startOf(at)) / 86_400_000);
+
+  // A record with a date in the future is a clock disagreeing, not a fact about tomorrow. Shown as
+  // its date rather than as "in 2 days", which would read as a promise.
+  if (days < 0) return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' }).format(new Date(at));
+  if (days === 0) {
+    const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+      .format(new Date(at));
+    return `Today ${time}`;
+  }
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return new Intl.DateTimeFormat('en-GB', { weekday: 'long' }).format(new Date(at));
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' }).format(new Date(at));
+}

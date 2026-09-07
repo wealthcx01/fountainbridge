@@ -49,7 +49,7 @@
 
 import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
-import { attestationFor } from './approval-attestation';
+import { attestationFor, refusalAttestationFor } from './approval-attestation';
 
 export type GrantProvenance = 'attested' | 'unattested' | 'none';
 
@@ -189,4 +189,50 @@ export function describeProvenance(grant: VerifiedGrant): { text: string; nextSt
     default:
       return { text: 'The studio cannot confirm this approval.', nextStep: 'Do not approve until Bruntsfield has looked at it.' };
   }
+}
+
+/**
+ * A refusal the studio can prove a human made (FB-183).
+ *
+ * Verified exactly as a grant is, and for the same reason: `refusal.json` lives on a ref the
+ * proposing lane can write, so an unsigned one must never be able to close a decision the founder
+ * never made. An unattested refusal is not a refusal — the approval stays waiting, which is the
+ * safe direction to fail in: the worst case is a founder asked twice, not a send stopped by
+ * something that was never a person.
+ */
+export interface ApprovalRefusal {
+  /** The person who refused it, lower-cased. Never null: an unverified refusal is not returned. */
+  refusedBy: string;
+  at: string | null;
+  /** Why. A refusal with no reason is a lane guessing, so the studio requires one. */
+  note: string;
+}
+
+export function verifyRefusal(
+  repo: string,
+  id: string,
+  proposalSha: string | null,
+  refusal: unknown,
+  secret: string | undefined,
+): ApprovalRefusal | null {
+  if (!refusal || typeof refusal !== 'object') return null;
+  const r = refusal as { refused_by?: unknown; attestation?: unknown; proposal_sha?: unknown; refused_at?: unknown; note?: unknown };
+
+  const by = typeof r.refused_by === 'string' ? r.refused_by.trim() : '';
+  const attestation = typeof r.attestation === 'string' ? r.attestation : '';
+  const pinned = typeof r.proposal_sha === 'string' ? r.proposal_sha : '';
+  const note = typeof r.note === 'string' ? r.note.trim() : '';
+
+  if (!secret || !by || !attestation || !proposalSha) return null;
+  // Pinned to the proposal the founder was reading, same as a grant. A refusal of one document must
+  // not close a different one that replaced it.
+  if (pinned !== proposalSha) return null;
+  const canonical = by.toLowerCase();
+  if (!equal(attestation, refusalAttestationFor(repo, id, proposalSha, canonical, secret))) return null;
+
+  return {
+    refusedBy: canonical,
+    at: typeof r.refused_at === 'string' && r.refused_at.trim() ? r.refused_at.trim() : null,
+    note,
+  };
 }

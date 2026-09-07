@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { panelState } from '@/lib/read-failures';
 import type { FeedItem } from '@/lib/activity-feed';
 import { toneColor } from '@/lib/status';
-import { onDate } from '@/lib/when';
+import { onDate, relativeDay } from '@/lib/when';
 
 /**
  * The record, as a founder reads it (FB-132).
@@ -38,15 +38,16 @@ export function ActivityFeed({ items, couldNotRead = false }: { items: FeedItem[
           data-testid="activity-item"
           data-tone={item.tone}
           data-source={item.source}
-          style={{
-            display: 'flex', gap: '0.75rem', alignItems: 'baseline',
-            padding: '0.55rem 0', borderTop: '1px solid var(--color-border)',
-          }}
+          className="activity-row"
         >
-          <span className="mono muted" style={{ flexShrink: 0, fontSize: 'var(--fs-meta)' }}>
-            {onDate(item.at) ?? ''}
+          {/* FB-180: the day, not the date. This screen's whole axis is recency and every row said
+              `2 September 2026`, including the ones from this morning — so a founder had to do
+              arithmetic to answer the only question the column exists to answer. The absolute date
+              is still here, in `title`, for anyone who needs to quote it. */}
+          <span className="mono muted activity-when" title={onDate(item.at) ?? undefined}>
+            {relativeDay(item.at) ?? ''}
           </span>
-          <span style={{ minWidth: 0 }}>
+          <span className="activity-said">
             <span aria-hidden="true" style={{ color: toneColor(item.tone) }}>● </span>
             <span className="sr-only">{TONE_LABEL[item.tone]}: </span>
             {item.href ? (
@@ -56,8 +57,13 @@ export function ActivityFeed({ items, couldNotRead = false }: { items: FeedItem[
             ) : (
               item.text
             )}
-            <span className="muted" style={{ display: 'block', fontSize: 'var(--fs-meta-lg)' }}>{item.meta}</span>
+            {/* One fact, said once, with how many times it was recorded. Never a second row. */}
+            {item.repeats && item.repeats > 1 ? (
+              <span className="muted" data-testid="activity-repeats"> · {item.repeats} times</span>
+            ) : null}
           </span>
+          {/* The surface and its department, right of the sentence as in the design. */}
+          <span className="muted activity-meta">{item.meta}</span>
         </li>
       ))}
     </ol>

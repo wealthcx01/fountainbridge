@@ -11,7 +11,7 @@ import type { ActiveGraphApproval } from '../approvals';
  */
 const approval = (over: Partial<ActiveGraphApproval> = {}): ActiveGraphApproval => ({
   id: 'a1', kind: 'activegraph', ventureId: 'arca', repo: 'arca-marketing',
-  status: 'executed', proposalSha: null, ticket: null, department: 'sell',
+  status: 'executed', proposalSha: null, refusal: null, ticket: null, department: 'sell',
   actionType: 'send', summary: 'September update to 41 signups',
   checks: [], amountMinor: null, priceUnreadable: false, currency: null,
   committedAt: '2026-09-01T09:00:00Z', budget: null, outcome: null,

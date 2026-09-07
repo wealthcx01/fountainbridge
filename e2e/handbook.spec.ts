@@ -105,3 +105,42 @@ test.describe('the handbook inside a venture (FB-134)', () => {
     await expect(page.getByTestId('handbook-index')).toHaveCount(0);
   });
 });
+
+/**
+ * FB-188 — a chapter does not take the page sideways on a phone.
+ *
+ * FB-153 found that `.ticket-body` was a class name with no rule behind it, so a ticket citing a
+ * long URL pushed the page sideways. It fixed that class. `.playbook-prose` was the identical case
+ * next door and was not looked at, and chapter one carries an ASCII diagram 644px wide in a 393px
+ * window. It shipped, and this scorecard recorded that "a chapter matches" — measured on a chapter
+ * that has no diagram in it.
+ *
+ * Every chapter, not one: the fault was in the one nobody sampled.
+ */
+test.describe('a chapter fits the phone it is read on (FB-188)', () => {
+  test('no chapter takes the page sideways', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.setViewportSize({ width: 393, height: 851 });
+    await page.goto('/venture/arca/handbook');
+    const slugs = await page.$$eval('a[href*="/handbook/"]', (els) =>
+      [...new Set(els.map((e) => e.getAttribute('href')).filter((h): h is string => Boolean(h)))]);
+    expect(slugs.length).toBeGreaterThan(0);
+    for (const slug of slugs) {
+      await page.goto(slug);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `${slug} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(0);
+    }
+  });
+
+  test('a wide diagram scrolls inside its own box rather than moving the page', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.setViewportSize({ width: 393, height: 851 });
+    await page.goto('/venture/arca/handbook/how-to-start');
+    const pre = page.locator('pre').first();
+    if (await pre.count()) {
+      await expect(pre).toHaveCSS('overflow-x', 'auto');
+      const fits = await pre.evaluate((e) => e.getBoundingClientRect().width <= document.documentElement.clientWidth);
+      expect(fits, 'the block itself is wider than the window').toBe(true);
+    }
+  });
+});

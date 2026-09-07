@@ -58,7 +58,7 @@ test('empty / not-provisioned repos render a clear state, not a crash', async ({
   await testLogin(page, 'john.gallagher@wealthcx.com');
   await page.goto('/venture/the-reset'); // its repos have no fixtures → empty lanes
   await expect(page.getByTestId('lane-thereset-platform')).toBeVisible();
-  await expect(page.getByTestId('lane-thereset-platform').getByTestId('lane-empty')).toBeVisible();
+  await expect(page.getByTestId('lane-empty-thereset-platform')).toBeVisible();
 });
 
 
@@ -92,7 +92,9 @@ test.describe('the loop is visible on the queue (FB-098)', () => {
     // The Tickets screen, not the desk. FB-178 took the board off the desk and this moved with it —
     // it is the founder's answer to "is anything happening to the thing I asked for", and it now
     // lives on the only list of tickets they have.
-    await page.goto('/venture/arca/tickets');
+    // `filter=all` explicitly: FB-185 made "Needs you" the default, and these are assertions about
+    // how any ticket renders, not about which ones the screen opens on.
+    await page.goto('/venture/arca/tickets?filter=all');
   });
 
   test('a worked ticket says so, and the ticket carries the way through', async ({ page }) => {
@@ -210,7 +212,9 @@ test.describe('an unnumbered ticket is flagged, not named (FB-097)', () => {
     // The Tickets screen, not the desk. The desk's board is gone (FB-178), and this rule had only
     // ever been applied THERE — so removing the board would have quietly reintroduced the defect
     // FB-097 exists to fix, on the screen that is now the only list of tickets a founder has.
-    await page.goto('/venture/arca/tickets');
+    // `filter=all` explicitly: an unnumbered ticket is not necessarily waiting on the founder, and
+    // FB-185 made "Needs you" what the screen opens on.
+    await page.goto('/venture/arca/tickets?filter=all');
   });
 
   test('the list says "unnumbered" instead of pretending -NEW is a name', async ({ page }) => {
@@ -248,13 +252,23 @@ test.describe('a surface is the door to its queue (FB-109)', () => {
 
   test('the lane leads with the surface’s name, with the repo demoted to an aside', async ({ page }) => {
     // A founder had to already know that "Build — Product" IS `arca`.
+    //
+    // FB-186 merged the surface's card and its queue into one block, so the repository sits on the
+    // line under the heading rather than inside it. The rule is unchanged and is what is asserted:
+    // the NAME leads, and the repository is an aside beneath it, not the other way round.
     const lane = page.getByTestId('lane-arca');
     await expect(lane.locator('h3')).toContainText('Build — Product');
-    await expect(lane.locator('h3')).toContainText('arca');
+    await expect(lane.locator('h3'), 'the repo is leading again').not.toContainText('arca-');
+    await expect(lane).toContainText('arca');
   });
 
   test('the card says what its queue is worth before it is clicked', async ({ page }) => {
-    await expect(page.getByTestId('dept-build-queue')).toContainText('waiting for your OK');
+    // FB-109's point, carried by the outcome sentence since FB-186 removed the queue breakdown that
+    // restated the banner. A founder can still see how much is in a surface, and what it produced,
+    // without pressing anything.
+    const card = page.getByTestId('dept-build');
+    await expect(card.getByTestId('dept-build-outcome')).toContainText(/\d+ tickets?/);
+    await expect(card.getByTestId('lane-open-arca')).toBeVisible();
   });
 
   test('selecting a surface brings its queue forward and quiets the others', async ({ page }) => {

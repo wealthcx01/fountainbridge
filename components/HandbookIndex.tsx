@@ -44,7 +44,7 @@ export function HandbookIndex({
 
       <hr className="hr" />
 
-      <div className="grid-3" data-testid="handbook-grid">
+      <div className="handbook-grid" data-testid="handbook-grid">
         {chapters.map((c) => (
           <Link key={c.slug} href={`${base}/${c.slug}`} className="card card-link" data-testid={`hb-${c.slug}`}>
             <span className="eyebrow-id mono" style={{ fontSize: 'var(--fs-meta)' }}>Chapter {c.order}</span>

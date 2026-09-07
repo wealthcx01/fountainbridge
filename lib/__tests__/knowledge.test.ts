@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
+
 import {
-  placeOf, titleOf, toDoc, byArea, describeSize, AREA_LABEL,
-  whoAdded, originOf, describeOrigin, orderRows, memorySummary, docKey,
-  type DocCommit, type KnowledgeRow,
+  placeOf, titleOf, toDoc, byArea, describeSize, AREA_LABEL, whoAdded, originOf, describeOrigin, orderRows, memorySummary, docKey, type DocCommit, type KnowledgeRow, isScaffolding, surfaceFor,
 } from '../knowledge';
 import { onDate } from '../when';
 
@@ -211,5 +210,81 @@ describe('the sentence over the table', () => {
 
   it('says nothing has been handed over rather than "0 documents"', () => {
     expect(memorySummary([])).toBe('Nothing handed over yet.');
+  });
+});
+
+/**
+ * FB-181: Memory listed repository scaffolding as founder knowledge, and an org login as a person.
+ *
+ * A fixture for each of the three, as the ticket asks: a README, a title shared across two
+ * repositories, and a document authored by the organisation.
+ */
+describe('what belongs on the Memory screen (FB-181)', () => {
+  it('a directory readme is not a document a founder handed over', () => {
+    // Six of ARCA's eleven rows were these, on a screen that says "everything you have handed over".
+    expect(isScaffolding('context/README.md')).toBe(true);
+    expect(isScaffolding('library/README.md')).toBe(true);
+    expect(isScaffolding('library/readme.md')).toBe(true);
+    expect(toDoc('context/README.md', '# Context', 581)).toBeNull();
+    expect(toDoc('library/README.md', '# Library', 363)).toBeNull();
+  });
+
+  it('a readme a founder actually wrote about something is still knowledge', () => {
+    // Only the directory's own readme. A document that happens to be called README inside a
+    // department is a document, and dropping it would be the opposite mistake.
+    expect(isScaffolding('context/build/README.md')).toBe(false);
+    expect(toDoc('context/build/README.md', '# How we price', 900)).not.toBeNull();
+  });
+
+  it('two documents sharing a title stay distinguishable by their repository', () => {
+    // `context/README.md` existed in three repos and the rows differed only by their byte count.
+    // The key has always known; the screen is what did not show it.
+    const a = { repo: 'arca', doc: { path: 'context/general/notes.md' } } as never;
+    const b = { repo: 'arca-ops', doc: { path: 'context/general/notes.md' } } as never;
+    expect(docKey(a)).not.toBe(docKey(b));
+  });
+
+  it('the organisation is not a person in the From column', () => {
+    const byOrg = { messageHeadline: 'add the corpus', authorName: 'wealthcx01' };
+    // Without the org it is a plain author name and the studio has no way to know better.
+    expect(whoAdded(byOrg)).toBe('wealthcx01');
+    // With it, the comparison fires and the column says what it says for anything unattributable.
+    expect(whoAdded(byOrg, 'wealthcx01')).toBe('Your team');
+    expect(whoAdded(byOrg, 'WealthCX01')).toBe('Your team');
+    // A real person is untouched.
+    expect(whoAdded({ messageHeadline: 'add', authorName: 'John Gallagher' }, 'wealthcx01')).toBe('John Gallagher');
+  });
+
+  it('the org check never overrides what the studio actually knows', () => {
+    // A deposit the studio or the composer made is attributed by its commit prefix, whoever the
+    // GitHub author happens to be.
+    expect(whoAdded({ messageHeadline: 'knowledge: prices.pdf', authorName: 'wealthcx01' }, 'wealthcx01')).toBe('You');
+    expect(whoAdded({ messageHeadline: 'context: Brand', authorName: 'wealthcx01' }, 'wealthcx01')).toBe('Your composer');
+  });
+});
+
+/**
+ * FB-181, found by looking at the screen after the first fix.
+ *
+ * Keying the surface off the repository relabelled `context/sell/brand-positioning.md` as
+ * "Build — Product", because it is a Sell document kept in the `arca` repo. That replaced something
+ * true with something false, on the screen whose whole complaint was rows that mislead. The rule is
+ * pinned here so the shortcut cannot come back.
+ */
+describe('which surface a document belongs to (FB-181)', () => {
+  const NAMES = { build: 'Build — Product', sell: 'Sell — Go-to-market' };
+  const REPOS = { arca: 'Build — Product', 'arca-ops': 'Scale — Growth & Ops' };
+
+  it('the path wins: a Sell document kept in the product repo is a Sell document', () => {
+    expect(surfaceFor('sell', 'arca', NAMES, REPOS)).toBe('Sell — Go-to-market');
+  });
+
+  it('the repository is the fallback, for a document filed under no department', () => {
+    expect(surfaceFor('general', 'arca-ops', NAMES, REPOS)).toBe('Scale — Growth & Ops');
+  });
+
+  it('a venture that declares no departments reads exactly as it did before', () => {
+    expect(surfaceFor('sell', 'arca')).toBe('sell');
+    expect(surfaceFor('general', 'arca')).toBe('general');
   });
 });

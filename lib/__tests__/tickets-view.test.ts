@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   FILTER_LABEL, countTickets, decisionOrder, decisionPosition, filterTickets, nextDecision,
-  parseFilter, rowKey, ticketsSummary, type TicketRow,
+  DEFAULT_FILTER, parseFilter, rowKey, ticketsSummary, type TicketRow,
 } from '../tickets-view';
 import type { TicketStatusGroup } from '../tickets';
 
@@ -93,9 +93,28 @@ describe('which tickets a filter contains', () => {
   it('reads a filter out of a URL, and shrugs at a typo', () => {
     expect(parseFilter('needs')).toBe('needs');
     expect(parseFilter('settled')).toBe('settled');
-    expect(parseFilter('nonsense')).toBe('all');
-    expect(parseFilter(undefined)).toBe('all');
+    expect(parseFilter('all')).toBe('all');
     expect(FILTER_LABEL.needs).toBe('Needs you');
+  });
+
+  /**
+   * FB-185: the default is a decision, so it is pinned.
+   *
+   * Tickets opened on `All` — every ticket the venture ever had, 80 of them on ARCA, 37 finished —
+   * against a design that opens on `Needs you`. Changing this back should have to argue with a test
+   * rather than pass quietly.
+   */
+  it('opens on what needs the founder, not on everything that ever happened', () => {
+    expect(DEFAULT_FILTER).toBe('needs');
+    expect(parseFilter(undefined)).toBe('needs');
+    expect(parseFilter('')).toBe('needs');
+    expect(parseFilter('nonsense')).toBe('needs');
+  });
+
+  it('the default filter shows only what is waiting on the founder', () => {
+    // The whole point of the default: it must not be a synonym for "all".
+    expect(filterTickets(rows, DEFAULT_FILTER)).toEqual(filterTickets(rows, 'needs'));
+    expect(filterTickets(rows, DEFAULT_FILTER).length).toBeLessThan(rows.length);
   });
 });
 

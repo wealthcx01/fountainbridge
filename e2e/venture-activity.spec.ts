@@ -117,3 +117,40 @@ test.describe('what happened streams (FB-158)', () => {
     await expect(page.getByTestId('activity-scope')).toHaveCount(1);
   });
 });
+
+/**
+ * FB-180 — the record reads as an account of the venture, not as a commit log.
+ *
+ * Asserted on the RENDERED rows, because that is where the audit found it: the composition is
+ * pinned by unit tests, and this is the half that proves what a founder actually sees. `copy-lint`
+ * passes over every one of these faults, since the strings are data a lane wrote, not source.
+ */
+test.describe('the record is written for the founder (FB-180)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca/activity');
+    await expect(page.getByTestId('activity-feed')).toBeVisible();
+  });
+
+  test('no row carries a slug, a pull request number or the word lane', async ({ page }) => {
+    const rows = await page.getByTestId('activity-item').allInnerTexts();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).not.toMatch(/-[0-9]{3}-|\(#\d+\)|Foundry lane/);
+    }
+  });
+
+  test('no two rows in a row say the same thing', async ({ page }) => {
+    const rows = await page.getByTestId('activity-item').allInnerTexts();
+    for (let i = 1; i < rows.length; i += 1) {
+      expect(rows[i]).not.toBe(rows[i - 1]);
+    }
+  });
+
+  test('the day is relative, and the date it stands for is still there to read', async ({ page }) => {
+    const when = page.getByTestId('activity-item').first().locator('.activity-when');
+    await expect(when).toHaveText(/Today|Yesterday|day$|\d/);
+    // The absolute date has not been thrown away — it is on the element for anyone who needs it.
+    await expect(when).toHaveAttribute('title', /\d{4}/);
+  });
+});

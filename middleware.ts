@@ -31,6 +31,20 @@ export const config = {
     //
     // Anchored per file, like `api/health$` above it — a prefix here would open anything that merely
     // began with the same letters.
-    '/((?!api/auth/|api/health$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|_next/static|_next/image|favicon.ico).*)',
+    //
+    // FB-163: `venture/<id>/office` is excluded, and it is the only exclusion here that is NOT
+    // public.
+    //
+    // The office is embedded in a frame sandboxed WITHOUT `allow-same-origin`, because pixel-agents'
+    // bundle is upstream code and code in the studio's own origin could call the studio's own server
+    // actions — including the one that approves an external send. An opaque origin sends no cookie,
+    // so the middleware would bounce every file the frame asks for to /login, which is exactly what
+    // it did before this line existed.
+    //
+    // So the route handler does the gate instead, and does it on every request: a short-lived signed
+    // token naming this venture, or a session that passes `canAccessVenture`. Nothing is open here —
+    // the check moved, it did not go away. `app/venture/[id]/office/[[...path]]/route.ts` is where
+    // it lives, and it is the first thing in the file.
+    '/((?!api/auth/|api/health$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
   ],
 };

@@ -44,6 +44,14 @@ export interface ActivitySummaryInput {
    * Omitted or empty means the third sentence is not written at all, rather than guessed.
    */
   openAreas?: readonly string[];
+  /**
+   * The caller is printing the list of events directly beneath this summary (FB-180).
+   *
+   * When it is, "Most recently: A, B and C" names the first three rows a reader is about to read,
+   * and the design's summary is the counts sentence on its own. Defaults to false so every existing
+   * caller keeps the sentence it already had.
+   */
+  withoutList?: boolean;
 }
 
 export interface ActivitySummary {
@@ -170,7 +178,11 @@ export function composeActivitySummary(input: ActivitySummaryInput): ActivitySum
   const counts = tally(input.events);
   const sentences = [
     aggregateSentence(counts, input.windowDays),
-    recentSentence(input.events),
+    // FB-180: "Most recently: A, B and C" names the three things that ARE the first three rows,
+    // when the caller is about to print those rows underneath it. On a screen whose whole job is
+    // the list, that is the same fact twice — and the design's summary is the counts sentence
+    // alone. Kept for callers that summarise WITHOUT the list, which is what it was written for.
+    input.withoutList ? null : recentSentence(input.events),
     directionSentence(input.openAreas),
   ].filter((s): s is string => s !== null);
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { dedupeActivity } from '../activity-kind';
 import { buildFeed as build, type FeedInput } from '../activity-feed';
 
 /** The items alone, for the assertions that are about the list rather than the cap. */
@@ -69,7 +70,10 @@ describe('a founder can see their own decisions', () => {
     expect(feed).toHaveLength(1);
     expect(feed[0].text).toBe('john.gallagher@wealthcx.com approved: the launch announcement');
     expect(feed[0].source).toBe('decision');
-    expect(feed[0].meta).toContain('a decision');
+    // FB-180: the meta column is the surface, and only the surface. That a row IS a decision is
+    // said by the sentence, which names who decided, and carried in `source` for the markup — the
+    // column repeating it cost the width that was wrapping most rows onto a second line.
+    expect(feed[0].meta).not.toMatch(/\barca\b/);
   });
 
   it('shows a refusal, named, and in the colour the rest of the studio uses for one', () => {
@@ -174,7 +178,13 @@ describe('one record, newest first', () => {
   });
 
   it('renders at most what it was asked for', () => {
-    const many = Array.from({ length: 50 }, (_, i) => run({ startedAt: `2026-08-${String(i % 28 + 1).padStart(2, '0')}T10:00:00.000Z` }));
+    // Distinct tickets, or FB-180's `collapseRepeats` folds all fifty into one row — which is
+    // correct, and would leave this test asserting nothing about the cap. The ticket, not the
+    // summary: `opened-pr` composes its sentence from the ticket and ignores `summaryMd`.
+    const many = Array.from({ length: 50 }, (_, i) => run({
+      startedAt: `2026-08-${String(i % 28 + 1).padStart(2, '0')}T10:00:00.000Z`,
+      ticketsTouched: [`ARCA-${i}`],
+    }));
     const capped = build(input({ runs: many, limit: 12 }));
     expect(capped.items).toHaveLength(12);
     expect(capped.truncated).toBe(true);
@@ -195,5 +205,80 @@ describe('one record, newest first', () => {
   it('never renders a link it cannot form', () => {
     const feed = buildFeed(input({ activity: [event({ url: '' })], runs: [run({ prUrl: null })] }));
     for (const f of feed) expect(f.href ?? null).not.toBe('');
+  });
+});
+
+/**
+ * FB-180: the record was a commit log, not an account of what happened.
+ *
+ * The audit found the first twenty of forty rows saying the same sentence, slugs where titles
+ * belong, commit messages and pull request titles shown to a founder unedited, one piece of work
+ * appearing twice, absolute dates on the screen whose axis is recency, and a meta column naming the
+ * repository. Each is pinned here, because `copy-lint` cannot see any of it: these strings are data,
+ * not source.
+ */
+describe('the record reads as an account of the venture (FB-180)', () => {
+  const parked = (startedAt: string) => run({
+    startedAt,
+    outcome: 'blocked',
+    errorDetail: 'Daily your team budget reached — parked until tomorrow.',
+    ticketsTouched: ['ARCA-061-saved-card-lists-not-persisting'],
+    prUrl: null,
+  });
+
+  it('says a repeated fact once, with how many times it was recorded', () => {
+    // A lane at its daily budget re-parks every five minutes and each wake writes a record.
+    const runs = Array.from({ length: 20 }, (_, i) =>
+      parked(`2026-09-02T${String(10 + Math.floor(i / 12)).padStart(2, '0')}:${String((i * 5) % 60).padStart(2, '0')}:00.000Z`));
+    const feed = buildFeed(input({ runs }));
+    expect(feed).toHaveLength(1);
+    expect(feed[0].repeats).toBe(20);
+  });
+
+  it('never prints a slug, a pull request number, a branch prefix or the word lane', () => {
+    const feed = buildFeed(input({
+      runs: [parked('2026-09-02T10:00:00.000Z')],
+      activity: [
+        event({ title: 'build: ARCA-062-arca-brand-redesign (Foundry lane)', at: '2026-08-27T10:00:00.000Z' }),
+        event({ title: 'ARCA: ARCA-064-card-price-last-updated (worked by the Foundry lane) (#81)', at: '2026-08-27T09:00:00.000Z' }),
+      ],
+    }));
+    expect(feed.length).toBeGreaterThan(0);
+    for (const item of feed) {
+      expect(item.text).not.toMatch(/-[0-9]{3}-|\(#\d+\)|Foundry lane/);
+    }
+  });
+
+  it('turns a slug into the reference the design uses', () => {
+    const feed = buildFeed(input({ runs: [parked('2026-09-02T10:00:00.000Z')] }));
+    expect(feed[0].text).toContain('ARCA-061, saved card lists not persisting');
+  });
+
+  it('folds a push and its pull request into one row', () => {
+    // Two records, different words, one piece of work — told apart only by the ticket both name.
+    const deduped = dedupeActivity([
+      event({ kind: 'commit', title: 'build: ARCA-062-arca-brand-redesign (Foundry lane)', at: '2026-08-27T10:00:00.000Z' }),
+      event({ kind: 'pr-merged', title: 'ARCA: ARCA-062-arca-brand-redesign (worked by the Foundry lane) (#80)', at: '2026-08-27T10:02:00.000Z' }),
+    ]);
+    expect(deduped).toHaveLength(1);
+  });
+
+  it('names the surface and its department, never the repository', () => {
+    const feed = buildFeed(input({
+      runs: [parked('2026-09-02T10:00:00.000Z')],
+      surfaces: { arca: 'Build — Product' },
+      ventureName: 'ARCA',
+    }));
+    expect(feed[0].meta).toContain('Build — Product');
+    expect(feed[0].meta).not.toMatch(/\barca\b/);
+  });
+
+  it('falls back to the venture, never to the repository, when no department claims it', () => {
+    const feed = buildFeed(input({
+      runs: [parked('2026-09-02T10:00:00.000Z')],
+      surfaces: {},
+      ventureName: 'ARCA',
+    }));
+    expect(feed[0].meta).toContain('ARCA');
   });
 });

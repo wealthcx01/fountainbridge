@@ -22,6 +22,8 @@
  * an event the studio cannot classify is shown as the plain fact it is, never as shipped work.
  */
 
+import { ticketRefIn } from './founder-sentence';
+
 export type ActivityMeaning = 'ticket-filed' | 'work-shipped' | 'knowledge-added' | 'plumbing' | 'unknown';
 
 /** Anything under here is the studio's own housekeeping, not the venture's product. */
@@ -88,17 +90,33 @@ export function dedupeActivity<T extends { kind: string; title: string; at: stri
   const PAIR_WINDOW_MS = 10 * 60_000;
   const kept: T[] = [];
   for (const e of events) {
-    const twin = kept.find(
-      (k) =>
-        normaliseTitle(k.title) === normaliseTitle(e.title) &&
-        Math.abs(Date.parse(k.at) - Date.parse(e.at)) <= PAIR_WINDOW_MS,
-    );
+    const twin = kept.find((k) => sameEvent(k, e) && Math.abs(Date.parse(k.at) - Date.parse(e.at)) <= PAIR_WINDOW_MS);
     // The merge is the human event; the commit is its shadow. Whichever arrived first stays unless
     // the newcomer is the merge, in which case it replaces the shadow.
     if (!twin) kept.push(e);
     else if (twin.kind === 'commit' && e.kind === 'pr-merged') kept[kept.indexOf(twin)] = e;
   }
   return kept;
+}
+
+/**
+ * Two records of one piece of work.
+ *
+ * Matching on the words alone was not enough (FB-180). A push and the pull request it opened are
+ * written by different hands and say different things about the same ticket:
+ *
+ *     build: ARCA-062-arca-brand-redesign (Foundry lane)
+ *     ARCA: ARCA-062-arca-brand-redesign (worked by the Foundry lane) (#80)
+ *
+ * A founder reading those reads two things happening. They are one, and the thing that says so is
+ * the ticket both of them name — so when both name a ticket, that is the identity. Falling back to
+ * the words keeps the merge/commit pair this function was written for, whose titles do match.
+ */
+function sameEvent(a: { title: string }, b: { title: string }): boolean {
+  const ta = ticketRefIn(a.title);
+  const tb = ticketRefIn(b.title);
+  if (ta && tb) return ta.toLowerCase() === tb.toLowerCase();
+  return normaliseTitle(a.title) === normaliseTitle(b.title);
 }
 
 /** A merge commit repeats the PR's own title, sometimes with git's wrapping around it. */

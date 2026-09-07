@@ -187,6 +187,12 @@ export default async function TicketsPage({
       // The RESOLVED key, not the raw query. The client used to resolve it again with different
       // fallbacks, so the trail loaded here could belong to a different ticket than the one rendered.
       selectedId={selected ? rowKey(selected) : null}
+      // FB-185: did the founder OPEN a ticket, or is the screen just showing the first row?
+      //
+      // `selectedId` cannot answer that — it falls back to the first row of the filter, so it is
+      // non-null almost always. On a phone the two cases want opposite layouts: the list when
+      // nobody has opened anything, the ticket when somebody has. Only the URL knows which.
+      opened={typeof t === 'string' && t.length > 0}
       // FB-130: STREAMED, not awaited.
       //
       // Blocking the page on it took the tickets screen from usable to **23 seconds** on ARCA's real

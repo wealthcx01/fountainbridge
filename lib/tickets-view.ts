@@ -111,9 +111,32 @@ export const rowKey = (r: Pick<TicketRow, 'repo' | 'id'>): string => `${r.repo}/
 export const TICKET_FILTERS = ['needs', 'all', 'underway', 'settled'] as const;
 export type TicketFilter = (typeof TICKET_FILTERS)[number];
 
-/** The URL's filter, or the default. Never throws: a bookmark with a typo shows the whole list. */
+/**
+ * What Tickets shows when nobody has chosen a filter (FB-185).
+ *
+ * **"Needs you", not "All"** — and this is a decision, not a default that nobody set.
+ *
+ * The design's Tickets is a filtered list: it opens on `Needs you (3)` and the other three tabs sit
+ * beside it. Ours opened on `All`, which on ARCA's real backlog is 80 tickets, 37 of them finished.
+ * That made this the least design-conformant screen in the studio — 7,123px against a design of
+ * 1,090px — and FB-178 had just made it the screen a founder uses for the whole queue, because the
+ * desk's board was removed on the grounds that Tickets is where the queue lives.
+ *
+ * A founder opening Tickets is asking "what needs me?". Answering with everything that ever
+ * happened is not a smaller version of that answer; it is a different one.
+ *
+ * Nothing is hidden: the four tabs are unchanged and every finished ticket is one press away under
+ * "Done and stopped". The counts beside each tab are of the whole backlog either way, so the screen
+ * still says how much there is.
+ */
+export const DEFAULT_FILTER: TicketFilter = 'needs';
+
+/**
+ * The URL's filter, or the default. Never throws: a bookmark with a typo gets the default rather
+ * than an error, which is the same thing a founder arriving with no filter at all gets.
+ */
 export function parseFilter(raw: unknown): TicketFilter {
-  return TICKET_FILTERS.includes(raw as TicketFilter) ? (raw as TicketFilter) : 'all';
+  return TICKET_FILTERS.includes(raw as TicketFilter) ? (raw as TicketFilter) : DEFAULT_FILTER;
 }
 
 /** What a founder calls each filter. One owner for these words. */

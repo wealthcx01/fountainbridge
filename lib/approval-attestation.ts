@@ -79,3 +79,24 @@ export function canApprove(
       return false;
   }
 }
+
+/**
+ * The signature over a REFUSAL (FB-183).
+ *
+ * A separate formula from `attestationFor`, and separated by a literal `refused` in the signed
+ * string rather than by convention. If the two shared a formula, a signed refusal and a signed
+ * grant over the same proposal would be byte-identical — so a refusal file could be renamed to
+ * `grant.json` and would verify as an approval to send. The word in the string is what stops one
+ * decision being replayed as the other.
+ */
+export function refusalAttestationFor(
+  repo: string,
+  id: string,
+  proposalSha: string,
+  approver: string,
+  secret: string,
+): string {
+  return createHmac('sha256', secret)
+    .update(`${repo}|${id}|${proposalSha}|refused|${approver.trim().toLowerCase()}`)
+    .digest('hex');
+}

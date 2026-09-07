@@ -1,6 +1,18 @@
 # FB-175 — the studio, checked screen by screen against its own design
 
-**Status:** Open · **Phase:** 3 · **Raised by:** John, 2026-09-02
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-02
+
+> **Done:** the audit itself. Nine screens rendered on both sides in a real browser, at desktop and
+> phone, and looked at. The scorecard is `docs/design-conformance.md` and can be re-run.
+>
+> **Filed from it:** FB-178 (the desk, since fixed), FB-180 (What happened), FB-181 (Memory),
+> FB-185 (Tickets, now the worst screen at 6–8× its design), and updated numbers on FB-160 (the
+> pocket studio).
+>
+> **Matching, leave alone:** the Composer, a Handbook chapter, and the Handbook on desktop.
+>
+> **Not done:** Sign in was never compared — the one screen a founder sees before they trust
+> anything. And the Handbook is 1,782px on a phone against 1,096px on desktop, which is unexplained.
 
 ## Why
 

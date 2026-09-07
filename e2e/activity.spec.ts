@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testLogin } from './helpers';
+import { inTopDownOrder, testLogin } from './helpers';
 
 // FB-008: CI health strips, activity feed, and the staleness flag (on /activity and the board).
 // Runs against fixture health data (HEALTH_FIXTURE_DIR).
@@ -66,11 +66,11 @@ test('the administration is not deleted, it is shown to Bruntsfield (FB-080)', a
   // read their own company's news.
   await testLogin(page, 'john.gallagher@wealthcx.com');
   await page.goto('/activity');
-  await expect(page.getByText('Repository health')).toBeVisible();
   // And still below the news, not in front of it.
-  const news = await page.getByRole('heading', { name: 'Last 14 days' }).boundingBox();
-  const admin = await page.getByText('Repository health').boundingBox();
-  expect(admin!.y).toBeGreaterThan(news!.y);
+  await inTopDownOrder([
+    ['the news', page.getByRole('heading', { name: 'Last 14 days' })],
+    ['repository health', page.getByText('Repository health')],
+  ]);
 });
 
 /**

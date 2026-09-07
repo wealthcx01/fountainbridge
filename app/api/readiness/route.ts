@@ -21,6 +21,7 @@ import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { readiness, keyEnvName } from '@/lib/readiness';
 import { githubBudget, githubBlockedUntil } from '@/lib/github';
 import { composerEndpoint, engineFault } from '@/lib/composer';
+import { probeRecordWritable } from '@/lib/activegraph-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,18 +110,30 @@ export async function GET(req: Request) {
     return Response.json({ ...report, budget }, { status: report.ok ? 200 : 503 });
   }
 
-  const probed = await Promise.all(
-    report.ventures.map(async (v) => {
-      if (!v.host || !v.keySet) return { ...v, probe: null };
-      const probe = await probeBox(v.host, process.env[keyEnvName(v.id)] ?? '');
-      return {
-        ...v,
-        probe,
-        ready: v.ready && probe.reachable,
-        problem: probe.reachable ? v.problem : `${v.id}: ${probe.detail}`,
-      };
-    }),
-  );
-  const ok = probed.every((v) => v.ready);
-  return Response.json({ ok, ventures: probed, budget }, { status: ok ? 200 : 503 });
+  const [probed, record] = await Promise.all([
+    Promise.all(
+      report.ventures.map(async (v) => {
+        if (!v.host || !v.keySet) return { ...v, probe: null };
+        const probe = await probeBox(v.host, process.env[keyEnvName(v.id)] ?? '');
+        return {
+          ...v,
+          probe,
+          ready: v.ready && probe.reachable,
+          problem: probe.reachable ? v.problem : `${v.id}: ${probe.detail}`,
+        };
+      }),
+    ),
+    // FB-187: can the studio still write its own record of who agreed to what?
+    //
+    // Under `?probe=1` for the reason the box probe is: this is the check that catches a credential
+    // that is SET but no longer permitted, and only a real write can catch it. The token this was
+    // written about reported `permissions.push: true` while every write returned 403.
+    //
+    // It counts towards `ok`, so a studio that cannot keep its history reports 503 rather than
+    // reporting itself ready. Before this, the only sign was a sentence shown to the founder at the
+    // moment they decided — after the decision was already made.
+    probeRecordWritable(process.env.STUDIO_APPROVAL_GITHUB_TOKEN),
+  ]);
+  const ok = probed.every((v) => v.ready) && record.ok;
+  return Response.json({ ok, ventures: probed, record, budget }, { status: ok ? 200 : 503 });
 }

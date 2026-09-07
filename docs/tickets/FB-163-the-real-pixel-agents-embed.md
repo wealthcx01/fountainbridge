@@ -50,7 +50,7 @@ The design's own words: *"Each character is 1 agent on Arca's machine; a raised 
 you. The studio embeds it read-only."* Read-only is in the requirement, and item 2 is how it is met.
 
 
-**Status:** Todo · **Area:** Venture box + studio · **Depends on:** FB-139
+**Status:** Shipped in part · **Area:** Venture box + studio · **Depends on:** FB-139
 **Design:** `docs/design/foundry-desk/` — screen 3, "The office"; `README.md`: *"No raster assets. The
 pixel-office is a placeholder drawing; the real plate is the **pixel-agents embed** (G6)."*
 **Upstream:** https://github.com/pixel-agents-hq/pixel-agents — MIT, TypeScript, ~9.2k stars.
@@ -188,19 +188,136 @@ live and honest.
 
 ## Acceptance criteria
 
-- [x] `pixel-agents` runs on the ARCA box, bound to localhost. Proven, then removed — there is no
-      service until the proxy question above is settled, because a service with nothing reading it is
-      a process to forget about.
+- [x] `pixel-agents` runs on the ARCA box, bound to localhost. **A pinned install and a systemd
+      service now, not a probe** — `foundry-office.service`, watching the Build lane.
 - [x] The `--no-terminal` requirement is **withdrawn**: the flag does not exist and standalone has no
       terminal to disable.
 - [x] A real Claude session appears as a character, in **heuristic mode with no hooks installed**.
       Proven in a scratch workspace rather than a lane's, so nothing about the lane was disturbed.
 - [ ] The *lane's own* sessions appear. Not observable today: ARCA's lane is parked at its daily
       budget and starts no Claude session.
-- [ ] The studio embeds it read-only through a server-side proxy. **Blocked on a decision** — Next's
-      App Router cannot proxy a WebSocket. See "So what should be built".
-- [ ] No token, host or port of the box reaches the browser.
-- [ ] A venture with no embed shows FB-139's plate, still saying what it knows.
-- [ ] The ledger is unchanged and still readable without the picture.
+- [ ] The studio embeds it read-only through a server-side proxy. **Built, and not switched on.**
+      The proxy carries real frames to a plain client; pixel-agents' own client will not hold the
+      socket through it, and the custom server destabilises the test suite. Both written up above.
+- [x] No token, host or port of the box reaches the browser. The page carries a signed token naming
+      one venture and nothing else; tested.
+- [x] A venture with no embed shows FB-139's plate, still saying what it knows. Verified with the
+      office unset: plate present, embed absent, desk 2,395px — unchanged.
+- [x] The ledger is unchanged and still readable without the picture.
 - [ ] Proven on the ARCA box before the PR: a wake starts, a character moves, a hand goes up when it
-      waits.
+      waits. **The room renders against the box directly** — canvas, floor, walls, furniture — but not
+      yet through the studio, and the lane is parked for most of the day either way.
+
+---
+
+## 2026-09-04 — the blocker was half a blocker, and the box half is done
+
+### The studio CAN proxy a WebSocket
+
+Section 3 above says it cannot, because "Next's App Router route handlers do not support a WebSocket
+upgrade, and Railway runs `next start`". The first half is true. **The second half was our own
+`railway.json`, not a constraint** — Railway runs whatever the start command says.
+
+So the studio holds the upgrade itself, in `server.js`, and there is no second service.
+
+The usual objection to a custom server is losing Automatic Static Optimization. There is nothing to
+lose: `next build` reports **one** static route in this app (the web manifest) and every other one is
+server-rendered on demand. Checked, not assumed.
+
+### What is on the ARCA box now, and it is proven
+
+- `pixel-agents@1.4.1`, pinned under `/opt/foundry/office`, run by `foundry-office.service` from
+  `/opt/foundry/lane/arca` — the working directory is what selects the watched lane.
+- Bound to `127.0.0.1:4310`. Nothing reaches it except Caddy.
+- Caddy serves it at **`chat.arca.bruntsfield.capital/office`** — a path on the hostname the composer
+  already uses, so no DNS record and no second certificate. There is no wildcard record on
+  `*.arca.bruntsfield.capital`, so a new subdomain would have needed a DNS change anyway.
+- The path is refused without the studio's shared secret: **403 without it, 200 with it**, checked
+  from off the box. The founder's composer on the same hostname still answers 200.
+
+### What is in the studio, and what it does
+
+- `server.js` — the upgrade handler, the token check, and the message filter.
+- `lib/office-embed.ts` — a short-lived signed token naming one venture. It carries no host, no port
+  and no credential, and it is minted only after `canAccessVenture` has passed.
+- `app/venture/[id]/office/[[...path]]/route.ts` — the app's own files, proxied.
+- `components/OfficeEmbed.tsx` — the frame, with FB-139's plate as the fallback.
+
+**Read-only is a filter, not a setting**, for the reason section 4 gives: the box accepts `closeAgent`
+from any connection. The studio forwards exactly one message from browser to box — `webviewReady` —
+and drops everything else. Tested against the message names that would change the office.
+
+**The frame is sandboxed without `allow-same-origin`.** pixel-agents' bundle is upstream code, and
+code in the studio's own origin could call the studio's own server actions, including the one that
+approves an external send. The cost is that the frame's fetches carry no cookie, which is why the
+token authorises them and why `venture/<id>/office` is the one path excluded from the auth
+middleware — the check moved into the route, it did not go away.
+
+### Proven, and not proven
+
+**Proven:** a plain WebSocket client, through the studio, receives real frames from the box —
+`providerCapabilities`, `characterSpritesLoaded`, `petSpritesLoaded`. The proxy carries the office.
+
+**Not proven:** pixel-agents' *own* client does not stay connected through the studio. Its socket
+closes about five milliseconds after it sends `webviewReady`, with no error, and it reconnects for
+ever. The same app against the same box **directly** renders the room and its furniture perfectly.
+
+What has been ruled out, each by experiment:
+
+| ruled out | how |
+| --- | --- |
+| the box | direct connection opens in ~20ms and streams frames, repeatedly |
+| the upstream socket | the app fails the same way with the upstream removed entirely |
+| the `<base>` injection | removed; no change |
+| the sandbox / iframe | fails identically on the page loaded top-level |
+| my `ws` handling | a hand-written socket on the same page, same server, held for 7s and sent fine |
+| the handshake | the studio's 101 is byte-identical to the box's, extensions and all |
+| a stale token | reproduced with freshly minted tokens |
+
+So it is something about that specific client against this specific proxy, and it is not any of the
+obvious things. **The next person should start by capturing the frames on both sides** — the box's
+socket and the browser's — and diffing the first exchange, rather than re-deriving the list above.
+
+### The custom server is written, and is NOT switched on
+
+`server.js` exists and works — a plain WebSocket client reaches the box through it and receives real
+frames. It is not the start command, and `package.json` still says `next start`.
+
+Two reasons, both found by running the gate against it rather than by reasoning about it:
+
+1. **`next start` was doing error handling that a bare `createServer` does not.** A client that walks
+   away mid-request — a closed tab, a cancelled prefetch — emits `error` on the request stream, and
+   an unheard `error` on a stream is an uncaught exception. The suite reported
+   `uncaughtException: [Error: aborted] { code: 'ECONNRESET' }` and 49 tests failed behind it.
+   Handling `req`/`res` errors and `clientError` improved it and did not settle it: the next run was
+   58 failures. **Something else about running our own server still destabilises the suite, and it
+   has not been found.**
+2. The app does not hold its socket through the proxy anyway (below), so switching the studio's boot
+   over buys nothing today and risks the one thing a founder cannot work around — the studio not
+   starting.
+
+It stays in the tree because it is the substrate and because the finding above is worth keeping. It
+gets switched on when the suite is green against it AND the app connects, and not before.
+
+### Therefore the office is OFF
+
+`officeConfigured` needs `OFFICE_HOST_<VENTURE>` and `OFFICE_SECRET_<VENTURE>`, and neither is set on
+Railway. The socket half needs `server.js`, which is not the start command. The desk shows FB-139's plate, exactly as it did before — verified: plate present, embed
+absent, desk 2,395px, unchanged.
+
+**Do not set those variables until the client connects**, or a founder gets a frame that reconnects
+for ever where a working drawing used to be. That is worse than the drawing.
+
+### One limitation worth recording
+
+The office watches **one lane** — the working directory selects it, and `watchAllSessions` in
+`~/.pixel-agents/config.json` does not change the scan at startup. ARCA's is the Build lane, which is
+the only one with a session in three weeks (Sell last ran 14 August, Scale 17 August). The ledger
+beside the plate still names all three surfaces, which is FB-139's own division of labour: the office
+is the feeling, the ledger is the record.
+
+### And the lane is parked most of the day
+
+Confirmed again on 4 September: the last real Claude session was 01:37, and every wake since says
+`daily wake budget reached (20) — parking`. The office will be empty for about twenty-one hours a
+day until that budget changes. That is a fact about the lane, not about this integration.

@@ -30,6 +30,54 @@ Where the plan and a ticket disagree, the ticket's **scope** section wins for wh
 8. **No secrets in the repo.** Venture secrets live on the venture's box / deployment env — never in this repo, tickets, or gbrain. No credentials in code.
 9. **Built with gstack; gates never bypassed.** `/plan-ceo-review` before large/ambiguous work, `/review` (staff-engineer audit) + `/qa` before every PR, `/ship` to finalize, `/retro` at phase close-outs. No `--no-verify`.
 10. **Fail loud, surface everything.** A founder blocked at 22:00 must see *why* in the studio — run reports, lane staleness, and failure states are surfaced in plain language, never swallowed.
+11. **Look at the screen, beside its design, before the PR.** Any change that touches a screen is not
+    verified until that screen and the design have been rendered **side by side in a browser**, at
+    1440×1000 and 393×851, and both have been *looked at* — as pictures, not as markup. Record each
+    page's height in the PR.
+
+    **The design is the Claude Design artifact:**
+    `https://claude.ai/code/artifact/7187a06f-f746-4e70-bfc6-446a3d7330ac`. It is a working
+    prototype, not a picture: open it with Playwright, press "Continue with Google" (either door
+    signs you in), and click the rail's labels — Tickets, What happened, Memory, Handbook, The pocket
+    studio — to reach each screen. Screenshot both sides and **read the images**.
+
+    **The live side is production**, signed in as the venture's founder, because fixtures are small
+    and every fault this rule exists to catch only appears at real size: ARCA's 73 tickets, its 1,773
+    run reports, its five weeks of history.
+
+    `docs/design-conformance.md` is the scorecard, with the method written out and the last reading
+    for every screen. Add a line to it.
+
+    This is a gate because its absence has cost more than any other failure here. Thirty tickets
+    shipped, each verified against its own scope, and nobody compared a screen to the design until
+    John asked twice — by which point the desk was **9,908px against a design of ~1,900**, half of it
+    a board of finished tickets, and "What happened" was printing the same sentence twenty times.
+    Every automated gate was green throughout: the sections were all present, in the right order,
+    with correct data (`desk.spec.ts` asserts exactly that and passes either way). A screen can be
+    entirely correct and completely unusable, and only a person looking at it sees that.
+
+    A screen that has never been compared to its design has not been verified. Say so in the PR
+    rather than implying it has.
+
+12. **Write for the founder: simple, clear, detailed, direct English.** This binds tickets, PR
+    bodies, commit messages, code comments, and every word rendered in the studio — on this repo and
+    on every venture box.
+
+    A founder reads these. Some are not technical, and none of them should need to be. So: short
+    sentences. The plain word over the clever one. Say what happened, then what it means, then what
+    to do. Name the thing rather than gesturing at it. Detailed is not the opposite of simple — a
+    founder needs the specifics, they just need them in words they already know.
+
+    What this forbids: unexplained jargon; a table where a sentence would do; density that saves the
+    writer's time at the reader's expense; and burying the answer at the end. `copy-lint` catches the
+    founder-vocabulary rules it can check mechanically (FB-103's "team" not "agent"); this covers
+    everything it cannot.
+
+    **This applies to the reply itself, not only to what is written into files.** The last message of
+    every turn must stand on its own: what was done, what it means, what is left, and what the reader
+    has to decide — in full, in that order, without needing the messages above it. A reply that
+    assumes the reader remembers three turns of context is the same failure as a ticket that assumes
+    the founder reads code.
 
 ## Stack (Decision D6)
 

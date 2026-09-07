@@ -251,3 +251,36 @@ test.describe('handing over a document (FB-140)', () => {
     await expect(page.getByTestId('venture-forbidden')).toBeVisible();
   });
 });
+
+/**
+ * FB-181 — Memory listed repository scaffolding as founder knowledge.
+ *
+ * The fixture carries `context/README.md` committed by `wealthcx01`, so one row would have
+ * reproduced two of the three faults at once: a file the founder never handed over, credited to a
+ * company. If either fix is removed, this goes red on the rendered screen rather than in a unit.
+ */
+test.describe('what belongs on the Memory screen (FB-181)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca/knowledge');
+    await expect(page.getByTestId('memory-table')).toBeVisible();
+  });
+
+  test('a directory readme is not listed as something a founder handed over', async ({ page }) => {
+    const rows = await page.locator('tbody tr').allInnerTexts();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).not.toMatch(/README/i);
+  });
+
+  test('no row names the GitHub organisation in the From column', async ({ page }) => {
+    const rows = await page.locator('tbody tr').allInnerTexts();
+    for (const row of rows) expect(row).not.toContain('wealthcx01');
+  });
+
+  test('each row names the surface the document belongs to, from its own path', async ({ page }) => {
+    // `context/sell/brand-positioning.md` is a Sell document kept in the product repo. Keying this
+    // off the repository would say "Build" and would be wrong.
+    const row = page.locator('tbody tr', { hasText: 'Brand positioning' }).first();
+    await expect(row).toContainText('Sell');
+  });
+});
