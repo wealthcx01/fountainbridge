@@ -1,6 +1,6 @@
 # FB-200 — the studio as a tool: an MCP server that reads, files, and proposes
 
-**Status:** Open · **Phase:** 3 · **Raised by:** John, 2026-09-07
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-07
 
 ## The idea
 
@@ -99,3 +99,45 @@ a ticket on arca-ops" are questions asked constantly, by hand, today.
 
 Nothing hard. It reads what git already holds. It is listed after FB-174 only because the storage
 work is more urgent, not because this waits on it.
+
+## What shipped first, 2026-09-07
+
+`lib/mcp.ts` — the tool surface and the credential, built and attacked before anything was wired to
+them. The same order as FB-198's gate, for the same reason: the part that decides what a caller may
+do is the part worth getting right while it is still small enough to hold in one hand.
+
+**The rule is structural, not a convention.** Every tool carries a `kind` — `read`, `write` or
+`propose`, and there is no fourth. There is an explicit list of verbs no tool may carry in its name.
+And there is a test that asserts the **entire surface, by name and kind**:
+
+```
+read:whats_waiting · read:read_ticket · read:what_happened · read:budgets · read:venture_memory
+write:file_ticket · write:comment_on_ticket
+propose:propose_approval
+```
+
+So adding a tool that grants is not a matter of appending to an array. It means deliberately editing
+an assertion that says, in words, that you must not.
+
+`propose_approval` is the one tool permitted to say the word, because saying it is its job — and a
+test requires its description to make plain that it does not do it.
+
+**The guidance travels.** This ticket warned that moving the door to Claude would quietly lose the
+composer's advice about what makes a good ticket (FB-079), and that quality would drop with nobody
+noticing. A tool description is the only place that advice can travel, so `file_ticket` carries it —
+*a title that names the outcome rather than the task*, *if it needs the word "and", it is two*,
+*nothing is built until the founder accepts it* — and a test asserts each of those is still there.
+
+**The credential is not the office's.** Same shape as FB-198's ticket, same secret, and the payload
+is prefixed before it is signed, so a leaked office ticket cannot be presented as the ability to file
+tickets. One secret, two capabilities, no overlap. Which venture a caller may reach is decided by the
+studio for someone who has already passed `canAccessVenture` — never by anything the caller sends.
+
+## What is left
+
+- [ ] The transport: `/api/mcp`, so the tools can actually be called
+- [ ] The tools' implementations, each going through the studio's own choke-points so a ticket filed
+      by Claude is indistinguishable downstream from one typed on the desk
+- [ ] A claude.ai connector, which needs OAuth rather than a bearer ticket — the step that makes this
+      reach a founder who has never opened a terminal
+- [ ] FB-144's memo rewritten, and the composer's scope cut to match
