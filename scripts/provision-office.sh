@@ -131,7 +131,19 @@ else
   remote "systemctl daemon-reload && systemctl enable --now foundry-office-gate && systemctl is-active foundry-office-gate"
 fi
 
-# 4. Caddy. A path on the hostname that already exists: no DNS record to add, no second certificate.
+# 4. The room, in Bruntsfield's colours (FB-202).
+#    Written to ~/.pixel-agents/layout.json, which is OUTSIDE node_modules on purpose: the office
+#    package is reinstalled by step 1 and anything edited inside it would be quietly overwritten on
+#    the next provision. The loader prefers a saved layout over the packaged default.
+if [ "$DRY_RUN" -eq 1 ]; then
+  log "would install the Bruntsfield room at ~/.pixel-agents/layout.json"
+else
+  remote "mkdir -p /root/.pixel-agents"
+  scp -q "${SCRIPT_DIR}/../deploy/office/arca-room.json" "root@${HOST}:/root/.pixel-agents/layout.json"
+  remote "systemctl restart foundry-office"
+fi
+
+# 5. Caddy. A path on the hostname that already exists: no DNS record to add, no second certificate.
 CADDY_BLOCK=$(cat <<CADDY_EOF
   # FB-198 — the venture office, watched by the founder's browser directly.
   #
@@ -168,7 +180,7 @@ else
   fi
 fi
 
-# 5. Prove it, rather than assume it. Without a ticket the office is refused; the composer is
+# 6. Prove it, rather than assume it. Without a ticket the office is refused; the composer is
 #    untouched; and nothing else on the box is reachable through the office's path.
 if [ "$DRY_RUN" -eq 0 ]; then
   log "checking the gate"
