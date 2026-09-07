@@ -1,6 +1,6 @@
 # FB-173 — a founder can leave a voice note, and it becomes a ticket
 
-**Status:** Open · **Phase:** 3 · **Raised by:** John, 2026-09-02
+**Status:** Open · **Depends on:** FB-174 (the audio needs somewhere to live) · **Phase:** 3 · **Raised by:** John, 2026-09-02
 
 ## Why
 
@@ -28,10 +28,13 @@ Two consequences:
 
 - **Record in the browser.** `MediaRecorder` on the composer and on the pocket studio, one control,
   hold-to-talk or tap-to-start. It must work on iOS Safari, which is the device this is for.
-- **Transcribe.** The Web Speech API is free and on-device but its quality and browser support are
-  both uneven; a Whisper-class service is accurate and is an external call with a cost and a privacy
-  question. **Decide explicitly and write the reasoning in the PR** — a founder's voice going to a
-  third party is a decision, not a detail, and CLAUDE.md #8's spirit covers it.
+- **Transcribe with hosted Whisper**, behind a provider port. This was left open for the PR to argue.
+  It is settled now, by Grassmarket having already argued it: `openai-whisper` (`whisper-1`) is the
+  production default there, chosen by founder direction on 2026-09-02, with the Web Speech API
+  rejected on quality and browser coverage. The same trade applies here and there is no reason for
+  two answers in one company.
+  The port matters as much as the provider: `build_transcriber(settings)` is a single resolution
+  point, an unknown provider key is refused at load, and **a test double is refused in production**.
 - **The transcript is a draft, never a filing.** It lands in the composer's input, the founder reads
   it, and the composer's existing gate ("Nothing is built until you press it") is still the only
   thing that turns words into work. A voice note that files a ticket unread is the fastest possible
@@ -48,3 +51,53 @@ Two consequences:
 - [ ] Where the audio goes, and whether it is kept, is stated on screen and true.
 - [ ] Every failure names itself; the text box keeps working throughout.
 - [ ] The transcription choice and its privacy reasoning are argued in the PR body.
+
+## What Grassmarket already learned, which we should not re-learn
+
+`frontend/components/VoiceNoteRecorder.tsx`, `frontend/lib/recording.ts`,
+`src/grassmarket/pathb/transcription.py` and `src/grassmarket/web/routers/voice_notes.py`. That
+feature is live and its comments carry the scars. Five of them are ours to inherit.
+
+**The meter must move.** A recording that captured silence — muted microphone, a phone that handed
+the browser the wrong input, permission granted to a dead device — looks exactly like a good one
+until it comes back empty, and by then the thought is gone. A live level meter is the only proof a
+founder gets that their voice is reaching us. It is not decoration and it is not optional.
+
+**Nothing is thrown away until the server has it.** The recording goes into IndexedDB the moment it
+stops and is released only on a `201`. A failed upload leaves it on the phone to retry on next load.
+Grassmarket's note says it plainly: *the car park has one bar, and the conversation cannot be had
+again.* A founder walking home at 22:00 is the same case.
+
+**Say where the audio goes, on the screen, before they press record.** Grassmarket puts one sentence
+in front of the advisor: the recording is stored here and sent to OpenAI Whisper to be transcribed.
+The person deciding whether to speak is the person who needs to know where their voice ends up.
+
+**Never fabricate a transcript.** Grassmarket's offline transcriber used to be the unconditional
+return of the route's dependency, in every environment. It decoded bytes as UTF-8, so a real MP3
+became replacement characters that were stored and served as that meeting's transcript — a silent
+fallback that invented data. Two things stop it recurring there and must stop it here: the offline
+transcriber refuses undecodable bytes rather than replacing them, and the builder refuses to hand a
+test double to production.
+
+**It proposes; it never files.** The transcript comes back beside a *proposed* update with per-field
+confidence, and not one field is applied until the human ticks it and confirms. What they confirm is
+what is applied — not what was suggested.
+
+## What is different here, and it is one thing
+
+Grassmarket proposes a **pipeline update**. We propose a **ticket**.
+
+So the transcript comes back with a draft ticket beside it — a title, a surface, and the note in the
+founder's own words — and the founder edits and presses the gate that already exists. That keeps
+this feature inside the rule the whole studio is built on: everything new proposes, and only the desk
+grants.
+
+## Sequencing
+
+**FB-174 first.** Audio and transcripts are bytes, and today the studio's only storage is committing
+base64 into a git repository. Building voice notes before the document store means committing MP3s
+into ARCA's repository, which is the exact fault FB-174 exists to fix. FB-174 depends on FB-170.
+
+Grassmarket also encrypts transcripts at rest (`FernetTranscriptCipher`). A founder's voice note is
+at least as sensitive as an advisor's meeting, so whatever FB-174 builds needs an answer for
+encrypted text at rest, and there is an in-house pattern to copy.
