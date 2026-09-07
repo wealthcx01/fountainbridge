@@ -13,13 +13,18 @@ import { useEffect, useState } from 'react';
  *
  * ## Read-only, and where that is enforced
  *
- * Not here. `sandbox` and `pointer-events` are comfort, not a gate — the real one is in `server.js`,
- * which forwards exactly one message from the browser to the box (`webviewReady`, the handshake) and
- * drops everything else. It has to be a filter rather than a setting because the box accepts
- * `closeAgent` from any connection: only the hooks install is token-gated upstream, so a viewer who
- * could talk to the box could remove agents from the office.
+ * Not here. `sandbox` is comfort, not a gate — the real one is the gate on the venture's own box
+ * (`deploy/office/office-gate-lib.mjs`), which forwards exactly one message from the browser
+ * (`webviewReady`, the handshake) and drops everything else. It has to be a filter rather than a
+ * setting because pixel-agents accepts `closeAgent` from any connection: a viewer who could talk to
+ * the box could remove agents from the office.
  *
- * The iframe is still sandboxed, because two locks on a door that must never open is not excessive.
+ * That filter used to run in the studio. It moved to the box in FB-198, when the browser started
+ * watching directly — Railway's edge will not carry a WebSocket for the studio (FB-197). It is the
+ * same single lock, one step further along, and it is tested by trying to break it.
+ *
+ * The frame is sandboxed and cross-origin, so the office's code — which is upstream code we do not
+ * write — cannot reach the studio's cookies or its server actions.
  *
  * ## When it cannot be shown
  *
@@ -39,13 +44,13 @@ import { useEffect, useState } from 'react';
  */
 export function OfficeEmbed({
   src,
-  readyHref,
+  socket,
   fallback,
 }: {
-  /** The studio's own path, with a short-lived token naming the venture. Never the box's address. */
+  /** The office's page on the venture's own box, with a short-lived ticket the studio signed. */
   src: string;
-  /** Where the studio answers whether the office socket actually holds (FB-193). */
-  readyHref: string;
+  /** The office's live socket on that box, for the check below. */
+  socket: string;
   /** FB-139's plate, rendered by the server and handed in — not a second implementation of it. */
   fallback: React.ReactNode;
 }) {
@@ -62,14 +67,18 @@ export function OfficeEmbed({
   // after a very long sitting, if the socket ever drops and cannot get back in — the founder
   // reloads the page, which is what they would do anyway on seeing an empty room.
   const [frameSrc] = useState(src);
+  const [socketHref] = useState(socket);
 
-  // A frame that never loads must not sit there empty, so the studio asks before it draws.
+  // A frame that never loads must not sit there empty, so the desk asks before it draws — and it
+  // asks from HERE, in the browser, which is the whole lesson of FB-193.
   //
-  // FB-193: it used to ask the box for one HTTP file. That answered 200 on a day when the socket was
-  // dying five milliseconds after every handshake, and a founder got a frame that said "Loading…"
-  // for ever — strictly worse than the plate it replaced. `office-ready` asks the question the frame
-  // actually depends on: it opens the office socket from the studio and waits for the office to say
-  // something. The plate is the answer whenever it does not.
+  // That ticket's check ran on the studio. It answered "ready" on a day when the office was
+  // unusable, because it proved the STUDIO could reach the box and said nothing about whether a
+  // founder could. A founder got a frame that said "Loading…" for ever. Only the browser knows the
+  // leg that matters, so the browser is what opens a socket and waits for the office to say
+  // something.
+  //
+  // One real message is the bar. A handshake proves the door opens, not that anything is behind it.
   //
   // The width is asked first and the frame is never mounted on a phone, rather than mounted and
   // hidden: a hidden iframe still loads the app and still holds a socket open, and a founder on a
@@ -77,21 +86,56 @@ export function OfficeEmbed({
   useEffect(() => {
     const wideEnough = window.matchMedia('(min-width: 40rem)');
     let cancelled = false;
+    let probe: WebSocket | null = null;
+    let giveUpAt: ReturnType<typeof setTimeout> | null = null;
+
+    // Answered once, by the first thing that happens.
+    //
+    // Without the guard the answer overwrites itself: the office replies, `settle('live')` closes
+    // the probe because the question has been answered, closing it fires `onclose`, and `onclose`
+    // says unreachable. Seen in a browser against a working office — the frame connected, the room
+    // replied, and the desk drew the plate anyway.
+    let settled = false;
+    const settle = (next: 'live' | 'unreachable') => {
+      if (cancelled || settled) return;
+      settled = true;
+      if (giveUpAt) clearTimeout(giveUpAt);
+      // The question is answered; the connection was only ever the asking of it. The frame opens
+      // its own.
+      try { probe?.close(); } catch { /* already gone */ }
+      setState(next);
+    };
 
     const look = () => {
+      settled = false;
       if (!wideEnough.matches) { setState('pocket'); return; }
-      fetch(readyHref, { cache: 'no-store' })
-        .then((r) => r.json())
-        .then((body: { ready?: boolean }) => { if (!cancelled) setState(body?.ready ? 'live' : 'unreachable'); })
-        .catch(() => { if (!cancelled) setState('unreachable'); });
+      try {
+        probe = new WebSocket(socketHref);
+      } catch {
+        setState('unreachable');
+        return;
+      }
+      // The office says nothing until it is asked. The box's gate asks on our behalf the moment it
+      // connects, so this only has to listen — but it says it too, because a probe that depends on
+      // someone else's courtesy is a probe that breaks quietly.
+      probe.onopen = () => { try { probe?.send(JSON.stringify({ type: 'webviewReady' })); } catch { /* closing */ } };
+      probe.onmessage = () => settle('live');
+      probe.onerror = () => settle('unreachable');
+      probe.onclose = () => settle('unreachable');
+      giveUpAt = setTimeout(() => settle('unreachable'), 8_000);
     };
 
     look();
     // A window dragged narrow is the same case as a phone, and a window dragged wide should get the
     // office without a reload.
     wideEnough.addEventListener('change', look);
-    return () => { cancelled = true; wideEnough.removeEventListener('change', look); };
-  }, [readyHref]);
+    return () => {
+      cancelled = true;
+      if (giveUpAt) clearTimeout(giveUpAt);
+      try { probe?.close(); } catch { /* already gone */ }
+      wideEnough.removeEventListener('change', look);
+    };
+  }, [socketHref]);
 
   if (state !== 'live') {
     return (

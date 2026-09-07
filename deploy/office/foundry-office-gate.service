@@ -1,0 +1,25 @@
+[Unit]
+Description=Foundry venture office gate — the ticket check and the read-only filter (FB-198)
+Documentation=https://github.com/wealthcx01/fountainbridge/blob/main/docs/tickets/FB-198-the-office-without-the-middleman.md
+After=network.target foundry-office.service
+Requires=foundry-office.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/foundry/office-gate
+ExecStart=/usr/bin/node /opt/foundry/office-gate/office-gate.mjs
+# The venture this box serves, and the secret the studio signs its tickets with. The gate refuses
+# to start without both, rather than serving a venture's machine to whoever asks.
+EnvironmentFile=/opt/foundry/office-gate/gate.env
+Restart=on-failure
+RestartSec=5
+
+# It needs the network and nothing else. Everything it touches is on loopback.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=
+
+[Install]
+WantedBy=multi-user.target

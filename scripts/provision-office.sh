@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 #
-# provision-office.sh — install the venture office on a venture's box (FB-163, FB-192).
+# provision-office.sh — install the venture office on a venture's box (FB-163, FB-192, FB-198).
 #
-# The office is pixel-agents, run as a service on the venture's own machine, bound to loopback, and
-# reachable only through Caddy and only with the studio's shared secret. A browser never talks to
-# it: the studio proxies, holds the secret, and is the only client (CLAUDE.md #6, #8).
+# The office is pixel-agents, run as a service on the venture's own machine and bound to loopback.
+# In front of it sits `foundry-office-gate`, which is the only thing a browser ever reaches. The
+# gate checks a ticket the studio signed — so which venture a person may watch is still decided by
+# the studio, server-side (CLAUDE.md #6) — and drops every message from a browser except the
+# office's own handshake, which is the only thing making the view read-only.
+#
+# The browser watches directly rather than through the studio because Railway's edge will not carry
+# a WebSocket for the studio: measured at ~75ms to a cut, with the box disconnected, from two
+# continents (FB-197).
 #
 # This exists because ARCA's office was stood up by hand, and a thing that lives only in one
 # operator's shell history is not a thing the next venture has.
@@ -17,10 +23,12 @@
 #   OFFICE_SECRET=$(openssl rand -base64 24 | tr -d '/+=') scripts/provision-office.sh arca
 #
 # Env (with defaults):
-#   OFFICE_SECRET       the shared secret Caddy requires (generated and printed if unset)
-#   OFFICE_PORT=4310    loopback port the office listens on
+#   OFFICE_SECRET       the secret the studio signs watching tickets with (generated if unset)
+#   OFFICE_PORT=4310    loopback port pixel-agents listens on
+#   OFFICE_GATE_PORT=4311  loopback port the gate listens on
 #   OFFICE_VERSION      the pinned pixel-agents version
 #   LANE_DIR            the workspace whose Claude sessions the office draws
+#   STUDIO_ORIGINS      who may put this office in a frame
 #
 # What it does NOT do: set the studio's own variables. Those are printed at the end as [MANUAL],
 # because they are a change to a running production service and belong to a person (CLAUDE.md gates).
@@ -28,7 +36,9 @@
 set -euo pipefail
 
 OFFICE_PORT="${OFFICE_PORT:-4310}"
+OFFICE_GATE_PORT="${OFFICE_GATE_PORT:-4311}"
 OFFICE_VERSION="${OFFICE_VERSION:-1.4.1}"
+STUDIO_ORIGINS="${STUDIO_ORIGINS:-https://*.up.railway.app https://*.bruntsfield.capital}"
 
 log()  { printf '\033[0;32m[office]\033[0m %s\n' "$*"; }
 warn() { printf '\033[0;33m[office]\033[0m %s\n' "$*" >&2; }
@@ -100,17 +110,45 @@ else
   remote "systemctl daemon-reload && systemctl enable --now foundry-office && systemctl is-active foundry-office"
 fi
 
-# 3. Caddy. A path on the hostname that already exists: no DNS record to add, no second certificate.
+# 3. The gate — the ticket check and the read-only filter. Its code is in the repository
+#    (deploy/office/) so it is reviewed and tested like everything else, not typed into a box.
+GATE_DIR="/opt/foundry/office-gate"
+if [ "$DRY_RUN" -eq 1 ]; then
+  log "would install the gate into ${GATE_DIR} and start foundry-office-gate on ${OFFICE_GATE_PORT}"
+else
+  remote "mkdir -p ${GATE_DIR} && cd ${GATE_DIR} && \
+    { [ -f package.json ] || npm init -y >/dev/null; } && \
+    npm install --no-audit --no-fund ws@8.18.0 >/dev/null 2>&1"
+  scp -q "${SCRIPT_DIR}/../deploy/office/office-gate.mjs" "${SCRIPT_DIR}/../deploy/office/office-gate-lib.mjs" \
+    "root@${HOST}:${GATE_DIR}/"
+  scp -q "${SCRIPT_DIR}/../deploy/office/foundry-office-gate.service" \
+    "root@${HOST}:/etc/systemd/system/"
+  # The gate refuses to start without both of these, rather than serving a venture's machine to
+  # whoever asks.
+  printf 'OFFICE_VENTURE=%s\nOFFICE_SECRET=%s\nOFFICE_GATE_PORT=%s\nOFFICE_UPSTREAM_PORT=%s\nOFFICE_FRAME_ANCESTORS=%s\n' \
+    "$VENTURE" "$OFFICE_SECRET" "$OFFICE_GATE_PORT" "$OFFICE_PORT" "$STUDIO_ORIGINS" \
+    | ssh "root@${HOST}" "cat > ${GATE_DIR}/gate.env && chmod 600 ${GATE_DIR}/gate.env"
+  remote "systemctl daemon-reload && systemctl enable --now foundry-office-gate && systemctl is-active foundry-office-gate"
+fi
+
+# 4. Caddy. A path on the hostname that already exists: no DNS record to add, no second certificate.
 CADDY_BLOCK=$(cat <<CADDY_EOF
-  # FB-163 — the venture office, for the studio and nothing else.
+  # FB-198 — the venture office, watched by the founder's browser directly.
+  #
+  # \`foundry-office-gate\` is the only thing in front of pixel-agents. It checks the studio's ticket
+  # and refuses to carry anything from a browser but the office's own handshake.
+
+  # The office's socket. Its client builds this address from the page's host, so the path is \`/ws\`
+  # at the root and cannot be moved without patching their bundle. Check before taking it that
+  # nothing else on this hostname uses it.
+  handle /ws {
+    reverse_proxy 127.0.0.1:${OFFICE_GATE_PORT}
+  }
+
+  # The office's page and files.
+  redir /office /office/
   handle_path /office/* {
-    @studio header X-Foundry-Office "${OFFICE_SECRET}"
-    handle @studio {
-      reverse_proxy 127.0.0.1:${OFFICE_PORT}
-    }
-    handle {
-      respond "This office is read through the studio." 403
-    }
+    reverse_proxy 127.0.0.1:${OFFICE_GATE_PORT}
   }
 CADDY_EOF
 )
@@ -130,13 +168,15 @@ else
   fi
 fi
 
-# 4. Prove it, rather than assume it. 403 without the secret, 200 with it.
+# 5. Prove it, rather than assume it. Without a ticket the office is refused; the composer is
+#    untouched; and nothing else on the box is reachable through the office's path.
 if [ "$DRY_RUN" -eq 0 ]; then
   log "checking the gate"
-  without=$(curl -s -o /dev/null -w '%{http_code}' "https://${HOST}/office/" || true)
-  with=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Foundry-Office: ${OFFICE_SECRET}" "https://${HOST}/office/" || true)
-  log "without the secret: ${without} (want 403) · with it: ${with} (want 200)"
-  if [ "$without" = "403" ] && [ "$with" = "200" ]; then
+  office=$(curl -s -o /dev/null -w '%{http_code}' "https://${HOST}/office/" || true)
+  socket=$(curl -s -o /dev/null -w '%{http_code}' "https://${HOST}/ws" || true)
+  composer=$(curl -s -o /dev/null -w '%{http_code}' "https://${HOST}/" || true)
+  log "office without a ticket: ${office} (want 401) · socket: ${socket} (want 401) · composer: ${composer} (want 200)"
+  if [ "$office" = "401" ] && [ "$socket" = "401" ] && [ "$composer" = "200" ]; then
     log "the gate is answering correctly"
   else
     warn "the gate is not answering as it should — do not switch the studio on"
@@ -150,6 +190,8 @@ cat <<MANUAL
   railway variables --set "OFFICE_HOST_${VENTURE^^}=${HOST}" --skip-deploys
   printf '%s' '${OFFICE_SECRET}' | railway variables --set-from-stdin OFFICE_SECRET_${VENTURE^^}
 
-Both are read by the studio's HTTP route and by server.js, so a venture is either fully wired or has
-no office at all. Until both are set the desk shows the drawn plate, which is the honest answer.
+Both are read together, so a venture is either fully wired or has no office at all. Until both are
+set the desk shows the drawn plate, which is the honest answer. The desk checks the office socket
+from the founder's own browser before it draws anything, so a box that is not answering costs a
+founder the plate and nothing worse.
 MANUAL
