@@ -31,6 +31,7 @@ turning it on would not feel like they were doing that.
 |---|---|
 | **On, per venture** | whether it runs at all — and one kill switch that stops every venture at once |
 | **How often it wakes** | and quiet hours, because 03:00 is not when a founder wants to be told anything |
+| **When it must stop** | a ceiling on iterations and on wall-clock time, so a cofounder that is getting nowhere stops being one before it becomes a bill |
 | **What it may read** | tickets, run reports, the corpus, budgets, the activity feed — each on or off |
 | **What it may propose** | file a ticket · comment · raise an approval for a founder to sign — each on or off |
 | **What it may say out loud** | which of its observations are worth interrupting someone for |
@@ -39,6 +40,38 @@ turning it on would not feel like they were doing that.
 So the admin view can make it quieter, narrower, or silent. It cannot make it dangerous. The
 settings page should say that in those words, because a reader who cannot find the "allow sending"
 switch should understand that its absence is the design.
+
+## Two things the workshop recording adds, and one it confirms
+
+John sent the transcript of the *building an autonomous co-founder* workshop. Most of it is the shape
+already written above, arrived at independently, which is reassuring rather than interesting. Three
+things are worth taking.
+
+**A hard cap on iterations and on wall-clock time.** Listed there as a guardrail: *"maximum
+iterations, maximum wall clock, so it can't just get stuck in an infinite loop."* This ticket had
+"how often it wakes" and no ceiling on how long it may go on waking. A thing that wakes every twenty
+minutes for a week, getting nowhere, is not a cofounder — it is a bill. Both belong in the dial.
+
+ARCA's lane already proves the point from the other direction: it is capped at 20 wakes a day, it hit
+that cap, and it now wakes every five minutes only to discover it is parked. The cap did its job. The
+waste is a separate ticket.
+
+**A latch, not a notification.** When the workshop's system decides it needs a human it does not
+merely send a message — it sets the project's status to `awaiting_human`, and *"that tells the second
+brain for all future heartbeats to not work on this yet."* A hard pause, released only by a person.
+
+That is stronger than what this ticket said, and better. A notification that is missed changes
+nothing; a latch stops the machine. So: when the cofounder raises something that needs a decision, it
+stops touching that venture until the decision is made.
+
+**And the reason for the gate, which is the same as ours.** The workshop is explicit that the popular
+framing — *"you shouldn't be prompting your coding agents anymore"* — omits success gates, and that
+this is wrong, because without one it *"might have 20 loops where it deviated from my plan on loop
+number 5, and that just sends it off the wrong track for the next 15 loops."*
+
+Ours is a stronger claim than theirs: for them a missing gate is expensive, for us it is forbidden.
+But it is the same gate, and it is worth knowing that someone who cares only about cost and
+reliability arrives at it anyway.
 
 ## What it does when it wakes
 
@@ -81,6 +114,9 @@ it should be rare enough that when it does, a founder reads it.
 
 - [ ] It notices a ticket stuck for eight days and says so once, not every hour.
 - [ ] Turning it off in the admin view stops it, and the kill switch stops every venture.
+- [ ] Raising something for a founder to decide **latches** that venture: it is not touched again
+      until a person releases it, and a test proves a later wake does nothing.
+- [ ] It stops at the iteration ceiling and at the wall-clock ceiling, and says which it hit.
 - [ ] There is no setting, and no combination of settings, that lets it send, spend, merge, deploy or
       grant — proven by a test that tries each one.
 - [ ] A ticket whose body tries to instruct the agent is treated as data, proven by a test.
