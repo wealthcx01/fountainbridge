@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { howLong } from '@/lib/when';
-import { toneColor } from '@/lib/status';
+import { deskQueue } from '@/lib/desk';
 import type { PrApproval } from '@/lib/attention';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 
@@ -49,6 +49,14 @@ export interface WaitingItem {
    * ordinary line in a list. Distinct from `none`, which is the normal case of nothing signed yet.
    */
   unverified?: boolean;
+  /**
+   * True for something leaving the company (FB-183), false for finished work waiting to be read.
+   *
+   * Carried explicitly rather than sniffed from the test id, because `deskQueue` uses it to make
+   * sure the desk's cap never erases one whole kind of decision — and a rule that important should
+   * not rest on a string prefix.
+   */
+  external?: boolean;
 }
 
 /** A pull request waiting on the founder, as a row. */
@@ -62,6 +70,7 @@ export const prWaitingItem = (a: PrApproval, ventureId: string, surface?: string
   meta: surface ?? 'Your venture',
   since: a.createdAt,
   href: `/venture/${ventureId}/work/${a.repo}/${a.number}`,
+  external: false,
 });
 
 /**
@@ -83,9 +92,19 @@ export const externalWaitingItem = (a: ActiveGraphApproval, ventureId: string, s
   // "waiting on you" rather than inventing "a moment" for something that may have sat for weeks.
   since: null,
   href: `/venture/${ventureId}/approvals/${a.repo}/${a.id}`,
+  external: true,
 });
 
-export function WaitingQueue({ items }: { items: WaitingItem[] }) {
+/**
+ * How many rows the desk shows (FB-203, item 10).
+ *
+ * The design caps this at three or four. It is an index, not the queue itself: "Needs you" holds the
+ * whole of it, and a desk that lists twenty decisions is a desk a founder scrolls rather than reads.
+ * The heading's own link is what carries the rest.
+ */
+const DESK_ROWS = 4;
+
+export function WaitingQueue({ items, ventureId }: { items: WaitingItem[]; ventureId?: string }) {
   if (items.length === 0) {
     return (
       <p className="muted" data-testid="waiting-queue-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
@@ -94,50 +113,54 @@ export function WaitingQueue({ items }: { items: WaitingItem[] }) {
     );
   }
 
+  const shown = deskQueue(items, DESK_ROWS);
+
   return (
-    <ul data-testid="waiting-queue" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-      {items.map((it) => (
-        <li key={it.key} className="waiting-row" data-testid={`waiting-${it.testId}`}>
-          <div style={{ minWidth: 0 }}>
-            <span className="mono" style={{ fontSize: 'var(--fs-meta)' }}>{it.ref}</span>{' '}
-            <span>{it.title}</span>
-            {/* The design puts one line of meta under the title, and it names the surface a founder
-                owns rather than the repository git keeps it in. */}
-            <span
-              className="muted"
-              data-testid={`waiting-${it.testId}-meta`}
-              style={{ display: 'block', fontSize: 'var(--fs-meta-lg)' }}
-            >
-              {it.meta}
-            </span>
-            {it.unverified ? (
-              <span
-                data-testid={`waiting-${it.testId}-unverified`}
-                style={{ display: 'block', fontSize: 'var(--fs-meta-lg)', color: toneColor('blocked'), fontWeight: 600 }}
-              >
-                <span aria-hidden="true">⚠ </span>
-                <span className="sr-only">Warning: </span>
-                The studio cannot verify this approval. Open it before anything else.
+    <>
+      <ul data-testid="waiting-queue" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {shown.map((it) => (
+          <li key={it.key} data-testid={`waiting-${it.testId}`}>
+            {/* FB-138 put "Decide →" at the end of the row and FB-203 made the row itself the
+                target. The link kept its test id: it is the same door, and it is where the amber
+                banner sends a founder, so the specs that press it are pressing the right thing.
+    
+                The link this replaced was once `?work=<repo>#<number>` — a query parameter nothing
+                reads. The most important link on the screen a founder leaves open did nothing at
+                all when pressed. It goes where every other route into a decision goes: for work,
+                the work page; for a send, its own page, where Approve signs the grant and Refuse
+                takes a note. Same path on a phone as at a desk — a founder who can only READ on
+                mobile stays the bottleneck until they get home. */}
+            <Link className="waiting-row" href={it.href} data-testid={`waiting-decide-${it.testId}`}>
+              <span className="mono waiting-ref">{it.ref}</span>
+              <span className="waiting-body">
+                <span className="waiting-title">{it.title}</span>
+                {/* The design puts one line of meta under the title, and it names the surface a
+                    founder owns rather than the repository git keeps it in. */}
+                <span className="waiting-meta" data-testid={`waiting-${it.testId}-meta`}>{it.meta}</span>
+                {it.unverified ? (
+                  <span className="waiting-alarm" data-testid={`waiting-${it.testId}-unverified`}>
+                    <span aria-hidden="true">⚠ </span>
+                    <span className="sr-only">Warning: </span>
+                    The studio cannot verify this approval. Open it before anything else.
+                  </span>
+                ) : null}
               </span>
-            ) : null}
-          </div>
-          {/* FB-138: "Decide →", and it goes to the decision.
-           *
-           * This link was `?work=<repo>#<number>` — a query parameter **nothing reads**. The desk
-           * ignores it, so the row that the amber banner sends a founder to did nothing at all when
-           * pressed. The most important link on the screen a founder leaves open, on the queue the
-           * whole banner exists to reach.
-           *
-           * It goes where every other route into a decision goes: for work, the work page; for a
-           * send, its own page, where Approve signs the grant and Refuse takes a note. Same path on
-           * a phone as at a desk — a founder who can only READ on mobile stays the bottleneck until
-           * they get home. */}
-          <span className="muted waiting-when">
-            {it.since && howLong(it.since) ? `waiting ${howLong(it.since)}` : 'waiting on you'}{' '}
-            <Link href={it.href} data-testid={`waiting-decide-${it.testId}`}>Decide →</Link>
-          </span>
-        </li>
-      ))}
-    </ul>
+              <span className="waiting-when">
+                {it.since && howLong(it.since) ? `waiting ${howLong(it.since)}` : 'waiting on you'} →
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {/* Said only when there is more, and it names the number rather than hinting at it. A capped
+          list that does not admit it is capped is a list that quietly hides a founder's decisions. */}
+      {items.length > shown.length && ventureId ? (
+        <p className="muted" data-testid="waiting-queue-more" style={{ fontSize: 'var(--fs-meta)', margin: '0.6rem 0 0' }}>
+          <Link href={`/venture/${ventureId}/tickets?filter=needs`}>
+            {items.length - shown.length} more waiting on you →
+          </Link>
+        </p>
+      ) : null}
+    </>
   );
 }

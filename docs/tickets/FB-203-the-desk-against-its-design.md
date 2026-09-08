@@ -169,7 +169,35 @@ The box writes "Daily lane budget reached" and FB-103's `lane → your team` rul
 that acted from a lane that is describing a budget. It is a defect in `lib/glossary.ts`, it affects
 every caller of `inFounderWords`, and fixing it inside this ticket would have been scope creep.
 
-### Still to do — items 10 to 13
+### Items 10 and 11 — done, 2026-09-08
+
+Read at 1440×1000 and 393×851 on fixtures: **2,220px desktop, 2,575px phone** (from 2,855 / 3,193),
+no sideways scroll at either size, nor on the phone in `?full=1`.
+
+**10.** A serif heading with `everything waiting →` beside it. The reference gets its own column, so
+titles start on one edge. The whole row is the target and `Decide →` is gone — the arrow rides on how
+long it has waited, which is the reason to press it. Capped at four, and it says how many are behind
+the link.
+
+**11.** Three columns divided by rules, not three bordered cards. A label, one line, and the links
+that go somewhere. Deleted: the ACTIVE pills, the provenance sentence printed three times, the budget
+line the rail already carries, two of the three gate sentences, the outlined Open button, and
+*"Nowhere to open yet…"*.
+
+**The cap nearly hid a whole kind of decision.** External sends lead the queue on purpose (FB-183),
+and ARCA has six of them, so a cap of four showed four sends and **every piece of finished work fell
+off the desk** — including the pull requests the amber banner had just counted, on the screen the
+banner sends a founder to. `deskQueue` in `lib/desk.ts` reserves the last row for whichever kind the
+cap would otherwise erase. Six unit tests; the browser gate asserts the result on a real page.
+
+**Kept against the design, with reasons.** The stale flag: the design calls it noise, and it is the
+only place in the studio that says a surface has gone quiet for a fortnight — the badge went, the fact
+is a clause at the end of the one line, still interrogable by keyboard (FB-068). The read-failure and
+empty panels: neither is in the design because the design has no failing venture in it. And the
+budget line survives **only when a surface is over its limit**, because the rail can colour a figure
+red but cannot say *285% of the limit*, or that £13,700 of it is still awaiting a founder's OK.
+
+### Still to do — items 12 and 13
 
 The queue, the surfaces, the rail, and the token audit — in John's order.
 

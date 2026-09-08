@@ -820,22 +820,133 @@ body:has(.rail) .main {
    query cannot override an inline style, and this row has to change shape on a phone.
    Inline flex put the title and "waiting 34 days Decide →" side by side in a 345px column, so every
    title wrapped to three lines and nine rows came to 1,129px. */
+/* ---- The company, by surface (FB-203, item 11) ------------------------------------------------
+
+   Three columns divided by rules, not three bordered cards. The cards carried a border, a
+   background, 16px of padding and a serif title each to hold what is now a label, a sentence and
+   two links — and they were the most button-shaped objects on the page while doing the least.
+
+   `1fr 1fr 1fr` with no gap, the rule doing the separating: the design's own shape, and it stops
+   three surfaces of different lengths reading as three unrelated objects. */
+.surfaces {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+.surface-col {
+  border-left: 1px solid var(--color-border);
+  padding: 0.25rem 1.375rem 0.5rem;
+  min-width: 0;
+}
+.surface-col:first-child { border-left: 0; padding-left: 0; }
+.surface-label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  margin: 0 0 0.4rem;
+}
+/* The name is still the control that filters the queues (FB-109), it just looks like the label the
+   design draws rather than like a serif heading with a pill beside it. */
+.surface-label button {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.surface-label button[aria-pressed='true'] { color: var(--color-accent); }
+.surface-line {
+  font-size: var(--fs-meta-lg);
+  line-height: 1.6;
+  color: var(--color-ink-soft);
+  margin: 0 0 0.5rem;
+}
+.surface-links { font-size: var(--fs-meta-lg); margin: 0; }
+.surface-links a { display: block; margin-top: 0.2rem; }
+
+/* On a phone three columns of a sentence each is three columns of one word each. */
+@media (max-width: 48rem) {
+  .surfaces { grid-template-columns: minmax(0, 1fr); }
+  .surface-col {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+    padding: 0.75rem 0 0.5rem;
+  }
+  .surface-col:first-child { border-top: 0; padding-top: 0; }
+}
+
+/* ---- Waiting on you (FB-203, item 10) --------------------------------------------------------
+
+   The reference gets a column of its own, so titles start on one edge instead of wherever the
+   previous ticket id happened to end. */
+.queue-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.5rem;
+}
+.queue-head h2 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-section);
+  font-weight: 400;
+  margin: 0;
+}
+.queue-all { font-size: var(--fs-meta-lg); }
+
 .waiting-row {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   align-items: baseline;
-  justify-content: space-between;
-  padding: 0.55rem 0;
-  border-top: 1px solid var(--color-border);
+  padding: 0.8125rem 0;
+  border-bottom: 1px solid var(--color-border);
+  /* The whole row, not a two-word link at the end of it. It was a sentence with "Decide →" on the
+     right, so most of the widest control on the queue did nothing when pressed — and this is where
+     the amber banner sends a founder. */
+  text-decoration: none;
+  color: inherit;
 }
-.waiting-when { flex-shrink: 0; font-size: var(--fs-meta-lg); }
+@media (hover: hover) { .waiting-row:hover { background: var(--color-paper-sunken); } }
+.waiting-ref {
+  flex: 0 0 4.75rem;
+  font-size: var(--fs-meta-lg);
+  color: var(--color-ink-soft);
+}
+.waiting-body { flex: 1 1 auto; min-width: 0; }
+.waiting-title { font-size: var(--fs-body-sm); font-weight: 500; }
+.waiting-meta { display: block; font-size: var(--fs-meta); color: var(--color-ink-muted); }
+.waiting-alarm {
+  display: block;
+  font-size: var(--fs-meta-lg);
+  font-weight: 600;
+  color: var(--tone-blocked);
+}
+/* The arrow rides on the wait, because how long it has waited is the reason to press it. */
+.waiting-when {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: var(--fs-meta-lg);
+  font-weight: 600;
+  color: var(--color-warn);
+  white-space: nowrap;
+}
 
-/* On a phone the row is two lines, which is the design's own shape: the title, then the reference,
-   the surface, how long it has waited and the way in. Nothing is dropped; it stops competing for
+/* On a phone the row is two lines, which is the design's own shape: the reference and title, the
+   surface under them, and the wait on its own line. Nothing is dropped; it stops competing for
    width with itself. */
 @media (max-width: 48rem) {
-  .waiting-row { display: block; padding: 0.7rem 0; }
-  .waiting-when { display: block; margin-top: 0.25rem; }
+  .waiting-row { flex-wrap: wrap; }
+  /* Its own line, always. Left to size itself, a long reference like `changed-proposal` took the
+     whole width and pushed the title down while a short one like `ARCA-1` sat beside it — so the
+     same list read as two different layouts depending on how the ticket happened to be named. */
+  .waiting-ref { flex: 1 1 100%; }
+  .waiting-when { flex: 1 1 100%; margin-left: 0; }
 }
 
 /* FB-192 — the venture office on the desk.

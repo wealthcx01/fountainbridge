@@ -128,6 +128,55 @@ test.describe('the desk', () => {
     expect((await rows.count()) + (await empty.count())).toBeGreaterThan(0);
   });
 
+  test('the queue is an index, and admits what it is not showing (FB-203, item 10)', async ({ page }) => {
+    const section = page.getByTestId('waiting-on-you');
+    // A serif section heading, not an 11px uppercase label — the design reserves those for column
+    // heads and eyebrows, and this is a section like "The office" above it.
+    await expect(section.getByRole('heading', { level: 2 })).toHaveText('Waiting on you');
+    await expect(section.getByTestId('waiting-all')).toBeVisible();
+
+    const rows = section.getByTestId('waiting-queue').locator('li');
+    const shown = await rows.count();
+    expect(shown).toBeLessThanOrEqual(4);
+    // A capped list that does not say it is capped quietly hides a founder's decisions.
+    const more = section.getByTestId('waiting-queue-more');
+    if (await more.count()) await expect(more).toContainText(/\d+ more waiting on you/);
+  });
+
+  test('both kinds of decision survive the cap (FB-203, item 10)', async ({ page }) => {
+    // External sends lead the queue on purpose (FB-183: nothing leaves the company without one).
+    // With a cap of four and six sends waiting, every piece of finished work fell off the desk —
+    // including the pull requests the amber banner had just counted, on the screen the banner sends
+    // a founder to. `deskQueue` reserves the last row; this asserts the result on a real page.
+    const rows = page.getByTestId('waiting-queue').locator('li');
+    const ids = await rows.evaluateAll((els) => els.map((e) => e.getAttribute('data-testid') ?? ''));
+    const sends = ids.filter((i) => i.startsWith('waiting-external-'));
+    const work = ids.filter((i) => i && !i.startsWith('waiting-external-'));
+    expect(sends.length, 'no external send on a desk that has them').toBeGreaterThan(0);
+    expect(work.length, 'the founder’s finished work fell off the desk').toBeGreaterThan(0);
+  });
+
+  test('a waiting row is one target, and the arrow rides the wait (FB-203, item 10)', async ({ page }) => {
+    const row = page.getByTestId('waiting-queue').locator('li').first();
+    const link = row.locator('a');
+    // One link, covering the row — not a sentence with a two-word link at the end of it.
+    await expect(link).toHaveCount(1);
+    await expect(row).not.toContainText('Decide →');
+    await expect(row).toContainText(/waiting/);
+  });
+
+  test('a surface is a column, not a card (FB-203, item 11)', async ({ page }) => {
+    const surfaces = page.getByTestId('dept-surfaces');
+    await expect(surfaces.getByRole('heading', { level: 2 })).toHaveText('The company, by surface');
+    // The ACTIVE pills are gone: three of them, all saying the same word, under an eyebrow that
+    // already says ACTIVE.
+    await expect(surfaces.locator('.tag')).toHaveCount(0);
+    // And the provenance sentence is printed once at most, beside the one figure that needs it,
+    // rather than once per surface.
+    const provenance = (await surfaces.innerText()).split('Limit set in the studio').length - 1;
+    expect(provenance).toBeLessThanOrEqual(1);
+  });
+
   test('a prompt chip seeds the composer and files nothing', async ({ page }) => {
     await page.getByTestId('prompt-chip-0').click();
     await expect(page.getByTestId('prompt-bar-input')).toHaveValue('Break this document into tickets');

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  blockerLine, degradedGroups, deskSummary, surfaceOutcome, waitingOnFounder, type DeskFacts,
+  blockerLine, degradedGroups, deskQueue, deskSummary, surfaceOutcome, waitingOnFounder, type DeskFacts,
 } from '../desk';
 
 /**
@@ -237,5 +237,43 @@ describe('the company, by surface', () => {
     for (const departmentId of ['build', 'sell', 'scale']) {
       expect(surface({ departmentId, ticketCount: 0 })).toContain('No tickets yet');
     }
+  });
+});
+
+describe('deskQueue (FB-203, item 10)', () => {
+  const send = (id: string) => ({ id, external: true });
+  const work = (id: string) => ({ id, external: false });
+  const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
+
+  it('shows everything when the queue is short', () => {
+    expect(ids(deskQueue([send('a'), work('b')], 4))).toEqual(['a', 'b']);
+  });
+
+  it('never erases the founder’s finished work behind a run of sends', () => {
+    // Production: ARCA had six sends ahead of every pull request, so a cap of four showed four sends
+    // and no work at all — on the screen the amber banner sends a founder to, having just counted
+    // that work.
+    const queue = [send('s1'), send('s2'), send('s3'), send('s4'), send('s5'), send('s6'), work('w1'), work('w2')];
+    expect(ids(deskQueue(queue, 4))).toEqual(['s1', 's2', 's3', 'w1']);
+  });
+
+  it('never erases a send behind a run of finished work', () => {
+    // The same rule the other way round. Nothing leaves the company without one of these.
+    const queue = [work('w1'), work('w2'), work('w3'), work('w4'), work('w5'), send('s1')];
+    expect(ids(deskQueue(queue, 4))).toEqual(['w1', 'w2', 'w3', 's1']);
+  });
+
+  it('leaves a mixed head alone', () => {
+    const queue = [send('s1'), work('w1'), send('s2'), work('w2'), work('w3')];
+    expect(ids(deskQueue(queue, 4))).toEqual(['s1', 'w1', 's2', 'w2']);
+  });
+
+  it('does not invent a second kind that is not waiting', () => {
+    const queue = [send('s1'), send('s2'), send('s3'), send('s4'), send('s5')];
+    expect(ids(deskQueue(queue, 4))).toEqual(['s1', 's2', 's3', 's4']);
+  });
+
+  it('shows nothing when there is no room, rather than one thing', () => {
+    expect(deskQueue([send('a')], 0)).toEqual([]);
   });
 });
