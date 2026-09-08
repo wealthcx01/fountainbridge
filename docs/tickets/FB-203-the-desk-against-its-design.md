@@ -1,6 +1,6 @@
 # FB-203 — the desk against its design, read from the template rather than the picture
 
-**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-07
+**Status:** Done · **Phase:** 3 · **Raised by:** John, 2026-09-07
 
 ## Where this came from
 
@@ -241,6 +241,17 @@ red but cannot say *285% of the limit*, or that £13,700 of it is still awaiting
 The 24px section headings item 13 asks for were built in items 7 to 11 — "The office", "What your
 team did", "Waiting on you" and "The company, by surface" are all serif H2s now rather than the 11px
 uppercase labels the design reserves for column heads and eyebrows.
+
+### The closing reading — production, 2026-09-08
+
+All thirteen items merged and deployed. Read as ARCA's founder against its real 73 tickets and 3,461
+run reports: **1,984px desktop, 2,228px phone, no sideways scroll at either size.**
+
+**84px from the design's ~1,900.** The screen this ticket opened on was 9,908px.
+
+Items 2 to 9 barely moved the number — they were not about length, they were about what a founder
+reads first. The height came out of items 10 and 11: a capped queue, and three columns where there had
+been three bordered cards.
 
 ### FB-203 is complete
 

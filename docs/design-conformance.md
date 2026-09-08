@@ -22,7 +22,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | **1,000px** | **851px** | **compared, FB-189** — matched on height, wrong on everything else |
-| The desk | ~1,900px | **2,457px** | **2,562px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 2–9 |
+| The desk | ~1,900px | **1,984px** | **2,228px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 1–13 |
 | Tickets | 1,090px | **1,202px** | **1,470px** | fixed FB-185, widened FB-188 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
@@ -376,6 +376,44 @@ the desk becomes on a phone, and the rail is hidden there, so the link could onl
 where it does nothing. And the rail has no office thumbnail: half its sentence duplicates the Needs
 you badge three rows above, and the other half needs a run report per surface, which is the read
 FB-164 removed when it was costing every screen under a venture about six seconds.
+
+## FB-203, closed — the desk on production, 2026-09-08
+
+All thirteen items merged and deployed. Read as ARCA's founder against its real 73 tickets and 3,461
+run reports, at 1440×1000 and 393×851.
+
+| | design | desktop | phone |
+| --- | --- | --- | --- |
+| Before FB-203 | ~1,900px | 2,395px | 2,745px |
+| **After FB-203** | ~1,900px | **1,984px** | **2,228px** |
+
+**84px from the design, with no sideways scroll at either size.** The screen this scorecard opened on
+was **9,908px**.
+
+What the thirteen items actually cost, in the order they were worked:
+
+| after items | desktop | phone |
+| --- | --- | --- |
+| 1 (the shell) | 2,395px | 2,745px |
+| 2–6 (the top half) | 2,370px | 2,753px |
+| 7–9 (the office and the record) | 2,434px | 2,753px |
+| 10–13 (the queue, surfaces, rail, type) | **1,984px** | **2,228px** |
+
+The middle two rows are the honest part of that table: items 2 to 9 barely moved the number, because
+they were not about length. They changed what a founder reads first and put three sections in the
+shape the design draws. The height came out of items 10 and 11 — a capped queue and three columns
+where there had been bordered cards.
+
+**Six faults reached this screen that every automated gate passed**, and each was found a different
+way. Four by looking: a banner twelve lines tall on a phone; a marker floating above a paragraph; a
+"live from your machine" label printed over a stand-in drawing; a queue that read as two layouts
+depending on how a ticket was named. One by reading code: the ledger living inside the fallback, so it
+vanished on every venture whose office actually worked. And one only production could show: 3,461 runs
+collapsed to a single row, twice — once when the count disappeared, and again when the corrected count
+said 20 above a footer saying 3,461.
+
+The fixtures have six runs, all different. That is the whole argument for rule 11's "measure
+production" in one line.
 
 ## What this scorecard cannot tell you
 
