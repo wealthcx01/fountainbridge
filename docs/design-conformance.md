@@ -325,6 +325,14 @@ This is the clearest case yet for the rule that says **production, not fixtures*
 six runs, all different. Every gate was green. The screen was rebuilt, looked at, measured, and
 shipped, and the defect was in the one place a small dataset cannot reach.
 
+**The correction needed correcting, and again only production showed it.** The new clause read *"the
+same thing 20 times"* above *"1 most recent of 3,461 runs"*, because the studio reads twenty reports
+and counts the rest by name — the count can never exceed twenty however long a venture has been stuck.
+It now says *"every one of the last 20 runs says this"*, which is what the studio actually knows. The
+logic moved into `lib/runreports.ts` so the branch has unit tests, because a venture with 3,461 runs
+cannot be built as a browser fixture — the same reason the fault reached production in the first
+place.
+
 The same reading turned up **FB-205**: the most-repeated sentence in ARCA's history renders as *"Daily
 your team budget reached"*, because FB-103's `lane → your team` rule cannot tell a lane that acted
 from a lane describing a budget.

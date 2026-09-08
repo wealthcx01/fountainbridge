@@ -514,6 +514,32 @@ export async function loadLiveness(
  * happened, and merging across the gap would tell the founder they happened together. The repeat is
  * the newest of its group, so the timestamp shown is the most recent one.
  */
+/**
+ * How to say that one thing kept happening, without claiming to know more than was read.
+ *
+ * `loadRunReports` reads the **20 most recent** reports and counts the rest by name, so a repeat
+ * count can never exceed 20 however long a venture has been stuck. On production that produced
+ * *"the same thing 20 times"* directly above *"1 most recent of 3,461 runs"* — a founder reads 20,
+ * and the truth is that every run this studio has ever opened for that venture says the same thing.
+ * Understating a seven-week outage by two orders of magnitude is the same failure as swallowing it,
+ * which is what non-negotiable 10 forbids.
+ *
+ * So when one group accounts for every run that was read and more exist that were not, the sentence
+ * says exactly that. It does not claim all 3,461 say it — the studio did not open 3,461 files, and
+ * a sentence a founder could catch being wrong costs more than the one it replaced. Anything
+ * narrower than the whole read window is an ordinary count, which is already exact.
+ *
+ * It lives here rather than in the component because it is a statement about what
+ * `collapseRepeats` and `loadRunReports` between them can honestly know, and because the branch
+ * that matters is not reachable from a test fixture — a venture with 3,461 runs is not something a
+ * browser test can build.
+ */
+export function repeatClause(repeats: number, read: number, total: number): string {
+  const count = (n: number) => n.toLocaleString('en-GB');
+  if (repeats >= read && total > read) return `every one of the last ${count(read)} runs says this`;
+  return `the same thing ${count(repeats)} times`;
+}
+
 export function collapseRepeats(reports: readonly RunReport[]): Array<RunReport & { repeats: number }> {
   const out: Array<RunReport & { repeats: number }> = [];
   for (const r of reports) {
