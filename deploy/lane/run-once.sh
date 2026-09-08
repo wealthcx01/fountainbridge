@@ -203,7 +203,7 @@ for f in docs/tickets/*.md; do
   # adversarial review P1), mark it given-up so we don't re-scan it, and move on.
   if [ "$(attempts_of "$slug")" -ge "$MAX_ATTEMPTS" ]; then
     if [ ! -f "$STATE_DIR/gaveup-$slug" ]; then
-      write_runreport "$slug" "blocked" "The lane tried this $MAX_ATTEMPTS times and couldn't get it past its own review/tests. It needs a human — parked." || true
+      write_runreport "$slug" "blocked" "Your team tried this $MAX_ATTEMPTS times and couldn't get it past its own review/tests. It needs a human — parked." || true
       : > "$STATE_DIR/gaveup-$slug"
     fi
     flog "skip $slug — gave up after $MAX_ATTEMPTS attempts (surfaced)"; continue
@@ -265,10 +265,10 @@ if [ -z "$PICK" ]; then
   if [ "$HELD" -gt 0 ]; then
     flog "nothing workable — $HELD ticket(s) held on your go: $HELD_NAMES"
     write_runreport "heartbeat" "awaiting_founder" \
-      "Lane awake with nothing it may work: $HELD ticket(s) are waiting for your go — $HELD_NAMES. Nothing else is queued." || true
+      "Your team is awake with nothing it may work: $HELD ticket(s) are waiting for your go — $HELD_NAMES. Nothing else is queued." || true
   else
     flog "no workable Todo/Ready ticket — idle"
-    write_runreport "heartbeat" "idle" "Lane awake — nothing to work right now." || true
+    write_runreport "heartbeat" "idle" "Your team is awake — nothing to work right now." || true
   fi
   exit 0
 fi
@@ -276,7 +276,7 @@ fi
 # --- budget gate -----------------------------------------------------------------------------------
 if [ "$(runs_today)" -ge "$DAILY_WAKE_BUDGET" ]; then
   flog "daily wake budget reached ($DAILY_WAKE_BUDGET) — parking"
-  write_runreport "$PICK_SLUG" "blocked" "Daily lane budget reached — parked until tomorrow." || true
+  write_runreport "$PICK_SLUG" "blocked" "Your team’s daily budget is used up — parked until tomorrow." || true
   exit 0
 fi
 
@@ -322,7 +322,7 @@ TICKET:
 $(cat "$PICK")" >"$PLAN_OUT" 2>&1
   set -e
   PLAN_EXCERPT=$(head -c 600 "$PLAN_OUT" 2>/dev/null | tr '\n' ' ')
-  write_runreport "$PICK_SLUG" "awaiting_founder" "This looks high-impact (auth/payments/sends/migrations). The lane planned it but paused for your go before doing anything. Plan: ${PLAN_EXCERPT:-（unavailable）}" || true
+  write_runreport "$PICK_SLUG" "awaiting_founder" "This looks high-impact (auth/payments/sends/migrations). Your team planned it but paused for your go before doing anything. Plan: ${PLAN_EXCERPT:-（unavailable）}" || true
   : > "$STATE_DIR/awaiting-$PICK_SLUG"
   exit 0
 fi

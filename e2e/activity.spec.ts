@@ -35,6 +35,29 @@ test('activity feed lists recent events and filters by repo', async ({ page }) =
   await expect(page.getByTestId('activity-empty')).toBeVisible();
 });
 
+test('a founder never reads a half-substituted sentence (FB-205)', async ({ page }) => {
+  // The box writes its own account of a run, and the studio says it in founder words. Swapping a
+  // noun phrase ("your team") for a bare noun ("lane") breaks grammar in three places, and all
+  // three were live on ARCA: "Daily your team budget reached" — the most repeated line in its
+  // history — "a your team cannot forge it", and "Your team awake".
+  //
+  // Asserted over the whole rendered page rather than one element, on both screens that quote the
+  // machine, because the fault is not in any one component: it is in a rewriter every one of them
+  // calls, and the next surface to quote a run will inherit it.
+  await testLogin(page, JOHN);
+  for (const path of ['/venture/arca', '/venture/arca/activity']) {
+    await page.goto(path);
+    const said = await page.locator('body').innerText();
+    for (const broken of ['a your team', 'your team budget', 'Your team awake']) {
+      expect(said, `${path} still says "${broken}"`).not.toContain(broken);
+    }
+    // And the machine's own vocabulary never survives to the founder either.
+    for (const jargon of ['the lane', 'Lane awake', 'lane budget']) {
+      expect(said, `${path} still says "${jargon}"`).not.toContain(jargon);
+    }
+  }
+});
+
 test('staleness flag surfaces on the venture board (FB-006 integration)', async ({ page }) => {
   await testLogin(page, JOHN);
   await page.goto('/venture/the-reset');
