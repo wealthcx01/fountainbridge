@@ -414,7 +414,8 @@ function Routines({ ventureId, routines, errors }: { ventureId: string; routines
                   style={{ padding: '0.7rem 0.85rem' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <span aria-hidden="true" style={{
-                    width: '0.5rem', height: '0.5rem', borderRadius: '50%', flex: 'none',
+                    // FB-203, item 13: a square, like every other state mark in the studio.
+                    width: '0.5rem', height: '0.5rem', flex: 'none',
                     background: toneColor(STATE_TONE[routine.state]),
                   }} />
                   <strong style={{ fontSize: 'var(--fs-body-sm)' }}>{routine.title}</strong>

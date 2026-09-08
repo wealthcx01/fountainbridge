@@ -67,7 +67,8 @@ export function LedgerRowView({ row }: { row: LedgerRow }) {
     <tr data-testid={`ledger-row-${row.ventureId}`} data-tone={tone}>
       <td>
         <span aria-hidden="true" style={{
-          display: 'inline-block', width: '0.5rem', height: '0.5rem', borderRadius: '50%',
+          // FB-203, item 13: a square, like every other state mark in the studio.
+          display: 'inline-block', width: '0.5rem', height: '0.5rem',
           marginRight: '0.45rem',
           background: colour ? toneColor(colour) : 'var(--color-border-strong)',
         }} />

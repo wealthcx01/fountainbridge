@@ -219,7 +219,8 @@ export function ApprovalCard({
             rows={3}
             style={{
               width: '100%', maxWidth: 'var(--content-narrow)', fontSize: 'var(--fs-body-sm)',
-              border: '1px solid var(--color-border)', borderRadius: '0.25rem', padding: '0.4rem',
+              // FB-203, item 13: no border-radius anywhere in the design.
+              border: '1px solid var(--color-border)', padding: '0.4rem',
             }}
           />
           <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>

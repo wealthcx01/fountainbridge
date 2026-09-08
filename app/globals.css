@@ -112,7 +112,11 @@ body {
 
 h1, h2, h3, h4 {
   font-family: var(--font-serif);
-  font-weight: 500;
+  /* FB-203, item 13: 400, not 500. The design sets Source Serif 4 at 400 for every heading and has
+     no bold serif anywhere — a serif carries its weight in its own shapes, and half a step extra on
+     a display face reads as a slightly wrong font rather than as emphasis. This is the global rule;
+     the section headings added in items 7 to 11 already set it on themselves. */
+  font-weight: 400;
   line-height: 1.1;
   letter-spacing: -0.012em;
   margin: 0 0 0.5em;
@@ -163,6 +167,8 @@ h1, h2, h3, [id] { scroll-margin-top: calc(var(--topbar-height) + 1rem); }
 .wordmark-name {
   font-family: var(--font-serif);
   font-size: 1.35rem;
+  /* The one serif that keeps a heavier weight: it is a wordmark, not a heading, and the rail's own
+     BRUNTSFIELD is drawn the same way. */
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;

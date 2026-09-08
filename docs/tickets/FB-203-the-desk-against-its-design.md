@@ -197,7 +197,55 @@ empty panels: neither is in the design because the design has no failing venture
 budget line survives **only when a surface is over its limit**, because the rail can colour a figure
 red but cannot say *285% of the limit*, or that £13,700 of it is still awaiting a founder's OK.
 
-### Still to do — items 12 and 13
+### Items 12 and 13 — done, 2026-09-08
+
+**12, in three parts.**
+
+- **Tickets now sits above Needs you.** Needs you is a *filter* on Tickets (FB-129), and a filter
+  listed above the thing it filters reads as a separate place — which is what it used to be, and what
+  FB-149 stopped it being.
+- **Budgets say `Build £13,700/£4,800`,** not `build`. The rail was printing the raw manifest key
+  beside a money figure, which is the studio showing a founder its own filing system. The short name
+  comes from the manifest's own name (the part before the em dash), not from capitalising the id —
+  that is how `growth-ops` becomes "Growth-ops" on somebody's screen.
+- **The engine line has a square in its own colour.** Green when the machine is alive, amber-red when
+  it has stopped. The sentence stays and stays first-class; the square is `aria-hidden`, because a
+  state told only in colour is a state some readers never get.
+
+**Two parts of item 12 are deliberately not built.**
+
+- **"The pocket studio (mobile)", above Sign out.** There is nowhere honest to send anyone. The pocket
+  studio is not a route — it is what the desk becomes below 48rem, and `?full=1` is the toggle the
+  other way. The rail is `display: none` on a phone, so the link would only ever be visible on a
+  desktop, where pressing it does nothing. A nav row that cannot work where it is shown is a dead
+  control, which the design contract forbids and `design-lint` enforces.
+- **The office thumbnail with "3 at work · 3 waiting on you".** The "waiting on you" half is already
+  three rows above it on the Needs you badge, and FB-167 deleted an office block from this exact spot
+  because it was a second statement about one machine, one screen apart from the first, and the two
+  disagreed in production. The "at work" half is not free: it needs a run report per surface, and
+  reading those in the rail is what FB-164 removed when every screen under a venture was waiting about
+  six seconds for it. **What it would take:** the box publishing a per-surface summary the rail can
+  read in one file, the way `_heartbeat.json` already carries liveness. That is a box-side ticket.
+
+**13.** Every colour in the design's list already matched. Two things did not:
+
+- **Headings were `font-weight: 500`.** The design sets Source Serif 4 at **400** for every heading
+  and has no bold serif anywhere. A serif carries its weight in its own shapes; half a step extra on
+  a display face reads as a slightly wrong font rather than as emphasis. Changed globally, so it
+  reaches every screen and not only the desk. The wordmark keeps 500 — it is a wordmark, not a
+  heading, and the rail's own BRUNTSFIELD is drawn the same way.
+- **Three rounded corners survived.** Two 50% dots on Memory and the ledger, and a `0.25rem` textarea
+  on the approval card. The design has no border-radius anywhere; the dots are squares now, like every
+  other state mark in the studio since item 4.
+
+The 24px section headings item 13 asks for were built in items 7 to 11 — "The office", "What your
+team did", "Waiting on you" and "The company, by surface" are all serif H2s now rather than the 11px
+uppercase labels the design reserves for column heads and eyebrows.
+
+### FB-203 is complete
+
+All thirteen items are built or written down with reasons. What is left is on other tickets: FB-205
+(the mangled sentence) and the box-side per-surface summary the rail's office line would need.
 
 The queue, the surfaces, the rail, and the token audit — in John's order.
 
