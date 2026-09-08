@@ -40,6 +40,13 @@
   --fs-display: clamp(56px, 7vw, 96px);
   --fs-h1: clamp(36px, 4.2vw, 56px);
   --fs-h2: clamp(26px, 2.6vw, 34px);
+  /* The design's own two sizes for the desk (FB-203). Neither existed on the scale: the page title
+     it draws is 30px, and the blocker sentence it draws is 19px, and `--fs-h1` (up to 56px) and
+     `--fs-h4` (18px) are the nearest, which is not near enough on the two lines a founder reads
+     first. Item 13 is a wider audit of the scale against the design; these two are what items 2 and
+     4 need. */
+  --fs-page-title: 30px;
+  --fs-lead: 19px;
   --fs-h3: 22px;
   --fs-h4: 18px;
   --fs-subhead: 15px;
@@ -863,3 +870,163 @@ body:has(.rail) .main {
   margin: 0.4rem 0 0;
   max-width: var(--content-narrow);
 }
+
+/* The desk's top half (FB-203, items 2, 4 and 6).
+ *
+ * The design's figures, and the three faults they replace: a ~60px venture name where the design has
+ * a 30px "The desk"; a blocker banner narrower than the page with its action buried inside the
+ * sentence; and an input and a Send button as two separate boxes with a gap down the middle. */
+
+/* Item 2 — the title and the meta on one baseline. The venture's name lives in the eyebrow and the
+   rail; repeating it at 60px pushed the sentence a founder actually reads below the fold. */
+.desk-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.15rem;
+}
+
+.desk-head h1 {
+  font-size: var(--fs-page-title);
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Item 4 — one banner, one click target, full width.
+ *
+ * `align-items: baseline` so the square marker sits on the text's baseline rather than centred
+ * against a line box that changes height when the sentence wraps. */
+.blocker {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  border: 1px solid var(--color-warn);
+  background: var(--color-paper-sunken);
+  padding: 0.875rem 1.25rem;
+  margin: 0 0 1.25rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Guarded on a real pointer. On a touch screen there is no un-hover, so a tapped banner keeps the
+   tint after the founder has come back from the queue, and reads as still selected. */
+@media (hover: hover) { .blocker:hover { background: var(--color-accent-tint); } }
+
+/* Nothing is waiting: the same box, in the quiet border, so the page does not change shape when a
+   founder clears their queue. The design draws this state; we did not have it. */
+.blocker-clear { border-color: var(--color-border); }
+
+/* A square, not an emoji. An emoji is a different typeface at a size the design did not choose, and
+   it reads as a warning icon on a line that is not a warning. */
+.blocker-marker {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--color-warn);
+}
+
+.blocker-clear .blocker-marker { background: var(--color-accent); }
+
+.blocker-line {
+  flex: 1 1 auto;
+  font-family: var(--font-serif);
+  font-size: var(--fs-lead);
+  line-height: 1.45;
+  color: var(--color-warn);
+}
+
+.blocker-clear .blocker-line { color: var(--color-ink-soft); }
+
+/* What is stuck, in the banner's own shape (FB-203, item 5).
+
+   Item 5 says delete the "Where things stand" box, and it is right that three of its four lines
+   repeated the summary sentence and the banner. The fourth did not: it names the tickets that are
+   stuck and need a human, and that fact has no other home on the desk or on the phone. Deleting the
+   box without it would have been the studio going quiet about work it cannot finish (CLAUDE.md
+   #10). So the line moved into the banner it always belonged in, and the box went.
+
+   No modifier, and that is the design's instruction rather than an omission: *"The design has no
+   red at all. Needs-you is amber; engine faults are the same amber."* The first version of this
+   drew the row in `--tone-blocked`, which reproduced the exact complaint item 5 makes about the box
+   it replaced — that its red was the loudest thing on the page. The two rows differ in what they
+   say and where they go ("Decide now →" to the queue, "Look →" to what happened), not in colour. */
+
+/* Pushed right, and on its own — the action is not a phrase inside the sentence. */
+.blocker-decide {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: var(--fs-meta-lg);
+  font-weight: 600;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+/* On a phone the action drops under the sentence, and only the action.
+
+   It did not, and the picture was the reason this rule exists: "Decide now →" held its place on the
+   right, the sentence was left a column about fifteen characters wide, and one banner ran twelve
+   lines down a 393px screen. Every test passed — the banner was present, correct, and linked. Only
+   looking at it found that.
+
+   `flex-basis: 0` on the sentence is what keeps the marker beside it. With `auto` the basis is the
+   sentence's own max-content width, which on a wrapping row is far wider than the phone, so the
+   sentence took a line of its own and left the square floating above a paragraph like a decoration
+   rather than sitting against the text. */
+@media (max-width: 30rem) {
+  .blocker { flex-wrap: wrap; }
+  .blocker-line { flex: 1 1 0; min-width: 0; }
+  .blocker-decide { flex: 1 1 100%; margin-left: 1.5rem; }
+}
+
+/* Item 6 — one container, with the Send inside it.
+ *
+ * It was an input and a button side by side with a gap between them, which reads as two controls
+ * where the design draws one. */
+.promptbar {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-paper-raised);
+  padding: 0.375rem 0.5rem 0.375rem 1.125rem;
+  margin: 0 0 1.75rem;
+}
+
+.promptbar-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 0.5rem 0;
+  font-family: inherit;
+  font-size: var(--fs-body-sm);
+  color: var(--color-ink);
+}
+
+.promptbar-input:focus { outline: none; }
+/* The focus ring moves to the container, because the container is what a reader sees as the control. */
+.promptbar:focus-within { border-color: var(--color-accent); }
+
+/* Bordered pills, not underlined links. An underline says "this navigates"; a chip fills the box
+   above it and goes nowhere. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: -1rem 0 1.75rem;
+  font-size: var(--fs-meta);
+  color: var(--color-ink-muted);
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  background: none;
+  padding: 0.3125rem 0.75rem;
+  font: inherit;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+
+.chip:hover { border-color: var(--color-border-strong); }

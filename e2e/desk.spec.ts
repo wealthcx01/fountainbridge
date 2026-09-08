@@ -72,9 +72,41 @@ test.describe('the desk', () => {
         const el = document.querySelector(sel);
         return el ? el.getBoundingClientRect().top + window.scrollY : null;
       };
-      return { strip: y('[data-testid="degraded-strip"]'), brief: y('[data-testid="founder-brief"]') };
+      return { strip: y('[data-testid="degraded-strip"]'), brief: y('[data-testid="blocker-banner"]') };
     });
     if (tops.brief !== null && tops.strip !== null) expect(tops.strip).toBeGreaterThan(tops.brief);
+  });
+
+  test('the head names the room, and says the venture once (FB-203, item 2)', async ({ page }) => {
+    // The page was headed ARCA, which is the one thing a founder already knows: they chose the
+    // venture to get here and the rail says it on every screen. The heading names where they are;
+    // the venture, what it is and how it is doing sit above it in three words.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('The desk');
+    // The meta sits on the heading's own baseline rather than under it. Signed in as Bruntsfield
+    // rather than as ARCA's founder, so it names them — "Founder: you" is what their own founder
+    // reads (FB-100, item 7: the studio does not introduce someone to themselves).
+    const meta = page.getByTestId('board-founder');
+    await expect(meta).toContainText('Founder: John Gallagher');
+    await expect(meta).toContainText('updated');
+    await expect(meta.getByTestId('refresh')).toBeVisible();
+
+    // The ACTIVE pill went with it. The eyebrow already says the status, and a pill repeating the
+    // word beside it teaches a founder that the studio's pills carry nothing.
+    // Scoped to the head. Other ACTIVE pills further down the page belong to rows about something
+    // else, and those still earn their place — this is about the one that sat beside the title and
+    // repeated the eyebrow directly above it.
+    const pills = await page.locator('.desk-head .tag').allInnerTexts();
+    expect(pills.filter((t) => /^active$/i.test(t.trim()))).toEqual([]);
+    // And so did "Your team — AI working on this venture's own machine, around the clock."
+    await expect(page.getByTestId('team-intro')).toHaveCount(0);
+  });
+
+  test('the summary opens with what the venture is (FB-203, item 3)', async ({ page }) => {
+    // From the manifest, never invented: a description is a fact about the venture, and writing one
+    // for a founder would be the studio telling them what their own company is. arca's manifest
+    // carries one, so the sentence leads with it and then reaches the counts.
+    await expect(page.getByTestId('desk-summary')).toContainText('ARCA gives collectors one place');
+    await expect(page.getByTestId('desk-summary')).toContainText('wait on you');
   });
 
   test('“Decide now” lands on the work it just counted', async ({ page }) => {
@@ -83,7 +115,10 @@ test.describe('the desk', () => {
     // it and was scrolled past the office to an empty space.
     const banner = page.getByTestId('blocker-banner');
     if ((await banner.count()) === 0) return;
-    await expect(page.getByTestId('blocker-decide')).toHaveAttribute('href', /#waiting-on-you$/);
+    // FB-203, item 4 made the whole banner the click target, so the href is on the banner and
+    // "Decide now →" is the label pushed to its right rather than the only live part of the line.
+    await expect(banner).toHaveAttribute('href', /#waiting-on-you$/);
+    await expect(page.getByTestId('blocker-decide')).toBeVisible();
 
     const section = page.getByTestId('waiting-on-you');
     await expect(section).toBeVisible();

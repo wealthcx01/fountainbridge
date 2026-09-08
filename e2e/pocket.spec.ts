@@ -128,8 +128,31 @@ test.describe('what the pocket studio contains (FB-160)', () => {
     // stuck, which the banner counts but does not name.
     await expect(page.getByTestId('waiting-on-you')).toBeVisible();
     await expect(page.getByTestId('blocker-banner')).toBeVisible();
-    await expect(page.getByTestId('founder-brief')).toBeVisible();
+    // FB-203, item 5: this was the "Where things stand" box. That box went, because three of its
+    // four lines repeated the banner and the summary. Its blocked line did not repeat anything, so
+    // it kept its place on the phone in the banner's own shape.
+    await expect(page.getByTestId('desk-stuck').first()).toBeVisible();
     await expect(page.getByTestId('prompt-bar')).toBeVisible();
+  });
+
+  test('the banner gives the sentence the width of the phone (FB-203, item 4)', async ({ page }) => {
+    // The fault this catches, in full: "Decide now →" held its place at the right of the row, the
+    // sentence was left a column about fifteen characters wide, and one banner ran twelve lines
+    // down a 393px screen. Every existing test passed — the banner was present, correct, linked,
+    // and in the right place. Only looking at the picture found it.
+    //
+    // Asserted as a proportion rather than a pixel count, so it keeps holding as the copy and the
+    // phone change: on a phone the sentence gets most of the box, and the action drops beneath it.
+    // Measured through `boxOf`, which retries. A bare `boundingBox()` here returned null in a full
+    // run and passed on its own — FB-191's flake exactly: React replaces the node while hydrating,
+    // and a measurement taken across that swap reads a box that no longer exists.
+    const banner = page.getByTestId('blocker-banner');
+    const box = await boxOf(banner, 'the blocker banner');
+    const line = await boxOf(banner.locator('.blocker-line'), 'the banner’s sentence');
+    expect(line.width / box.width).toBeGreaterThan(0.6);
+    // The action is under the sentence, not beside it.
+    const decide = await boxOf(page.getByTestId('blocker-decide'), '“Decide now”');
+    expect(decide.y).toBeGreaterThan(line.y + line.height - 2);
   });
 
   test('the whole desk is one press away, and one press back', async ({ page }) => {

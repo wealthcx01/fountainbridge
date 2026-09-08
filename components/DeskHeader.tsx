@@ -36,31 +36,42 @@ export function DeskSummary({ sentence }: { sentence: string }) {
   );
 }
 
-/** The amber banner. Rendered only when something genuinely waits, so it never means nothing. */
+/**
+ * The amber banner (FB-203, item 4).
+ *
+ * One box, one click target, the full width of the column. Three things changed and each was a
+ * sentence the design does not say:
+ *
+ *   - **A square, not a ⚠.** An emoji is a different typeface at a size nobody chose, and it reads
+ *     as a warning about the studio rather than a fact about the founder's own queue.
+ *   - **`Decide now →` is pushed right**, not buried in the middle of the sentence. It is the
+ *     action, and an action inside prose is a thing people read past.
+ *   - **The whole box is the target.** It was a sentence with a link in it, so most of the box did
+ *     nothing when pressed — which teaches a founder that this banner is a notice rather than a way
+ *     through.
+ *
+ * The `Needs you:` prefix is gone from the DOM text too. It was there for a screen reader and it
+ * duplicated the rail's own label; the sentence already names the founder as the blocker.
+ *
+ * **And the clear state is drawn**, which it was not. The design gives it the same box in the quiet
+ * border, so the page does not change shape when a founder finishes their queue — the one moment
+ * they have earned a screen that looks settled rather than one that looks emptier.
+ */
 export function BlockerBanner({ line, href }: { line: string | null; href: string }) {
   if (!line) {
     return (
-      <p className="muted" data-testid="blocker-none" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 1.25rem' }}>
-        Nothing is waiting on you. Your team runs on.
+      <p className="blocker blocker-clear" data-testid="blocker-none">
+        <span className="blocker-marker" aria-hidden="true" />
+        <span className="blocker-line">Nothing is waiting on you. Your team runs on.</span>
       </p>
     );
   }
   return (
-    <p
-      className="card"
-      data-testid="blocker-banner"
-      style={{
-        borderColor: toneColor('attention'),
-        color: toneColor('attention'),
-        fontSize: 'var(--fs-body-sm)',
-        margin: '0 0 1.25rem',
-      }}
-    >
-      <span aria-hidden="true">⚠ </span>
-      <span className="sr-only">Needs you: </span>
-      {line}{' '}
-      <Link href={href} data-testid="blocker-decide">Decide now →</Link>
-    </p>
+    <Link className="blocker" data-testid="blocker-banner" href={href}>
+      <span className="blocker-marker" aria-hidden="true" />
+      <span className="blocker-line">{line}</span>
+      <span className="blocker-decide" data-testid="blocker-decide">Decide now →</span>
+    </Link>
   );
 }
 

@@ -18,52 +18,40 @@ test.describe('run reports and the founder brief', () => {
   });
 
   test('the desk leads with what needs the founder, not with what is newest', async ({ page }) => {
-    await expect(page.getByTestId('founder-brief')).toBeVisible();
     // arca's fixtures have proposals awaiting the gate and work awaiting a read, so the count of
     // what is waiting outranks everything else on the board.
     //
     // FB-128 moved this claim from the brief's headline to the desk's amber banner. The brief said
     // the number, the banner said the number, and the new serif summary said it a third time —
     // three blocks in a row stating one fact. The banner keeps the breakdown, which is the part
-    // that was actually worth reading, and the brief keeps its lines, which are the ways in.
+    // that was actually worth reading.
+    //
+    // FB-203, item 5 finished the job: the "Where things stand" box is gone. Its blocked lines are
+    // now rows in the banner's own shape, asserted below.
     const banner = page.getByTestId('blocker-banner');
     await expect(banner).toContainText('finished work to read');
     await expect(banner).toContainText('outside the company');
-    await expect(page.getByTestId('brief-headline')).toHaveCount(0);
-  });
-
-  test('the whole board reads as four sentences, not as a log (FB-104)', async ({ page }) => {
-    // The state these fixtures describe produced eight bullets before FB-104, three of them about
-    // one ticket. An executive summary that grows with the log is not a summary.
-    const lines = page.getByTestId('brief-lines').locator('li');
-    expect(await lines.count()).toBeLessThanOrEqual(4);
   });
 
   test('repeated attempts at one ticket are one fact, named (FB-104)', async ({ page }) => {
-    const lines = page.getByTestId('brief-lines');
-    await expect(lines).toContainText('stuck and need');
-    await expect(lines).toContainText('ARCA-31');
+    // FB-104 built this as a line in the founder brief. FB-203 deleted the brief's box and kept
+    // this line, because it is the only place on the desk — or on the phone — where a founder is
+    // told which ticket their team could not finish. The wording and the deduplication are the
+    // brief's still (`lib/brief.ts`); only the box around them went.
+    const stuck = page.getByTestId('desk-stuck');
+    await expect(stuck.first()).toBeVisible();
+    await expect(stuck.first()).toContainText('stuck and need');
+    await expect(stuck.first()).toContainText('ARCA-31');
     // The machine's own account of the attempt belongs beside the attempt, not in the summary.
-    await expect(lines).not.toContainText('review/tests');
-    await expect(lines.locator('li[data-tone="blocked"]').first()).toBeVisible();
+    await expect(stuck.first()).not.toContainText('review/tests');
   });
 
-  test('every sentence in the brief is a way in (FB-104)', async ({ page }) => {
-    const brief = page.getByTestId('founder-brief');
-    // Asserted over the LINES rather than over the first link. FB-128 removed the headline from the
-    // desk, and the first link used to be its `/attention` one — an assertion about position, where
-    // the property that matters is that a sentence stating a number does not cost a founder a
-    // search for it. Every line, not one of them.
-    const lines = brief.getByTestId('brief-lines').locator('li');
-    const count = await lines.count();
-    expect(count).toBeGreaterThan(0);
-    for (let i = 0; i < count; i++) {
-      // The honesty line is the one that never links, because there is nowhere to send someone
-      // whose picture is incomplete. Everything else is a door.
-      const text = (await lines.nth(i).textContent()) ?? '';
-      if (/could not|cannot tell/i.test(text)) continue;
-      await expect(lines.nth(i).getByRole('link')).toHaveCount(1);
-    }
+  test('the stuck line is a way in, not a notice (FB-104, FB-203)', async ({ page }) => {
+    // The property FB-104 protected: a sentence that states a fact a founder then has to go and
+    // find is a sentence that costs them a search. It is now the whole row that is the door, which
+    // is item 4's rule for the banner applied to the banner's other shape.
+    const stuck = page.getByTestId('desk-stuck').first();
+    await expect(stuck).toHaveAttribute('href', /.+/);
     // The link down to the activity strip must land on the strip, not under the sticky bar.
     await expect(page.locator('#what-your-team-is-doing')).toBeVisible();
   });

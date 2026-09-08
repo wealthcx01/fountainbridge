@@ -40,7 +40,7 @@
     },
     "Department": {
       "additionalProperties": false,
-      "description": "A venture department (engineering, GTM, ops, …) with its own repo/queue and gate.",
+      "description": "A venture department (engineering, GTM, ops, \u2026) with its own repo/queue and gate.",
       "properties": {
         "connectors": {
           "description": "Connector names this department uses (e.g. 'stripe').",
@@ -84,7 +84,7 @@
           "type": "string"
         },
         "launch": {
-          "description": "Where this surface's running product or service opens from the studio (FB-093). Optional — absent until the venture defines it; the studio shows an honest 'nowhere to open yet' state meanwhile.",
+          "description": "Where this surface's running product or service opens from the studio (FB-093). Optional \u2014 absent until the venture defines it; the studio shows an honest 'nowhere to open yet' state meanwhile.",
           "title": "Launch",
           "type": "object",
           "additionalProperties": false,
@@ -93,7 +93,7 @@
           ],
           "properties": {
             "url": {
-              "description": "The URL the launch button opens. http(s) only — never a script or file scheme.",
+              "description": "The URL the launch button opens. http(s) only \u2014 never a script or file scheme.",
               "title": "Url",
               "type": "string",
               "pattern": "^https?://"
@@ -130,7 +130,7 @@
     },
     "FounderIdentity": {
       "additionalProperties": false,
-      "description": "The human founder's identity across GitHub and Google Workspace.\n\n``workspace_email`` is a Bruntsfield-assigned account on the venture's Workspace domain,\nmanaged by the founder — it is the studio login (Google OAuth) and the venture-scoping key\n(D6), never a personal consumer mailbox (D3). The validator refuses consumer domains so a\nmisconfigured manifest fails loud instead of leaking the founder's personal identity into the\nsend/auth path.",
+      "description": "The human founder's identity across GitHub and Google Workspace.\n\n``workspace_email`` is a Bruntsfield-assigned account on the venture's Workspace domain,\nmanaged by the founder \u2014 it is the studio login (Google OAuth) and the venture-scoping key\n(D6), never a personal consumer mailbox (D3). The validator refuses consumer domains so a\nmisconfigured manifest fails loud instead of leaking the founder's personal identity into the\nsend/auth path.",
       "properties": {
         "github_login": {
           "description": "The founder's own GitHub account (D2: added as a collaborator).",
@@ -270,7 +270,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "A co-created Foundry venture — the root config object the studio scopes everything to.\n\nEverything venture-specific lives here (venture-as-config); the studio core stays generic.\n``vps`` and identities may be unset before FB-011 provisioning. The ``approval_matrix`` is the\nD7 governance record: which change class routes to which approver(s).",
+  "description": "A co-created Foundry venture \u2014 the root config object the studio scopes everything to.\n\nEverything venture-specific lives here (venture-as-config); the studio core stays generic.\n``vps`` and identities may be unset before FB-011 provisioning. The ``approval_matrix`` is the\nD7 governance record: which change class routes to which approver(s).",
   "properties": {
     "approval_matrix": {
       "description": "D7: rules mapping each change class to its required approver(s).",
@@ -318,6 +318,11 @@
       "minLength": 1,
       "title": "Name",
       "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "One line saying what this venture IS, in the founder's own terms. It opens the desk's summary sentence, so it is read before any number on the screen. Optional: a venture without one gets the counts alone rather than a placeholder."
     },
     "repos": {
       "description": "Repo slugs owned by this venture.",

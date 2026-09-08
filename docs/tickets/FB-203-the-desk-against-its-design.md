@@ -77,10 +77,31 @@ below 60rem, so it never binds.
 The desk's own column test (FB-188) measured the nested `<main>`, so it read 0px once that was gone.
 Repointed at `.venture-pane`, which is what the column now is.
 
-### Still to do — items 2 to 13
+### Items 2 to 6 — done, 2026-09-08
 
-The shell only. The big `ARCA` H1, the ACTIVE pill, "Where things stand", the four orphan links, the
-emoji banner and the rest are all untouched and next, in John's order.
+The top half. Read at 1440×1000 and 393×851 on the fixture server (this branch is not deployed, so
+the production numbers in `docs/design-conformance.md` stand until it merges): **3,050px desktop,
+3,449px phone, no sideways scroll at either size.**
+
+What changed, item by item:
+
+- **2.** The heading is **The desk**; the eyebrow is `ARCA · VENTURE · ACTIVE` and the meta sits on
+  the heading's own baseline. The ACTIVE pill and *"Your team — AI working on this venture's own
+  machine, around the clock."* are gone.
+- **3.** `description` is now an optional field on the venture manifest (schema, reader, `DeskFacts`),
+  ARCA's is written, and the summary sentence opens with it. No manifest description, no clause —
+  the studio does not invent a purpose for someone's company.
+- **4.** One banner, one click target, a square marker instead of ⚠, `Decide now →` pushed right, no
+  `Needs you:` prefix, and the clear state drawn for the first time.
+- **5.** "Where things stand" is deleted. Its blocked lines are not: they name the tickets that are
+  stuck, which nothing else on the desk or the phone says, so they moved into the banner's own shape
+  in the banner's own amber.
+- **6.** One box with Send inside it, chips as bordered pills, and one link where there were four.
+
+### Still to do — items 7 to 13
+
+The office and the ledger, the engine section, the queue, the surfaces, the rail, and the token
+audit — in John's order.
 
 ## 2. The page header
 
