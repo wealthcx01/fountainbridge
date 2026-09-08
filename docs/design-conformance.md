@@ -22,7 +22,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | **1,000px** | **851px** | **compared, FB-189** — matched on height, wrong on everything else |
-| The desk | ~1,900px | **2,370px** | **2,753px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), top half FB-203 items 2–6 |
+| The desk | ~1,900px | **2,457px** | **2,562px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 2–9 |
 | Tickets | 1,090px | **1,202px** | **1,470px** | fixed FB-185, widened FB-188 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
@@ -300,11 +300,14 @@ Read on **2026-09-08** at 1440×1000 and 393×851, signed in as ARCA's founder.
 | | desktop | phone |
 | --- | --- | --- |
 | The desk, after items 2–6 | 2,370px | 2,753px |
-| **The desk, after items 7–9** | **2,434px** | **2,562px** |
+| The desk, after items 7–9 | 2,434px | 2,562px |
+| **The desk, after both corrections below** | **2,457px** | **2,562px** |
 
-No sideways scroll at either size. The desktop went up 64px and the phone came down 191px: the room
-and the ledger now share a row, so the section is as tall as the room rather than as tall as both,
-and on the phone the run history stands down entirely.
+No sideways scroll at any of those readings. The phone came down 191px and the desktop went up 87px.
+That is the honest shape of this work: the room and the ledger now share a row, so the section is as
+tall as the room rather than as tall as both, and on the phone the run history stands down entirely —
+while the desktop paid for a section heading, a rule, and two sentences that were not there before.
+The desk is still about 550px longer than the design's ~1,900. Items 10 to 13 are where that closes.
 
 **The live label was checked in both directions and is right in both.** On the desktop the real room
 renders, the stand-in is absent, and the label is shown. On the phone the embed stands down by design
