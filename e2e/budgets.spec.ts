@@ -44,9 +44,17 @@ test.describe('department budget disclosure', () => {
     await expect(budget).toContainText('Limit set in the studio; spend as reported by the venture');
   });
 
-  test('a department with no limit says so in a whole sentence', async ({ page }) => {
-    const build = page.getByTestId('dept-build-budget');
-    await expect(build).toContainText('No budget set for Build — Product.');
-    await expect(build).toHaveAttribute('data-budget-over', 'false');
+  test('a department within its limit says nothing about money on the desk (FB-203, item 11)', async ({ page }) => {
+    // The rail carries every surface's figure on every screen. Restating three of them in the
+    // surface columns was the desk answering a question that was already answered, three times,
+    // each with the same provenance sentence under it.
+    //
+    // Over-limit is the exception and is asserted above: the rail can colour a figure red, but it
+    // cannot say 192% of the limit, or that £5,200 of it is still awaiting a founder's OK.
+    await expect(page.getByTestId('dept-build-budget')).toHaveCount(0);
+    // The fact did not disappear with the sentence. Build has no envelope, and the rail says so —
+    // "not set", which is a statement about this venture's setup, not "£0", which would be a
+    // statement about its spending.
+    await expect(page.getByTestId('rail-budgets')).toContainText('not set');
   });
 });

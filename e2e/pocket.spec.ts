@@ -49,7 +49,11 @@ test.describe('the pocket studio (FB-138)', () => {
     // A pull request row specifically. FB-183 put external sends in this same queue, above the work
     // — nothing leaves the company without one — so "the first row" is no longer a pull request.
     const decide = page.locator('[data-testid^="waiting-decide-"]:not([data-testid^="waiting-decide-external-"])').first();
-    await expect(decide).toHaveText(/Decide/);
+    // FB-203, item 10 deleted the words "Decide →" and made the whole row the target, with the
+    // arrow riding on how long it has waited — because that is the reason to press it. So the
+    // assertion is about where the row goes, which is the property that was broken when this test
+    // was written and the only one worth pinning.
+    await expect(decide).toHaveText(/waiting/);
     await decide.click();
     await expect(page).toHaveURL(/\/venture\/arca\/work\/[^/]+\/\d+$/);
     await expect(page.getByTestId('work-decision')).toBeVisible();

@@ -18,9 +18,14 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   // FB-048: the three founder-owned surfaces. FB-045 provisioned Sell and Scale their own repos, so
   // all three now read active — selling and scaling are worked by the lane, not only declared.
   await expect(page.getByTestId('dept-build')).toBeVisible();
-  await expect(page.getByTestId('dept-build-state')).toHaveText('active');
-  await expect(page.getByTestId('dept-sell-state')).toHaveText('active');
-  await expect(page.getByTestId('dept-scale-state')).toHaveText('active');
+  // FB-203, item 11 deleted the ACTIVE pill from each column. Three pills all reading "active", on
+  // a venture whose eyebrow says ACTIVE two feet above them, taught a founder that the studio's
+  // pills carry nothing. What the pill was actually for — telling a provisioned surface from one
+  // that is not open yet — is the column's own line, so that is what is asserted.
+  for (const id of ['build', 'sell', 'scale']) {
+    await expect(page.getByTestId(`dept-${id}-outcome`)).not.toBeEmpty();
+    await expect(page.getByTestId(`dept-${id}-outcome`)).not.toContainText('Not open yet');
+  }
   // FB-093: Build's door is real since 2026-08-04 (the terminal lives on Railway); Sell still has
   // nothing running, so its honest pending state must survive Build going live — one surface with
   // a door and one without is exactly the state this feature exists to render truthfully.
@@ -28,7 +33,11 @@ test('venture → lane → ticket drawer, with dependency link', async ({ page }
   await expect(buildLaunch).toBeVisible();
   await expect(buildLaunch).toHaveAttribute('href', 'https://arca-production-4e99.up.railway.app');
   await expect(buildLaunch).toHaveAttribute('rel', /noopener/);
-  await expect(page.getByTestId('dept-sell-launch-pending')).toBeVisible();
+  // Sell still has nothing running. It gets no link, rather than a paragraph apologising for the
+  // absence of one — item 11's instruction, and the honest shape: the door appears when there is a
+  // door. Build having one and Sell not is exactly the state this must render truthfully.
+  await expect(page.getByTestId('dept-sell-launch')).toHaveCount(0);
+  await expect(page.getByTestId('dept-sell-launch-pending')).toHaveCount(0);
   // Graceful degradation, surfaced not hidden: the imperfect ticket (ARCA-4, odd status) drives the
   // warnings badge. The stray README is still counted as a skipped non-ticket file, but FB-103 took
   // that count off the founder's header — it is a note the ticket reader wrote to itself, and it
@@ -250,16 +259,20 @@ test.describe('a surface is the door to its queue (FB-109)', () => {
     await page.goto('/venture/arca');
   });
 
-  test('the lane leads with the surface’s name, with the repo demoted to an aside', async ({ page }) => {
-    // A founder had to already know that "Build — Product" IS `arca`.
+  test('a surface is named for what it is, never for the repository it lives in', async ({ page }) => {
+    // FB-186's problem was that a founder had to already know "Build — Product" IS `arca`, because
+    // the desk carried two lists in two vocabularies. It fixed that by putting the repository on
+    // the line under the surface's name.
     //
-    // FB-186 merged the surface's card and its queue into one block, so the repository sits on the
-    // line under the heading rather than inside it. The rule is unchanged and is what is asserted:
-    // the NAME leads, and the repository is an aside beneath it, not the other way round.
-    const lane = page.getByTestId('lane-arca');
-    await expect(lane.locator('h3')).toContainText('Build — Product');
-    await expect(lane.locator('h3'), 'the repo is leading again').not.toContainText('arca-');
-    await expect(lane).toContainText('arca');
+    // FB-203, item 11 finishes it the other way: the column is labelled by the surface and the
+    // repository is not printed at all, so there is no mapping left to know. The property FB-186
+    // protected is stronger, not weaker — the element still answers to the repository's own id, so
+    // everything that navigates by it still works, and nothing asks a founder to read it.
+    const col = page.getByTestId('dept-build');
+    await expect(col.getByTestId('dept-build-select')).toContainText('Build — Product');
+    await expect(col, 'the repository is back on the founder’s desk').not.toContainText('arca-marketing');
+    // The id is the connection, and it is still there.
+    await expect(page.getByTestId('lane-arca')).toBeVisible();
   });
 
   test('the card says what its queue is worth before it is clicked', async ({ page }) => {

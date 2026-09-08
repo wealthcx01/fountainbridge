@@ -277,3 +277,42 @@ export function surfaceOutcome(input: SurfaceOutcomeInput): string {
   // them is true. There is no analytics source anywhere in the studio yet.
   return `${tickets}. Nothing reported yet — outcomes appear here once this surface reports.`;
 }
+
+
+/**
+ * Which of a founder's waiting decisions the desk shows (FB-203, item 10).
+ *
+ * The design caps this list at three or four: it is an index, and "Needs you" holds the whole queue.
+ * Capping a list that is ordered by kind, though, does not take the four most important things — it
+ * takes the first kind until it runs out.
+ *
+ * That is not hypothetical. External sends lead the queue on purpose (FB-183: nothing leaves the
+ * company without one), and on production ARCA had six of them. A cap of four showed four sends and
+ * **every piece of finished work disappeared from the desk** — including the pull requests the amber
+ * banner had just counted, on the screen the banner sends a founder to. The browser gate caught it
+ * because a phone test looks for a pull-request row; a founder would have caught it by wondering
+ * where their work went.
+ *
+ * So when both kinds are waiting, both are on the desk. The last slot goes to whichever kind the cap
+ * would otherwise have erased. Everything else is still one press away, and `WaitingQueue` says how
+ * many are behind the link rather than letting them go quiet.
+ */
+export function deskQueue<T extends { external?: boolean }>(items: readonly T[], rows: number): T[] {
+  if (rows <= 0) return [];
+  if (items.length <= rows) return [...items];
+
+  const head = items.slice(0, rows);
+  const isExternal = (i: T) => i.external === true;
+  const missing = (kind: (i: T) => boolean) => items.some(kind) && !head.some(kind);
+
+  // Only one kind can be missing at a time: the head is full, so if both kinds were absent from it
+  // the head would be empty. Whichever it is, it takes the last slot from the kind that has the most
+  // rows — which is the kind that pushed it out.
+  const wanted = missing((i) => !isExternal(i))
+    ? items.find((i) => !isExternal(i))
+    : missing(isExternal)
+      ? items.find(isExternal)
+      : null;
+  if (!wanted) return [...head];
+  return [...head.slice(0, rows - 1), wanted];
+}

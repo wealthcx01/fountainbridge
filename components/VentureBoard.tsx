@@ -8,7 +8,6 @@ import type { LaneTickets, TicketStatusGroup, TicketWithMeta } from '@/lib/ticke
 import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import type { PrApproval } from '@/lib/attention';
-import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { ago } from '@/lib/when';
 import { emptyPanel } from '@/lib/firstrun';
@@ -24,6 +23,7 @@ import type { Office } from '@/lib/office';
 import { lastSend, outboxUrl } from '@/lib/sends';
 import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
+import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
 import { EngineActivity } from './EngineActivity';
 import { WhileWorking } from './WhileWorking';
@@ -37,11 +37,15 @@ import type { RunReport } from '@/lib/runreports';
 // "Work here is approval coming." for the gate that has not been specified yet — a template can only
 // be as grammatical as its worst case, and the worst case is the one a founder meets on a surface
 // nobody has finished designing.
-const GATE_LABEL: Record<string, string> = {
-  pr: 'Work here is approved by review.',
-  activegraph: 'Work here is approved before it goes out.',
-  'tbd-fb012': 'How work here gets approved is still being decided. Nothing goes out meanwhile.',
-};
+/**
+ * The one gate sentence a surface still prints (FB-203, item 11).
+ *
+ * The other two — "Work here is approved by review", "Work here is approved before it goes out" —
+ * were policy, printed once per surface on every desk load, and policy belongs in the handbook.
+ * This one is not policy. It says nothing can leave the company while the gate is unsettled, which
+ * is a fact about this venture right now and the kind of thing non-negotiable 10 is about.
+ */
+const GATE_UNDECIDED = 'How work here gets approved is still being decided. Nothing goes out meanwhile.';
 
 // Column keys stay technical (col-<key> test ids, contract statuses); the visible label is the
 // founder-facing term from the glossary (FB-024) — e.g. "pr-open" → "Needs your OK".
@@ -93,17 +97,6 @@ function laneErrorNextStep(kind: LaneErrorKind): string | null {
   }
 }
 
-/**
- * Over the limit gets weight and colour; everything else is ordinary text.
- *
- * There is no state ladder to announce any more — the sentence says what it says, and `overLimit` is
- * a statement about the reported figures rather than a verdict on an action. The previous version
- * carried four states across a glyph, a colour, a DOM attribute and an sr-only twin, and they
- * drifted apart from each other and from the words.
- */
-function budgetTone(budget: BudgetDisclosure | null): { color?: string; weight?: number } {
-  return budget?.overLimit ? { color: toneColor('blocked'), weight: 600 } : {};
-}
 
 export function VentureBoard({
   venture,
@@ -497,8 +490,20 @@ export function VentureBoard({
           pull requests — the common case — the anchor sat above three empty sections and a founder
           was scrolled past the office to nothing. */}
       <section id="waiting-on-you" data-testid="waiting-on-you" className="pocket-3" style={{ marginTop: '1.5rem' }}>
-        <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Waiting on you</p>
-        <WaitingQueue items={waitingItems} />
+        {/* FB-203, item 10: a serif heading, not a small uppercase label. The design reserves those
+            for column heads and eyebrows, and this is a section of the page — the same size and
+            weight as "The office" and "What your team did" above it.
+
+            The link beside it goes to Needs you rather than to all tickets, because that screen
+            counts exactly what this list counts (FB-149) and "all tickets" would send a founder
+            somewhere with a different number on it. */}
+        <div className="queue-head">
+          <h2>Waiting on you</h2>
+          <Link className="queue-all" href={`/venture/${venture.id}/tickets?filter=needs`} data-testid="waiting-all">
+            everything waiting →
+          </Link>
+        </div>
+        <WaitingQueue items={waitingItems} ventureId={venture.id} />
       </section>
       {/* FB-183: the external-send cards that used to stand here are rows in "Waiting on you" above,
           and the decision is made on the page each row opens.
@@ -553,28 +558,46 @@ export function VentureBoard({
       ) : null}
       {/* ---- 8. The company, by surface ----------------------------------------------------------
           The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
-          its own approval gate — so product-building, selling, and scaling are managed separately. */}
+          its own approval gate — so product-building, selling, and scaling are managed separately.
+
+          FB-203, item 11: three columns divided by rules, not three bordered cards. Each is a label,
+          one line, and the links that go somewhere. What went, and why each was safe to lose:
+
+            - **The ACTIVE pill.** Three pills all saying "active" on a venture whose eyebrow already
+              says ACTIVE. "Coming" was the only one carrying anything, and the line says it now.
+            - **"Limit set in the studio; spend as reported by the venture."** Printed three times,
+              once per surface, as provenance for a figure that lives in the rail.
+            - **The budget line.** The rail carries every venture's budgets on every screen, and
+              colours an over-limit one red. Stating them again per column was the desk answering a
+              question the rail had already answered.
+            - **The gate sentence.** "Work here is approved by review" is policy, not state, and the
+              handbook is where policy belongs. The one variant that is not policy — *nothing goes
+              out while the gate is undecided* — is kept, because that one is a caution.
+            - **The outlined Open button**, which was the most button-shaped thing on the page, and
+              **"Nowhere to open yet…"**, which was a paragraph standing in for a link.
+
+          What stayed, against the design, and why:
+
+            - **The stale flag.** The design calls it noise. It is the only place in the studio that
+              says a surface has gone quiet for a fortnight — `e2e/activity.spec.ts` and
+              `e2e/attention.spec.ts` both reach for it on the desk because there is nowhere else. The
+              badge went; the fact is a clause on the one line, still interrogable by keyboard
+              (FB-068).
+            - **The read-failure and empty panels.** Neither is in the design because the design has
+              no failing venture in it. A read that failed is not an empty queue and an empty queue
+              is not a queue with work in it (non-negotiable 10). They only render in those states,
+              so an ordinary column is a label, a line and two links. */}
       {departments.length > 0 ? (
-        <div className="not-in-pocket" data-testid="dept-surfaces" style={{ marginTop: '1.25rem' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Your surfaces</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(11.25rem, 1fr))', gap: '0.75rem' }}>
+        <div className="not-in-pocket" data-testid="dept-surfaces" style={{ marginTop: '2.25rem' }}>
+          <div className="queue-head">
+            <h2>The company, by surface</h2>
+          </div>
+          <div className="surfaces">
             {departments.map((d) => {
+              const laneStale = stale.has(d.repo ?? '');
               const budget = budgets[departments.indexOf(d)] ?? null;
               return (
-              // The "coming" fade is applied to the HEADER only, not the whole card: compositing the
-              // budget line at 0.7 drops muted text to ~2.8:1, under WCAG AA, and a budget figure is
-              // not something to render at reduced contrast.
-              <div key={d.id} className="card" data-testid={`dept-${d.id}`}>
-                {/* FB-186: the surface and its queue, in one card.
-                    The desk stated each surface twice — this block of cards, and then a second list
-                    underneath repeating the same three names, the same repositories and the same
-                    ticket counts in different words. Every figure in both was correct, which is why
-                    nothing caught it; the two blocks together were 764px of a page that should come
-                    to about 1,900px in total.
-                    The lane's own id and its quiet state stay exactly where they were, on the block
-                    that holds the surface's heading and its queue — so a founder still selects a
-                    surface and sees the others stand back, and nothing that could be reached before
-                    has moved. */}
+              <div key={d.id} className="surface-col" data-testid={`dept-${d.id}`}>
                 <div
                   id={`lane-${d.repo}`}
                   data-testid={`lane-${d.repo}`}
@@ -584,15 +607,14 @@ export function VentureBoard({
                     transition: 'opacity var(--dur) var(--ease)',
                   }}
                 >
-                <h3 style={{ fontSize: 'var(--fs-subhead)', margin: 0, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem', opacity: d.provisioned ? 1 : 0.7 }}>
+                <p className="surface-label">
                   {/* A real button, not a card-shaped div: the audit found the surface cards were the
                       most button-shaped objects on the page and the only ones that did nothing. The
-                      NAME is the control rather than the whole card, because the card also holds the
-                      launch link and a link inside a button is neither. */}
+                      NAME is the control rather than the whole column, because the column also holds
+                      links and a link inside a button is neither. */}
                   {d.repo && lanes.some((l) => l.repo === d.repo) ? (
                     <button
                       type="button"
-                      className="surface-name"
                       data-testid={`dept-${d.id}-select`}
                       aria-pressed={surface === d.id}
                       aria-controls={`lane-${d.repo}`}
@@ -603,190 +625,163 @@ export function VentureBoard({
                           document.getElementById(`lane-${d.repo}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
                       }}
-                      style={{ fontSize: 'var(--fs-subhead)', fontWeight: 600 }}
                     >
                       {d.name}
                     </button>
                   ) : (
-                    <strong style={{ fontSize: 'var(--fs-subhead)' }}>{d.name}</strong>
+                    d.name
                   )}
-                  <span className={`tag ${d.provisioned ? 'tag-accent' : ''}`} data-testid={`dept-${d.id}-state`}>
-                    {d.provisioned ? 'active' : 'coming'}
-                  </span>
-                </h3>
-                {/* The repository, and whether anything has happened in it lately. Both came off the
-                    second list; a founder no longer has to already know that "Build — Product" IS
-                    `arca` to connect a surface to its queue, because they are one thing now. */}
-                <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.2rem 0 0' }}>
-                  <span className="mono">{d.repo}</span>
-                  {stale.has(d.repo ?? '') ? (
-                    <span
-                      className="tag"
-                      data-testid={`lane-stale-${d.repo}`}
-                      tabIndex={0}
-                      title="Nothing has been built or changed here for over two weeks. That may be fine — it is only worth a look if you expected something to be happening."
-                      style={{ marginLeft: '0.4rem', color: toneColor('attention') }}
-                    >
-                      <span aria-hidden="true">⚠ </span>nothing here lately
+                </p>
+
+                {/* The one line. What this surface has actually produced — the only place a founder
+                    learns whether any of it worked. Sourced or silent
+                    (docs/decision-surface-outcomes.md): Build's line is true today, Sell has no
+                    reporting until FB-142 and says so, and Scale is not connected and says that too.
+                    No zero standing in for an unknown. */}
+                <p className="surface-line" data-testid={`dept-${d.id}-outcome`}>
+                  {d.provisioned ? (
+                    <>
+                      {surfaceOutcome({
+                        departmentId: d.id,
+                        ticketCount: lanes.find((l) => l.repo === d.repo)?.total ?? 0,
+                        hasLaunch: Boolean(d.launch),
+                        provisioned: d.provisioned,
+                        // FB-142: from the sends this venture has already gated. No new read.
+                        lastSend: d.id === 'sell' ? lastSend(approvals) : null,
+                      })}
+                      {/* Policy belongs in the handbook; this one is not policy, it is a caution
+                          that nothing can leave the company while the gate is unsettled. */}
+                      {d.gate === 'tbd-fb012' ? <> {GATE_UNDECIDED}</> : null}
+                      {/* FB-068: a badge that cannot be interrogated trains people to ignore badges.
+                          It is a clause now rather than a tag, and it still says what it means and is
+                          still reachable by keyboard.
+                          Last in the line, because it is the one amber thing in it — amber in the
+                          middle of a sentence reads as a link rather than as a warning. */}
+                      {laneStale ? (
+                        <>
+                          {' '}
+                          <span
+                            data-testid={`lane-stale-${d.repo}`}
+                            tabIndex={0}
+                            title="Nothing has been built or changed here for over two weeks. That may be fine — it is only worth a look if you expected something to be happening."
+                            style={{ color: toneColor('attention') }}
+                          >
+                            Nothing here for over two weeks.
+                          </span>
+                        </>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>Not open yet. Bruntsfield sets this side of the venture up when you need it.</>
+                  )}
+                </p>
+
+                {/* Money, and only when it is a problem (FB-203, item 11).
+                    The design's argument is that budgets already live in the rail, which carries
+                    every surface's figure on every screen — so restating three of them here was the
+                    desk answering a question that was already answered, three times, with the same
+                    provenance sentence under each.
+                    A surface OVER its limit is not that. The rail can colour the figure red; it
+                    cannot say 192% of the limit, or that £5,200 of it is still awaiting a founder's
+                    OK, or where either number came from. FB-054's reasoning is unchanged and is why
+                    the provenance travels with the sentence: the studio owns the limit and does not
+                    own the spend, and dressing an unverifiable figure as a verdict is what three
+                    review passes punished. */}
+                {budget?.overLimit ? (
+                  <p
+                    data-testid={`dept-${d.id}-budget`}
+                    data-budget-over="true"
+                    style={{ fontSize: 'var(--fs-meta-lg)', margin: '0 0 0.5rem', color: toneColor('blocked'), fontWeight: 600 }}
+                  >
+                    {describeBudget(budget, d.name)}{' '}
+                    <span className="muted" style={{ fontWeight: 400 }}>
+                      Limit set in the studio; spend as reported by the venture.
                     </span>
-                  ) : null}
-                </p>
-                <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.35rem 0 0' }}>
-                  {d.provisioned
-                    // Not `mono`: this is an explanation, and the code face made it read as a
-                    // value the founder was supposed to recognise rather than as a sentence.
-                    ? <>{GATE_LABEL[d.gate] ?? `How work here gets approved is still being decided.`}</>
-                    : <>Not open yet. Bruntsfield sets this side of the venture up when you need it.</>}
-                </p>
-                {/* FB-186: the queue breakdown that stood here is gone.
-                    It read "4 waiting for your OK · 14 in progress" — a restatement of the banner at
-                    the top of this page and of the list directly above it, per surface. Claude
-                    Design ruled exactly this off the queue line on 2026-09-02 (*"restates the queue,
-                    which the banner and the Tickets summary already count"*), and the rule was
-                    applied to that line and not to this card, two lines above it. FB-109's point —
-                    that a card should be worth pressing before it is pressed — is carried by the
-                    outcome sentence below, which names the count and what the surface has produced. */}
-                {/* FB-128: what this surface has actually produced — the only place a founder learns
-                    whether any of it worked. Sourced or silent (docs/decision-surface-outcomes.md):
-                    Build's line is true today, Sell has no reporting until FB-142 and says so, and
-                    Scale is not connected and says that too. No zero standing in for an unknown. */}
-                <p
-                  data-testid={`dept-${d.id}-outcome`}
-                  style={{ fontSize: 'var(--fs-body-sm)', margin: '0.35rem 0 0' }}
-                >
-                  {surfaceOutcome({
-                    departmentId: d.id,
-                    ticketCount: lanes.find((l) => l.repo === d.repo)?.total ?? 0,
-                    hasLaunch: Boolean(d.launch),
-                    provisioned: d.provisioned,
-                    // FB-142: from the sends this venture has already gated. No new read.
-                    lastSend: d.id === 'sell' ? lastSend(approvals) : null,
-                  })}
-                </p>
-                {/* The design's "Open your outbox ↗". The studio does not read the mailbox — see
-                    lib/sends.ts on why that scope is not taken — so this is the one place a founder
-                    can see the message itself. Absent without a workspace address, rather than a
-                    link that lands on somebody's personal inbox. */}
-                {d.id === 'sell' && outbox ? (
-                  <p style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.2rem 0 0' }}>
-                    <a href={outbox} target="_blank" rel="noopener noreferrer" data-testid="sell-outbox">
-                      Open your outbox ↗
-                    </a>
                   </p>
                 ) : null}
-                {/* One string owner: `describe` returns a whole sentence, so the view adds no
-                    prefix of its own — "Budget no budget set" came from gluing a word onto a
-                    fragment. The sentence names whose figure it is, so no glyph or sr-only twin is
-                    needed to carry state that the words already carry. */}
-                <p
-                  className={budget?.overLimit ? undefined : 'muted'}
-                  data-testid={`dept-${d.id}-budget`}
-                  data-budget-over={budget?.overLimit ? 'true' : 'false'}
-                  style={{
-                    fontSize: 'var(--fs-body-sm)',
-                    margin: '0.35rem 0 0',
-                    color: budgetTone(budget).color,
-                    fontWeight: budgetTone(budget).weight,
-                  }}
-                >
-                  {describeBudget(budget, d.name)}{' '}
-                  {/* FB-068: the provenance moves here with the position. FB-054's reasoning is
-                      unchanged — the studio owns the limit and does NOT own the spend, and dressing
-                      an unverifiable figure as a verdict is what three review passes punished. It
-                      belongs where the figure is stated, once, not on every card. */}
-                  <span className="muted">Limit set in the studio; spend as reported by the venture.</span>
-                </p>
-                {/* FB-093: the door to the thing this surface is building. The target comes from the
-                    manifest (`launch:` — venture-as-config, never hard-coded here); a new tab for
-                    the same reason as the chat button: it is a different application, and replacing
-                    the board with it is the "no way back" problem FB-065 named. Only rendered for a
-                    provisioned surface — "coming" already explains an unprovisioned one. */}
-                {d.provisioned ? (
-                  d.launch ? (
+
+                {/* The links, underlined, and only the ones that go somewhere. */}
+                <p className="surface-links">
+                  {/* FB-093: the door to the thing this surface is building. The target comes from
+                      the manifest (`launch:` — venture-as-config, never hard-coded here); a new tab
+                      for the same reason as the chat button: it is a different application, and
+                      replacing the board with it is the "no way back" problem FB-065 named.
+                      A surface with nothing running gets no link, rather than a paragraph
+                      apologising for the absence of one. */}
+                  {d.provisioned && d.launch ? (
                     <a
-                      className="btn"
                       href={d.launch.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       data-testid={`dept-${d.id}-launch`}
-                      style={{ marginTop: '0.6rem' }}
                     >
-                      {d.launch.label ?? 'Open'}
+                      {d.launch.label ?? 'Open'} ↗
                     </a>
-                  ) : (
-                    <p className="muted" data-testid={`dept-${d.id}-launch-pending`} style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.6rem 0 0' }}>
-                      Nowhere to open yet — when this surface has something running (the app, the
-                      site, a service), its door appears here.
-                    </p>
-                  )
-                ) : null}
-
-                {/* The queue itself — the second list's only unique content, now where the surface
-                    it belongs to is named. Order matters: a read that FAILED is not an empty queue,
-                    and an empty queue is not a queue with work in it (non-negotiable 10). */}
-                {laneOf(d.repo)?.error ? (
-                  <div
-                    className="card"
-                    data-testid="lane-error"
-                    data-error-kind={laneOf(d.repo)?.errorKind ?? 'error'}
-                    style={{
-                      marginTop: '0.6rem',
-                      borderColor: toneColor(laneErrorTone(laneOf(d.repo)?.errorKind ?? null)),
-                      color: toneColor(laneErrorTone(laneOf(d.repo)?.errorKind ?? null)),
-                    }}
-                  >
-                    <div>{laneOf(d.repo)?.error}</div>
-                    {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null) ? (
-                      <div className="muted" data-testid="lane-error-next" style={{ marginTop: '0.45rem', fontSize: 'var(--fs-meta-lg)' }}>
-                        <strong>Next step:</strong> {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null)}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : !laneOf(d.repo) ? null : laneOf(d.repo)!.total === 0 ? (
-                  /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
-                     useless — a founder cannot tell from it whether they are waiting, whether
-                     something broke, or whether they were meant to do something first. */
-                  /* Keyed on the repository, like every other id on this screen (FB-058): two
-                     surfaces with an empty queue rendered two elements answering to one id, which
-                     Playwright's strict mode treats as an error and which made this panel's coverage
-                     quietly conditional on no venture ever having two empty surfaces. Found by
-                     FB-160's "no section twice" check. */
-                  <div className="card" data-testid={`lane-empty-${d.repo}`} style={{ marginTop: '0.6rem' }}>
-                    <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{emptyPanel('tickets', venture.hasComposer).what}</p>
-                    <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
-                      {emptyPanel('tickets', venture.hasComposer).how}
-                    </p>
-                    <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.4rem 0 0' }}>
-                      This is the only place work for this side of the venture is read from.
-                    </p>
-                  </div>
-                ) : (
-                  /* A count and a door, not a breakdown (Claude Design, 2026-09-02): the design's
-                     own line is "14 tickets", and what earns the space beside it is an outcome —
-                     which the sentence above this one already carries. */
-                  /* The door alone. Every branch of `surfaceOutcome` already names the count in the
-                     sentence above, so printing it again here was the card saying "73 tickets"
-                     twice — the same fault as the two blocks, one level down. */
-                  <p style={{ fontSize: 'var(--fs-body-sm)', margin: '0.6rem 0 0' }}>
+                  ) : null}
+                  {/* The design's "Open your outbox ↗". The studio does not read the mailbox — see
+                      lib/sends.ts on why that scope is not taken — so this is the one place a founder
+                      can see the message itself. Absent without a workspace address, rather than a
+                      link that lands on somebody's personal inbox. */}
+                  {d.id === 'sell' && outbox ? (
+                    <a href={outbox} target="_blank" rel="noopener noreferrer" data-testid="sell-outbox">
+                      Open your outbox ↗
+                    </a>
+                  ) : null}
+                  {laneOf(d.repo) && !laneOf(d.repo)?.error && laneOf(d.repo)!.total > 0 ? (
                     <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${d.repo}`}>
                       open the queue →
                     </Link>
+                  ) : null}
+                </p>
+
+                {/* Order matters: a read that FAILED is not an empty queue, and an empty queue is not
+                    a queue with work in it (non-negotiable 10). */}
+                {laneOf(d.repo)?.error ? (
+                  <p
+                    data-testid="lane-error"
+                    data-error-kind={laneOf(d.repo)?.errorKind ?? 'error'}
+                    style={{
+                      fontSize: 'var(--fs-meta-lg)',
+                      marginTop: '0.5rem',
+                      color: toneColor(laneErrorTone(laneOf(d.repo)?.errorKind ?? null)),
+                    }}
+                  >
+                    {laneOf(d.repo)?.error}
+                    {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null) ? (
+                      <span className="muted" data-testid="lane-error-next" style={{ display: 'block', marginTop: '0.35rem' }}>
+                        <strong>Next step:</strong> {laneErrorNextStep(laneOf(d.repo)?.errorKind ?? null)}
+                      </span>
+                    ) : null}
                   </p>
-                )}
+                ) : !laneOf(d.repo) ? null : laneOf(d.repo)!.total === 0 ? (
+                  /* FB-066: what would fill this, then how it starts. "No tickets yet" is true and
+                     useless — a founder cannot tell from it whether they are waiting, whether
+                     something broke, or whether they were meant to do something first.
+                     Keyed on the repository, like every other id on this screen (FB-058).
+
+                     FB-203, item 11 dropped the "what" half. `surfaceOutcome` above already opens
+                     with "No tickets yet" for exactly this surface, so the panel was answering a
+                     question the line had just answered, in more general words — which is how
+                     Scale's column came to hold five sentences under a design asking for one.
+                     The "how" is the half that is not a restatement: it says what starts it. */
+                  <p className="muted" data-testid={`lane-empty-${d.repo}`} style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '0.4rem' }}>
+                    {emptyPanel('tickets', venture.hasComposer).how}
+                  </p>
+                ) : null}
                 </div>
               </div>
               );
             })}
           </div>
           {budgetsError ? (
-            <p className="card" data-testid="budgets-error" style={{ borderColor: toneColor('blocked'), color: toneColor('blocked'), fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
+            <p data-testid="budgets-error" style={{ color: toneColor('blocked'), fontSize: 'var(--fs-body-sm)', marginTop: '0.9rem' }}>
               ⚠ {budgets.some(Boolean)
                 ? <>Part of your budgets file was rejected, so those departments have no limit while the rest still report normally: {budgetsError}.</>
                 : <>Your budgets file couldn&rsquo;t be read, so no limits are set: {budgetsError}.</>}
             </p>
           ) : null}
           {orphanEnvelopes.length > 0 ? (
-            <p className="card muted" data-testid="budgets-orphans" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
+            <p className="muted" data-testid="budgets-orphans" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
               ⚠ Budget{orphanEnvelopes.length === 1 ? '' : 's'} set for{' '}
               <span className="mono">{orphanEnvelopes.join(', ')}</span>, which {orphanEnvelopes.length === 1 ? 'is not a department' : 'are not departments'} of this
               venture — so {orphanEnvelopes.length === 1 ? 'it is' : 'they are'} enforcing nothing. Check the spelling against your surfaces above.
