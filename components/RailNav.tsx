@@ -35,11 +35,14 @@ type NavKey = 'desk' | 'needs' | 'tickets' | 'activity' | 'memory' | 'handbook';
  */
 export const NAV: ReadonlyArray<{ key: NavKey; label: string; href: string; absolute?: boolean; badge?: boolean }> = [
   { key: 'desk', label: 'The desk', href: '' },
+  // FB-203, item 12 put Tickets above Needs you. Needs you is a *filter* on Tickets (FB-129), and a
+  // filter listed above the thing it filters reads as a separate place — which is what it used to
+  // be, and what FB-149 stopped it being.
+  { key: 'tickets', label: 'Tickets', href: '/tickets' },
   // FB-129: the venture's own tickets, filtered. It pointed at `/attention` — a cross-venture page
   // that lists open work and nothing else — so the badge stated a number its destination could
   // contradict. Now the row, the badge and the screen it opens count the same things (FB-149).
   { key: 'needs', label: 'Needs you', href: '/tickets?filter=needs', badge: true },
-  { key: 'tickets', label: 'Tickets', href: '/tickets' },
   { key: 'activity', label: 'What happened', href: '/activity' },
   { key: 'memory', label: 'Memory', href: '/knowledge' },
   { key: 'handbook', label: 'Handbook', href: '/handbook' },

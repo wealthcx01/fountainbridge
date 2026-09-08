@@ -67,7 +67,7 @@ export default async function VentureLayout({
     ventureId: venture.id,
     ventureName: venture.name,
     ventureStatus: venture.status,
-    departmentIds: venture.departments.map((d) => d.id),
+    departments: venture.departments.map((d) => ({ id: d.id, name: d.name })),
   };
 
   // FB-136: Bruntsfield looking at a founder's venture sees the founder's exact desk — same
@@ -144,7 +144,7 @@ async function RailWithNumbers({
   shell,
 }: {
   venture: VentureSummary;
-  shell: { ventureId: string; ventureName: string; ventureStatus: string; departmentIds: string[] };
+  shell: { ventureId: string; ventureName: string; ventureStatus: string; departments: { id: string; name: string }[] };
 }) {
   const data = await loadRailData(venture, Date.now());
   return <Rail {...shell} data={data} />;

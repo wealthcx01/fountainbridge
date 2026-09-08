@@ -340,6 +340,43 @@ The same reading turned up **FB-205**: the most-repeated sentence in ARCA's hist
 your team budget reached"*, because FB-103's `lane → your team` rule cannot tell a lane that acted
 from a lane describing a budget.
 
+## FB-203, items 10–13: the queue, the surfaces, the rail and the type
+
+Read on **2026-09-08** at 1440×1000 and 393×851 on fixtures; the production reading follows the
+merge, as it did for the earlier items.
+
+| | desktop | phone |
+| --- | --- | --- |
+| The desk, after items 7–9 | 2,855px | 3,193px |
+| **The desk, after items 10–13** | **2,220px** | **2,611px** |
+
+No sideways scroll at either size, nor on the phone in `?full=1`. Tickets reads 1,167px and the
+Handbook 1,000px with the lighter headings.
+
+**The cap nearly hid a whole kind of decision.** Capping "Waiting on you" at four rows is the design's
+instruction, and the queue is ordered by kind — external sends first, because nothing leaves the
+company without one (FB-183). ARCA has six sends. So the cap showed four sends and **every piece of
+finished work fell off the desk**, including the pull requests the amber banner had just counted, on
+the screen that banner sends a founder to. The browser gate caught it; a founder would have caught it
+by wondering where their work went. `deskQueue` reserves the last row for whichever kind the cap would
+otherwise erase.
+
+**And the phone read as two layouts.** A long reference like `changed-proposal` took the full width
+and pushed its title down, while `ARCA-1` sat beside its own — so the same list looked different
+depending on how a ticket happened to be named. The reference takes its own line always.
+
+**Item 13 found two real deviations after every colour already matched.** Headings were `font-weight:
+500` against the design's 400 — a serif carries its weight in its own shapes, and half a step extra
+reads as a slightly wrong font rather than as emphasis. And three rounded corners had survived: two
+50% dots and a textarea. The design has no border-radius anywhere.
+
+**Two parts of item 12 are not built, and the scorecard should say so rather than imply the screen
+matches.** The rail has no pocket-studio link, because the pocket studio is not a route — it is what
+the desk becomes on a phone, and the rail is hidden there, so the link could only ever be pressed
+where it does nothing. And the rail has no office thumbnail: half its sentence duplicates the Needs
+you badge three rows above, and the other half needs a run report per surface, which is the read
+FB-164 removed when it was costing every screen under a venture about six seconds.
+
 ## What this scorecard cannot tell you
 
 Height finds a screen showing too much. It cannot find a screen showing the *wrong* thing at the
