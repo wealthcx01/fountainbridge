@@ -9,14 +9,13 @@ import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import type { PrApproval } from '@/lib/attention';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
-import { STATUS_LABEL, TEAM_INTRO, TEAM_TITLE } from '@/lib/glossary';
+import { STATUS_LABEL } from '@/lib/glossary';
 import { ago } from '@/lib/when';
 import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { ticketProgress } from '@/lib/ticket-progress';
 import { isUnnumbered } from '@/lib/ticket-ids';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
-import { FounderBrief } from './FounderBrief';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
 import { OfficeEmbed } from './OfficeEmbed';
@@ -139,7 +138,6 @@ export function VentureBoard({
   venture: {
     id: string; name: string; status: string; founderName: string | null; hasComposer: boolean;
     /** The box's own chat, on its own screen (FB-086). Null until the venture has a box. */
-    chatUrl: string | null;
     /** The venture's own Workspace address — the outbox the Sell surface links to (FB-142). */
     founderEmail?: string | null;
   };
@@ -282,6 +280,10 @@ export function VentureBoard({
   // work that is not happening.
   const somethingInFlight = runs.some((r) => r.outcome === null);
 
+  // FB-203, item 5. The brief's blocked lines — a stuck ticket, a stalled engine — outlive the box
+  // they were in, because no other surface on the desk or the phone names them.
+  const stopped = (brief?.lines ?? []).filter((l) => l.tone === 'blocked');
+
   return (
     // `desk` is what the phone media query reorders (FB-138). See `app/globals.css`.
     <section className={full ? 'desk desk-full' : 'desk'} data-testid="desk" data-pocket={full ? 'full' : 'pocket'}>
@@ -290,14 +292,37 @@ export function VentureBoard({
           Everything the pocket order does not name falls to `order: 5`, and that included the title
           — so a founder scrolled the whole screen before being told which venture they were looking
           at. The design's phone leads with the wordmark and the venture. */}
+      {/* FB-160: the venture's name comes FIRST on a phone, not after the prompt bar.
+          Everything the pocket order does not name falls to `order: 5`, and that included the title
+          — so a founder scrolled the whole screen before being told which venture they were looking
+          at. The design's phone leads with the wordmark and the venture.
+
+          FB-203, item 2: the name moved into this line and the heading became "The desk". The page
+          used to be headed ARCA, which is the one fact a founder already knows — they chose the
+          venture to get here, and the rail says it. The heading now names the room they are in,
+          which is the thing that changes as they move around the studio. The venture, what it is,
+          and how it is doing all sit above it in three words. */}
       <p className="eyebrow pocket-0">
-        <span className="eyebrow-id">{venture.id}</span> — Venture
+        <span className="eyebrow-id">{venture.id}</span> · Venture · {venture.status}
       </p>
-      <div className="pocket-0" style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0 }}>{venture.name}</h1>
-        <span className={`tag ${venture.status === 'active' ? 'tag-accent' : ''}`}>{venture.status}</span>
+      <div className="desk-head pocket-0">
+        <h1>The desk</h1>
+        <p className="muted not-in-pocket" data-testid="board-founder" style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
+          {/* FB-100's item 7: "Founder: John Gallagher" while signed in AS the founder reads as the
+              studio introducing someone to themselves. The manifest is right; this is presentation. */}
+          {venture.founderName ? <>Founder: {viewerIsFounder ? 'you' : venture.founderName} · </> : null}
+          {/* FB-068: "3:05:32 PM" was a clock reading, not an answer to "is this current?". */}
+          <span>updated {ago(new Date(fetchedAt).toISOString()) ?? 'just now'}</span> ·{' '}
+          <Link href={`/venture/${venture.id}?refresh=1`} className="mono" data-testid="refresh">
+            refresh
+          </Link>
+        </p>
         {/* FB-068: a badge that cannot be interrogated trains people to ignore badges. It says what
-            it means, in words, and is reachable by keyboard rather than by hover alone. */}
+            it means, in words, and is reachable by keyboard rather than by hover alone.
+
+            FB-203 deleted the ACTIVE pill beside it — the status is in the eyebrow now, and a pill
+            that says the same word twice teaches a founder that pills carry no information. This one
+            stayed, because it only appears when something is actually wrong. */}
         {totalWarnings > 0 ? (
           <span
             className="tag"
@@ -310,23 +335,6 @@ export function VentureBoard({
           </span>
         ) : null}
       </div>
-      <p className="muted not-in-pocket" data-testid="board-founder" style={{ fontSize: 'var(--fs-body-sm)' }}>
-        {/* FB-100's item 7: "Founder: John Gallagher" while signed in AS the founder reads as the
-            studio introducing someone to themselves. The manifest is right; this is presentation. */}
-        {venture.founderName ? <>Founder: {viewerIsFounder ? 'you' : venture.founderName} · </> : null}
-        {/* FB-068: "3:05:32 PM" was a clock reading, not an answer to "is this current?". */}
-        <span>updated {ago(new Date(fetchedAt).toISOString()) ?? 'just now'}</span> ·{' '}
-        <Link href={`/venture/${venture.id}?refresh=1`} className="mono" data-testid="refresh">
-          refresh
-        </Link>
-      </p>
-
-      {/* FB-103: the one introduction of the one name. Every panel below this line says "your team"
-          and none of them explains itself — which only works if the name is introduced above the
-          first thing that uses it. */}
-      <p className="muted not-in-pocket" data-testid="team-intro" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '-0.35rem' }}>
-        <strong>{TEAM_TITLE}</strong> — {TEAM_INTRO}
-      </p>
 
       {/* ---- 1. The sentence (FB-128) ------------------------------------------------------------
           Where things stand, in one line, before anything else. Composed server-side from the same
@@ -340,16 +348,22 @@ export function VentureBoard({
         <BlockerBanner line={blocker} href={`/venture/${venture.id}#waiting-on-you`} />
       </div>
 
-      {/* FB-042: the brief's own lines — the specifics behind the sentence, each a way in. Kept
-          because they link: a summary that states a number a founder then has to go and find is a
-          summary that costs them a search. */}
-      {/* FB-160: kept on a phone, and kept near the top. It names the ticket that is stuck and
-          needs a human — which appears nowhere else on the pocket studio, because a stuck ticket is
-          not waiting for an approval and so is not in the queue. The ticket's rule is that nothing a
-          founder can act on is hidden, and this is the clearest thing on the screen they can act
-          on. */}
+      {/* FB-203, item 5: the "Where things stand" box is gone. Its lines repeated the summary
+          sentence above and the banner beside it — the same three facts read three ways, which is
+          not emphasis on the one screen a founder leaves open.
+
+          Its blocked lines stayed, in the banner's own shape. Those are the ones nothing else says:
+          a ticket the team could not finish, an engine that has stalled. Amber like the banner, not
+          red — item 5 is explicit that the design has no red, and the complaint it makes about the
+          box these lines came from is that its red was the loudest thing on the screen. */}
       <div className="pocket-1b">
-        {brief ? <FounderBrief brief={brief} headline={false} /> : null}
+        {stopped.map((line, i) => (
+          <Link key={i} className="blocker" data-testid="desk-stuck" href={line.href ?? '#activity'}>
+            <span className="blocker-marker" aria-hidden="true" />
+            <span className="blocker-line">{line.text}</span>
+            <span className="blocker-decide">Look →</span>
+          </Link>
+        ))}
       </div>
 
       {/* FB-087. The composer was broken in production for weeks and the only way anyone could find
@@ -395,33 +409,25 @@ export function VentureBoard({
           Open the whole conversation
         </Link>
       </p>
-      {/* FB-106: the corpus a founder has been building and could not see. Beside the composer,
-          because the composer is where most of it went in. */}
-      <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
-        <Link href={`/venture/${venture.id}/knowledge`} data-testid="venture-knowledge-link">
-          See what your venture knows
-        </Link>
-      </p>
-      {/* FB-047: the scheduler has run since FB-040 with no way in. A page nobody can reach is the
-          same as no page, so it goes here — beside the other "what is this venture doing without
-          me" link, rather than as a fifth thing in the navigation FB-067 cut down to four. */}
-      <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
-        <Link href={`/venture/${venture.id}/routines`} data-testid="venture-routines-link">
-          What happens without you asking
-        </Link>
-      </p>
-      {venture.chatUrl ? (
-        <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.4rem 0 0' }}>
-          <a
-            href={venture.chatUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="venture-chat-external"
-          >
-            Or open your venture’s full chat in its own tab
-          </a>
-        </p>
-      ) : null}
+      {/* FB-203, item 6. Four links used to hang under the prompt bar with nothing tying them
+          together: the composer, Memory, routines, and the box's own chat. Three of them are gone
+          from here, and none of them lost a way in:
+
+            - **Memory** is a rail item on every screen (`RailNav.tsx`). A link on the desk to a
+              place the navigation already goes is the doubled navigation FB-124 shipped.
+            - **Routines** is reached from Memory — `memory-routines-link`, "Change these →", beside
+              the routines themselves. FB-047 put it on the desk because the page had no door at
+              all; it has one now, next to the thing it changes.
+            - **The box's own chat** is gone, and nothing was lost with it. It pointed at
+              `chat.<box host>` — the same address the in-studio composer already talks to. Both are
+              built from the venture's `vps.host`, so there is no state where the external door
+              works and the composer does not: if the box is there both work, and if it is not then
+              neither does. It was the same conversation in a second application behind a second
+              login, which is exactly what FB-065 brought inside the studio. `composer.spec.ts` has
+              forbidden that link on the composer page ever since; the desk was where it survived.
+
+          What is left is the one link that says something the prompt bar does not — that the
+          composer is a place, with everything already said in it, and not only a box. */}
       {/* ---- 5. The office ----------------------------------------------------------------------
           FB-139's plate is a drawing and says so in its own header. FB-163 puts the real thing in
           front of it where a venture has one: pixel-agents on the venture's own machine, proxied by

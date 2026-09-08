@@ -29,53 +29,39 @@ export function PromptBar({ ventureId, ventureName }: { ventureId: string; ventu
   };
 
   return (
-    <section data-testid="prompt-bar" style={{ marginBottom: '1.5rem' }}>
-      <form
-        onSubmit={(e) => { e.preventDefault(); open(text); }}
-        style={{ display: 'flex', gap: '0.6rem', alignItems: 'stretch', flexWrap: 'wrap', maxWidth: 'var(--content-narrow)' }}
-      >
+    <section data-testid="prompt-bar">
+      {/* FB-203, item 6. It was an input, a gap, and a separate button — three shapes for one
+          control, which reads as a search field beside an unrelated button rather than as a place
+          to talk to your team. Now it is one box with the Send inside it, and the focus ring is on
+          the box, because the box is what a founder sees as the thing they are typing into.
+
+          The placeholder says what this accepts. "Tell the studio what you want…" is a prompt to a
+          founder who already knows; the three nouns are for the one who does not. */}
+      <form className="promptbar" onSubmit={(e) => { e.preventDefault(); open(text); }}>
         <input
+          className="promptbar-input"
           data-testid="prompt-bar-input"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Tell the studio what you want…"
+          placeholder="Tell the studio what you want. A ticket, research, a question…"
           aria-label={`Tell the studio what you want for ${ventureName}`}
           maxLength={MAX_ASK}
-          // `--color-rule` and `--color-surface` do not exist. An undefined custom property makes
-          // the whole declaration invalid at computed-value time, so `border: 1px solid var(--color-rule)`
-          // resolves to no border at all and the background falls through to the page — which is how
-          // the desk's headline control came to be an unbordered strip on the ground colour. Four
-          // other components carry the same two names (FB-150); these are the real tokens.
-          style={{
-            flex: '1 1 16rem', minWidth: 0, padding: '0.65rem 0.75rem', fontSize: 'var(--fs-body)',
-            fontFamily: 'inherit', border: '1px solid var(--color-border)',
-            background: 'var(--color-paper-raised)', color: 'var(--color-ink)',
-          }}
         />
         <button type="submit" className="btn btn-primary" data-testid="prompt-bar-send" disabled={!text.trim()}>
           Send
         </button>
       </form>
 
-      <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.5rem 0 0' }}>
-        Try:{' '}
+      {/* Pills, not underlined words. An underline is the studio's own promise that something
+          navigates, and these do not navigate — they fill the box above and wait. */}
+      <div className="chips">
+        <span>Try</span>
         {CHIPS.map((chip, i) => (
-          <span key={chip}>
-            {i > 0 ? ' · ' : ''}
-            <button
-              type="button"
-              data-testid={`prompt-chip-${i}`}
-              onClick={() => setText(chip)}
-              style={{
-                background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit',
-                textDecoration: 'underline', cursor: 'pointer',
-              }}
-            >
-              “{chip}”
-            </button>
-          </span>
+          <button key={chip} type="button" className="chip" data-testid={`prompt-chip-${i}`} onClick={() => setText(chip)}>
+            {chip}
+          </button>
         ))}
-      </p>
+      </div>
     </section>
   );
 }

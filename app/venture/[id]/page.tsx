@@ -378,6 +378,7 @@ async function Desk({
   const comparable = oneCurrency && onePeriod;
   const summarySentence = deskSummary({
     ...waiting,
+    description: venture.description,
     movingTickets,
     spentMinor: comparable ? declared.reduce((n, b) => n + b.reportedMinor, 0) : null,
     limitMinor: comparable ? declared.reduce((n, b) => n + b.limitMinor, 0) : null,
@@ -408,8 +409,9 @@ async function Desk({
     historyCount: health.repos.reduce((n, r) => n + r.activity.length + (r.latestRun ? 1 : 0), 0),
     readFailures,
   });
-  const chatUrl = ventureChatUrl(venture.vpsHost);
-  const hasComposer = chatUrl !== null;
+  // FB-203, item 6 removed the desk's link to the box's own chat, so the URL is no longer rendered
+  // — but whether the box HAS one is still what says the composer is wired (they are the same host).
+  const hasComposer = ventureChatUrl(venture.vpsHost) !== null;
   // FB-087: the composer key lives only in the environment, so only the running process can tell
   // whether it is there. Shown to Bruntsfield, never to the founder — it names a variable and a
   // script, which is a fix for an admin and noise for anyone else. Computed here because
@@ -444,7 +446,7 @@ async function Desk({
     <VentureBoard
       venture={{
         id: venture.id, name: venture.name, status: venture.status,
-        founderName: venture.founderName, hasComposer, chatUrl,
+        founderName: venture.founderName, hasComposer,
         // FB-142: the venture's own Workspace, for the Sell surface's outbox reference.
         founderEmail: venture.founderEmail,
       }}

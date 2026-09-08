@@ -77,6 +77,7 @@ describe('loadVentureHealth', () => {
   const venture: VentureSummary = {
     id: 'arca',
     name: 'ARCA',
+    description: null,
     status: 'active',
     founderName: null,
     founderEmail: null,

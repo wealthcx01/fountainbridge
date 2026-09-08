@@ -6,6 +6,11 @@
 
 id: arca
 name: ARCA
+# The one line a founder reads before any number on their desk (FB-203 item 3). Taken from what this
+# repository already says ARCA is; John's venture, John's words to change.
+description: >-
+  ARCA gives collectors one place to value graded cards: live auction data, price history and the
+  decks you build from them, worked by your studio team.
 status: active            # a real running app (Bun/Hono/React), live on its own box
 
 # Decision D1: one box per venture. Provisioned via scripts/provision-venture.sh (FB-011).

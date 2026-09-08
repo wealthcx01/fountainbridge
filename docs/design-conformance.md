@@ -204,6 +204,49 @@ design does not spend.
 **Sign in was never compared.** It is the one screen a founder sees before they trust anything, and
 it is not in this table because I did not do it.
 
+## FB-203, items 1–6: the top half of the desk
+
+Read on **2026-09-08**, at 1440×1000 and 393×851, on the fixture server rather than on production —
+this branch is not deployed, and the rule's "measure production" exists so that faults which only
+appear at ARCA's real size are not missed. So the heights below are **not comparable** to the desk
+row in the scorecard above, which was taken on production against 73 tickets. The desk's production
+row stands until this merges and can be read there.
+
+| | desktop | phone |
+| --- | --- | --- |
+| The desk, on fixtures | **3,050px** | **3,449px** |
+
+Sideways scroll: **0px at both sizes.** That is the number worth having from a fixture run, because
+overflow does not need real data to appear.
+
+**Looking found two faults that every gate had passed.**
+
+The first is the one this rule keeps catching. On the phone, the blocker banner kept "Decide now →"
+in its place at the right of the row, which left the sentence a column about fifteen characters
+wide, and one banner ran **twelve lines down a 393px screen**. Lint, types, 1,596 unit tests and 284
+browser tests were green: the banner was present, correct, linked, and in the right place. It was
+also unreadable. The action now drops beneath the sentence below 30rem, and `pocket.spec.ts` asserts
+the sentence gets more than 60% of the box — a proportion rather than a pixel count, so it keeps
+holding as the copy changes.
+
+The second only appeared because the first was wrong. The fix gave the sentence a full-width flex
+basis, which pushed the **square marker onto a line of its own** — a small block floating above a
+paragraph, reading as decoration rather than as a mark against the text. `flex-basis: 0` on the
+sentence keeps the two together. Neither of these is a thing a test would have been written for.
+
+A third fault was found by re-reading the ticket against the picture rather than by looking alone.
+The stuck line was drawn in the studio's blocked tone, which is red — and item 5's complaint about
+the box that line came from is precisely that *"its bold red underlined links are the loudest thing
+on the page"*, followed by *"the design has no red at all."* The row is amber now, the same as the
+banner above it; the two differ in what they say and where they go, not in colour.
+
+One picture also lied, and it is worth writing down. The phone screenshot came back with the banner
+in a green tint instead of its warm ground, because the login click had left the virtual pointer
+resting on the banner and the screenshot caught its `:hover` state. Chasing it turned up something
+real anyway: on a touch screen there is no un-hover, so a tapped banner would have kept that tint
+after the founder came back from the queue and read as still selected. The hover is now behind
+`@media (hover: hover)`, and the screenshot script parks the pointer before it fires.
+
 ## What this scorecard cannot tell you
 
 Height finds a screen showing too much. It cannot find a screen showing the *wrong* thing at the

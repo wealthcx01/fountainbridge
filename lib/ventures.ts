@@ -44,6 +44,15 @@ export interface ApprovalMatrixRow {
 export interface VentureSummary extends VentureRef {
   id: string;
   name: string;
+  /**
+   * One line saying what this venture IS (FB-203 item 3).
+   *
+   * It opens the desk's summary sentence, before any number on the screen — the design's point being
+   * that a founder should be reminded what they are building before being told how much of it is
+   * waiting on them. Null for a venture whose manifest does not say, and the sentence then starts at
+   * the counts rather than at a placeholder.
+   */
+  description: string | null;
   status: string;
   founderName: string | null;
   founderEmail: string | null;
@@ -87,6 +96,7 @@ function toLaunch(raw: unknown): DepartmentSummary['launch'] {
 interface RawManifest {
   id?: unknown;
   name?: unknown;
+  description?: unknown;
   status?: unknown;
   founder?: { name?: unknown; workspace_email?: unknown };
   repos?: unknown;
@@ -136,6 +146,11 @@ function toSummary(raw: RawManifest): VentureSummary | null {
   return {
     id: raw.id,
     name: typeof raw.name === 'string' ? raw.name : raw.id,
+    // Trimmed and emptiness-checked: a manifest with `description: ""` means the same as one with
+    // no description at all, and the desk must not open its sentence with a space.
+    description: typeof raw.description === 'string' && raw.description.trim()
+      ? raw.description.trim()
+      : null,
     status: typeof raw.status === 'string' ? raw.status : 'unknown',
     founderName: typeof raw.founder?.name === 'string' ? raw.founder.name : null,
     founderEmail:

@@ -5,7 +5,7 @@ import { attestationFor } from '../approval-attestation';
 import type { VentureSummary } from '../ventures';
 
 const venture: VentureSummary = {
-  id: 'arca', name: 'ARCA', status: 'active', founderName: 'John', founderEmail: 'john@bruntsfield.capital',
+  id: 'arca', name: 'ARCA', description: null, status: 'active', founderName: 'John', founderEmail: 'john@bruntsfield.capital',
   repos: ['arca'], vpsHost: null, departments: [], approvalMatrix: [],
 };
 

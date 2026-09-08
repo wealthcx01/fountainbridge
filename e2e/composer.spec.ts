@@ -41,13 +41,14 @@ test.describe('describing what you want', () => {
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute('href', '/venture/arca/composer');
 
-    // The box's full chat stays reachable — quiet, secondary, labelled for what it is, and still
-    // a new tab with noopener (a different application must never replace the board, and must
-    // never get a handle on window.opener).
-    const external = page.getByTestId('venture-chat-external');
-    await expect(external).toHaveAttribute('href', 'https://chat.arca.bruntsfield.capital');
-    await expect(external).toHaveAttribute('target', '_blank');
-    await expect(external).toHaveAttribute('rel', /noopener/);
+    // FB-086 added a second link beside it, to the box's own chat in its own tab. FB-203, item 6
+    // removed it, and the reason is the one this file already asserts three tests further down:
+    // that address is `chat.<box host>`, which is the address the in-studio composer talks to. Both
+    // come from the venture's `vps.host`, so the external door could never be the fallback it read
+    // as — if the box is there both work, and if it is not then neither does. What it actually was
+    // is the same conversation in a second application behind a second login, which is what FB-065
+    // brought inside the studio in the first place.
+    await expect(page.getByTestId('venture-chat-external')).toHaveCount(0);
   });
 
   test('an empty thread says what to do rather than showing a blank box', async ({ page }) => {

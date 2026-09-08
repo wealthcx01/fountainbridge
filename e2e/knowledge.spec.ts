@@ -14,9 +14,12 @@ test.describe('what your venture knows (FB-106)', () => {
     await testLogin(page, 'arca.founder@bruntsfield.capital');
   });
 
-  test('the board offers the way in', async ({ page }) => {
+  test('the studio offers the way in, on every screen', async ({ page }) => {
+    // FB-203, item 6 removed the desk's own link. Memory is a rail item, so it is reachable from
+    // everywhere rather than from the desk alone — a link on the desk to a place the navigation
+    // already goes is the doubled navigation FB-124 shipped. This asserts the rail is that door.
     await page.goto('/venture/arca');
-    await page.getByTestId('venture-knowledge-link').click();
+    await page.getByTestId('rail-nav-memory').click();
     await expect(page).toHaveURL(/\/venture\/arca\/knowledge$/);
   });
 

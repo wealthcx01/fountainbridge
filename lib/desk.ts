@@ -53,6 +53,16 @@ export interface DeskFacts extends WaitingInput {
   currency: string | null;
   /** The window those figures cover, so the sentence can name it instead of assuming a month. */
   period: Period | null;
+  /**
+   * What this venture IS, in one line from its manifest (FB-203 item 3).
+   *
+   * It opens the sentence, before any count. The design's argument: a founder should be reminded
+   * what they are building before being told how much of it is waiting on them. Null when the
+   * manifest does not say, and the sentence then begins at the counts rather than at a placeholder —
+   * a description is a fact about the venture, and inventing one would be the studio telling a
+   * founder what their company is.
+   */
+  description?: string | null;
   /** True when a read failed. The sentence says so rather than sounding calm over a partial picture. */
   degraded: boolean;
 }
@@ -102,7 +112,11 @@ export function deskSummary(f: DeskFacts): string {
       ? `${clauses.slice(0, -1).join('; ')}, and ${clauses[clauses.length - 1]}`
       : clauses.join('; ');
 
-  const sentence = `${body.charAt(0).toUpperCase()}${body.slice(1)}.`;
+  const counts = `${body.charAt(0).toUpperCase()}${body.slice(1)}.`;
+  // The description first, then the counts, as one paragraph. Its own full stop is added only if it
+  // is missing, so a manifest may write the line either way and neither ends up with two.
+  const lead = f.description?.trim();
+  const sentence = lead ? `${lead.replace(/[.\s]*$/, '')}. ${counts}` : counts;
   return f.degraded ? `${sentence} Some of this venture could not be read, so it may be incomplete.` : sentence;
 }
 
