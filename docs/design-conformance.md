@@ -293,6 +293,42 @@ screen-reader user gets was the half that vanished exactly when the venture was 
 on the screen said so, because on fixtures the embed never loads and the plate always renders. It is
 its own component now, outside the fallback, and a test asserts it is not a descendant of it.
 
+## FB-203, items 7–9 on production, and the fault only production had
+
+Read on **2026-09-08** at 1440×1000 and 393×851, signed in as ARCA's founder.
+
+| | desktop | phone |
+| --- | --- | --- |
+| The desk, after items 2–6 | 2,370px | 2,753px |
+| **The desk, after items 7–9** | **2,434px** | **2,562px** |
+
+No sideways scroll at either size. The desktop went up 64px and the phone came down 191px: the room
+and the ledger now share a row, so the section is as tall as the room rather than as tall as both,
+and on the phone the run history stands down entirely.
+
+**The live label was checked in both directions and is right in both.** On the desktop the real room
+renders, the stand-in is absent, and the label is shown. On the phone the embed stands down by design
+(FB-163 — pixel-agents draws its room at a fixed scale and a phone would show a corner of a floor), so
+the stand-in renders and the label is correctly **not** shown.
+
+**And then the number that fixtures could never have produced:**
+
+> Showing the 1 most recent of 3459 runs.
+
+One row. ARCA has 3,459 run reports and every one of them is the same park, so `collapseRepeats`
+merged the whole history into a single line. Item 8 asked for the `×20` repeat tag to go, it went, and
+with it went the only thing on the screen saying this venture had been stuck in one place for seven
+weeks — which is the most important fact this section could carry. The tag stays gone and the fact is
+in the row now, in words: *"the same thing 3,459 times"*.
+
+This is the clearest case yet for the rule that says **production, not fixtures**. The fixtures have
+six runs, all different. Every gate was green. The screen was rebuilt, looked at, measured, and
+shipped, and the defect was in the one place a small dataset cannot reach.
+
+The same reading turned up **FB-205**: the most-repeated sentence in ARCA's history renders as *"Daily
+your team budget reached"*, because FB-103's `lane → your team` rule cannot tell a lane that acted
+from a lane describing a budget.
+
 ## What this scorecard cannot tell you
 
 Height finds a screen showing too much. It cannot find a screen showing the *wrong* thing at the

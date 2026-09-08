@@ -929,6 +929,7 @@ body:has(.rail) .main {
   font-size: var(--fs-body-sm);
   line-height: 1.6;
 }
+.engine-run-repeats { color: var(--color-ink-muted); }
 .engine-empty p { font-size: var(--fs-body-sm); margin: 0 0 0.4rem; }
 .engine-foot { font-size: var(--fs-meta); margin: 0.75rem 0 0; }
 

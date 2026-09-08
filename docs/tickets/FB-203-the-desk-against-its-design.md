@@ -132,6 +132,31 @@ space; the design asks for 300px and a border. The window keeps 26rem, because t
 written against a room drawn to fit its frame and ours is not — the frame is taller than the window
 on purpose. The border the design asks for was already there.
 
+### Item 9, corrected on production — 2026-09-08
+
+Items 7–9 merged, deployed, and the production reading found the fault item 9 had actually named all
+along. Fixtures could not have shown it and neither could any gate:
+
+> **Showing the 1 most recent of 3459 runs.**
+
+ARCA has 3,459 run reports and every one of them is the same park — *"Daily lane budget reached —
+parked until tomorrow"* — so `collapseRepeats` merged the entire history into a single row. Item 8
+says to delete the `×20` repeat tag, I deleted it, and with it went the only thing on the screen
+saying this venture has been stuck in one place for seven weeks. That is the single most important
+fact this section could carry (CLAUDE.md #10).
+
+The tag stays gone; the fact is a clause in the row now — *"· the same thing 3,459 times"* — and
+counts are formatted, because `3459` is a string of digits somebody has to parse and `3,459` is a
+number. Two fixtures were added that repeat an existing run rather than displace it, so the four rows
+the desk shows are unchanged and the collapse path is finally exercised.
+
+### Also found on production, filed separately
+
+**FB-205.** The most-repeated line in ARCA's history reads *"Daily **your team** budget reached"*.
+The box writes "Daily lane budget reached" and FB-103's `lane → your team` rule cannot tell a lane
+that acted from a lane that is describing a budget. It is a defect in `lib/glossary.ts`, it affects
+every caller of `inFounderWords`, and fixing it inside this ticket would have been scope creep.
+
 ### Still to do — items 10 to 13
 
 The queue, the surfaces, the rail, and the token audit — in John's order.
