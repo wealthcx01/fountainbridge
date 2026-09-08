@@ -98,10 +98,43 @@ What changed, item by item:
   in the banner's own amber.
 - **6.** One box with Send inside it, chips as bordered pills, and one link where there were four.
 
-### Still to do — items 7 to 13
+### Items 7 to 9 — done, 2026-09-08
 
-The office and the ledger, the engine section, the queue, the surfaces, the rail, and the token
-audit — in John's order.
+The office, its ledger, and the run history split apart. Read at 1440×1000 and 393×851 on fixtures:
+**2,855px desktop, 3,193px phone** (from 3,050 / 3,449), no sideways scroll at either size.
+
+- **7.** One heading row, then the room and the ledger side by side, which is the section's whole
+  argument. Below about 1,000px of column the ledger drops under the room and takes the full width —
+  what decides it is whether the ledger can be read, not what device is asking.
+- **8.** The ledger is its own component (`OfficeLedger`) instead of living inside the plate. That
+  was a real fault, not a tidy-up: the plate is the *fallback*, so on any venture whose real office
+  loaded, the ledger — the half a screen-reader user gets — was not rendered at all. It is two
+  columns and hairlines now, relative times, no repeat count and no venture tag.
+- **9.** The run history is its own section under a rule, with a heading, the promise beside it, the
+  heartbeat line, and four rows of when / outcome / what. The release button finally carries the
+  sentence the design asks for.
+
+**Two deviations from the design, both binding rules rather than preferences.** The ledger's column
+head is **Surface**, not "Agent", and the section is **What your team did**, not "What the engine
+did": FB-103 took "agent", "lane" and "engine" out of everything a founder reads, `copy-lint` fails
+the build on all three, and CLAUDE.md #12 binds every word rendered in the studio. "Surface" is also
+the truer word — `lib/office.ts` is explicit that one row is one surface, because a lane per surface
+is what the box reports.
+
+**One deviation found by looking.** The design puts "LIVE FROM ARCA'S MACHINE" on the heading row.
+Built there, it printed *"Live from your venture's own machine"* directly above the stand-in drawing
+whose own note says *"This is a stand-in"* — because `office.live` means the box is reporting, which
+is a different question from whether the real room is on the screen. The label moved into
+`OfficeEmbed`, one line lower, which is the only component that knows.
+
+**FB-192 reconciled.** That ticket chose a 26rem window over a 44rem frame to clip pixel-agents' dead
+space; the design asks for 300px and a border. The window keeps 26rem, because the design's 300px was
+written against a room drawn to fit its frame and ours is not — the frame is taller than the window
+on purpose. The border the design asks for was already there.
+
+### Still to do — items 10 to 13
+
+The queue, the surfaces, the rail, and the token audit — in John's order.
 
 ## 2. The page header
 

@@ -257,6 +257,42 @@ real anyway: on a touch screen there is no un-hover, so a tapped banner would ha
 after the founder came back from the queue and read as still selected. The hover is now behind
 `@media (hover: hover)`, and the screenshot script parks the pointer before it fires.
 
+## FB-203, items 7–9: the office, its ledger, and the run history
+
+Read on **2026-09-08** at 1440×1000 and 393×851, on fixtures — the production reading follows when
+this merges and deploys, as it did for items 2–6.
+
+| | desktop | phone |
+| --- | --- | --- |
+| The desk, on fixtures, after items 2–6 | 3,050px | 3,449px |
+| **The desk, on fixtures, after items 7–9** | **2,855px** | **3,193px** |
+
+Sideways scroll: **0px at both sizes**, and 0px on the phone in `?full=1` as well, which is where the
+run history is shown.
+
+**Looking found three things.**
+
+The first was a sentence that was not true. The design puts "LIVE FROM ARCA’S MACHINE" beside the
+section heading, and built there it printed *"Live from your venture’s own machine"* directly above
+the **stand-in drawing** — whose own note, two lines below, says *"This is a stand-in."* The label was
+driven by `office.live`, which means the box is sending run reports; whether the real room is on the
+screen is a different question, and only `OfficeEmbed` knows it. The label moved there. A label that
+can be wrong about the thing beneath it is worse than no label at all.
+
+The second: `48 days ago` wrapped onto two lines in the design’s 76px time column, leaving every run
+with a ragged stub in its first column. The design’s example runs were hours old; ARCA’s fixtures are
+seven weeks old and its production runs are older still. 92px.
+
+The third: the outcome square was vertically centred in its row, so on any run whose sentence wrapped
+it drifted down and ended up marking the second line. It sits on the first line’s baseline now.
+
+**And one fault that a picture could not have found, only reading the code.** The ledger lived inside
+`OfficePlate`, which is the **fallback** — the drawing shown when the real office cannot be. So on
+every venture whose embed worked, the ledger was not rendered at all, and the half of this pairing a
+screen-reader user gets was the half that vanished exactly when the venture was healthiest. Nothing
+on the screen said so, because on fixtures the embed never loads and the plate always renders. It is
+its own component now, outside the fallback, and a test asserts it is not a descendant of it.
+
 ## What this scorecard cannot tell you
 
 Height finds a screen showing too much. It cannot find a screen showing the *wrong* thing at the

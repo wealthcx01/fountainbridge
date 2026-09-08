@@ -47,6 +47,10 @@
      4 need. */
   --fs-page-title: 30px;
   --fs-lead: 19px;
+  /* FB-203, item 7: the design's section headings — "The office", "What the engine did" — are 24px
+     serif 400. Nothing in the scale was 24px; --fs-h3 is 22 and --fs-page-title is 30. Item 13 is
+     the audit that reconciles the whole scale with the design's. */
+  --fs-section: 24px;
   --fs-h3: 22px;
   --fs-h4: 18px;
   --fs-subhead: 15px;
@@ -842,8 +846,197 @@ body:has(.rail) .main {
  * the room was a third empty. This shows the room, in the height of the shorter one.
  *
  * The offset is tied to the frame's height, not to the window's — move one and move both. */
+/* ---- What the engine did (FB-203, item 9) ----------------------------------------------------
+
+   Its own section under a rule, because it answers a different question from the ledger above it:
+   the ledger says what each surface is doing now, this says what the engine has done. Production
+   collapsed both into one list of cards where neither was legible. */
+.engine-section {
+  border-top: 1px solid var(--color-border-strong);
+  margin-top: 2.25rem;
+  padding-top: 1.25rem;
+}
+.engine-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+}
+.engine-head h2 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-section);
+  font-weight: 400;
+  margin: 0;
+}
+/* The promise, said beside the heading rather than in a paragraph under it. It is the reason a
+   founder can trust a short list: what is not here is older, not hidden. */
+.engine-sub { font-size: var(--fs-meta-lg); color: var(--color-ink-muted); }
+
+.engine-state {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  font-size: var(--fs-body-sm);
+  margin: 0 0 0.875rem;
+}
+.engine-dot {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--tone-working);
+}
+.engine-state-blocked { color: var(--tone-blocked); font-weight: 600; }
+.engine-state-blocked .engine-dot { background: var(--tone-blocked); }
+.engine-state-idle { color: var(--color-ink-muted); }
+.engine-state-idle .engine-dot { background: var(--tone-idle); }
+
+.engine-runs { list-style: none; padding: 0; margin: 0; }
+/* Rows, not cards. Each run was a bordered box with its own padding to carry one sentence, which is
+   how four runs came to cost more height than the room above them. */
+.engine-run {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.engine-run-when {
+  /* 5.75rem, not the design's 76px: "48 days ago" wrapped onto two lines at 76px and left every row
+     with a ragged two-line stub in its first column. The design's runs were hours old. */
+  flex: 0 0 5.75rem;
+  font-size: var(--fs-meta);
+  color: var(--color-ink-muted);
+}
+/* The outcome, as a square. It is `aria-hidden` and every row carries the same fact in words for a
+   screen reader, because a state told only in colour is a state some readers never get. */
+.engine-run-mark {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  /* On the first line's baseline, not the middle of the row. Centred, it drifted downward as a
+     sentence wrapped and ended up beside the second line of a run it was marking. */
+  align-self: baseline;
+}
+.engine-run-mark.tone-ok { background: var(--tone-ok); }
+.engine-run-mark.tone-working { background: var(--tone-working); }
+.engine-run-mark.tone-attention { background: var(--tone-attention); }
+.engine-run-mark.tone-blocked { background: var(--tone-blocked); }
+.engine-run-mark.tone-idle { background: var(--tone-idle); }
+.engine-run-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-body-sm);
+  line-height: 1.6;
+}
+.engine-empty p { font-size: var(--fs-body-sm); margin: 0 0 0.4rem; }
+.engine-foot { font-size: var(--fs-meta); margin: 0.75rem 0 0; }
+
+/* On a phone the time drops above the sentence rather than stealing 76px of a 345px column. */
+@media (max-width: 30rem) {
+  .engine-run { flex-wrap: wrap; }
+  .engine-run-body { flex: 1 1 100%; }
+}
+
+/* ---- The office and its ledger, side by side (FB-203, item 7) --------------------------------
+
+   The pairing is the point: *the office is the feeling; this ledger is the record.* Production ran
+   them one under the other, so a founder read the room, scrolled, and read the same three surfaces
+   again with no sense that the second was an account of the first.
+
+   `flex-wrap` rather than a media query, because what decides this is whether the ledger has room
+   to be read, not what kind of device is asking. Below roughly 1,000px of column the ledger drops
+   under the room and gets the full width, which is what it needs anyway. */
+.office-section { margin: 1.5rem 0 1.75rem; }
+.office-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.625rem;
+}
+.office-head h2 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-section);
+  font-weight: 400;
+  margin: 0;
+}
+/* "Live from your venture's own machine", with a square that means it. The square is only drawn
+   when the room really is live — a permanent green dot beside the word "live" is a decoration, and
+   this one has to be able to be wrong for it to be worth anything. */
+.office-live {
+  display: inline-flex;
+  margin: 0 0 0.4rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.office-live-dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  background: var(--color-accent);
+}
+.office-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.25rem;
+  align-items: flex-start;
+}
+.office-pair-view { flex: 0 1 40rem; min-width: 22.5rem; }
+.office-pair-ledger { flex: 1 1 20rem; min-width: 17.5rem; }
+
+/* ---- The ledger (FB-203, item 8) -------------------------------------------------------------
+
+   Two columns, hairlines, no cards. The card version spent a border, a background and a padded box
+   on each surface to carry one short sentence. */
+.ledger { width: 100%; }
+.ledger-head,
+.ledger-row {
+  display: grid;
+  grid-template-columns: 6.875rem minmax(0, 1fr);
+  gap: 0 1.125rem;
+  align-items: baseline;
+}
+.ledger-head {
+  font-family: var(--font-sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+/* A real table under a drawn head. The head above is `aria-hidden` and this one is `sr-only`: a
+   grid of divs reads to a screen reader as an undifferentiated run of text, and this is the half of
+   the pairing that a screen-reader user gets instead of the picture. */
+.ledger-table { width: 100%; border-collapse: collapse; }
+.ledger-row { padding: 0.8125rem 0; border-bottom: 1px solid var(--color-border); }
+.ledger-name {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-sm);
+  font-weight: 600;
+  text-align: left;
+}
+.ledger-doing {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-sm);
+  line-height: 1.6;
+  color: var(--color-ink-soft);
+}
+.ledger-since { color: var(--color-ink-muted); }
+.ledger-row-waiting .ledger-name,
+.ledger-row-waiting .ledger-doing,
+.ledger-row-waiting .ledger-doing .ledger-link { color: var(--color-warn); }
+.ledger-link { color: inherit; text-decoration: none; }
+.ledger-link:hover { text-decoration: underline; }
+
 .office-embed { margin-bottom: 1.5rem; }
-.office-embed-title { margin-bottom: 0.4rem; }
 
 .office-embed-window {
   position: relative;

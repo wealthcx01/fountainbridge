@@ -61,6 +61,13 @@ export function ReleasePlanButton({
       >
         {pending ? 'Telling your team…' : 'Go ahead with this'}
       </button>
+      {/* FB-203, item 9. The design asks for this line and production did not have it. "Go ahead
+          with this" reads as final — as if pressing it ships something — and the truth is the
+          opposite: it lets the work START, and every check still runs before anything reaches
+          anyone. A founder who does not know that will not press it. */}
+      <p className="muted" style={{ fontSize: 'var(--fs-meta)', margin: '0.35rem 0 0' }}>
+        This lets your team start. Everything is still checked before it reaches anyone.
+      </p>
       {result && !result.ok ? (
         <p
           data-testid={`${testId}-error`}

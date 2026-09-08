@@ -147,8 +147,12 @@ export function OfficeEmbed({
 
   return (
     <section data-testid="office-embed" className="office-embed">
-      <p className="eyebrow office-embed-title">
-        <span className="eyebrow-id">The office</span> — live from your venture&rsquo;s own machine
+      {/* FB-203, item 7: the section above carries the heading now, so this is the live label
+          alone — and it renders here because this is the only place that knows the real room is on
+          the screen rather than the drawing. */}
+      <p className="office-live" data-testid="office-live-label">
+        <span className="office-live-dot" aria-hidden="true" />
+        Live from your venture&rsquo;s own machine
       </p>
       {/*
         A window onto the room, not the room's own viewport.
