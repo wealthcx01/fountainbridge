@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testLogin } from './helpers';
+import { boxOf, testLogin } from './helpers';
 
 /**
  * The desk (FB-128).
@@ -251,12 +251,72 @@ test.describe('the office (FB-139)', () => {
     }
   });
 
+  test('the ledger stands beside the room, not under it (FB-203, item 7)', async ({ page }) => {
+    // The pairing is the section's whole argument: the office is the feeling, the ledger is the
+    // record. Run one under the other, a founder reads the room, scrolls, and meets the same three
+    // surfaces again with nothing saying the second is an account of the first.
+    //
+    // At 1440 — the width CLAUDE.md rule 11 measures at — they share a row, so the ledger starts to
+    // the right of the room rather than below it. The default project runs at 1280, where the pair
+    // deliberately wraps and the ledger takes the full column: what decides this is whether the
+    // ledger has room to be read, not what kind of device is asking. Both halves are asserted,
+    // because the wrap is a decision and not a fallback.
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.waitForTimeout(200);
+    const room = await boxOf(page.getByTestId('office-plate'), 'the office');
+    const ledger = await boxOf(page.getByTestId('office-ledger'), 'the ledger');
+    expect(ledger.y, 'the ledger dropped below the room at desk width').toBeLessThan(room.y + room.height);
+    expect(ledger.x, 'the ledger is not beside the room').toBeGreaterThan(room.x + room.width - 2);
+
+    // Narrow the column and it stacks, full width, rather than squeezing the sentences.
+    await page.setViewportSize({ width: 1100, height: 1000 });
+    await page.waitForTimeout(200);
+    const narrowRoom = await boxOf(page.getByTestId('office-plate'), 'the office');
+    const narrowLedger = await boxOf(page.getByTestId('office-ledger'), 'the ledger');
+    expect(narrowLedger.y).toBeGreaterThanOrEqual(narrowRoom.y + narrowRoom.height - 2);
+    expect(narrowLedger.width).toBeGreaterThan(narrowRoom.width);
+  });
+
+  test('the ledger survives the real office loading (FB-203, item 7)', async ({ page }) => {
+    // It used to live inside the plate, which is the FALLBACK. So on any venture whose real office
+    // loaded, the ledger was not rendered at all — and the half of this pairing a screen-reader
+    // user gets was the half that disappeared when the venture was healthiest. It is its own
+    // component now, outside the fallback, which is what this asserts: the ledger is not a
+    // descendant of the thing that gets replaced.
+    await expect(page.getByTestId('office-plate').getByTestId('office-ledger')).toHaveCount(0);
+    await expect(page.getByTestId('office-ledger')).toBeVisible();
+  });
+
+  test('“live from your machine” is never said over the stand-in (FB-203, item 7)', async ({ page }) => {
+    // The first version put this label on the section heading, driven by whether the BOX is
+    // reporting — a different question from whether the real room is on the screen. So it printed
+    // "Live from your venture's own machine" directly above a drawing whose own note says "This is
+    // a stand-in". A label that can be wrong about the thing beneath it is worse than none.
+    const standIn = await page.getByTestId('office-plate').count();
+    if (standIn > 0) await expect(page.getByTestId('office-live-label')).toHaveCount(0);
+  });
+
+  test('what your team did is its own section, with what it is (FB-203, item 9)', async ({ page }) => {
+    const engine = page.getByTestId('lane-activity');
+    await expect(engine.getByRole('heading', { level: 2 })).toHaveText('What your team did');
+    // The promise that makes a four-row list trustworthy: what is missing is older, not hidden.
+    await expect(engine).toContainText('nothing is swallowed');
+    // Relative, not the recorded ISO string — and the footer says out loud why that stays honest.
+    await expect(engine.getByTestId('lane-activity-more')).toContainText('re-reads itself once a minute');
+    await expect(engine).not.toContainText('T00:00:00Z');
+    // The card furniture the design objected to is gone: no repeat count, no venture tag.
+    await expect(engine.locator('.tag')).toHaveCount(0);
+  });
+
   test('every row says what its surface is doing — never a blank', async ({ page }) => {
     const rows = page.locator('[data-testid^="office-row-"]');
     const n = await rows.count();
     expect(n).toBeGreaterThan(0);
     for (let i = 0; i < n; i++) {
-      await expect(rows.nth(i).locator('td').nth(1)).not.toBeEmpty();
+      // FB-203, item 8: two columns, and the surface's name is the row's own header rather than a
+      // cell. So the sentence is the row's only `td`, and "Since" is folded into it as a relative
+      // span rather than being a third column of clock readings.
+      await expect(rows.nth(i).locator('.ledger-doing')).not.toBeEmpty();
     }
   });
 

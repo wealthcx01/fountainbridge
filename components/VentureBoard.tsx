@@ -18,13 +18,14 @@ import { isUnnumbered } from '@/lib/ticket-ids';
 import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
+import { OfficeLedger } from './OfficeLedger';
 import { OfficeEmbed } from './OfficeEmbed';
 import type { Office } from '@/lib/office';
 import { lastSend, outboxUrl } from '@/lib/sends';
 import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
-import { LaneActivity } from './LaneActivity';
+import { EngineActivity } from './EngineActivity';
 import { WhileWorking } from './WhileWorking';
 import type { Brief } from '@/lib/brief';
 import type { RunReport } from '@/lib/runreports';
@@ -428,32 +429,66 @@ export function VentureBoard({
 
           What is left is the one link that says something the prompt bar does not — that the
           composer is a place, with everything already said in it, and not only a box. */}
-      {/* ---- 5. The office ----------------------------------------------------------------------
+      {/* ---- 5. The office, and the ledger beside it -------------------------------------------
           FB-139's plate is a drawing and says so in its own header. FB-163 puts the real thing in
           front of it where a venture has one: pixel-agents on the venture's own machine, proxied by
           the studio so no address or credential of the box reaches the browser.
           The plate is the fallback, not a second office — it is passed in, rendered once, and shown
           whenever the embed cannot be. A frozen last-known scene would read as a team sitting
-          still. */}
-      <div className="pocket-2">
-        {officeSrc && officeSocket ? (
-          <OfficeEmbed
-            src={officeSrc}
-            socket={officeSocket}
-            fallback={<OfficePlate office={office} />}
-          />
-        ) : (
-          <OfficePlate office={office} />
-        )}
-      </div>
+          still.
 
-      {/* ---- 6. What the engine did -------------------------------------------------------------- */}
-      {/* FB-160: not on a phone. The design's pocket studio is the blocker banner, the office, the
+          FB-203, item 7 pairs the two halves in one row, which is the design's whole argument for
+          this section: *the office is the feeling; this ledger is the record.* They ran one under
+          the other before, so a founder read the room, scrolled past a caption, and met the same
+          three surfaces again with nothing saying the second was an account of the first.
+
+          The ledger also used to live inside the plate — the fallback — so on any venture whose real
+          office loaded it was not rendered at all. The half a screen-reader user gets was the half
+          that disappeared when the venture was healthiest. */}
+      <section className="office-section pocket-2" data-testid="office-section">
+        <div className="office-head">
+          <h2>The office</h2>
+        </div>
+        {/* The design puts "LIVE FROM ARCA'S MACHINE" on this heading row. It is drawn one line
+            lower, inside the room itself, and that is not a compromise — it is the only place that
+            knows whether a founder is looking at the real room.
+
+            Put here it read as a caption on the section, and the section renders the *stand-in* when
+            the embed cannot load. So the first version of this printed "Live from your venture's own
+            machine" directly above a drawing whose own note says "This is a stand-in". A label that
+            can be wrong about the thing beneath it is worse than no label. `office.live` is a fact
+            about the box reporting run reports, which is a different question from whether the room
+            is on the screen, and `OfficeEmbed` is the only component that knows the second. */}
+        <div className="office-pair">
+          <div className="office-pair-view">
+            {officeSrc && officeSocket ? (
+              <OfficeEmbed
+                src={officeSrc}
+                socket={officeSocket}
+                fallback={<OfficePlate office={office} />}
+              />
+            ) : (
+              <OfficePlate office={office} />
+            )}
+          </div>
+          <div className="office-pair-ledger not-in-pocket">
+            <OfficeLedger office={office} ventureId={venture.id} />
+          </div>
+        </div>
+      </section>
+
+      {/* ---- 6. What the engine did --------------------------------------------------------------
+          FB-203, item 9: its own section under a rule, rather than the second half of the card list
+          the ledger above used to be. It answers a different question — the ledger says what each
+          surface is doing now, this says what the engine has done — and production collapsed both
+          into one place where neither was legible.
+
+          FB-160: not on a phone. The design's pocket studio is the blocker banner, the office, the
           queue and the prompt. What your team has been doing is a record, and a record is what
           "What happened" is for. Stood down rather than removed: `?full=1` shows it. */}
       {engine ? (
         <div className="not-in-pocket">
-          <LaneActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} />
+          <EngineActivity reports={runs} total={runsTotal} engine={engine} hasComposer={venture.hasComposer} ventureId={venture.id} />
         </div>
       ) : null}
       {/* ---- 7. Waiting on you -------------------------------------------------------------------

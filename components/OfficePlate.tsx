@@ -1,6 +1,4 @@
-import { TEAM_TITLE } from '@/lib/glossary';
-import { deskDoing, officeSummary, type Office } from '@/lib/office';
-import { howLong } from '@/lib/when';
+import { officeSummary, type Office } from '@/lib/office';
 import { toneColor } from '@/lib/status';
 import { PixelAgent } from './PixelAgent';
 
@@ -21,6 +19,11 @@ import { PixelAgent } from './PixelAgent';
  * readable: which surface, doing what, since when. The plate is `aria-hidden` and the ledger is not
  * — a picture is the feeling, and the record is the half a screen-reader user gets.
  *
+ * FB-203, item 7 moved the ledger out to `OfficeLedger`, because this component is the **fallback**:
+ * on a venture whose real office loads, the plate is never rendered, and the ledger was disappearing
+ * with it. The record now stands beside the room whichever room is being shown. The one array is
+ * still one array — `office.desks` — so the guarantee below is unchanged.
+ *
  * ## When the machine stops
  *
  * Empty chairs and the machine's own sentence, never the last scene. A still room would read as a
@@ -29,11 +32,7 @@ import { PixelAgent } from './PixelAgent';
  */
 export function OfficePlate({ office }: { office: Office }) {
   return (
-    <section data-testid="office-plate" style={{ marginBottom: '1.5rem' }}>
-      <p className="eyebrow" style={{ marginBottom: '0.4rem' }}>
-        <span className="eyebrow-id">The office</span> — {TEAM_TITLE}
-      </p>
-
+    <section data-testid="office-plate">
       {/* ---- the feeling ---------------------------------------------------------------------- */}
       <div
         data-testid={office.live ? 'office-live' : 'office-placeholder'}
@@ -83,40 +82,6 @@ export function OfficePlate({ office }: { office: Office }) {
         machine; a raised hand is a wait on you.
       </p>
 
-      {/* ---- the record ----------------------------------------------------------------------- */}
-      <div className="table-scroll">
-        <table className="records" data-testid="office-ledger">
-          <thead>
-            <tr>
-              <th scope="col">Surface</th>
-              <th scope="col">Doing, right now</th>
-              <th scope="col">Since</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* The SAME array the plate above mapped. There is no second list to disagree with. */}
-            {office.desks.map((desk) => (
-              <tr key={desk.departmentId} data-testid={`office-row-${desk.departmentId}`} data-state={desk.state}>
-                <td>{desk.name}</td>
-                <td>
-                  {deskDoing(desk)}
-                  {desk.ticketId ? <span className="mono muted"> · {desk.ticketId}</span> : null}
-                </td>
-                <td>
-                  {desk.since ? (
-                    `${howLong(desk.since) ?? 'a moment'} ago`
-                  ) : (
-                    <>
-                      <span aria-hidden="true" className="muted">—</span>
-                      <span className="sr-only">not applicable</span>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </section>
   );
 }
