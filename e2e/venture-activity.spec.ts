@@ -52,6 +52,41 @@ test.describe('what happened', () => {
     for (const d of decisions) expect(d).not.toMatch(/\bYou (approved|sent back)\b/);
   });
 
+  test('a completed approval says whether the studio issued it (FB-207)', async ({ page }) => {
+    // This is the property that kept two ApprovalCard sections on the desk through two instructions
+    // to move them. The desk was the only place a founder could see whether a completed approval's
+    // signature was genuine, forged, or made against a proposal that changed afterwards (FB-046),
+    // and this page listed the same decisions in prose carrying none of it.
+    //
+    // The sections are gone now, so this is where the property lives. If this test fails, a forged
+    // grant on a past send is invisible in the studio — which is non-negotiable 4 failing quietly,
+    // and the exact outcome the refusals were protecting against.
+    await testLogin(page, JOHN);
+    await page.goto('/venture/arca/activity');
+
+    const clauses = page.getByTestId('activity-attestation');
+    expect(await clauses.count(), 'no decision row says anything about its signature').toBeGreaterThan(0);
+
+    // An attested grant reads as verified.
+    const verified = clauses.locator('..').locator('[data-verified="true"]');
+    expect(await verified.count()).toBeGreaterThan(0);
+
+    // And every row carrying one is a way to the page that says WHICH of the three reasons it is —
+    // the clause is short on purpose and must not be the end of the trail.
+    const row = page.getByTestId('activity-item').filter({ has: clauses.first() }).first();
+    await expect(row.locator('a').first()).toHaveAttribute('href', /\/approvals\//);
+  });
+
+  test('a forged grant is not quietly recorded as an approval (FB-207)', async ({ page }) => {
+    // ARCA's fixtures carry an adversarial grant: a grant.json with a bogus attestation, of the kind
+    // a lane could write. It must not read like a human's approval anywhere in the studio.
+    await testLogin(page, JOHN);
+    await page.goto('/venture/arca/activity');
+    const unverified = page.getByTestId('activity-attestation').and(page.locator('[data-verified="false"]'));
+    expect(await unverified.count(), 'nothing on this page says a signature did not verify').toBeGreaterThan(0);
+    await expect(unverified.first()).toContainText('not verified');
+  });
+
   test('every entry says its state in words, not only in colour', async ({ page }) => {
     // A state carried only by a coloured dot is a state a screen-reader user does not get.
     await testLogin(page, JOHN);

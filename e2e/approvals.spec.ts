@@ -85,23 +85,34 @@ test.describe('what the studio can prove about an approval', () => {
   });
 
   test('a genuinely attested grant reads as approved, naming the human', async ({ page }) => {
-    await page.goto('/venture/arca');
     // The counterweight: if everything rendered as unverified the tests above would pass for the
     // wrong reason.
+    //
+    // FB-207 moved this off the desk. It was asserted against `approvals-decided`, which is gone;
+    // the property is the same and its home is now the approval's own page, where the full
+    // provenance sentence lives.
+    await page.goto(decisionPage('past-send'));
     const prov = page.getByTestId('approval-arca/past-send-provenance');
     await expect(prov).toHaveAttribute('data-grant-provenance', 'attested');
     await expect(prov).toContainText('john.gallagher@wealthcx.com');
   });
 
   test('an approved action stays visible instead of disappearing', async ({ page }) => {
-    await page.goto('/venture/arca');
     // Found by writing the test above: `granted` rendered NOWHERE. A founder clicked Approve on
     // something irreversible and the card vanished, returning only if it later failed. Every
     // approval now appears somewhere with its state on it.
-    const decided = page.getByTestId('approvals-decided');
-    await expect(decided).toBeVisible();
-    await expect(decided).toContainText('Decided');
-    await expect(page.getByTestId('approval-arca/past-send-state')).toHaveText('approved');
+    //
+    // FB-207: that somewhere is What happened, which is the screen whose job is the record. The desk
+    // is what happens next, and a granted send is not that. The property is unchanged and is the
+    // reason the desk's section was defended twice before this could ship — the approval had to keep
+    // being visible SOMEWHERE, with its state on it, and now it is here.
+    await page.goto('/venture/arca/activity');
+    const decisions = page.getByTestId('activity-item').filter({ hasText: 'approved:' });
+    expect(await decisions.count(), 'an approved send vanished from the studio').toBeGreaterThan(0);
+    await expect(decisions.first()).toContainText('john.gallagher@wealthcx.com');
+    // And the desk is not carrying it any more, which is the other half of the move.
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('approvals-decided')).toHaveCount(0);
   });
 
   test('two approvals in different repos do not collide in the DOM', async ({ page }) => {

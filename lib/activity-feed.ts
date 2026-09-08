@@ -43,6 +43,19 @@ export interface FeedItem {
   /** Survives the render cap. For entries that must never be orderable out of sight. */
   pinned?: boolean;
   /**
+   * What the studio can prove about the grant behind this decision (FB-207).
+   *
+   * Present only on a row that asserts a human approved something. It is the property that kept the
+   * desk's `approvals-decided` section alive: that section was the only place a founder could see
+   * whether a completed approval's signature was genuine, forged, or made against a proposal that
+   * changed afterwards, and this page listed the same decisions in prose carrying none of it.
+   *
+   * `verified` false is not a detail. It means a grant record exists that the studio did not issue —
+   * possibly a lane's forgery, which is precisely what non-negotiable 4 exists to make impossible to
+   * miss. It is short here and the approval page carries which of the three reasons it is.
+   */
+  attestation?: { verified: boolean; text: string };
+  /**
    * How many identical records this row stands for (FB-180).
    *
    * 1 for almost everything. A lane at its daily budget re-parks every five minutes and each wake
@@ -101,9 +114,28 @@ export interface FeedInput {
  * Every state appears, including the ones nobody enjoys. `failed` and `unverified-action` are the
  * entries that make the page trustworthy; a feed showing only successes is one nobody can rely on.
  */
-function decisionsFor(a: ActiveGraphApproval): Array<{ at: string | null; text: string; tone: Tone; pinned?: boolean }> {
+function decisionsFor(a: ActiveGraphApproval): Array<{ at: string | null; text: string; tone: Tone; pinned?: boolean; attestation?: { verified: boolean; text: string } }> {
   const who = a.approver ?? 'Someone';
   const verb = (t: string) => `${who} ${t}`;
+
+  /**
+   * The clause on a row that claims a human approved something (FB-207).
+   *
+   * Only on those rows. "Going out now" and "Went out" are the executor reporting its own work, and
+   * an attestation clause under them would be saying something about a signature on a line that is
+   * not about a signature. The grant gets the clause; the send gets its own sentence.
+   *
+   * Deliberately short and deliberately not the reason. `unattested` covers three different
+   * situations — a proposal that changed since, a signature that does not check out, and the studio
+   * holding no secret to check with — and they need completely different responses. Choosing between
+   * them in six words would be the studio guessing; the approval page states which, and this row is
+   * how a founder learns to go and look.
+   */
+  const attestation = a.grantProvenance === 'none'
+    ? undefined
+    : a.grantProvenance === 'attested'
+      ? { verified: true, text: 'signature verified' }
+      : { verified: false, text: 'signature not verified' };
 
   switch (a.status) {
     // `proposed` has not happened yet. It belongs in the queue, where a founder acts on it — putting
@@ -111,31 +143,36 @@ function decisionsFor(a: ActiveGraphApproval): Array<{ at: string | null; text: 
     case 'proposed':
       return [];
     case 'granted':
-      return [{ at: a.grantedAt ?? a.committedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }];
+      return [{ at: a.grantedAt ?? a.committedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted'), attestation }];
     case 'rejected':
       return [{ at: a.committedAt, text: verb(`sent back: ${a.summary}`), tone: approvalTone('rejected') }];
     case 'executing':
       return [
-        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }] : []),
+        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted'), attestation }] : []),
         { at: a.committedAt, text: `Going out now: ${a.summary}`, tone: approvalTone('executing') },
       ];
     case 'executed':
       return [
         // The approval keeps its own entry AND its own time. Stamping it with the execution's clock
         // filed a Monday decision under Thursday in a feed sold as newest-first.
-        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }] : []),
+        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted'), attestation }] : []),
         { at: a.committedAt, text: `Went out: ${a.summary}`, tone: approvalTone('executed') },
       ];
     case 'failed':
       return [
-        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted') }] : []),
+        ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted'), attestation }] : []),
         { at: a.committedAt, text: `Tried and failed to send: ${a.summary}`, tone: approvalTone('failed'), pinned: true },
       ];
     case 'unverified-action':
       return [{
-        at: a.committedAt,
+        // FB-207: the grant's own time, falling back to the execution's — not the other way round,
+        // and never only the execution's. An undated entry is dropped from this feed on purpose, and
+        // `committedAt` alone meant a forgery with no execution timestamp was dropped: the one row
+        // marked `pinned` precisely so it can never be sorted off the page was never reaching it.
+        at: a.grantedAt ?? a.committedAt,
         text: `Recorded as approved, but the studio did not issue that approval: ${a.summary}`,
         tone: approvalTone('unverified-action'),
+        attestation,
         // Pinned past the render cap. Its timestamp comes out of the very grant nobody can verify,
         // so whoever wrote the forgery also chose where it sorts — `granted_at: "2020-01-01"` put it
         // at the bottom and the cap then cut it from the page entirely. The one entry that must
@@ -231,7 +268,18 @@ export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boo
       // is not a history — the same rule the trail follows.
       const at = iso(d.at);
       if (!at) continue;
-      items.push({ at, text: d.text, meta: surfaceOf(a.repo), tone: d.tone, source: 'decision', pinned: d.pinned });
+      items.push({
+        at,
+        text: d.text,
+        meta: surfaceOf(a.repo),
+        tone: d.tone,
+        source: 'decision',
+        pinned: d.pinned,
+        attestation: d.attestation,
+        // FB-207: the row is a way to the approval, because the clause above is deliberately short
+        // and the page is where the three reasons a signature does not verify are told apart.
+        href: `/venture/${a.ventureId}/approvals/${a.repo}/${a.id}`,
+      });
     }
   }
 

@@ -79,14 +79,35 @@ export const prWaitingItem = (a: PrApproval, ventureId: string, surface?: string
  * `· external send` is not decoration. It is the one thing that tells a founder this row is not
  * their team asking to merge something — it is something leaving their company, and the design puts
  * exactly that phrase on exactly this row.
+ *
+ * ## Three states, one queue (FB-207)
+ *
+ * A send reaches this list in three conditions, and the meta line is what tells them apart:
+ *
+ *   `proposed`           — nothing has happened. The founder's yes is what starts it.
+ *   `failed`             — it was approved, the executor tried, and it did not go. Nobody but the
+ *                          founder can decide what happens next.
+ *   `unverified-action`  — a grant record exists that the studio did not issue. That is an incident,
+ *                          not a queue item, and it carries the alarm below as well as this line.
+ *
+ * The last two used to be a separate `approvals-attention` section on the desk. The design's rule is
+ * one queue, because a founder has one queue — and a send that failed is more urgent than most of
+ * what is above it, not less, so putting it in its own block below was the wrong shape twice over.
  */
+const SEND_STATE: Partial<Record<ActiveGraphApproval['status'], string>> = {
+  failed: 'external send · tried and did not go',
+  'unverified-action': 'external send · recorded as approved by nobody the studio can name',
+};
+
 export const externalWaitingItem = (a: ActiveGraphApproval, ventureId: string, surface?: string | null): WaitingItem => ({
   key: `${a.repo}/${a.id}`,
   testId: `external-${a.repo}-${a.id}`,
   ref: a.ticket ?? a.id,
   title: a.summary,
-  meta: `${surface ?? 'Your venture'} · external send`,
-  unverified: a.grantProvenance === 'unattested',
+  meta: `${surface ?? 'Your venture'} · ${SEND_STATE[a.status] ?? 'external send'}`,
+  // `unverified-action` is the status; `unattested` is what the studio can prove about the grant.
+  // They are usually the same fact and are not the same field, so both earn the alarm.
+  unverified: a.grantProvenance === 'unattested' || a.status === 'unverified-action',
   // A proposal carries no time of its own — it is a file a lane wrote, and `lib/approvals` says so
   // where it reads one. So the studio does not know how long this has waited, and the row says
   // "waiting on you" rather than inventing "a moment" for something that may have sat for weeks.

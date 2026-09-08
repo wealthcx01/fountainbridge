@@ -1,0 +1,8 @@
+{
+  "id": "executed-forgery",
+  "department": "sell",
+  "action_type": "send",
+  "summary": "A send that went out on an approval nobody at the studio issued",
+  "amount_minor": 120000,
+  "currency": "GBP"
+}

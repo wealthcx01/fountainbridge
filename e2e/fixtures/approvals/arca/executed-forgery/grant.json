@@ -1,0 +1,9 @@
+{
+  "id": "executed-forgery",
+  "decision": "granted",
+  "approver": "john.gallagher@wealthcx.com",
+  "granted_at": "2026-07-18T09:00:00Z",
+  "proposal_sha": "sha-executed-forgery-proposal",
+  "attestation": "1111111111111111111111111111111111111111111111111111111111111111",
+  "_adversarial": "Deliberately does not verify. `make sign-approval-fixtures` must leave it alone. This is the case the whole attestation story exists for and the one no fixture covered: a grant the studio did not issue, which the executor then ACTED ON. Without an execution record the same forgery is only `proposed`, so it sits in the queue and never reaches the record — which is why forged-grant and changed-proposal could not prove that What happened states an unverified signature (FB-207)."
+}
