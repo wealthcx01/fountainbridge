@@ -1,6 +1,6 @@
 # FB-207 — decided work leaves the desk, and What happened proves it was signed
 
-**Status:** filed · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-01 + R-11) ·
+**Status:** Done · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-01 + R-11) ·
 **Branch:** `fb-207-decided-work-leaves-the-desk` · One ticket = one branch = one PR.
 
 **First, and with its other half.** The reviewer's own ordering: *"R-01 with R-11 first (they unblock
@@ -53,10 +53,53 @@ verdicts are unchanged — this ticket moves where the verdict is *shown*, not h
 
 ## Acceptance criteria
 
-- [ ] A decided send appears on What happened with its provenance stated in words, and a link to its
-      approval page.
-- [ ] A **forged** grant on a past send is visible on What happened and says it did not verify.
-- [ ] A failed or unverified send is a row in Waiting on you, in amber, above the ordinary work.
-- [ ] Neither `approvals-decided` nor `approvals-attention` renders on the desk.
-- [ ] The three FB-046 tests that guard "a founder approved something and the card vanished" pass
-      against their new home rather than being deleted with the old one.
+- [x] A decided send appears on What happened with its provenance stated in words, and a link to its
+      approval page. — *"john.gallagher@wealthcx.com approved: … · signature verified →"*.
+- [x] A **forged** grant on a past send is visible on What happened and says it did not verify.
+- [x] A failed or unverified send is a row in Waiting on you, in amber, above the ordinary work.
+- [x] Neither `approvals-decided` nor `approvals-attention` renders on the desk.
+- [x] The FB-046 tests that guard "a founder approved something and the card vanished" moved to the
+      new home rather than being deleted with the old section.
+
+## Done, 2026-09-08
+
+**The order was the whole ticket, and it held.** What happened carries the attestation first; the desk
+lost the sections second. Nothing about a completed approval is less visible than it was — it is on
+the screen whose job is the record rather than the one whose job is what happens next.
+
+### The fixture that never existed
+
+Writing the test for *"a forged grant on a past send is visible"* found that **no fixture could
+produce one.** `forged-grant` and `changed-proposal` are adversarial grants with no execution record,
+so `statusOf` correctly calls them `proposed` — they are queue items, not history, and they never
+reach What happened at all.
+
+Which means the studio has never had a test for the case the whole attestation story exists for: **a
+grant the studio did not issue, which the executor then acted on.** `executed-forgery` is that
+fixture. It is the row now pinned to the top of What happened.
+
+### And a bug that fixture exposed
+
+`unverified-action` built its feed entry from `committedAt` alone. An undated entry is dropped from
+this feed on purpose — so a forgery with no execution timestamp was **dropped**, and the one row
+marked `pinned: true` precisely so it can never be sorted off the page was never reaching the page.
+It uses the grant's own time now, falling back to the execution's.
+
+### One read the desk no longer makes
+
+`loadApprovalHistories` fanned out across every approval on the venture — one of the desk's costlier
+reads — and its only consumer was the two sections. The approval's own page still loads the history
+for the one approval a founder opened, which was always the right shape. Fetching a venture's whole
+ActiveGraph record to render a page that shows none of it is the cost FB-164 went looking for.
+
+### Read
+
+1440×1000 and 393×851 on fixtures: the desk **2,282px** and **2,695px**, What happened **1,036px**,
+no sideways scroll anywhere. Both desk numbers are *up* about 60px, and the reason is the new fixture
+adding a row to the queue — on production, which has no forged send, the two deleted sections come
+off with nothing replacing them.
+
+**Looking also caught the clause landing after the arrow**: the row read *"…nobody at the studio
+issued → · signature not verified"*, the arrow ending the sentence and then more sentence after it.
+The clause is inside the link now, before the arrow — and it is the best reason to press the row, so
+it belongs in the target rather than beside it.

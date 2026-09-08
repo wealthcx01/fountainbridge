@@ -50,12 +50,17 @@ export function ActivityFeed({ items, couldNotRead = false }: { items: FeedItem[
           <span className="activity-said">
             <span aria-hidden="true" style={{ color: toneColor(item.tone) }}>● </span>
             <span className="sr-only">{TONE_LABEL[item.tone]}: </span>
+            {/* FB-207: the attestation clause is INSIDE the link, before the arrow.
+                Rendered after it, the row read "…nobody at the studio issued → · signature not
+                verified" — the arrow terminating the sentence and then more sentence after it. The
+                clause is also the best reason to press the row, so it belongs in the target rather
+                than beside it. */}
             {item.href ? (
               item.href.startsWith('/')
-                ? <Link href={item.href}>{item.text} →</Link>
-                : <a href={item.href} target="_blank" rel="noreferrer">{item.text} ↗</a>
+                ? <Link href={item.href}>{item.text}<Attestation item={item} />{' →'}</Link>
+                : <a href={item.href} target="_blank" rel="noreferrer">{item.text}<Attestation item={item} />{' ↗'}</a>
             ) : (
-              item.text
+              <>{item.text}<Attestation item={item} /></>
             )}
             {/* One fact, said once, with how many times it was recorded. Never a second row. */}
             {item.repeats && item.repeats > 1 ? (
@@ -67,6 +72,33 @@ export function ActivityFeed({ items, couldNotRead = false }: { items: FeedItem[
         </li>
       ))}
     </ol>
+  );
+}
+
+/**
+ * Whether the studio issued this approval (FB-207).
+ *
+ * This is the property that kept two ApprovalCard sections on the desk through two instructions to
+ * move them: the desk was the only place a founder could see whether a completed approval's
+ * signature was genuine, forged, or made against a proposal that changed afterwards, and this page
+ * listed the same decisions in prose carrying none of it.
+ *
+ * Amber and bold when it did not verify, because that is a grant record the studio did not write —
+ * possibly a lane's forgery, which is what non-negotiable 4 exists to make impossible to miss. The
+ * sentence is short on purpose: `unattested` covers three situations needing three different
+ * responses, and the approval page this row opens is where they are told apart.
+ */
+function Attestation({ item }: { item: FeedItem }) {
+  if (!item.attestation) return null;
+  return (
+    <span
+      data-testid="activity-attestation"
+      data-verified={item.attestation.verified ? 'true' : 'false'}
+      className={item.attestation.verified ? 'muted' : undefined}
+      style={item.attestation.verified ? undefined : { color: toneColor('attention'), fontWeight: 600 }}
+    >
+      {' · '}{item.attestation.text}
+    </span>
   );
 }
 

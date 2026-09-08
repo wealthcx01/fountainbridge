@@ -14,7 +14,6 @@ import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { ticketProgress } from '@/lib/ticket-progress';
 import { isUnnumbered } from '@/lib/ticket-ids';
-import { ApprovalCard, type ApprovalHistory } from './ApprovalCard';
 import { BlockerBanner, DegradedStrip, DeskSummary } from './DeskHeader';
 import { OfficePlate } from './OfficePlate';
 import { OfficeLedger } from './OfficeLedger';
@@ -103,7 +102,6 @@ export function VentureBoard({
   lanes,
   departments = [],
   approvals = [],
-  histories = {},
   budgets = [],
   budgetsError = null,
   brief = null,
@@ -138,8 +136,6 @@ export function VentureBoard({
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
-  /** The ActiveGraph story per approval, keyed `repo/id` (FB-071). Narrated server-side. */
-  histories?: Record<string, ApprovalHistory>;
   budgets?: (BudgetDisclosure | null)[];
   /** Finished work waiting to be read, newest-waiting first — the desk's section 7 (FB-128). */
   openWorkQueue?: PrApproval[];
@@ -212,22 +208,23 @@ export function VentureBoard({
   /** FB-087: admin-only — this venture has a box the studio cannot reach. Null for founders. */
   wiringWarning?: string | null;
 }) {
-  const pendingApprovals = approvals.filter((a) => a.status === 'proposed');
+  /**
+   * Every external action that still needs this founder (FB-207).
+   *
+   * Three states, one queue. `proposed` is waiting for a yes. `failed` was approved, the executor
+   * tried, and it did not go — nobody but the founder decides what happens next. `unverified-action`
+   * is a grant record the studio did not issue, which is an incident rather than a queue item and
+   * carries its own alarm on the row.
+   *
+   * The last two were the desk's `approvals-attention` section, below the queue. The design's rule
+   * is one queue because a founder has one queue, and a send that failed is more urgent than most of
+   * what was above it — so a separate block underneath was the wrong shape twice over.
+   */
+  const pendingApprovals = approvals.filter(
+    (a) => a.status === 'proposed' || a.status === 'failed' || a.status === 'unverified-action',
+  );
   // FB-142: the venture's own Workspace sent view, for the Sell surface's reference link.
   const outbox = outboxUrl(venture.founderEmail ?? null);
-  // Nothing that reached the executor may leave the founder's view without a visible outcome. The
-  // previous version rendered ONLY `proposed`, so a `failed` send — the state added precisely to make
-  // an errored real action loud — silently vanished from the queue, as did an unverifiable one
-  // (CLAUDE.md #10 inverted).
-  const needsAttention = approvals.filter((a) => a.status === 'failed' || a.status === 'unverified-action');
-  // FB-058: and everything else. `granted`, `executing`, `executed` and `rejected` rendered NOWHERE,
-  // so a founder clicked Approve and watched the card disappear with no evidence anything was queued
-  // — the approval only came back into view if it later failed. Approving something irreversible and
-  // being shown nothing is the same silent gap in a worse place, so every approval now appears
-  // somewhere with its state on it.
-  const decided = approvals.filter(
-    (a) => a.status === 'granted' || a.status === 'executing' || a.status === 'executed' || a.status === 'rejected',
-  );
   // FB-109: which surface the founder is looking at, if any. Deliberately not routed and not
   // persisted — a filter that survives reload is navigation, and navigation is a bigger decision
   // than this ticket makes.
@@ -516,46 +513,30 @@ export function VentureBoard({
           The desk cannot sign now: every `ApprovalCard` below renders read-only, because `decide`
           defaults to false and only the approval page passes it. */}
 
-      {/* "Decided — what happened next" — kept, against Claude Design's instruction to move it, and
-          the reason is worth having on the record.
+      {/* FB-207: "Decided — what happened next" and "Went out, or tried to — needs your eye" stood
+          here, and both are gone.
 
-          The instruction (2026-09-02) was: *"The desk is forward-looking only… the record of what
-          left the company is What happened's whole job."* As a layout judgement that is right, and
-          this section is 356px of finished business on a forward-looking page.
+          They stayed through two earlier instructions to move them, for a reason this file recorded
+          at the time and which was right: *"It is not only a record. It is the only place a founder
+          can see whether a COMPLETED approval's signature was genuine … Removing this section would
+          make a forged grant on a past send invisible, which is non-negotiable 4 — a recorded,
+          VERIFIABLE human approval — failing quietly."*
 
-          But it is not only a record. It is the only place a founder can see whether a COMPLETED
-          approval's signature was genuine — `ApprovalCard`'s provenance element distinguishes an
-          attested grant from a forged one and from a proposal that changed after it was approved
-          (FB-046). What happened lists decisions in prose ("john.gallagher@… approved: …") and
-          carries none of that. Removing this section would make a forged grant on a past send
-          invisible, which is non-negotiable 4 — a recorded, VERIFIABLE human approval — failing
-          quietly.
+          The second design review said the same thing from the other side — *"nothing on the row
+          says whether the signature verified; this is what kept R-01 on the desk"* — and that is what
+          made the pair one ticket. What happened carries the attestation now (`lib/activity-feed.ts`,
+          `components/ActivityFeed.tsx`): every decision row states whether the studio issued that
+          approval, in words and in colour, and links to the page where the three reasons a signature
+          does not verify are told apart.
 
-          Found by the gate: three tests went red, and their own comment says why they exist —
-          *"`granted` rendered NOWHERE. A founder clicked Approve on something irreversible and the
-          card vanished."*
+          So the property moved before the section did, and nothing about a completed approval is now
+          less visible than it was — it is on the screen whose job is the record, rather than on the
+          one whose job is what happens next.
 
-          So it moves when What happened can carry the attestation, and not before. FB-180 (which is
-          rewriting that screen) and FB-183 (which gives an external approval its own page) are where
-          that happens. Claude Design has been asked which of the two should hold it. */}
+          The two states that are NOT a record went the other way: a send that failed and a grant
+          nobody can verify are things waiting on the founder, so they are rows in the queue above,
+          with the meta line saying which. */}
 
-      {decided.length > 0 ? (
-        <div data-testid="approvals-decided" style={{ marginTop: '1.25rem' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Decided — what happened next</p>
-          {decided.map((a) => (
-            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} history={histories[`${a.repo}/${a.id}`]} />
-          ))}
-        </div>
-      ) : null}
-
-      {needsAttention.length > 0 ? (
-        <div data-testid="approvals-attention" style={{ marginTop: '1.25rem' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Went out, or tried to — needs your eye</p>
-          {needsAttention.map((a) => (
-            <ApprovalCard key={`${a.repo}/${a.id}`} ventureId={venture.id} approval={a} history={histories[`${a.repo}/${a.id}`]} />
-          ))}
-        </div>
-      ) : null}
       {/* ---- 8. The company, by surface ----------------------------------------------------------
           The three founder-owned surfaces (FB-048): Build / Sell / Scale. Each is its own queue with
           its own approval gate — so product-building, selling, and scaling are managed separately.

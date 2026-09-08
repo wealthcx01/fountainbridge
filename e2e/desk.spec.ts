@@ -488,20 +488,18 @@ test.describe('the desk answers Claude Design (FB-182)', () => {
     await expect(page.getByTestId('desk-summary')).toBeVisible();
   });
 
-  test('a completed approval still shows whether its signature was genuine', async ({ page }) => {
-    // Claude Design asked for "Decided — what happened next" to move to What happened, and as a
-    // layout judgement that is right. It is staying until that screen can carry the ATTESTATION.
+  test('finished business is off the desk (FB-207)', async ({ page }) => {
+    // FB-207: this property moved, and this test moved with it — which is what the version of this
+    // comment written before the move insisted on. The desk's "Decided" section was the only place a
+    // founder could see whether a completed approval's signature was genuine, forged, or made
+    // against a proposal that changed afterwards (FB-046), and that is why two earlier instructions
+    // to delete it were refused.
     //
-    // This section is the only place a founder can see whether a completed approval's signature was
-    // genuine, forged, or made against a proposal that changed afterwards (FB-046). What happened
-    // lists decisions in prose and carries none of that. Moving it as instructed would make a forged
-    // grant on a past send invisible — non-negotiable 4 failing quietly.
-    //
-    // Asserted here rather than left implicit, so that whoever finally moves the section has to move
-    // this property with it.
-    await expect(page.getByTestId('approvals-decided')).toBeVisible();
-    await expect(page.getByTestId('approval-arca/past-send-provenance'))
-      .toHaveAttribute('data-grant-provenance', 'attested');
+    // What happened carries it now. The section is gone from the desk, and the assertion that it
+    // does not simply vanish lives in `e2e/venture-activity.spec.ts` against its new home.
+    await expect(page.getByTestId('approvals-decided'), 'the desk is carrying finished business again')
+      .toHaveCount(0);
+    await expect(page.getByTestId('approvals-attention')).toHaveCount(0);
   });
 
   test('the office says it is a stand-in, because it is one', async ({ page }) => {

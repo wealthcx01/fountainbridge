@@ -10,11 +10,8 @@ import { ticketsByRepoFrom } from '@/lib/venture-tickets-index';
 import { loadVentureAttention } from '@/lib/attention';
 import { loadVentureHealth, defaultNow } from '@/lib/health';
 import { attachBudgetDisclosure, toSpends, type ActiveGraphApproval } from '@/lib/approvals';
-import { historyFor } from '@/lib/activegraph-log';
 import { boardState, type VentureWiring } from '@/lib/firstrun';
 import { FirstRun, BoardUnreadable } from '@/components/FirstRun';
-import { narrate, narrateFault } from '@/lib/activegraph';
-import type { ApprovalHistory } from '@/components/ApprovalCard';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
 import { engineState, type RunReport } from '@/lib/runreports';
 import { buildOffice } from '@/lib/office';
@@ -22,7 +19,6 @@ import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
 import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
 import { blockerLine, degradedGroups, deskSummary, type ReadFailure } from '@/lib/desk';
 import { loadEnvelopes } from '@/lib/budgets-load';
-import { GitHubClient } from '@/lib/github';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { DeskWaiting } from '@/components/DeskWaiting';
@@ -31,42 +27,6 @@ import { timed } from '@/lib/timing';
 
 // Venture lanes & tickets (FB-006). Scoping is enforced HERE, server-side: a session that can't
 // access this venture never triggers a ticket fetch (CLAUDE.md #6 — isolation is not UI-only).
-/**
- * The signed history behind each approval, fanned out (FB-071, parallelised in FB-128).
- *
- * One read per approval, all at once rather than one after another. The secret verifies them here,
- * server-side, because the card that renders them is a client component and the verifying secret
- * must never reach a browser.
- *
- * An approval with no readable history is simply absent from the result. One unreadable history must
- * not take the board with it, and a venture that has never had an approval is not an error.
- */
-async function loadApprovalHistories(
-  venture: VentureSummary,
-  approvals: ActiveGraphApproval[],
-  testRig: boolean,
-): Promise<Array<[string, ApprovalHistory]>> {
-  const secret = process.env.FOUNDRY_APPROVAL_SECRET ?? '';
-  if (!secret || (process.env.APPROVALS_FIXTURE_DIR && testRig)) return [];
-
-  const client = new GitHubClient();
-  const read = await Promise.all(
-    approvals.map(async (a): Promise<[string, ApprovalHistory] | null> => {
-      try {
-        const h = await historyFor(client, venture.id, a.repo, a.id, secret);
-        if (h.applied.length === 0 && h.refused === 0) return null;
-        return [
-          `${a.repo}/${a.id}`,
-          { lines: h.applied.map(narrate), faults: h.faults.map(narrateFault), refused: h.refused },
-        ];
-      } catch {
-        return null;
-      }
-    }),
-  );
-  return read.filter((e): e is [string, ApprovalHistory] => e !== null);
-}
-
 /**
  * The desk (FB-006, FB-128, streamed in FB-157).
  *
@@ -203,11 +163,21 @@ async function Desk({
   // reads as none, never as an error, so an un-provisioned ref cannot blank the board. Fanned out
   // rather than walked: it was a `for` loop awaiting one approval at a time, which on a venture with
   // a real queue was most of this page's time on its own.
-  const [attention, historyEntries] = await Promise.all([
-    timed('desk: open work', () => loadVentureAttention(venture, { refresh: refreshing, tickets: ticketsByRepoFrom(data.lanes) }), venture.id),
-    timed('desk: the record behind each approval', () => loadApprovalHistories(venture, approvalsRead, testRig), venture.id),
-  ]);
-  const histories: Record<string, ApprovalHistory> = Object.fromEntries(historyEntries);
+  // FB-207: the ActiveGraph history is no longer read here.
+  //
+  // It was fanned out across every approval on the venture — one of this page's costlier reads —
+  // and its only consumer was the two `ApprovalCard` sections the desk used to carry. Those are gone
+  // (What happened states the attestation now), so this read had nothing left to feed.
+  //
+  // The record itself is not gone and is not read less carefully: the approval's own page loads the
+  // history for the one approval a founder opened, which is the read that was always the right
+  // shape. Fetching every venture's whole record to render a page that shows none of it is exactly
+  // the cost FB-164 went looking for.
+  const attention = await timed(
+    'desk: open work',
+    () => loadVentureAttention(venture, { refresh: refreshing, tickets: ticketsByRepoFrom(data.lanes) }),
+    venture.id,
+  );
 
   const inferred = data.lanes.map((lane) => applyStatusInference(lane, attention.ticketStatus));
   // FB-120: the work the founder approved minutes ago, which is not on the default branch yet.
@@ -454,7 +424,6 @@ async function Desk({
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}
-      histories={histories}
       budgets={budgets}
       budgetsError={budgetsError}
       orphanEnvelopes={orphanEnvelopes}
