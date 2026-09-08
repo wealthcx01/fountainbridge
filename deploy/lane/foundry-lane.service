@@ -20,6 +20,11 @@ Type=oneshot
 # operator's lane.env must come after, or a brain setting could silently override it.
 EnvironmentFile=-/opt/foundry/lane/brain.env
 EnvironmentFile=/opt/foundry/lane/lane.env
+# FB-176: the secrets, in the one place they live. LAST on purpose — systemd applies these in order
+# and the last wins, so a stale copy left behind in lane.env cannot beat the file that gets rotated.
+# `-` so a box that has not been migrated yet still starts on its old lane.env rather than failing to
+# boot the lane over a security tidy-up; `deploy/foundry/secret-scan.mjs` is what says it is stale.
+EnvironmentFile=-/etc/foundry/credentials
 WorkingDirectory=/opt/foundry/lane
 # FB-040 replaces this with the scanning wrapper (find a Todo ticket → supervisor.sh <slug> <file>).
 ExecStart=/opt/foundry/lane/run-once.sh

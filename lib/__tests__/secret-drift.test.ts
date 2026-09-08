@@ -15,12 +15,21 @@ import { SECRET_PATTERNS } from '../secrets';
  * with no build step. So they are two copies and this is the thing that stops them drifting — the
  * same treatment `lib/readiness.ts` gets for the env name it duplicates.
  *
- * If this fails, it is not the test that is wrong. One of the doors has stopped refusing something
- * the other refuses.
+ * FB-176 made it three. The box's own credential scanner (`deploy/foundry/secret-scan.mjs`) needs
+ * the same net, and for the same reason cannot import it: it is a standalone script root runs from a
+ * systemd timer, on a box with no build step and no `node_modules`. A third copy that could quietly
+ * fall behind is how a box ends up not looking for the one kind of credential the studio refuses.
+ *
+ * If this fails, it is not the test that is wrong. One of the three has stopped refusing something
+ * the others refuse.
  */
 describe('the studio and the composer refuse the same credentials', () => {
   const boxSource = readFileSync(
     join(process.cwd(), 'deploy', 'librechat', 'deposit-mcp', 'stdio.mjs'),
+    'utf8',
+  );
+  const scannerSource = readFileSync(
+    join(process.cwd(), 'deploy', 'foundry', 'secret-scan.mjs'),
     'utf8',
   );
 
@@ -55,6 +64,29 @@ describe('the studio and the composer refuse the same credentials', () => {
     const studioLabels = SECRET_PATTERNS.map(([, label]) => label);
     for (const label of boxLabels) {
       expect(studioLabels, `the studio does not refuse ${label}, and the composer does`).toContain(label);
+    }
+  });
+
+  /** The same extraction, against the box's credential scanner (FB-176). */
+  const scannerLabels = (() => {
+    const start = scannerSource.indexOf('const SECRET_PATTERNS = [');
+    expect(start, 'the box scanner has no SECRET_PATTERNS array').toBeGreaterThan(-1);
+    const block = scannerSource.slice(start, scannerSource.indexOf('\n];', start));
+    return [...block.matchAll(/,\s*'([^']+)'\]/g)].map((m) => m[1]);
+  })();
+
+  it('the box\u2019s credential scanner looks for everything the studio refuses', () => {
+    // The scanner is the third copy. A rule added to the studio and not to it means a box stops
+    // looking for the one kind of credential the studio has just decided matters.
+    for (const [, label] of SECRET_PATTERNS) {
+      expect(scannerLabels, `the box scanner no longer looks for ${label}`).toContain(label);
+    }
+  });
+
+  it('and looks for nothing the studio does not refuse', () => {
+    const studioLabels = SECRET_PATTERNS.map(([, label]) => label);
+    for (const label of scannerLabels) {
+      expect(studioLabels, `the box scanner looks for ${label} and the studio does not refuse it`).toContain(label);
     }
   });
 });
