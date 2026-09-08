@@ -21,6 +21,12 @@ services:
       - "host.docker.internal:host-gateway"
     env_file:
       - .env
+      # FB-176: the secrets, in the one place they live. After .env on purpose — docker-compose
+      # applies these in order and the last wins, so a stale copy left in .env cannot beat the file
+      # that gets rotated. `required: false` keeps a box that has not been migrated yet starting on
+      # its old .env rather than refusing to come up over a security tidy-up.
+      - path: /etc/foundry/credentials
+        required: false
     environment:
       - HOST=0.0.0.0
       - PORT=3080
@@ -85,6 +91,12 @@ services:
       - vectordb
     env_file:
       - .env
+      # FB-176: the secrets, in the one place they live. After .env on purpose — docker-compose
+      # applies these in order and the last wins, so a stale copy left in .env cannot beat the file
+      # that gets rotated. `required: false` keeps a box that has not been migrated yet starting on
+      # its old .env rather than refusing to come up over a security tidy-up.
+      - path: /etc/foundry/credentials
+        required: false
     environment:
       - DB_HOST=vectordb
       - DB_PORT=5432

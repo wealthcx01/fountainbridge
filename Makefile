@@ -58,5 +58,12 @@ provision-lint:
 	node --check deploy/office/office-gate-lib.mjs
 	for f in deploy/lane/*.sh; do bash -n "$$f"; done
 	shellcheck deploy/lane/*.sh
+	# FB-176: the box's credential scripts ship to a venture box like the lane's do, and a script
+	# that runs as root on a box is the last place to skip a linter.
+	bash -n deploy/foundry/install-credentials.sh
+	shellcheck deploy/foundry/install-credentials.sh
+	bash -n deploy/foundry/git-credential-foundry
+	shellcheck deploy/foundry/git-credential-foundry
+	node --check deploy/foundry/secret-scan.mjs
 	for f in deploy/librechat/*.sh; do bash -n "$$f"; done
 	shellcheck deploy/librechat/*.sh
