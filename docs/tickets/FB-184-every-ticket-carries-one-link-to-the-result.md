@@ -1,6 +1,7 @@
 # FB-184 — every ticket carries one link to where you can see the result
 
-**Status:** Open · **Phase:** 3 · **Touches:** bcap-contracts · **Raised by:** Claude Design, 2026-09-02
+**Status:** Open · **Phase:** 3 · **Touches:** bcap-contracts · **Raised by:** Claude Design, 2026-09-02 ·
+**Restated with exact copy, 2026-09-08 (R-04)**
 
 ## What was asked for
 
@@ -10,6 +11,23 @@
 > honestly absent until then. Concretely: add `trace_url` to the ticket schema (or have the trail
 > endpoint resolve it) so the 'Follow it to…' line and the ticket detail's ↗ always point somewhere
 > real — **and never render the link when it can't resolve (no dead UI).**"
+
+## The line, exactly (R-04, 2026-09-08)
+
+The second review named the placement and the words, and marked rule 5 **Partly** held because of
+them — *"the trail hops carry links and 'Read exactly what was built →' reaches the work page. The one
+line the design puts above the decision is not rendered."*
+
+> One line, 13px sans 600 accent, **directly above "Your decision"**:
+>
+> - Build → *"Follow it to the VM: N commits · preview running ↗"*
+> - Sell → *"Follow it to your outbox: draft, not sent ↗"*
+> - Scale → *"Follow it to the ad account: not connected"*
+> - unstarted → *"Nothing to follow yet"*
+>
+> **Render nothing when the link cannot be formed.**
+>
+> Where: `components/TicketsView.tsx` (Detail) · `lib/trail.ts`
 
 ## Why it matters
 
