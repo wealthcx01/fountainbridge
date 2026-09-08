@@ -19,7 +19,10 @@ test.describe('what your venture knows (FB-106)', () => {
     // everywhere rather than from the desk alone — a link on the desk to a place the navigation
     // already goes is the doubled navigation FB-124 shipped. This asserts the rail is that door.
     await page.goto('/venture/arca');
-    await page.getByTestId('rail-nav-memory').click();
+    // Scoped to `rail`. The nav also renders inside `rail-waiting`, the shell shown while the rail
+    // streams in, so a bare testid matches two elements for as long as both are in the document —
+    // which is never on this machine and often on CI's.
+    await page.getByTestId('rail').getByTestId('rail-nav-memory').click();
     await expect(page).toHaveURL(/\/venture\/arca\/knowledge$/);
   });
 
