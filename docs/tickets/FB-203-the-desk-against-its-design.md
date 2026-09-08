@@ -150,6 +150,18 @@ counts are formatted, because `3459` is a string of digits somebody has to parse
 number. Two fixtures were added that repeat an existing run rather than displace it, so the four rows
 the desk shows are unchanged and the collapse path is finally exercised.
 
+**And then the corrected sentence was wrong too.** It read *"the same thing 20 times"* directly above
+*"1 most recent of 3,461 runs"*, because `loadRunReports` reads the 20 most recent reports and counts
+the rest by name — a repeat count can never exceed 20 however long a venture has been stuck. A founder
+reads 20. Understating a seven-week outage by two orders of magnitude is the same failure as
+swallowing it.
+
+When one group accounts for every run that was read and more exist unread, it now says *"every one of
+the last 20 runs says this"* — which is exactly what the studio knows and no more. It does not claim
+all 3,461, because it did not open 3,461 files. The logic moved to `lib/runreports.ts`, beside the
+function that creates the situation, so the branch that matters has unit tests: **a venture with 3,461
+runs is not something a browser fixture can build.**
+
 ### Also found on production, filed separately
 
 **FB-205.** The most-repeated line in ARCA's history reads *"Daily **your team** budget reached"*.

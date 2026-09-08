@@ -1,7 +1,7 @@
 import { emptyPanel } from '@/lib/firstrun';
 import type { RunReport } from '@/lib/runreports';
 import Link from 'next/link';
-import { collapseRepeats, describeRun } from '@/lib/runreports';
+import { collapseRepeats, describeRun, repeatClause } from '@/lib/runreports';
 import { ago } from '@/lib/when';
 import { type Tone } from '@/lib/status';
 import { ReleasePlanButton } from './ReleasePlanButton';
@@ -141,10 +141,11 @@ export function EngineActivity({
                 <span className="engine-run-body">
                   <span className="sr-only">{OUTCOME_LABEL[r.outcome ?? 'in-flight']}: </span>
                   {describeRun(r)}
-                  {/* Said once, in words, never printed 3,459 times. */}
+                  {/* Said once, in words, never printed 3,461 times — and never overstating what
+                      the studio actually looked at. See `repeatClause`. */}
                   {r.repeats > 1 ? (
                     <span className="engine-run-repeats" data-testid={`run-${r.laneId}-${i}-repeats`}>
-                      {' · '}the same thing {count(r.repeats)} times
+                      {' · '}{repeatClause(r.repeats, reports.length, total)}
                     </span>
                   ) : null}
                   {r.prUrl ? (

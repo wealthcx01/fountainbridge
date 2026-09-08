@@ -95,6 +95,24 @@ test.describe('run reports and the founder brief', () => {
     await expect(row).not.toContainText('×3');
   });
 
+  test('a repeat count never claims more than the studio read (FB-203, item 9)', async ({ page }) => {
+    // The studio reads the 20 most recent runs and counts the rest by name, so a repeat count can
+    // never exceed 20 however long a venture has been stuck. On production that printed "the same
+    // thing 20 times" directly above "1 most recent of 3,461 runs" — a founder reads 20, and the
+    // truth is that every run this studio has seen says the same thing. Understating a seven-week
+    // outage by two orders of magnitude is the same failure as swallowing it.
+    //
+    // These fixtures have eight runs and read all eight, so the ordinary count is the honest one
+    // here and the "every one of the last N" sentence must NOT appear. The production case is the
+    // other branch of `repeatClause`; this pins the branch a small venture gets, which is the one
+    // that would otherwise start lying as soon as a venture grew past twenty runs.
+    const list = page.getByTestId('lane-activity-list');
+    await expect(list).not.toContainText('every one of the last');
+    // Whatever it says, it can never be a count larger than the runs that exist.
+    const foot = await page.getByTestId('lane-activity-more').innerText();
+    expect(foot).toContain('of 8 runs');
+  });
+
   test('a four-digit run count is a number, not a run of digits (FB-203, item 9)', async ({ page }) => {
     // "3459" on production. A founder should not have to parse digits to read their own history.
     const foot = page.getByTestId('lane-activity-more');
