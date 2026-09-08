@@ -54,7 +54,6 @@ export function BlockerBanner({ line, href }: { line: string | null; href: strin
         color: toneColor('attention'),
         fontSize: 'var(--fs-body-sm)',
         margin: '0 0 1.25rem',
-        maxWidth: 'var(--content-narrow)',
       }}
     >
       <span aria-hidden="true">⚠ </span>

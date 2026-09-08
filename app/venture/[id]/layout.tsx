@@ -79,14 +79,22 @@ export default async function VentureLayout({
     (!venture.founderEmail || venture.founderEmail.toLowerCase() !== email.toLowerCase());
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh' }}>
+    // A grid, and a plain <div> for the column rather than a second <main> (FB-203 item 1, and
+    // FB-168, which are the same fault seen from two directions). `app/layout.tsx` already renders
+    // the page's one <main>; nesting another inside it gave every venture page two landmarks, and
+    // gave the column no padding of its own, so the desk began at the rail's edge.
+    //
+    // The layout is in `.venture-shell` and `.venture-pane` rather than inline, for the reason
+    // `Rail` records above: inline styles here once beat the media query meant to fold the rail
+    // away, and a 250px rail sat on a 390px phone.
+    <div className="venture-shell">
       <Suspense fallback={<Rail {...shell} data={null} />}>
         <RailWithNumbers venture={venture} shell={shell} />
       </Suspense>
-      <main style={{ flex: 1, minWidth: 0 }}>
+      <div className="venture-pane">
         {asFounder ? <AsFounderStrip ventureName={venture.name} /> : null}
         {children}
-      </main>
+      </div>
     </div>
   );
 }
