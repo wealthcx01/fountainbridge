@@ -415,6 +415,50 @@ said 20 above a footer saying 3,461.
 The fixtures have six runs, all different. That is the whole argument for rule 11's "measure
 production" in one line.
 
+## The second review — Claude Design, 2026-09-08
+
+Read against `main` after FB-203 closed, from the code and the docs rather than from the live route
+(which sits behind sign-in). The artifact:
+`https://claude.ai/code/artifact/a9532879-0dbf-4273-9893-8c79cd74e202`.
+
+**Its verdict: *"the desk is the design. Four of the five rules hold. One does not, and the screens
+FB-203 did not touch carry the rest."***
+
+| rule | verdict |
+| --- | --- |
+| 1 · Decided → What happened only | **Not held** — the desk still renders two ApprovalCard sections |
+| 2 · Waiting items are rows | Held — two leaks: Memory's routines, and those same two sections |
+| 3 · Outcomes, not counts | Held — *"Nothing invented."* |
+| 4 · Office is the pixel-agents embed | Held — *"Better than the design asked."* |
+| 5 · Every ticket has a terminal trace | **Partly** — the "Follow it to…" line above the decision is not rendered |
+
+**All four of FB-203's deviations were accepted**, including the two parts of item 12 that were not
+built (*"a control that works nowhere it is shown is a dead control"*), the vocabulary changes
+(*"Binding"*), and the stale clause. The wireframe was updated to match our vocabulary rather than the
+other way round.
+
+Twelve findings, filed as seven tickets in the reviewer's own order:
+
+| | ticket | what |
+| --- | --- | --- |
+| R-01 + R-11 | **FB-207** | decided work leaves the desk, once What happened can prove it was signed |
+| R-06–R-08 | **FB-208** | the tickets screen against its design |
+| R-05 | **FB-209** | the conversation on a ticket has nowhere to be read |
+| R-02 | **FB-210** | squares, not glyphs, everywhere |
+| R-03 | **FB-211** | amber for a decision, red only for a fault nobody can clear |
+| R-09 | **FB-212** | Memory's routines are still cards |
+| R-10 | **FB-213** | a surface's "open the queue" opens everybody's queue |
+| R-04 | FB-184 | already open; restated with the exact copy and placement |
+
+The order is the reviewer's: *"R-01 with R-11 first (they unblock each other), then Tickets
+(R-04–R-08), then R-02 across every screen, then Memory."*
+
+**R-01 and R-11 are one ticket for a reason the code already knew.** The desk's own comment, written
+when the first instruction to move those sections arrived, says they stayed because *"it is the only
+place a founder can see whether a COMPLETED approval's signature was genuine"* — and the reviewer's
+R-11 says the same thing from the other side: *"This is what kept R-01 on the desk."* Giving What
+happened the attestation is what unblocks the deletion.
+
 ## What this scorecard cannot tell you
 
 Height finds a screen showing too much. It cannot find a screen showing the *wrong* thing at the
