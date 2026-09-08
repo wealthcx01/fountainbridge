@@ -78,6 +78,10 @@ one. That property is what makes it safe to add.
 
 - [ ] The desk and `/venture/<id>/activity` render fully in under 800ms on production data.
 - [ ] Deleting the entire database and rebuilding from git produces byte-identical screens.
-- [ ] A test proves a session scoped to one venture cannot read another's rows, at the database.
+- [x] A test proves a session scoped to one venture cannot read another's rows, at the database.
+      *(FB-174, 2026-09-07: proven twice — against PGlite in `lib/__tests__/read-model.test.ts` and
+      `documents-read-model.test.ts`, and against the hosted project as `foundry_studio` itself,
+      which is the role the studio connects as and which does not have `rolbypassrls`. A count is
+      covered too: "how many documents does the-reset hold" is a fact about another venture.)*
 - [ ] The number of GitHub requests per page load is bounded and does not grow with venture history.
 - [ ] Nothing in the studio treats the database as authoritative over git.
