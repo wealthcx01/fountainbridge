@@ -22,7 +22,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | **1,000px** | **851px** | **compared, FB-189** — matched on height, wrong on everything else |
-| The desk | ~1,900px | **2,395px** | **2,745px** | rows not cards (FB-183), one block (FB-186), full width (FB-188) |
+| The desk | ~1,900px | **2,370px** | **2,753px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), top half FB-203 items 2–6 |
 | Tickets | 1,090px | **1,202px** | **1,470px** | fixed FB-185, widened FB-188 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
@@ -206,18 +206,28 @@ it is not in this table because I did not do it.
 
 ## FB-203, items 1–6: the top half of the desk
 
-Read on **2026-09-08**, at 1440×1000 and 393×851, on the fixture server rather than on production —
-this branch is not deployed, and the rule's "measure production" exists so that faults which only
-appear at ARCA's real size are not missed. So the heights below are **not comparable** to the desk
-row in the scorecard above, which was taken on production against 73 tickets. The desk's production
-row stands until this merges and can be read there.
+Read on **2026-09-08** at 1440×1000 and 393×851, twice: first on the fixture server while the work
+was in progress, then on production once it had merged and deployed, signed in as ARCA's founder
+against its real 73 tickets.
 
 | | desktop | phone |
 | --- | --- | --- |
-| The desk, on fixtures | **3,050px** | **3,449px** |
+| The desk, on fixtures, before merge | 3,050px | 3,449px |
+| **The desk, on production, after merge** | **2,370px** | **2,753px** |
+| The desk, on production, before this | 2,395px | 2,745px |
 
-Sideways scroll: **0px at both sizes.** That is the number worth having from a fixture run, because
-overflow does not need real data to appear.
+Sideways scroll: **0px, at both sizes, on both.**
+
+The desktop came down 25px and the phone went up 8px, which is the honest answer: **items 2 to 6
+were not about length.** They removed a heading, a pill, a sentence, a box and three links, and
+added a description, a second banner row and the drawn empty state. What changed is what a founder
+reads first — the venture's purpose and the two things waiting, rather than their own venture's
+name. The desk is still 470px longer than the design's ~1,900, and items 7 to 13 are where that
+closes.
+
+The fixture numbers are in the table because they are what the work was checked against, and they
+are **not comparable** to the production ones — fixtures carry three tickets, production carries
+seventy-three.
 
 **Looking found two faults that every gate had passed.**
 
