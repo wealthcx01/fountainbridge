@@ -459,6 +459,35 @@ place a founder can see whether a COMPLETED approval's signature was genuine"* �
 R-11 says the same thing from the other side: *"This is what kept R-01 on the desk."* Giving What
 happened the attestation is what unblocks the deletion.
 
+## FB-207, and a screen production cannot yet show
+
+Read on **2026-09-08**, after merge and deploy. **The change is not observable on production, and
+that is the finding rather than a caveat.**
+
+ARCA has **no decided approvals at all**. Every external action on it is still `proposed` — waiting in
+the queue for a founder's yes — so What happened has **zero decision rows**, and there is nothing for
+the attestation clause to attach to. The desk's two `ApprovalCard` sections were never rendering
+there either, for the same reason: they only appear once something has been granted.
+
+So the section that was defended twice, on the grounds that it was the only place a forged grant would
+be visible, has never had anything in it on the live studio. The defence was still right — the first
+approval ARCA grants would have put a completed decision on that desk and nowhere else — but it is
+worth writing down that the fault it guarded against was latent, not live.
+
+Where it *is* proven: the fixture rig, which now carries `executed-forgery` — a grant the studio did
+not issue, which the executor acted on. That case had **no fixture before FB-207**, because the two
+existing adversarial grants have no execution record and are therefore `proposed`, which is a queue
+item and not history. It is the row pinned to the top of What happened on the rig, in amber, saying
+its signature did not verify.
+
+| | desktop | phone |
+| --- | --- | --- |
+| The desk, on production | **1,984px** | — |
+| What happened, on production | **1,218px** | — |
+
+Unchanged from the FB-203 reading, which is the expected result of deleting two sections that were
+not rendering.
+
 ## What this scorecard cannot tell you
 
 Height finds a screen showing too much. It cannot find a screen showing the *wrong* thing at the
