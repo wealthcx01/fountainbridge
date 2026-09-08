@@ -56,13 +56,27 @@ and it becomes part of what your venture knows.
 
 ## 3. Watch — what your team is doing
 
-The board's **"What your team has been doing"** panel shows the work as it happens: what's being
-worked on right now, when your team last checked in, and what finished recently.
+**The office.** On your venture's page there is a small room with people in it. That is your team,
+live, on your venture's own machine. Each figure is one worker; when one is at a desk it is working,
+and a raised hand means it is waiting on you. It is a window, not a control panel — you cannot move
+anything in it, and nothing you do there changes anything. It is there so that "your team is working"
+is something you can see rather than something we tell you.
 
-Sometimes you'll see work marked **stuck — needs a human**. That's honesty, not failure: your team
-tried something a few times, couldn't get it past its own quality checks, and stopped rather than
-forcing something bad through. It's parked until a person looks. If you edit the ticket (through
-the composer), your team will try again fresh.
+If the room is still, that is worth reading rather than worrying about. Usually it means one of two
+things: everything is done, or your team has used its budget for the day and parked until tomorrow.
+The desk says which.
+
+If the room cannot be reached, you get a drawing of it instead, clearly labelled. We would rather
+show you a picture we admit is a picture than a live view that is quietly stale.
+
+**Below it, in words.** The same story written down: what each part of your team is doing right now,
+and every time it woke up and what came of that. Nothing is swallowed — if a wake produced nothing,
+it says so.
+
+One state to know by name: **stuck — needs a human**. It means your team tried, could not get past
+something, and stopped rather than guessing. It is not a failure; it is the machine refusing to
+invent its way around a problem. Those appear at the top of your desk, because they cost the most
+while nobody looks at them.
 
 ## 4. Review — the "Needs you" queue
 
@@ -93,6 +107,27 @@ Each of your surfaces (Build, Sell, Scale) has a door to the real running thing 
 site — when one exists. After you accept work, open the product and look. Trust your eyes over any
 summary, including your team's.
 
+## Talking to the studio from Claude
+
+You do not have to be on this website to use your studio.
+
+If you use Claude — the app on your phone, or Claude Code on your venture's machine — you can connect
+it to your studio and simply ask. *"What is waiting on me?"* *"Read me ARCA-61."* *"Add a note to that
+ticket saying I want the pricing checked first."* It answers from your venture's real records, not
+from memory, and anything it writes lands in the same place it would if you had typed it here.
+
+Two things are worth knowing, and they are the same two rules as everywhere else.
+
+**It only ever sees your venture.** The connection is issued for one venture. There is no question
+you can ask it that will show you somebody else's.
+
+**It cannot approve anything.** It can read, and it can leave a note. It cannot send an email, spend
+money, merge work or sign off an approval — there is no tool there that does those, however you ask.
+Those decisions happen on this screen, with your finger on the button, and they are written down.
+
+Ask us for your connection and we will set it up. If you do not use Claude, you lose nothing: this
+studio does everything on its own.
+
 ## Where everything is written down
 
 - **Your venture's page** — the board: where things stand, what's moving, your surfaces.
@@ -100,6 +135,9 @@ summary, including your team's.
 - **What happened** — the diary of everything that shipped, newest first.
 - **What your venture knows** — every decision and document you've fed it. Your team reads this
   before working, which is why a good composer conversation today makes next month's work better.
+  When you hand over a file, the studio keeps **the file itself** as well as its text, and the screen
+  tells you which of those happened before you upload. If it ever says only the text was kept, that
+  is true and someone should fix it.
 
 ## For the curious (safe to skip)
 

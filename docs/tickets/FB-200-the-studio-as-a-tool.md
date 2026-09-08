@@ -1,6 +1,6 @@
 # FB-200 — the studio as a tool: an MCP server that reads, files, and proposes
 
-**Status:** Open · **Phase:** 3 · **Raised by:** John, 2026-09-07
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-07
 
 ## The idea
 
@@ -99,3 +99,90 @@ a ticket on arca-ops" are questions asked constantly, by hand, today.
 
 Nothing hard. It reads what git already holds. It is listed after FB-174 only because the storage
 work is more urgent, not because this waits on it.
+
+## What shipped first, 2026-09-07
+
+`lib/mcp.ts` — the tool surface and the credential, built and attacked before anything was wired to
+them. The same order as FB-198's gate, for the same reason: the part that decides what a caller may
+do is the part worth getting right while it is still small enough to hold in one hand.
+
+**The rule is structural, not a convention.** Every tool carries a `kind` — `read`, `write` or
+`propose`, and there is no fourth. There is an explicit list of verbs no tool may carry in its name.
+And there is a test that asserts the **entire surface, by name and kind**:
+
+```
+read:whats_waiting · read:read_ticket · read:what_happened · read:budgets · read:venture_memory
+write:file_ticket · write:comment_on_ticket
+propose:propose_approval
+```
+
+So adding a tool that grants is not a matter of appending to an array. It means deliberately editing
+an assertion that says, in words, that you must not.
+
+`propose_approval` is the one tool permitted to say the word, because saying it is its job — and a
+test requires its description to make plain that it does not do it.
+
+**The guidance travels.** This ticket warned that moving the door to Claude would quietly lose the
+composer's advice about what makes a good ticket (FB-079), and that quality would drop with nobody
+noticing. A tool description is the only place that advice can travel, so `file_ticket` carries it —
+*a title that names the outcome rather than the task*, *if it needs the word "and", it is two*,
+*nothing is built until the founder accepts it* — and a test asserts each of those is still there.
+
+**The credential is not the office's.** Same shape as FB-198's ticket, same secret, and the payload
+is prefixed before it is signed, so a leaked office ticket cannot be presented as the ability to file
+tickets. One secret, two capabilities, no overlap. Which venture a caller may reach is decided by the
+studio for someone who has already passed `canAccessVenture` — never by anything the caller sends.
+
+## The transport and the first tools, 2026-09-07
+
+`app/api/mcp/route.ts` — JSON-RPC over HTTP, one venture per credential. A founder's Claude can now
+ask what is waiting, read a ticket, and leave a note on one.
+
+### Three tools, not eight, and that is deliberate
+
+The design named eight. **Three are listed; five are not**, because a tool a model can see and cannot
+use is a dead control — the same fault FB-192 removed from the office when it hid Layout and
+Settings. Worse here than there: a model offered a tool that fails will try it, tell the founder it
+did something, and be wrong.
+
+The registry test asserts the exact surface, so the day the other five are wired is a day somebody
+edits that list on purpose.
+
+### One guard, not two
+
+`comment_on_ticket` calls `appendToThread` — the same function the ticket screen calls, with the same
+`requireVentureRepo` inside it. That check now takes an optional `Actor`: a browser has a session, a
+tool has a ticket, and the rules stay in one place.
+
+That file's own comment is why: *"a security check that exists twice is a security check that will
+one day differ."* FB-140 is what that looks like when it happens — two deposit paths, one scanned for
+secrets and one not.
+
+An actor is **narrower** than a session, never wider. `scopedTo` pins it to one venture, so a ticket
+minted for arca cannot be pointed elsewhere even by an admin whose session could have reached it.
+
+### What the model is told, once
+
+`initialize` returns instructions naming the venture and saying plainly that it cannot approve, send,
+spend, merge or deploy — so a model does not spend a turn hunting for the tool that signs things off,
+and does not offer a founder something it cannot do.
+
+### And what happens when a tool fails
+
+A JSON-RPC error for a fault in the protocol; a tool result marked `isError` for a fault in the work
+— carrying the reason **and the words "Nothing changed"**. A model told only "that failed" will offer
+to retry a write.
+
+## What is left
+
+- [ ] `file_ticket` — the last real write. `filePlan` needs the same actor thread-through and a
+      `PlanDraft` assembled from a title and a body. It touches the studio's most privileged write
+      path, so it gets its own PR rather than riding on this one.
+- [ ] `propose_approval` — no choke-point exists for it yet. Proposals are written by the lane today,
+      so this is new write machinery rather than a call to something that already works.
+- [ ] The read tools for what happened, budgets and memory
+- [ ] A claude.ai connector, which needs OAuth rather than a bearer ticket — the step that reaches a
+      founder who has never opened a terminal
+- [ ] Somewhere in the studio to get a connection. Chapter 9 says "ask us"; that should become a
+      screen, and the design review (FB-203) argues for adding it somewhere other than the desk
+- [ ] FB-144's memo rewritten, and the composer's scope cut to match

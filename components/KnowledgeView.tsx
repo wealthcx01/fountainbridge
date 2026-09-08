@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 import {
   AREA_LABEL, describeOrigin, describeSize, docKey, memorySummary, orderRows, type KnowledgeDoc, type KnowledgeRow, surfaceFor,
 } from '@/lib/knowledge';
-import { ACCEPTED_DESCRIPTION } from '@/lib/documents';
+import { ACCEPTED_DESCRIPTION, keptDescription } from '@/lib/documents';
 import { showAngleBrackets } from '@/lib/markdown';
 import { onDate } from '@/lib/when';
 import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } from '@/lib/routines';
@@ -51,9 +51,12 @@ export function KnowledgeView({
   usedNote = null,
   surfaces,
   departmentNames,
+  /** Whether this studio keeps the file itself, or only its text (FB-174). */
+  keepsOriginals = false,
 }: {
   ventureId: string;
   ventureName: string;
+  keepsOriginals?: boolean;
   rows: KnowledgeRow[];
   errors: string[];
   routines: Routine[];
@@ -93,6 +96,7 @@ export function KnowledgeView({
           shared one for a ticket and a half — which is the drift the shared component was extracted
           to prevent. */}
       <MemoryHeading
+        keepsOriginals={keepsOriginals}
         ventureId={ventureId}
         ventureName={ventureName}
         summary={state === 'unreadable' ? null : memorySummary(ordered)}
@@ -213,11 +217,13 @@ function MemoryHeading({
   ventureId,
   ventureName,
   summary,
+  keepsOriginals = false,
 }: {
   /** Null on the waiting shell: the Add control is omitted there, so there is nothing to file to. */
   ventureId: string | null;
   ventureName: string;
   summary: string | null;
+  keepsOriginals?: boolean;
 }) {
   return (
     <>
@@ -235,7 +241,7 @@ function MemoryHeading({
       {/* Omitted while waiting. Content in a Suspense fallback is not hydrated, so a form here would
           be present, duplicated in the document beside the real one, and dead to the touch — the
           exact dead control the design contract forbids. */}
-      {ventureId === null ? null : <Add ventureId={ventureId} />}
+      {ventureId === null ? null : <Add ventureId={ventureId} keepsOriginals={keepsOriginals} />}
     </>
   );
 }
@@ -333,7 +339,7 @@ function Absent() {
  * never written straight into the venture's records (CLAUDE.md #4). So it is the real thing, and the
  * copy says what actually happens rather than promising it is already in use.
  */
-function Add({ ventureId }: { ventureId: string }) {
+function Add({ ventureId, keepsOriginals }: { ventureId: string; keepsOriginals: boolean }) {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -357,7 +363,7 @@ function Add({ ventureId }: { ventureId: string }) {
           copy that can drift. A founder who meets a refusal they were not warned about learns the
           studio does not know its own limits. */}
       <p className="muted" data-testid="knowledge-limits" style={{ fontSize: 'var(--fs-meta)', margin: '0.35rem 0 0' }}>
-        {ACCEPTED_DESCRIPTION} It is proposed for your OK before your team uses it.
+        {ACCEPTED_DESCRIPTION} {keptDescription(keepsOriginals)} It is proposed for your OK before your team uses it.
       </p>
       {result ? (
         <p data-testid="knowledge-result"

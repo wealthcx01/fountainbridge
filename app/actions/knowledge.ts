@@ -20,6 +20,7 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { GitHubClient, GitHubError } from '@/lib/github';
 import { approvalRepos } from '@/lib/venture-repos';
 import { MAX_DOCUMENT_BYTES, looksEmpty, readDocumentText, refusalFor, tooLargeRefusal } from '@/lib/documents';
+import { buildDocumentStore, type StoredDocument } from '@/lib/document-store';
 import { scanForSecrets, secretRefusal } from '@/lib/secrets';
 
 export interface DepositResult {
@@ -93,6 +94,54 @@ export async function depositDocument(ventureId: string, form: FormData): Promis
   }
 
 
+  // Keep what the founder actually handed over (FB-174).
+  //
+  // Until now the studio extracted the text, committed that, and **discarded the original**. Not
+  // archived — discarded, with nothing on the screen saying so. A founder's forty-page deck became a
+  // markdown file of its words and the file itself was gone.
+  //
+  // AFTER the secret scan and the emptiness check, deliberately. A deposit that is refused must
+  // leave nothing behind, and storing first would put the bytes of a rejected document — the one
+  // containing a credential — into the store before anyone decided to keep it.
+  //
+  // Before the git write, also deliberately, and the asymmetry is the point: if the git write fails
+  // after this, an object is left with no pointer, and an object can be deleted. If it were the
+  // other way round a pointer would name bytes that were never kept, in history that cannot be
+  // rewritten (CLAUDE.md #8).
+  let kept: StoredDocument | null = null;
+  let store;
+  try {
+    store = buildDocumentStore();
+  } catch (e) {
+    // A misconfigured store is an admin's problem, not a founder's, and "try again" would be false
+    // advice — it will fail identically every time until someone changes a variable. Separated from
+    // the failure below for exactly that reason: the two need different sentences.
+    console.error('[documents] the document store is misconfigured', { message: (e as Error)?.message });
+    return {
+      ok: false,
+      message: 'The studio cannot keep documents safely right now, so nothing was saved. An admin needs to look at it.',
+    };
+  }
+  if (store) {
+    try {
+      kept = await store.put(
+        ventureId,
+        new Uint8Array(await file.arrayBuffer()),
+        file.type || 'application/octet-stream',
+      );
+    } catch (e) {
+      // Loud, and nothing written anywhere. Half-saving a document is the failure a founder finds
+      // out about weeks later, when they go looking for the original (CLAUDE.md #10).
+      console.error('[documents] could not keep the original', {
+        venture: ventureId, file: file.name, message: (e as Error)?.message,
+      });
+      return {
+        ok: false,
+        message: `“${file.name}” could not be saved, so nothing was kept. Try again, and tell an admin if it keeps happening.`,
+      };
+    }
+  }
+
   const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
   if (!writeToken) {
     return { ok: false, message: 'This studio is not set up to save documents yet — an admin needs to finish setting it up.' };
@@ -138,8 +187,18 @@ export async function depositDocument(ventureId: string, form: FormData): Promis
 
     // The document, with the founder's own title on it and a note of where it came from — a corpus
     // entry whose provenance is guessable from its content is a corpus entry nobody trusts later.
+    // The pointer lives in git beside the text, so the corpus is complete from git alone — the
+    // venture brain reads this file and can say where the original is without asking the studio, and
+    // a database, when the studio has one, becomes an index over these facts rather than the only
+    // copy of them.
+    //
+    // The address is the checksum: the key is `<venture>/<checksum>`, so writing the venture into
+    // every one of these files would repeat what the file's own location already says.
+    const pointer = kept
+      ? `_The original is kept — \`${file.name}\`, ${kept.bytes} bytes, sha256 \`${kept.checksum}\`, in the studio’s \`${kept.store}\` store._\n\n`
+      : '_The original file was not kept — the studio has nowhere to put it yet. This is its text._\n\n';
     const body = `# ${file.name.replace(/\.[a-z0-9]+$/i, '')}\n\n`
-      + `_Handed to the venture by ${email} from the studio._\n\n${text}\n`;
+      + `_Handed to the venture by ${email} from the studio._\n\n${pointer}${text}\n`;
     await client.request(`/repos/${full}/contents/${path}`, {
       method: 'PUT',
       body: JSON.stringify({
@@ -154,7 +213,7 @@ export async function depositDocument(ventureId: string, form: FormData): Promis
       `/repos/${full}/pulls?state=open&head=${encodeURIComponent(`${org}:${branch}`)}`,
     );
     if (Array.isArray(open) && open.length) {
-      return { ok: true, message: 'Saved and updated. It is waiting for your OK.', url: open[0].html_url };
+      return { ok: true, message: `Saved and updated${keptNote(kept)}. It is waiting for your OK.`, url: open[0].html_url };
     }
     const pr = await client.request<{ html_url: string }>(`/repos/${full}/pulls`, {
       method: 'POST',
@@ -165,11 +224,22 @@ export async function depositDocument(ventureId: string, form: FormData): Promis
         body: `Handed over from the studio by ${email}. Nothing is used until this is accepted.`,
       }),
     });
-    return { ok: true, message: 'Saved. It is waiting for your OK before your team uses it.', url: pr.html_url };
+    return { ok: true, message: `Saved${keptNote(kept)}. It is waiting for your OK before your team uses it.`, url: pr.html_url };
   } catch (e) {
     if (e instanceof GitHubError && e.status === 403) {
       return { ok: false, message: 'The studio is not allowed to write to this venture’s records. An admin needs to widen its access.' };
     }
     return { ok: false, message: 'Something went wrong saving that. Nothing was saved — try again.' };
   }
+}
+
+/**
+ * What the founder is told was kept, which is not always the same thing.
+ *
+ * Said on the screen rather than left to be discovered. Before FB-174 the studio discarded every
+ * original in silence, and a founder had no way of knowing that the file they handed over no longer
+ * existed anywhere — the message said "Saved" either way.
+ */
+function keptNote(kept: StoredDocument | null): string {
+  return kept ? ', with the original file' : ' — its text only, not the file itself';
 }

@@ -14,6 +14,7 @@ import { fixtureRoutineSource, githubRoutineSource } from '@/lib/routines-load';
 import { timed } from '@/lib/timing';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { KnowledgeView, MemoryWaiting } from '@/components/KnowledgeView';
+import { buildDocumentStore } from '@/lib/document-store';
 
 /**
  * Memory — what this venture knows (FB-133, over FB-106).
@@ -133,8 +134,14 @@ async function Memory({ venture }: { venture: VentureSummary }) {
   const provenanceMissing =
     perRepo.some((r) => !r.provenanceRead) || rows.some((r) => r.origin.kind === 'unknown');
 
+  // FB-174: the screen tells a founder what happens to the file they are about to hand over, and it
+  // tells the truth in both cases. A studio with no store keeps the text and says so.
+  let keepsOriginals = false;
+  try { keepsOriginals = Boolean(buildDocumentStore()); } catch { keepsOriginals = false; }
+
   return (
     <KnowledgeView
+      keepsOriginals={keepsOriginals}
       ventureId={id}
       ventureName={venture.name}
       rows={rows}

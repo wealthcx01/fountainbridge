@@ -33,6 +33,7 @@
     "@playwright/test": "^1.49.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@types/ws": "^8.18.1",

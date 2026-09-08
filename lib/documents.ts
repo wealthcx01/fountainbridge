@@ -191,6 +191,19 @@ export const MAX_DOCUMENT_BYTES = 12 * 1024 * 1024;
 export const ACCEPTED_DESCRIPTION =
   `Text, Markdown, PDF, Word, PowerPoint and Excel files, up to ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB.`;
 
+/**
+ * What happens to the file itself, said where a founder decides whether to hand one over (FB-174).
+ *
+ * Until FB-174 the studio read a document's text, kept that, and discarded the original — and this
+ * screen said nothing about it. A founder had no way to learn that the file they handed over no
+ * longer existed anywhere. Now the sentence is true either way, and it changes when the truth does.
+ */
+export function keptDescription(keepsOriginals: boolean): string {
+  return keepsOriginals
+    ? 'The file itself is kept, alongside its text.'
+    : 'Its text is kept; the file itself is not.';
+}
+
 export function tooLargeRefusal(name: string, bytes: number): string {
   return `“${name}” is ${Math.round(bytes / 1024 / 1024)}MB, and the studio takes documents up to `
     + `${MAX_DOCUMENT_BYTES / 1024 / 1024}MB. Split it, or send the part that matters.`;
