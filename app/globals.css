@@ -352,30 +352,46 @@ body:has(.signin) .main { max-width: none; margin: 0; padding: 0; }
   padding: 3rem 1.5rem 5rem;
 }
 
-/* Beside a rail the column is left-aligned rather than centred — the rail is the left edge — but it
- * still needs a measure and its own padding. The first version set `padding: 0; max-width: none`,
- * which was too blunt: text ran from the rail's rule to the far edge of a 1440px window at line
- * lengths nobody can read. The design's own figures are 32px/36px/64px against a ~1080px column.
+/* The venture shell — a rail and a column, and a gutter between them (FB-203, item 1).
  *
- * FB-188: the measure has to cover the rail, because the rail is INSIDE this element.
+ * What this replaces was a flex row inside `.main`, with `.main` carrying the only padding. Two
+ * things followed from that and both were visible at a glance once anyone measured:
  *
- * 68rem was right for the column and wrong for the box it was set on. `.main` holds the flex row of
- * rail-and-content, so 68rem was the rail plus the content: 1,088px, less 72px of padding, less the
- * rail's 250px, left the content **766px** — 29% narrower than the 1,080px this comment says it is
- * aiming at. Every sentence wrapped sooner and every screen with a rail was taller than its design,
- * which read as too much content and was partly just too little width.
+ *   - **No gutter.** The rail's right edge and the first character of the desk were both at x=286.
+ *     The copy touched the navigation column.
+ *   - **Nothing shared a right edge.** Sections measured from `.main`, whose box included the rail,
+ *     so their widths depended on what each one happened to set for itself. Measured at 1200px:
+ *     the banner ended at 1022 and everything else at 1164.
  *
- *   15.625rem  the rail
- * +  4.5rem    this element's own left and right padding
- * + 67.5rem    the column the design draws (1,080px)
- * = 87.625rem
+ * A grid fixes both by construction rather than by arithmetic. The rail is a column; the pane is a
+ * column; each carries its own padding; and the design's 1,080px measure sits on the PANE, where it
+ * describes the thing it is named after. The previous version put that measure on the box holding
+ * both, which is how it once came out at 766px (FB-188).
  *
- * Rounded down to 87.5rem, which puts the column at 1,078px. Below about 1,400px nothing binds and
- * the column simply takes what is there, so narrow laptops are unaffected. */
-body:has(.rail) .main {
-  max-width: 87.5rem;
-  margin: 0;
+ * `.main` beside a rail therefore carries no padding and no measure at all: it is now only a
+ * wrapper, and the two columns inside it are what a reader sees. */
+.venture-shell {
+  display: grid;
+  /* `minmax(0, 1fr)`, never a bare `1fr`. A `1fr` track is `minmax(auto, 1fr)`, so its minimum is
+     the widest thing inside it and one wide diagram pushes the whole page sideways — the grid
+     version of the flex `min-width: 0` problem, and caught here by a handbook chapter that took the
+     phone sideways by 275px. */
+  grid-template-columns: 15.625rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.venture-pane {
+  /* Without this a grid item refuses to shrink below its content, and one wide table takes the
+     whole page sideways. */
+  min-width: 0;
+  max-width: 67.5rem;
   padding: 2rem 2.25rem 4rem;
+}
+
+body:has(.rail) .main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* On a phone the rail is not navigation, it is 250px of a 390px screen.
@@ -505,9 +521,20 @@ body:has(.rail) .main {
      belongs on a phone. */
   .rail { display: none; }
   body:has(.rail) .topbar { display: flex; }
-  body:has(.rail) .main {
+  /* A hidden grid item is not a grid item, so the pane would otherwise land in the rail's 250px
+     column and the phone would get a 250px-wide desk. The column has to go with the rail. */
+  .venture-shell { grid-template-columns: minmax(0, 1fr); }
+  .venture-pane {
+    /* No `margin: 0 auto` here, and the omission is the whole point.
+     *
+     * An auto margin on a GRID ITEM changes how it is sized: instead of stretching to its track it
+     * becomes fit-content, so it grows to whatever the widest thing inside it is. Carried over from
+     * the old rule — where it sat on a plain block and did the harmless thing — it made the pane
+     * 668px wide inside a 393px track, and a handbook chapter took the phone sideways by 275px.
+     *
+     * There is nothing to centre in any case: the measure below is 64rem and this query only runs
+     * under 60rem, so it never binds. It is kept to say what the column is for. */
     max-width: var(--content-max);
-    margin: 0 auto;
     padding: 3rem 1.5rem 5rem;
   }
 }

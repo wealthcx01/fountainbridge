@@ -1,6 +1,6 @@
 # FB-203 — the desk against its design, read from the template rather than the picture
 
-**Status:** Open · **Phase:** 3 · **Raised by:** John, 2026-09-07
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-07
 
 ## Where this came from
 
@@ -42,6 +42,45 @@ Rebuild:
 
 **Acceptance:** eyebrow, H1, summary, banner, prompt bar and every H2 share one left edge; banner,
 prompt bar and section rules share one right edge.
+
+### Done, 2026-09-08 — measured before and after at 1200px
+
+| | rail | H1 | banner | prompt bar | office | queue | surfaces | `<main>` |
+|---|---|---|---|---|---|---|---|---|
+| before | 36–286 | **286**–423 | **286–1022** | 286–1164 | 286–1164 | 286–1164 | 286–1164 | **2** |
+| after | 0–250 | **286**–423 | **286–1164** | 286–1164 | 286–1164 | 286–1164 | 286–1164 | **1** |
+
+A 36px gutter where there was none, one right edge where the banner was 142px short of everything
+else, and one landmark instead of two — which also closes FB-168, because they were the same fault
+seen from two directions.
+
+One detail of the review did not reproduce: it recorded the banner starting at x=36 and running
+1127px, *wider* than its neighbours. Measured here it started at 286 and ran 736 — **narrower**,
+because it carried a `max-width: var(--content-narrow)` of its own. The fault is the same one (no
+section agreed with any other) and the reading of it was different, so it is written down rather than
+quietly corrected.
+
+### The two things that broke, and what they were
+
+Neither was found by looking. Both were found by the suite, and both are worth keeping.
+
+**A `1fr` track is `minmax(auto, 1fr)`.** Its minimum is the widest thing inside it, so one wide
+diagram pushed the whole page sideways — a handbook chapter took the phone out by 275px. This is the
+grid form of the flex `min-width: 0` problem and the fix is `minmax(0, 1fr)`.
+
+**`margin: 0 auto` on a grid item is not what it is on a block.** It stops the item stretching to its
+track and makes it fit-content, so the pane grew to whatever was inside it: **668px wide inside a
+393px track.** The margin was carried over from the old rule, where it sat on a plain block and was
+harmless. There is nothing to centre in any case — the phone measure is 64rem and the query only runs
+below 60rem, so it never binds.
+
+The desk's own column test (FB-188) measured the nested `<main>`, so it read 0px once that was gone.
+Repointed at `.venture-pane`, which is what the column now is.
+
+### Still to do — items 2 to 13
+
+The shell only. The big `ARCA` H1, the ACTIVE pill, "Where things stand", the four orphan links, the
+emoji banner and the rest are all untouched and next, in John's order.
 
 ## 2. The page header
 

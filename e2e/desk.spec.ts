@@ -407,8 +407,11 @@ test.describe('the reading column (FB-188)', () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/venture/arca');
     const width = await page.evaluate(() => {
-      const main = document.querySelector('.rail')?.parentElement?.querySelector('main');
-      return main ? Math.round(main.getBoundingClientRect().width) : 0;
+      // The reading column, which is `.venture-pane` since FB-203 rebuilt the shell as a grid. It
+      // used to be a second <main> nested inside the page's own — two landmarks on every venture
+      // page, and a column with no padding, so the desk began at the rail's edge.
+      const pane = document.querySelector('.venture-pane');
+      return pane ? Math.round(pane.getBoundingClientRect().width) : 0;
     });
     // The design's own block measures 1,080px at this viewport. 5% either way.
     expect(width, `the column is ${width}px; the design draws into 1,080px`).toBeGreaterThan(1026);
