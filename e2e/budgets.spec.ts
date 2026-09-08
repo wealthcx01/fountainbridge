@@ -55,6 +55,9 @@ test.describe('department budget disclosure', () => {
     // The fact did not disappear with the sentence. Build has no envelope, and the rail says so —
     // "not set", which is a statement about this venture's setup, not "£0", which would be a
     // statement about its spending.
-    await expect(page.getByTestId('rail-budgets')).toContainText('not set');
+    // Scoped to `rail`. Its waiting shell (`rail-waiting`, FB-158) renders the same children while
+    // the numbers stream, so every child testid matches twice for that instant — the second time
+    // this ticket has been caught by it, after `rail-nav-memory` in items 2–6.
+    await expect(page.getByTestId('rail').getByTestId('rail-budgets')).toContainText('not set');
   });
 });
