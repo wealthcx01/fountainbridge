@@ -30,7 +30,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | Composer | ~1,000px | **1,096px** | 1,142px | **matches** |
 | Handbook | 1,000px | **1,096px** | **1,581px** | **explained and fixed, FB-190** — see below |
 | a chapter | ~1,000px | **3,318–16,198px** | — | **the 1,188px reading was wrong** — see below |
-| The pocket studio | ~600px | — | **2,745px** | **fixed, FB-160** (was 4,221px) — the desk's phone row IS this screen |
+| The pocket studio | ~600px | — | **2,228px** | **fixed, FB-160** (was 4,221px), FB-203 items 1–13 — the desk's phone row IS this screen |
 
 No screen scrolls sideways at either size. That was not true two weeks ago (FB-153, FB-124).
 
