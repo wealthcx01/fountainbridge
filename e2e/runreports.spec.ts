@@ -77,6 +77,31 @@ test.describe('run reports and the founder brief', () => {
     await expect(list.locator('li[data-outcome="awaiting-approval"]')).toHaveCount(1);
   });
 
+  test('a run that happened over and over says how many times (FB-203, item 9)', async ({ page }) => {
+    // Item 8 said to delete the ×20 repeat tag and production is what proved that half wrong. ARCA
+    // has 3,459 runs and every one of them is the same park, so the whole section collapsed to a
+    // single row under a footer reading "Showing the 1 most recent of 3459 runs". A founder reading
+    // that has no way to know their venture has been stuck in one place for seven weeks — which is
+    // the most important thing this section could tell them (CLAUDE.md #10).
+    //
+    // The tag is still gone. The fact it carried is now a clause in the row, in words.
+    //
+    // The fixtures carry three identical SELL-002 parks, 17:20, 17:30 and 18:00, deliberately
+    // *older* than the runs above them so the four rows this desk shows do not change.
+    const row = page.getByTestId('lane-activity-list').locator('li').nth(3);
+    await expect(row).toContainText('SELL-002');
+    await expect(row).toContainText('the same thing 3 times');
+    // Not the studio showing its working.
+    await expect(row).not.toContainText('×3');
+  });
+
+  test('a four-digit run count is a number, not a run of digits (FB-203, item 9)', async ({ page }) => {
+    // "3459" on production. A founder should not have to parse digits to read their own history.
+    const foot = page.getByTestId('lane-activity-more');
+    await expect(foot).toContainText('runs');
+    expect(await foot.innerText()).not.toMatch(/\b\d{4,}\b/);
+  });
+
   test('the engine reports itself as running, from the heartbeat alone', async ({ page }) => {
     const engine = page.getByTestId('engine-state');
     await expect(engine).toHaveAttribute('data-engine-state', 'running');
@@ -99,6 +124,6 @@ test.describe('run reports and the founder brief', () => {
     // says how many there are in total. Six runs in the fixtures; the heartbeat is the seventh
     // record on the ref and must not be counted among them — which is what "of 6" asserts.
     await expect(page.getByTestId('lane-activity-list').locator('li')).toHaveCount(4);
-    await expect(page.getByTestId('lane-activity-more')).toContainText('4 most recent of 6 runs');
+    await expect(page.getByTestId('lane-activity-more')).toContainText('4 most recent of 8 runs');
   });
 });

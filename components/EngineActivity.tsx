@@ -39,8 +39,15 @@ import { ReleasePlanButton } from './ReleasePlanButton';
  *     says out loud that the desk re-reads itself while work is in flight, which `WhileWorking` does,
  *     once a minute, only while something is being worked and only while the tab is visible.
  *   - **The `×20` repeat tag.** `collapseRepeats` still merges repeats — that is what keeps fifteen
- *     copies of one sentence out of four slots — but the count itself was the studio showing its
- *     working.
+ *     copies of one sentence out of four slots — and the count is said in words in the row instead.
+ *
+ *     Dropping it outright, which is what item 8 asks for, was wrong, and production is what showed
+ *     that: ARCA has **3,459 runs and they are all the same park**, so the whole section collapsed to
+ *     one row reading *"Stopped on ARCA-061 … parked until tomorrow"* under a footer saying "Showing
+ *     the 1 most recent of 3459 runs". A founder reading that has no way to know their venture has
+ *     been stuck in one place for seven weeks — which is the single most important thing this
+ *     section could tell them, and exactly what non-negotiable 10 exists for. The tag was the
+ *     studio showing its working; the fact underneath it was not.
  *   - **The venture tag.** On one venture's own desk, a tag that says `ARCA` on every row says
  *     nothing at all.
  *
@@ -134,6 +141,12 @@ export function EngineActivity({
                 <span className="engine-run-body">
                   <span className="sr-only">{OUTCOME_LABEL[r.outcome ?? 'in-flight']}: </span>
                   {describeRun(r)}
+                  {/* Said once, in words, never printed 3,459 times. */}
+                  {r.repeats > 1 ? (
+                    <span className="engine-run-repeats" data-testid={`run-${r.laneId}-${i}-repeats`}>
+                      {' · '}the same thing {count(r.repeats)} times
+                    </span>
+                  ) : null}
                   {r.prUrl ? (
                     <>
                       {' · '}
@@ -161,7 +174,7 @@ export function EngineActivity({
 
       {total > shown.length ? (
         <p className="muted engine-foot" data-testid="lane-activity-more">
-          Showing the {shown.length} most recent of {total} runs ·{' '}
+          Showing the {shown.length} most recent of {count(total)} runs ·{' '}
           {ventureId ? <Link href={`/venture/${ventureId}/activity`}>What happened</Link> : null}
           {/* True as written, and only as written: `WhileWorking` polls once a minute, only while a
               run is actually in flight, and only while the tab is visible. */}
@@ -171,6 +184,14 @@ export function EngineActivity({
     </section>
   );
 }
+
+/**
+ * A count a person can read at a glance.
+ *
+ * `3459` is a string of digits somebody has to parse; `3,459` is a number. It matters most exactly
+ * where the numbers are largest, which is where this section is least readable without it.
+ */
+const count = (n: number) => n.toLocaleString('en-GB');
 
 function runTone(r: RunReport): Tone {
   switch (r.outcome) {
