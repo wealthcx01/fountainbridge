@@ -60,6 +60,46 @@ export const TEAM_INTRO = 'AI working on this venture’s own machine, around th
  * would be putting words in its mouth, and the founder is reading it precisely because it is the
  * machine's own account.
  */
+/**
+ * Whole phrases the box has already written, before the bare names are touched (FB-205).
+ *
+ * ## Why a phrase table and not a cleverer rule
+ *
+ * Substituting a noun phrase ("your team") for a bare noun ("lane") breaks grammar in three
+ * positions, and all three are on ARCA's desk today:
+ *
+ *   - **Attributive.** *"Daily lane budget reached"* became **"Daily your team budget reached"** —
+ *     the most repeated line in ARCA's history, on a venture that has written 3,461 of them, so very
+ *     likely the sentence a founder has read more often than any other in this studio.
+ *   - **After an indefinite article.** *"a lane cannot forge it"* became "a your team cannot forge
+ *     it", in the executor's account of a grant that failed its attestation.
+ *   - **As a telegraphic subject.** *"Lane awake — nothing to work right now"* became "Your team
+ *     awake", which is not a sentence.
+ *
+ * No regular expression can tell *"lane budget"* (a lane describing a budget) from *"lane
+ * arca-build stopped"* (a lane that acted) — the difference is what part of speech the next word is,
+ * and a rewriter that guessed would be wrong on a venture whose repository happens to be called
+ * `budget`. So this is an explicit table rather than a rule, and that is honest here for a reason
+ * the general case does not have: **we write the box.** These are not sentences from a stranger;
+ * they are the five summaries `deploy/lane/run-once.sh` writes and one from the executor, and they
+ * are enumerable because we wrote them.
+ *
+ * The box no longer writes any of them — FB-205 fixed the source too, so a new report needs no
+ * rewriting at all. This table is for the history, which never changes: ARCA has 3,461 reports on
+ * its state ref saying the old words, and they will still be there in a year.
+ *
+ * Anything not listed falls through to the name rules below, which is what happens today.
+ */
+const MACHINE_PHRASES: [RegExp, string][] = [
+  // Longest first: "lane awake with nothing…" must not be eaten by "lane awake".
+  [/\bdaily lane budget reached\b/gi, 'your team’s daily budget is used up'],
+  [/\blane awake with nothing it may work\b/gi, 'your team is awake with nothing it may work'],
+  [/\blane awake\b/gi, 'your team is awake'],
+  [/\ban? (?:agent )?lane\b/gi, 'your team'],
+  [/\b(?:the )?(?:agent )?lane’s\b/gi, 'your team’s'],
+  [/\b(?:the )?(?:agent )?lane's\b/gi, 'your team’s'],
+];
+
 const MACHINE_NAMES: [RegExp, string][] = [
   [/\bthe (?:agent )?lanes?\b/gi, 'your team'],
   [/\bthe agents?\b/gi, 'your team'],
@@ -69,7 +109,7 @@ const MACHINE_NAMES: [RegExp, string][] = [
 
 /** Say a machine-authored sentence in the founder's vocabulary, keeping its meaning and its case. */
 export function inFounderWords(text: string): string {
-  return MACHINE_NAMES.reduce(
+  return [...MACHINE_PHRASES, ...MACHINE_NAMES].reduce(
     (out, [pattern, plain]) =>
       out.replace(pattern, (match) =>
         /^[A-Z]/.test(match) ? plain.charAt(0).toUpperCase() + plain.slice(1) : plain,

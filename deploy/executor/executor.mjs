@@ -76,7 +76,7 @@ function attestationValid(grant, id, proposalSha) {
   const got = String(grant.attestation || '');
   const want = expectedAttestation(id, proposalSha, approver);
   const a = Buffer.from(got, 'utf8'); const b = Buffer.from(want, 'utf8');
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, reason: 'grant attestation is missing or invalid (not signed by the studio — a lane cannot forge it)' };
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false, reason: 'grant attestation is missing or invalid (not signed by the studio — your team cannot forge it)' };
   return { ok: true, approver };
 }
 
