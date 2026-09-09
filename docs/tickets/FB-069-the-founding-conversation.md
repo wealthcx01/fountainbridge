@@ -1,6 +1,6 @@
 # FB-069 — The founding conversation: bring your research in, leave with a thesis
 
-**Status:** In progress · **Phase:** 3 · **Depends on:** FB-066 (day one), FB-043 (deposits), FB-050
+**Status:** Shipped in part · **Phase:** 3 · **Depends on:** FB-066 (day one), FB-043 (deposits), FB-050
 (the brain), FB-018 (the deep playbook) · **Repo:** fountainbridge (+ venture box) ·
 **Branch:** `fb-069-the-founding-conversation` · One ticket = one branch = one PR.
 

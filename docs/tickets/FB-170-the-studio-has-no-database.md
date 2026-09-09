@@ -6,8 +6,16 @@
 > production wiring and no read path swapped — deliberately, because both need a Supabase project
 > that does not exist yet.
 >
-> **Blocked on John:** create the Supabase project and hand over the connection string. Everything
-> below it is written and tested and cannot be pointed at anything until then.
+> **No longer blocked (corrected 2026-09-09).** The Supabase project exists, the schema is applied,
+> and `lib/db.ts` connects to it through the shared session pooler. `db/002_documents.sql` and
+> `db/003_document_bytes.sql` landed on top of it. This line still said "blocked on John" a week
+> after that, and it was read as a live blocker when John asked what was outstanding — a ticket that
+> lies about who is holding it up wastes exactly the person it names.
+>
+> **What is actually left is the read model**, which is the reason this ticket exists. The database
+> is connected but only `lib/document-store.ts` uses it. `lib/venture-reads.ts` still rebuilds every
+> screen from GitHub on each load, so the six-second pages this ticket was raised about are
+> unchanged. Nothing blocks that work.
 >
 > **The finding worth carrying forward:** `force row level security` binds the table *owner* but not
 > a **superuser**, which reads straight through every policy with no error and no log line. The first

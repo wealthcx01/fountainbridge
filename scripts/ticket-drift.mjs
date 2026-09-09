@@ -16,13 +16,20 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { findDrift, idFromFilename, partShippedReason, statusFromMarkdown, ticketsShippedBy } from '../lib/ticket-drift.ts';
+import { findDrift, findStale, idFromFilename, partShippedReason, statusFromMarkdown, ticketsShippedBy } from '../lib/ticket-drift.ts';
 
 const TICKETS = process.env.TICKETS_DIR ?? 'docs/tickets';
 const BRANCH = process.env.DRIFT_BRANCH ?? 'origin/main';
 
 function git(args) {
   return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+}
+
+/** Days since git last saw this file change, or null when git has never seen it (a new ticket). */
+function daysSinceTouched(file) {
+  const iso = git(['log', '-1', '--format=%cI', '--', file]).trim();
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
 
 function tickets() {
@@ -34,7 +41,12 @@ function tickets() {
       const markdown = readFileSync(join(TICKETS, f), 'utf8');
       const status = statusFromMarkdown(markdown);
       return status
-        ? { id, status, file: join(TICKETS, f), partShipped: partShippedReason(markdown) }
+        ? {
+            id, status, file: join(TICKETS, f), partShipped: partShippedReason(markdown),
+            // Days since the FILE last changed. `--follow` is deliberately absent: a rename is a
+            // change, and a renamed ticket is one somebody has looked at.
+            lastTouchedDays: daysSinceTouched(join(TICKETS, f)),
+          }
         : null;
     })
     .filter(Boolean);
@@ -76,7 +88,8 @@ function evidence() {
   return { shipped, commitFor };
 }
 
-const found = findDrift(tickets(), evidence());
+const all = tickets();
+const found = [...findDrift(all, evidence()), ...findStale(all)];
 
 if (found.length === 0) {
   console.log('ticket-drift: every ticket agrees with the history.');

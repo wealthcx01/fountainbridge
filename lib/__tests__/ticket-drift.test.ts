@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  findDrift, idFromFilename, isShippingCommit, partShippedReason, statusFromMarkdown, ticketsShippedBy,
+  findDrift, findStale, idFromFilename, isShippingCommit, partShippedReason, statusFromMarkdown,
+  ticketsShippedBy,
 } from '../ticket-drift';
 
 const evidence = (ids: string[], commit = 'abc1234 FB-065: something (#68)') => ({
@@ -194,5 +195,53 @@ describe('a range names a set the string does not enumerate (FB-145)', () => {
 
   it('still ignores a commit that shipped no code, whatever its subject says', () => {
     expect(ticketsShippedBy({ subject: 'FB-123: ticket only', paths: ['docs/tickets/FB-123-x.md'] })).toEqual([]);
+  });
+});
+
+/**
+ * FB-216 — a status that went stale, which `findDrift` cannot see.
+ *
+ * `findDrift` compares a status against the git history, so it only fires when something CHANGED.
+ * FB-044 — the ActiveGraph safety keystone — sat at "In review" for a month after its work shipped
+ * under FB-051's name. Nothing changed, so nothing fired, and every count of what was left included
+ * a ticket that was finished.
+ */
+describe('a ticket that says somebody is working on it, where nobody is', () => {
+  const t = (over: Partial<Parameters<typeof findStale>[0][number]> = {}) => ({
+    id: 'FB-044', status: 'In review', file: 'docs/tickets/FB-044-x.md',
+    partShipped: null, lastTouchedDays: 32, ...over,
+  });
+
+  it('catches "In review" on a file nobody has touched', () => {
+    const found = findStale([t()]);
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/has not changed in 32 days/);
+    // It has to offer the way out, or it is a complaint rather than a check.
+    expect(found[0].message).toMatch(/Superseded by/);
+  });
+
+  it('catches "In progress" the same way', () => {
+    expect(findStale([t({ id: 'FB-047', status: 'In progress' })])).toHaveLength(1);
+  });
+
+  it('reads a compound status — "In progress — the model is in, the surfaces are not"', () => {
+    // FB-047's real status line. Matching the whole string would have missed it.
+    expect(findStale([t({ status: 'In progress — the model is in, the surfaces are not' })])).toHaveLength(1);
+  });
+
+  it('leaves the backlog alone, because a backlog is SUPPOSED to sit still', () => {
+    // The rule that keeps this usable. Todo and filed do not claim anybody has it open, and firing
+    // on them would make the check noise — and a noisy check is one somebody switches off.
+    expect(findStale([t({ status: 'Todo' }), t({ status: 'filed' }), t({ status: 'Open' })])).toHaveLength(0);
+  });
+
+  it('leaves a ticket alone while somebody is genuinely on it', () => {
+    expect(findStale([t({ lastTouchedDays: 3 })])).toHaveLength(0);
+    expect(findStale([t({ lastTouchedDays: 14 })]), 'the boundary is inclusive').toHaveLength(0);
+  });
+
+  it('says nothing about a ticket git has never seen', () => {
+    // A ticket written in this PR and not yet committed is new, not stale.
+    expect(findStale([t({ lastTouchedDays: null })])).toHaveLength(0);
   });
 });
