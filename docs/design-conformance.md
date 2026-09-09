@@ -23,7 +23,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | **1,000px** | **851px** | **compared, FB-189** — matched on height, wrong on everything else |
 | The desk | ~1,900px | **1,984px** | **2,228px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 1–13 |
-| Tickets | 1,090px | **1,137px** | **1,059px** | fixed FB-185, widened FB-188, FB-208 (was 6,864 / 8,008) |
+| Tickets | 1,090px | **1,325px** | **1,600px** | fixed FB-185, widened FB-188, FB-208 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
 | Memory | ~1,000px | **1,096px** | **1,988px** | fixed FB-181, widened FB-188 (was 1,570 / 2,881) |
@@ -490,8 +490,15 @@ not rendering.
 
 ## FB-208 — the tickets screen, 2026-09-09
 
-Read at 1440×1000 and 393×851 on fixtures: **1,137px** and **1,059px**, no sideways scroll at either
-size. The design is 1,090px.
+Read at 1440×1000 and 393×851. On fixtures **1,137px** and **1,059px**; on production, against
+ARCA's 80 real tickets, **1,325px** and **1,600px**. No sideways scroll at any of them. The design is
+1,090px.
+
+The 235px between the fixture reading and production is almost entirely **title wrap**: ARCA's tickets
+are named things like *"Research: which auction houses we can realistically pull live listings from"*,
+which takes four lines in a list pane about 450px wide. The design's list had short titles. Nothing is
+repeated and nothing is decorative — the screen is as tall as the sentences a founder actually wrote,
+which is the right thing for it to be as tall as.
 
 Tabs are text on a hairline now rather than four buttons — which had made the four most button-shaped
 objects on the screen the ones that only narrow a list, beside a detail pane whose buttons merge
