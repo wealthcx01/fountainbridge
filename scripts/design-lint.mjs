@@ -35,11 +35,34 @@ export const RULES = {
   'dead-control': 'a <button> that dispatches nothing — give it an onClick, a type="submit", or a form',
   'testid-selector':
     'a stylesheet rule keyed on data-testid — style on the class; a test id must never be load-bearing layout',
+  'state-glyph':
+    'a ⚠ or ● marking a state — use <Mark tone> (components/Mark.tsx); an emoji is a different typeface at a size nobody chose and it does not take the tone colour',
 };
 
 // --- rule implementations -------------------------------------------------------------------
 // Each takes the file's text and returns [{ line, rule, snippet }]. Kept as pure functions over a
 // string so they are testable without a filesystem.
+
+/**
+ * A glyph standing in for a state mark (FB-210).
+ *
+ * `⚠` and `●` survived on nine screens after FB-203 turned the desk's marks into squares, so the
+ * studio marked state two ways depending on which screen you were on. An emoji is a different
+ * typeface at a size nobody chose: it renders differently on every platform, and it does not take the
+ * tone colour — a `⚠` beside amber text is whatever amber the vendor picked.
+ *
+ * `<Mark tone>` is the one mark. This rule is what stops the next screen inheriting the old habit,
+ * which is the reason the glyphs came back at all: nothing checked.
+ *
+ * A line that STARTS as a comment is skipped, including the JSX brace-slash-star form, because a
+ * comment explaining why the glyph is not used is prose about the rule rather than a rendered mark.
+ * A glyph after code on the same line is still caught.
+ *
+ * `✓` and `✗` are NOT here. They are read as words by a screen reader in a way `●` is not, and the
+ * places that use them are lists of checks rather than a state on a sentence. If they drift into
+ * marking state, they earn their own line.
+ */
+const STATE_GLYPH = /[⚠●]/;
 
 const HEX = /#[0-9a-fA-F]{3,8}\b/;
 // Every px value except `1px`. The hairline rule is an atom of this design system — the whole
@@ -129,6 +152,11 @@ export function lintText(text, relPath) {
     // so it is exempt; a component naming --color-warn is the drift this rule exists to catch.
     if (!isStyleSheet && STATUS_COLOUR.test(s)) {
       violations.push({ line, rule: 'raw-status-colour', snippet: s.trim().slice(0, 80) });
+    }
+    // Founder-facing markup only. The glyph is fine in a comment explaining why it is not used, and
+    // in this linter's own rule text — both of which are prose about the rule, not a rendered mark.
+    if (relPath.endsWith('.tsx') && STATE_GLYPH.test(s) && !/^\s*(\*|\/\/|\/\*|\{\/\*)/.test(s)) {
+      violations.push({ line, rule: 'state-glyph', snippet: s.trim().slice(0, 80) });
     }
     // Only in stylesheets: a `data-testid` in JSX is the test id itself, which is the point of it.
     if (isStyleSheet && TESTID_SELECTOR.test(s)) {

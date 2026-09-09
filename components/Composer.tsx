@@ -11,6 +11,7 @@ import { railState } from '@/lib/composer-rail';
 import { ComposerRail } from './ComposerRail';
 import { toneColor } from '@/lib/status';
 import { PlanPanel } from './PlanPanel';
+import { Mark } from './Mark';
 
 /**
  * The conversation, inside the studio (FB-065).
@@ -279,7 +280,7 @@ export function Composer({
           data-testid="composer-error"
           style={{ fontSize: 'var(--fs-body-sm)', color: toneColor('attention'), maxWidth: 'var(--content-narrow)' }}
         >
-          <span aria-hidden="true">⚠ </span>
+          <Mark />
           <span className="sr-only">Problem: </span>
           {error}
         </p>

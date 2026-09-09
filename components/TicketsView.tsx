@@ -18,6 +18,7 @@ import {
   filterTickets, nextDecision, provenFact, resolveSelected, rowKey, ticketsSummary, type TicketFilter,
   type TicketRow,
 } from '@/lib/tickets-view';
+import { Mark } from './Mark';
 
 /**
  * Tickets: master-detail, and deciding without leaving (FB-129).
@@ -176,7 +177,7 @@ export function TicketsView({
 
       {errors.length ? (
         <p className="card muted" data-testid="tickets-degraded" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-          <span aria-hidden="true">⚠ </span>
+          <Mark />
           {panel === 'unreadable'
             ? 'The studio could not read this venture’s tickets just now, so it cannot show you the list. Nothing is lost from your venture’s records, and this clears on its own.'
             : 'Part of this venture could not be read, so the list may be short. Nothing is lost from your venture’s records.'}
@@ -344,7 +345,7 @@ function Detail({
 
       {warnings.length > 0 ? (
         <p className="card" data-testid="detail-warnings" style={{ borderColor: toneColor('attention'), color: toneColor('attention'), fontSize: 'var(--fs-meta-lg)', padding: '0.5rem 0.75rem' }}>
-          ⚠ {warnings.map((w) => w.message).join(' · ')}
+          <Mark />{warnings.map((w) => w.message).join(' · ')}
         </p>
       ) : null}
 
@@ -437,7 +438,7 @@ function Detail({
 
           {error ? (
             <p data-testid="detail-error" style={{ fontSize: 'var(--fs-body-sm)', color: toneColor('attention') }}>
-              <span aria-hidden="true">⚠ </span>{error}
+              <Mark />{error}
             </p>
           ) : null}
 

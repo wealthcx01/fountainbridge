@@ -15,6 +15,7 @@ import { toneColor } from '@/lib/status';
 import { panelState } from '@/lib/read-failures';
 import { workHref, type LastUse } from '@/lib/readings';
 import { depositDocument } from '@/app/actions/knowledge';
+import { Mark } from './Mark';
 
 /**
  * Memory — what this venture knows (FB-133, over FB-106).
@@ -107,7 +108,7 @@ export function KnowledgeView({
       {errors.length > 0 ? (
         <p className="card" data-testid="knowledge-error"
            style={{ borderColor: toneColor('attention'), color: toneColor('attention'), fontSize: 'var(--fs-body-sm)' }}>
-          ⚠ {errors.join(' ')} What you have given it is still there — this page could not read it just now.
+          <Mark />{errors.join(' ')} What you have given it is still there — this page could not read it just now.
         </p>
       ) : null}
 
@@ -396,7 +397,7 @@ function Routines({ ventureId, routines, errors }: { ventureId: string; routines
       {errors.length > 0 ? (
         <p className="card" data-testid="memory-routines-error"
            style={{ borderColor: toneColor('attention'), color: toneColor('attention'), fontSize: 'var(--fs-body-sm)' }}>
-          ⚠ {errors.join(' ')}
+          <Mark />{errors.join(' ')}
         </p>
       ) : null}
 

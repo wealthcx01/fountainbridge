@@ -9,6 +9,7 @@ import { STATUS_LABEL } from '@/lib/glossary';
 import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/lib/markdown';
 import { toneColor } from '@/lib/status';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
+import { Mark } from './Mark';
 
 /**
  * Ticket detail drawer (FB-006): the whole ticket, rendered, with the decision on it (FB-105).
@@ -144,7 +145,7 @@ export function TicketDrawer({
                 className="card"
                 style={{ borderColor: toneColor('attention'), color: toneColor('attention'), padding: '0.5rem 0.75rem', fontSize: 'var(--fs-meta-lg)' }}
               >
-                ⚠ {w.message}
+                <Mark />{w.message}
               </p>
             ))}
           </div>

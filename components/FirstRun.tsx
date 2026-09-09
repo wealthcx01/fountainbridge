@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { welcome, firstName, type VentureWiring } from '@/lib/firstrun';
 import { toneColor } from '@/lib/status';
+import { Mark } from './Mark';
 
 /**
  * Day one (FB-066).
@@ -90,7 +91,7 @@ export function BoardUnreadable({
       </p>
       <h1 style={{ margin: '0 0 0.5rem' }}>{ventureName}</h1>
       <p style={{ fontSize: 'var(--fs-body)', maxWidth: 'var(--content-narrow)', color: toneColor('attention') }}>
-        <span aria-hidden="true">⚠ </span>
+        <Mark />
         <span className="sr-only">Problem: </span>
         The studio could not read this venture, so this page is empty — that is not the same as
         nothing having happened. Until it can, treat this page as unknown rather than as quiet.

@@ -15,6 +15,7 @@ import { groupFailures } from '@/lib/read-failures';
 import { onDate } from '@/lib/when';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { ActivityFeed } from '@/components/ActivityFeed';
+import { Mark } from '@/components/Mark';
 
 /**
  * What happened (FB-132) — everything this venture did, newest first.
@@ -178,7 +179,7 @@ async function Record({
 
       {unreadable.length ? (
         <p className="card" data-testid="activity-unreadable" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-          <span aria-hidden="true">⚠ </span>
+          <Mark />
           The studio could not read {unreadable.join(' or ')}, so this record is incomplete. It is not
           that nothing happened — it is that the studio could not see it. Bruntsfield can look into why.
         </p>
@@ -188,7 +189,7 @@ async function Record({
         <div data-testid="activity-failures" style={{ marginTop: '1.25rem' }}>
           {groupFailures(failures).map((g, i) => (
             <p key={i} className="card muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
-              <span aria-hidden="true">⚠ </span>{g.text}
+              <Mark />{g.text}
               {/* What happens next, including "this one will not clear on its own" — the half a
                   founder can act on, and the reason these are grouped by cause at all. */}
               {g.nextStep ? <> {g.nextStep}</> : null}

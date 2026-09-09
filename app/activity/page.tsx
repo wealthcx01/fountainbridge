@@ -13,6 +13,7 @@ import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { groupFailures, needsAction } from '@/lib/read-failures';
 import { ago } from '@/lib/when';
+import { Mark } from '@/components/Mark';
 
 /**
  * The window this page shows. One constant, because FB-108's opening paragraph states the same
@@ -250,7 +251,7 @@ function HealthStrip({ health }: { health: RepoHealth }) {
             <span className="tag" data-testid={`health-stale-${health.repo}`} tabIndex={0}
                   title={STALE_TITLE}
                   style={{ color: toneColor('attention') }}>
-              <span aria-hidden="true">⚠ </span>nothing lately
+              <Mark />nothing lately
             </span>
           ) : (
             <span className="tag muted" data-testid={`health-active-${health.repo}`}>active</span>

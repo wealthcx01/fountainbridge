@@ -177,6 +177,32 @@ test.describe('the desk', () => {
     expect(provenance).toBeLessThanOrEqual(1);
   });
 
+  test('the studio marks state one way, everywhere (FB-210)', async ({ page }) => {
+    // `⚠` and `●` survived on nine screens after FB-203 turned the desk's marks into squares, so the
+    // studio marked state two ways depending on which screen you were on. An emoji is a different
+    // typeface at a size nobody chose, and it does not take the tone colour — a `⚠` beside amber
+    // text is whatever amber the vendor picked.
+    for (const path of ['/venture/arca', '/venture/arca/activity', '/venture/arca/knowledge', '/venture/arca/tickets']) {
+      await page.goto(path);
+      const said = await page.locator('body').innerText();
+      expect(said, `${path} still draws a glyph for a state`).not.toMatch(/[⚠●]/);
+    }
+  });
+
+  test('a state mark carries its tone, and its word (FB-210)', async ({ page }) => {
+    // Replacing the dot with a square and nothing else dropped `toneColor(item.tone)` on the feed,
+    // and every square came out black — a record where a stopped run and a finished one looked
+    // identical. Found by looking at it.
+    await page.goto('/venture/arca/activity');
+    const colours = await page.locator('.mark').evaluateAll((els) =>
+      [...new Set(els.map((e) => getComputedStyle(e).backgroundColor))]);
+    expect(colours.length, 'every state mark is the same colour').toBeGreaterThan(1);
+
+    // And the word is still beside it. A state told only in colour is a state some readers never get.
+    const rows = page.getByTestId('activity-item');
+    await expect(rows.first()).toContainText(/Done|Running|Needs you|Stopped|Failed|Nothing to do|In progress/);
+  });
+
   test('a prompt chip seeds the composer and files nothing', async ({ page }) => {
     await page.getByTestId('prompt-chip-0').click();
     await expect(page.getByTestId('prompt-bar-input')).toHaveValue('Break this document into tickets');
