@@ -7,6 +7,7 @@ import {
   type PlanDraft,
 } from '@/lib/plan-draft';
 import { toneColor } from '@/lib/status';
+import { Mark } from './Mark';
 
 /**
  * A plan, before it is work (FB-127, gap G5).
@@ -108,13 +109,13 @@ export function PlanPanel({ plan: proposed }: { plan: PlanDraft }) {
 
       {problem ? (
         <p data-testid="plan-problem" style={{ fontSize: 'var(--fs-body-sm)', color: toneColor('attention') }}>
-          <span aria-hidden="true">⚠ </span>{problem}
+          <Mark />{problem}
         </p>
       ) : null}
 
       {error ? (
         <p data-testid="plan-error" style={{ fontSize: 'var(--fs-body-sm)', color: toneColor('attention') }}>
-          <span aria-hidden="true">⚠ </span>
+          <Mark />
           <span className="sr-only">Problem: </span>
           {error}
         </p>

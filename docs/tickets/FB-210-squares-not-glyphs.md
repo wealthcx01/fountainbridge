@@ -1,6 +1,6 @@
 # FB-210 — squares, not glyphs, everywhere a founder reads
 
-**Status:** filed · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-02) ·
+**Status:** Done · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-02) ·
 **Branch:** `fb-210-squares-not-glyphs` · One ticket = one branch = one PR.
 
 Third in the reviewer's order: after FB-207 and the Tickets pass, and before Memory.
@@ -39,7 +39,27 @@ Glyphs in operator-only surfaces and in code comments. This is about what a foun
 
 ## Acceptance criteria
 
-- [ ] `grep -r "⚠\|●" components/ app/` finds nothing in rendered founder-facing text.
-- [ ] `design-lint` fails on a newly added one.
-- [ ] Every square is `aria-hidden` and every state still has its word.
-- [ ] The screens are read at both sizes and the readings recorded.
+- [x] `grep -r "⚠\|●" components/ app/` finds nothing in rendered founder-facing text. — 26
+      occurrences across 16 files, all gone; the only ones left are comments explaining the rule.
+- [x] `design-lint` fails on a newly added one. — the `state-glyph` rule, checked by planting one and
+      watching it fail.
+- [x] Every square is `aria-hidden` and every state still has its word.
+- [x] The screens are read at both sizes and the readings recorded.
+
+## Done, 2026-09-09
+
+One component, `components/Mark.tsx`, and one rule in `design-lint` so the next screen cannot inherit
+the old habit — which is the reason the glyphs came back at all: **nothing checked.**
+
+**Looking caught a regression I had just written.** Replacing the feed's `●` with a square and
+nothing else dropped `toneColor(item.tone)`, so every square on What happened came out **black** — a
+record where a stopped run and a finished one looked identical. The tone travels with the mark now,
+and a test asserts the feed draws more than one colour.
+
+**Two things kept.** `✓` and `✗` on the approval card's check list are not state marks on a sentence;
+they are a list of checks, and a screen reader reads them as words in a way `●` is not. They became
+squares anyway where they marked a *state*, and the rule deliberately does not cover them.
+
+And every `sr-only` label stayed exactly where it was. The mark is `aria-hidden` and carries no
+meaning of its own — which is precisely why the sentence beside it has to keep saying what it always
+said.

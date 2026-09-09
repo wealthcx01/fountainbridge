@@ -11,6 +11,7 @@ import { readEvidence } from '@/lib/work-evidence';
 import { showAngleBrackets } from '@/lib/markdown';
 import { howLong } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
+import { Mark } from './Mark';
 
 /**
  * A piece of work, as the founder reads and accepts it (FB-064, reordered by FB-107).
@@ -278,7 +279,7 @@ export function WorkDetail({
       >
         {work.checks === 'failure' || work.checks === 'unavailable' ? (
           <>
-            <span aria-hidden="true">⚠ </span>
+            <Mark />
             <span className="sr-only">Warning: </span>
           </>
         ) : null}

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Trail } from '@/lib/trail';
 import { toneColor } from '@/lib/status';
 import { onDate } from '@/lib/when';
+import { Mark } from './Mark';
 
 /**
  * Follow the change (FB-130).
@@ -81,7 +82,7 @@ export function TicketTrail({ trail }: { trail: Trail }) {
                     >
                       {/* In words a founder can act on: what it means and who fixes it. A badge
                           reading "unverified" tells them something is wrong and nothing else. */}
-                      ⚠ this step is recorded but its signature does not check out — tell Bruntsfield
+                      <Mark />this step is recorded but its signature does not check out — tell Bruntsfield
                       before relying on it
                     </span>
                   </>
@@ -94,7 +95,7 @@ export function TicketTrail({ trail }: { trail: Trail }) {
 
       {trail.degraded ? (
         <p className="muted" data-testid="trail-degraded" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.6rem 0 0' }}>
-          <span aria-hidden="true">⚠ </span>
+          <Mark />
           Part of this history could not be read, so it may be short. It is not that nothing else
           happened — it is that the studio could not see it.
         </p>

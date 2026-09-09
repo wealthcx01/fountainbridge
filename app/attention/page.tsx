@@ -10,6 +10,7 @@ import { prCiTone, toneColor } from '@/lib/status';
 import { groupFailures, needsAction } from '@/lib/read-failures';
 import { CHECK_LABEL } from '@/lib/glossary';
 import { howLong } from '@/lib/when';
+import { Mark } from '@/components/Mark';
 
 // The attention queue (FB-007): open PRs across every accessible venture, awaiting the human gate.
 // Scoping runs server-side in loadAccessibleAttention.
@@ -77,7 +78,7 @@ export default async function AttentionPage({
           together, in that order, is the confusion this ticket exists to end. */}
       {approvals.length === 0 && errors.length > 0 ? (
         <p className="card" data-testid="attention-unreadable" style={{ fontSize: 'var(--fs-body-sm)' }}>
-          <span aria-hidden="true">⚠ </span>
+          <Mark />
           The studio could not read your ventures just now, so it cannot tell you what is waiting.
           It is not that nothing is — it is that it could not look. This clears on its own.
         </p>

@@ -3,6 +3,7 @@ import { panelState } from '@/lib/read-failures';
 import type { FeedItem } from '@/lib/activity-feed';
 import { toneColor } from '@/lib/status';
 import { onDate, relativeDay } from '@/lib/when';
+import { Mark } from './Mark';
 
 /**
  * The record, as a founder reads it (FB-132).
@@ -48,7 +49,10 @@ export function ActivityFeed({ items, couldNotRead = false }: { items: FeedItem[
             {relativeDay(item.at) ?? ''}
           </span>
           <span className="activity-said">
-            <span aria-hidden="true" style={{ color: toneColor(item.tone) }}>● </span>
+            {/* FB-210: the row's tone travels with the mark. Replacing the dot with `<Mark />` and
+                nothing else dropped `toneColor(item.tone)` and every square came out black — a feed
+                where a stopped run and a finished one looked identical. Found by looking at it. */}
+            <Mark tone={item.tone} />
             <span className="sr-only">{TONE_LABEL[item.tone]}: </span>
             {/* FB-207: the attestation clause is INSIDE the link, before the arrow.
                 Rendered after it, the row read "…nobody at the studio issued → · signature not

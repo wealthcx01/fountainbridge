@@ -887,6 +887,32 @@ body:has(.rail) .main {
   .surface-col:first-child { border-top: 0; padding-top: 0; }
 }
 
+/* ---- The state mark (FB-210) ------------------------------------------------------------------
+
+   One square, in the tone's colour, wherever the studio marks a state. It replaces `⚠` and `●`,
+   which survived on nine screens after FB-203 turned the desk's marks into squares.
+
+   An emoji is a different typeface at a size nobody chose. It renders differently on every platform,
+   it does not take the tone colour — a `⚠` beside amber text is whatever amber the vendor picked —
+   and beside a serif sentence it reads as something pasted in.
+
+   `aria-hidden` always, with the word beside it. A state told only in colour is a state some readers
+   never get, and that rule is older than this ticket. */
+.mark {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.5rem;
+  vertical-align: baseline;
+  background: currentColor;
+}
+/* Where the mark carries the tone and the text does not, the colour is set on the mark itself. */
+.mark-ok { background: var(--tone-ok); }
+.mark-working { background: var(--tone-working); }
+.mark-attention { background: var(--tone-attention); }
+.mark-blocked { background: var(--tone-blocked); }
+.mark-idle { background: var(--tone-idle); }
+
 /* ---- The tickets screen (FB-208) --------------------------------------------------------------
 
    Tabs on a hairline, not four buttons. The filter row held `.btn` and `.btn-primary`, which made

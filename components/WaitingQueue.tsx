@@ -3,6 +3,7 @@ import { howLong } from '@/lib/when';
 import { deskQueue } from '@/lib/desk';
 import type { PrApproval } from '@/lib/attention';
 import type { ActiveGraphApproval } from '@/lib/approvals';
+import { Mark } from './Mark';
 
 /**
  * Waiting on you (FB-128) — section 7 of the desk.
@@ -160,7 +161,7 @@ export function WaitingQueue({ items, ventureId }: { items: WaitingItem[]; ventu
                 <span className="waiting-meta" data-testid={`waiting-${it.testId}-meta`}>{it.meta}</span>
                 {it.unverified ? (
                   <span className="waiting-alarm" data-testid={`waiting-${it.testId}-unverified`}>
-                    <span aria-hidden="true">⚠ </span>
+                    <Mark />
                     <span className="sr-only">Warning: </span>
                     The studio cannot verify this approval. Open it before anything else.
                   </span>

@@ -28,6 +28,7 @@ import { EngineActivity } from './EngineActivity';
 import { WhileWorking } from './WhileWorking';
 import type { Brief } from '@/lib/brief';
 import type { RunReport } from '@/lib/runreports';
+import { Mark } from './Mark';
 
 // FB-048: the founder's three owned surfaces. Plain-language gate labels (FB-024) — the founder sees
 // "how work here is approved", never the contract enum.
@@ -321,7 +322,7 @@ export function VentureBoard({
             tabIndex={0}
             title={`${totalWarnings} ticket${totalWarnings === 1 ? '' : 's'} could not be read completely — some detail is missing from the board, and nothing is lost from your venture’s records.`}
           >
-            <span aria-hidden="true">⚠ </span>
+            <Mark />
             {totalWarnings} ticket{totalWarnings === 1 ? '' : 's'} not fully read
           </span>
         ) : null}
@@ -756,14 +757,14 @@ export function VentureBoard({
           </div>
           {budgetsError ? (
             <p data-testid="budgets-error" style={{ color: toneColor('blocked'), fontSize: 'var(--fs-body-sm)', marginTop: '0.9rem' }}>
-              ⚠ {budgets.some(Boolean)
+              <Mark />{budgets.some(Boolean)
                 ? <>Part of your budgets file was rejected, so those departments have no limit while the rest still report normally: {budgetsError}.</>
                 : <>Your budgets file couldn&rsquo;t be read, so no limits are set: {budgetsError}.</>}
             </p>
           ) : null}
           {orphanEnvelopes.length > 0 ? (
             <p className="muted" data-testid="budgets-orphans" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.6rem' }}>
-              ⚠ Budget{orphanEnvelopes.length === 1 ? '' : 's'} set for{' '}
+              <Mark />Budget{orphanEnvelopes.length === 1 ? '' : 's'} set for{' '}
               <span className="mono">{orphanEnvelopes.join(', ')}</span>, which {orphanEnvelopes.length === 1 ? 'is not a department' : 'are not departments'} of this
               venture — so {orphanEnvelopes.length === 1 ? 'it is' : 'they are'} enforcing nothing. Check the spelling against your surfaces above.
             </p>

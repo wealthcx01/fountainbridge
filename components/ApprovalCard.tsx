@@ -5,6 +5,7 @@ import type { ActiveGraphApproval } from '@/lib/approvals';
 import { formatMoney } from '@/lib/budgets';
 import { toneColor } from '@/lib/status';
 import { approveExternalAction, refuseExternalAction } from '@/app/actions/approvals';
+import { Mark } from './Mark';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
 // policy checks[] (a "policy engine clear / N failing" read) + Approve. The founder never touches
@@ -98,7 +99,7 @@ export function ApprovalCard({
         >
           {approval.grantProvenance === 'unattested' ? (
             <>
-              <span aria-hidden="true">⚠ </span>
+              <Mark />
               <span className="sr-only">Warning: </span>
             </>
           ) : null}
@@ -132,12 +133,18 @@ export function ApprovalCard({
           data-testid={`approval-${tid}-checks`}
           style={{ listStyle: 'none', padding: 0, margin: '0.35rem 0 0', fontSize: 'var(--fs-body-sm)' }}
         >
+          {/* FB-210: a square in the tone, not a ✓ or a ⚠. The words are unchanged — the mark is
+              `aria-hidden` and carries no meaning of its own, which is why the sentence beside it has
+              to say the same thing it always did. */}
           <li>
-            {failing === 0 ? '✓ stated by the proposer' : `⚠ ${failing} check${failing === 1 ? '' : 's'} the proposer flagged`}
+            <Mark tone={failing === 0 ? 'ok' : 'attention'} />
+            {failing === 0
+              ? 'stated by the proposer'
+              : `${failing} check${failing === 1 ? '' : 's'} the proposer flagged`}
           </li>
           {approval.checks.map((c, i) => (
             <li key={i}>
-              <span aria-hidden="true">{c.passed ? '✓' : '✗'}</span>
+              <Mark tone={c.passed ? 'ok' : 'blocked'} />
               <span className="sr-only">{c.passed ? 'passed: ' : 'failed: '}</span>
               {c.name}
               {c.detail ? <> — {c.detail}</> : null}
@@ -276,7 +283,7 @@ export function ApprovalCard({
               data-testid={`approval-${tid}-history-fault`}
               style={{ fontSize: 'var(--fs-meta-lg)', color: toneColor('attention'), margin: '0.4rem 0 0' }}
             >
-              <span aria-hidden="true">⚠ </span>
+              <Mark />
               <span className="sr-only">Warning: </span>
               {fault}
             </p>
