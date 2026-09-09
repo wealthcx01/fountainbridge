@@ -1,8 +1,13 @@
 # FB-044 — Gated executor + ActiveGraph approval events (the safety keystone)
 
-**Status:** In review · **Phase:** 2/4 · **Depends on:** FB-037 (design §8), FB-039/040 (lanes)
+**Status:** Superseded by FB-051 · **Phase:** 2/4 · **Depends on:** FB-037 (design §8), FB-039/040 (lanes)
 **Repo:** fountainbridge (+ a control host) · **Branch:** `fb-044-gated-executor-activegraph`
 One ticket = one branch = one PR.
+
+> **Closed 2026-09-09.** This shipped as **FB-051 — the ActiveGraph runtime: a record you can prove,
+> not a log you can read** (commit `3900b9b`), which took the same ground under a different name. The
+> status line here still read "In review" a month later, which made the safety keystone look like
+> outstanding work every time anyone counted what was left.
 
 **Shipped in part:** the executor is built, tested and gated, and it runs nothing yet — it has never been deployed to a machine. Nothing external can execute until it is, which is the point: the gate is real because the thing behind it does not exist yet.
 

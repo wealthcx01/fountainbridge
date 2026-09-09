@@ -148,6 +148,46 @@ export function findDrift(tickets: TicketRecord[], evidence: ShippingEvidence): 
   return drift.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
 }
 
+/**
+ * A ticket that says somebody is working on it, where nobody is (FB-216).
+ *
+ * `findDrift` above compares a status against the git history, so it only fires when something
+ * CHANGED. It cannot see a status that went stale — and that is the failure this was written for.
+ * FB-044, the ActiveGraph safety keystone, sat at "In review" for a month after its work shipped
+ * under a different ticket's name (FB-051). Every gate stayed green, and every count of what was
+ * left included it.
+ *
+ * **Only `In progress` and `In review`.** Those two are claims about right now: somebody has it
+ * open. `Todo` and `filed` are a backlog and are supposed to sit still — flagging those would make
+ * this noise, and a noisy check is one somebody switches off.
+ *
+ * @param lastTouchedDays how many days since the ticket's FILE last changed, per git
+ */
+export function findStale(
+  tickets: ReadonlyArray<TicketRecord & { lastTouchedDays: number | null }>,
+  maxDays = 14,
+): Drift[] {
+  const claimsActive = new Set(['in progress', 'in review']);
+  const stale: Drift[] = [];
+  for (const t of tickets) {
+    // Null means git has never seen the file — a ticket added in the working tree. Not stale; new.
+    if (t.lastTouchedDays === null) continue;
+    if (!claimsActive.has(t.status.trim().toLowerCase().split('·')[0].trim().split('—')[0].trim())) continue;
+    if (t.lastTouchedDays <= maxDays) continue;
+    stale.push({
+      id: t.id,
+      file: t.file,
+      status: t.status,
+      commit: `${t.lastTouchedDays} days`,
+      message: `${t.id} says "${t.status}" but its file has not changed in ${t.lastTouchedDays} days. `
+        + '"In progress" means somebody has it open now. Either it shipped — possibly under another '
+        + "ticket's name, which is how FB-044 hid for a month — or nobody is progressing it. Say "
+        + 'which: Done, Superseded by FB-XXX, or Shipped in part with what is left.',
+    });
+  }
+  return stale.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+}
+
 /** The `**Status:** X` value from a ticket's markdown, or null when it has none. */
 export function statusFromMarkdown(markdown: string): string | null {
   // Bounded to the line, and stopping at the first separator, so "**Status:** Done · **Phase:** 3"

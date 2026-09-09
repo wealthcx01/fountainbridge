@@ -1,6 +1,6 @@
 # FB-047 — Agent-proposed routines (fully apply meridian's routines + Cofounder parity)
 
-**Status:** In progress — the model is in, the surfaces are not · **Phase:** 3 · **Depends on:** FB-040 (scheduler), FB-042 (RunReports) · **Repo:**
+**Status:** Shipped in part — the model is in, the surfaces are not · **Phase:** 3 · **Depends on:** FB-040 (scheduler), FB-042 (RunReports) · **Repo:**
 fountainbridge (+ venture VM) · **Branch:** `fb-047-agent-proposed-routines` · One ticket = one branch = one PR.
 
 **Shipped in part:** the routine model (#125), storage/reading (#126), the studio surface (#127)
