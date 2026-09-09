@@ -24,7 +24,17 @@ CHAT_ENV="${CHAT_ENV:-/opt/foundry/librechat/.env}"
 # nobody had thought to write down here, so the migration left it behind and the scan found it — the
 # same partial rotation this ticket exists to prevent, committed by the script written to prevent it.
 # A hand-maintained list of key names will always be one short of the box it is run on.
-SECRET_KEYS="TICKET_GITHUB_TOKEN STATUS_GITHUB_TOKEN ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN COMPOSER_API_KEY FOUNDRY_OFFICE_SECRET FOUNDRY_APPROVAL_SECRET TAVILY_API_KEY"
+# Newline-separated, and iterated with `read` rather than word splitting. A space-separated list read
+# with an unquoted `$VAR` is the shellcheck SC2086 case, and the fix is not to silence it: a list that
+# splits on whitespace is one key name with a space in it away from moving the wrong thing.
+SECRET_KEYS='TICKET_GITHUB_TOKEN
+STATUS_GITHUB_TOKEN
+ANTHROPIC_API_KEY
+CLAUDE_CODE_OAUTH_TOKEN
+COMPOSER_API_KEY
+FOUNDRY_OFFICE_SECRET
+FOUNDRY_APPROVAL_SECRET
+TAVILY_API_KEY'
 
 # What a credential's VALUE looks like — the same shapes `deploy/foundry/secret-scan.mjs` calls
 # `strong`. So the installer moves anything the scanner would flag, and the two cannot disagree about
@@ -79,12 +89,16 @@ value_of() {
 has_key() { grep -q "^${1}=" "$HOME_FILE" 2>/dev/null; }
 
 # The named set plus whatever the values give away, deduplicated.
-ALL_KEYS="$(printf '%s\n' $SECRET_KEYS; keys_by_value "$LANE_ENV"; keys_by_value "$CHAT_ENV")"
+ALL_KEYS="$(printf '%s\n' "$SECRET_KEYS"; keys_by_value "$LANE_ENV"; keys_by_value "$CHAT_ENV")"
 ALL_KEYS="$(printf '%s\n' "$ALL_KEYS" | sort -u)"
 
 moved=0
 kept=0
-for key in $ALL_KEYS; do
+# Fed by a here-doc rather than a pipe: a `while` on the right of a pipe runs in a subshell, so the
+# counters below would be reset the moment the loop ended and the summary would say "0 moved" after
+# moving four. A redirect keeps it in this shell.
+while IFS= read -r key; do
+  [ -n "$key" ] || continue
   if has_key "$key"; then
     kept=$((kept + 1))
     continue
@@ -98,7 +112,9 @@ for key in $ALL_KEYS; do
       break
     fi
   done
-done
+done <<KEYS
+$ALL_KEYS
+KEYS
 
 # A file with nothing in it is worse than no file: systemd would load it happily and the lane would
 # fail later with "could not read Username for 'https://github.com'", which says nothing about why.
@@ -119,7 +135,8 @@ fi
 for src in "$LANE_ENV" "$CHAT_ENV"; do
   [ -f "$src" ] || continue
   touched=0
-  for key in $ALL_KEYS; do
+  while IFS= read -r key; do
+    [ -n "$key" ] || continue
     has_key "$key" || continue
     grep -q "^[[:space:]]*${key}=" "$src" || continue
     if [ "$touched" -eq 0 ]; then
@@ -130,7 +147,9 @@ for src in "$LANE_ENV" "$CHAT_ENV"; do
     sed -i "s|^[[:space:]]*${key}=.*|# ${key} now lives in ${HOME_FILE} (FB-176 — one home, mode 0600)|" "$src"
     sed -i "s|^[[:space:]]*${key}=.*|# ${key} was here before FB-176; its value is in ${HOME_FILE}|" "$src.pre-fb176"
     say "$key removed from $(basename "$src")"
-  done
+  done <<KEYS
+$ALL_KEYS
+KEYS
   [ "$touched" -eq 1 ] && say "$(basename "$src") backed up to $(basename "$src").pre-fb176, with its secrets blanked"
 done
 
