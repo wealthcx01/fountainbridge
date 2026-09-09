@@ -126,3 +126,46 @@ test.describe('what the studio can prove about an approval', () => {
     }
   });
 });
+
+/**
+ * FB-214 — a price the studio could not read is not a price of nothing.
+ *
+ * `priceUnreadable` has existed on the approval since FB-054, precisely to keep "free" and "we could
+ * not read it" apart. Nothing rendered it. So a malformed price produced no sentence at all, and on
+ * the one screen where somebody approves money leaving their company, silence reads as free.
+ */
+test.describe('a price the studio could not read (FB-214)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    await page.goto('/venture/arca/approvals/arca/unreadable-price');
+  });
+
+  test('says so, rather than saying nothing', async ({ page }) => {
+    const said = page.getByTestId('approval-arca/unreadable-price-price-unreadable');
+    await expect(said).toBeVisible();
+    await expect(said).toContainText('could not read');
+    // The half that matters: it names the difference, because a founder reading "no cost shown"
+    // will supply "free" themselves.
+    await expect(said).toContainText('not the same as free');
+  });
+
+  test('does not also print a cost it does not have', async ({ page }) => {
+    // The two are exclusive. A card claiming both a figure and an unreadable price would be worse
+    // than either.
+    await expect(page.getByTestId('approval-arca/unreadable-price-budget')).toHaveCount(0);
+  });
+
+  test('an action with a readable price still states it, and says nothing about reading', async ({ page }) => {
+    await page.goto('/venture/arca/approvals/arca/over-budget-send');
+    await expect(page.getByTestId('approval-arca/over-budget-send-budget')).toContainText('This one costs');
+    await expect(page.getByTestId('approval-arca/over-budget-send-price-unreadable')).toHaveCount(0);
+  });
+
+  test('a genuinely free action stays silent, because free is a real answer', async ({ page }) => {
+    // The counterweight. If every action without a figure shouted, the shout would mean nothing —
+    // and `free-post` states no price at all, which is different from stating an unreadable one.
+    await page.goto('/venture/arca/approvals/arca/free-post');
+    await expect(page.getByTestId('approval-arca/free-post-price-unreadable')).toHaveCount(0);
+    await expect(page.getByTestId('approval-arca/free-post-budget')).toHaveCount(0);
+  });
+});
