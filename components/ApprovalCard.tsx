@@ -126,6 +126,26 @@ export function ApprovalCard({
         >
           This one costs {formatMoney(approval.amountMinor, approval.currency)}.
         </p>
+      ) : approval.priceUnreadable ? (
+        /* FB-214: a price the studio could not read is not a price of nothing.
+         *
+         * `ActiveGraphApproval` has carried `priceUnreadable` since FB-054, precisely to keep those
+         * two apart — and nothing rendered it. So a malformed price produced no sentence at all,
+         * and on the one screen where somebody approves money leaving their company, SILENCE READS
+         * AS FREE. It is the same fault as an empty panel over a failed read (FB-137), on the
+         * surface where it costs the most.
+         *
+         * `attention`, not `blocked`: the founder can clear this by looking at the action, which is
+         * what amber means (FB-211). It is louder than the ordinary cost line because the ordinary
+         * cost line is a fact and this is a gap. */
+        <p
+          data-testid={`approval-${tid}-price-unreadable`}
+          style={{ fontSize: 'var(--fs-body-sm)', margin: '0.5rem 0 0', color: toneColor('attention'), fontWeight: 600 }}
+        >
+          <Mark tone="attention" />
+          This action states a price the studio could not read. That is not the same as free — read
+          what it does before approving it.
+        </p>
       ) : null}
       {approval.checks.length > 0 ? (
         <ul

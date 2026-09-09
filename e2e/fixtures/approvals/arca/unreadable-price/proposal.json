@@ -1,0 +1,11 @@
+{
+  "id": "unreadable-price",
+  "department": "sell",
+  "action_type": "send",
+  "summary": "Send the September investor update to 41 investors",
+  "amount_minor": "about £200",
+  "currency": "GBP",
+  "checks": [
+    { "name": "no personal data in the body", "passed": true }
+  ]
+}
