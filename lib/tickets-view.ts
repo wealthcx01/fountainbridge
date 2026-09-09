@@ -219,7 +219,16 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
  * things.** That is the promise the trail keeps (FB-130), and stating it here is what makes the
  * trail's absence a bug rather than a missing nicety.
  */
-export function ticketsSummary(c: TicketCounts): string {
+export function ticketsSummary(c: TicketCounts, surfaceName?: string | null): string {
+  // FB-213: an empty SURFACE is not an empty venture.
+  //
+  // Filtering to a surface with no work hit the sentence below, and it says "No tickets yet" about
+  // the whole company. ARCA has eight; Sell has none. Told to a founder who has just pressed Sell's
+  // own link, that is the studio reporting their backlog gone — the FB-137 fault exactly, arriving
+  // through a filter instead of through a failed read.
+  if (c.total === 0 && surfaceName) {
+    return `${surfaceName} has no tickets yet. Other surfaces may — use “Show every surface” above.`;
+  }
   if (c.total === 0) return 'No tickets yet. The first one your team files lands here.';
 
   const parts: string[] = [];
@@ -296,4 +305,46 @@ export function provenFact(ciStatus: PrCiStatus | null | undefined): string {
     default:
       return 'No checks are recorded against this work, so the studio cannot say it was proven.';
   }
+}
+
+/**
+ * Which surface a founder asked for, resolved to a repository (FB-213).
+ *
+ * The three surface columns on the desk each said **"open the queue →"** and all three linked
+ * `/tickets` with no filter, so Build, Sell and Scale landed on the same screen. A founder pressing
+ * Sell's and getting Build's work was told something untrue by a control the studio drew — the same
+ * class as FB-138's `?work=` parameter that nothing read, and worse than a missing link, because
+ * there is no way to tell it did not work.
+ *
+ * **Accepts either name**, because two kinds of queue link here. A department has a founder-facing
+ * id (`build`, `sell`, `scale`) and that is what belongs in a URL; a lane with no department — an
+ * "other queue" — has only its repository. Resolving both through one parameter keeps this one
+ * mechanism rather than two that do not know about each other.
+ *
+ * Returns `null` for anything it cannot resolve, and the caller shows the unfiltered list. An
+ * unknown surface must not show an empty screen: that would read as "this surface has no work",
+ * which is a claim about the venture made from a typo in a URL.
+ */
+export function resolveSurface(
+  asked: string | undefined,
+  departments: ReadonlyArray<{ id: string; repo: string }>,
+  knownRepos: ReadonlyArray<string>,
+): string | null {
+  const want = asked?.trim().toLowerCase();
+  if (!want) return null;
+  const byId = departments.find((d) => d.id.toLowerCase() === want);
+  if (byId) return byId.repo;
+  return knownRepos.find((r) => r.toLowerCase() === want) ?? null;
+}
+
+/**
+ * The rows of one surface.
+ *
+ * Applied BEFORE the status filter, not after: the two narrow different things — which part of the
+ * company, and which state its work is in — and a founder who picks Sell then "Needs you" means
+ * both. Doing it in the other order gives the same answer here, but only because both are pure
+ * filters; stating the order stops the next person assuming it cannot matter.
+ */
+export function onSurface(rows: readonly TicketRow[], repo: string | null): TicketRow[] {
+  return repo === null ? [...rows] : rows.filter((r) => r.repo === repo);
 }

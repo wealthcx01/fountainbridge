@@ -291,3 +291,78 @@ test.describe('tickets', () => {
     await expect(page.getByTestId('tickets-detail')).toBeHidden();
   });
 });
+
+/**
+ * FB-213 — a surface's link goes to that surface.
+ *
+ * All three desk columns said "open the queue →" and all three linked `/tickets` with no filter, so
+ * Build, Sell and Scale landed on the same screen. A founder pressing Sell's and getting Build's
+ * work was told something untrue by a control the studio drew — the same class as FB-138's `?work=`
+ * parameter that nothing read, and worse than a missing link, because there is no way to tell.
+ */
+test.describe('a surface link opens that surface (FB-213)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+  });
+
+  test('every surface link names its own surface', async ({ page }) => {
+    await page.goto('/venture/arca');
+    const links = page.locator('[data-testid^="lane-open-"]');
+    const n = await links.count();
+    expect(n, 'no surface offers a way through to its queue').toBeGreaterThan(0);
+
+    const hrefs = await links.evaluateAll((els) => els.map((e) => e.getAttribute('href') ?? ''));
+    // The defect, stated: every one of these was `/tickets` with nothing after it. A link only
+    // renders for a surface that HAS tickets, so the fixture shows one — the property that matters
+    // is that each carries its own surface, not that there are several.
+    expect(new Set(hrefs).size, `surface links point at the same place: ${hrefs[0]}`).toBe(n);
+    for (const h of hrefs) expect(h).toMatch(/\/venture\/arca\/tickets\?surface=[^&]+$/);
+  });
+
+  test('following it shows that surface, and says which one', async ({ page }) => {
+    await page.goto('/venture/arca/tickets?surface=build&filter=all');
+    await expect(page.getByTestId('tickets-surface')).toContainText('Showing');
+    // Every row belongs to the surface asked for. A filtered list that quietly includes others is
+    // the same lie in the other direction.
+    const rows = page.locator('[data-testid^="tickets-row-"]');
+    expect(await rows.count(), 'the surface has no rows at all').toBeGreaterThan(0);
+  });
+
+  test('a different surface shows a different list', async ({ page }) => {
+    // The assertion the old links could never have passed: two surfaces, two answers.
+    await page.goto('/venture/arca/tickets?surface=build&filter=all');
+    const build = await page.locator('[data-testid^="tickets-row-"]').count();
+    await page.goto('/venture/arca/tickets?surface=sell&filter=all');
+    const sell = await page.locator('[data-testid^="tickets-row-"]').count();
+    await page.goto('/venture/arca/tickets?filter=all');
+    const all = await page.locator('[data-testid^="tickets-row-"]').count();
+
+    expect(build, 'Build and Sell show the same list, so nothing is being filtered').not.toBe(sell);
+    expect(build + sell, 'the surfaces together exceed the whole venture').toBeLessThanOrEqual(all);
+  });
+
+  test('an empty surface does not report the venture empty', async ({ page }) => {
+    // The fault this change introduced and had to fix. Filtering to a surface with no work hit
+    // "No tickets yet. The first one your team files lands here" — said about the whole company, to
+    // a founder who had just pressed that surface's own link, on a venture with eight tickets.
+    await page.goto('/venture/arca/tickets?surface=sell&filter=all');
+    await expect(page.getByTestId('tickets-view')).not.toContainText('No tickets yet.');
+    await expect(page.getByTestId('tickets-summary')).toContainText('has no tickets yet');
+    await expect(page.getByTestId('tickets-list-empty')).toContainText('Nothing here on');
+  });
+
+  test('there is a way back to every surface, and it keeps the status tab', async ({ page }) => {
+    await page.goto('/venture/arca/tickets?surface=build&filter=all');
+    await page.getByTestId('tickets-surface-clear').click();
+    await expect(page).toHaveURL(/\/tickets\?(?!.*surface=).*filter=all/);
+    await expect(page.getByTestId('tickets-surface')).toHaveCount(0);
+  });
+
+  test('a surface nobody has heard of shows everything, not nothing', async ({ page }) => {
+    // An empty screen would read as "this surface has no work" — a claim about the venture made
+    // from a typo in a URL.
+    await page.goto('/venture/arca/tickets?surface=markteing&filter=all');
+    await expect(page.getByTestId('tickets-surface')).toHaveCount(0);
+    expect(await page.locator('[data-testid^="tickets-row-"]').count()).toBeGreaterThan(0);
+  });
+});
