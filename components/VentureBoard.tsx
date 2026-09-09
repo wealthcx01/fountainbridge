@@ -673,7 +673,11 @@ export function VentureBoard({
                   <p
                     data-testid={`dept-${d.id}-budget`}
                     data-budget-over="true"
-                    style={{ fontSize: 'var(--fs-meta-lg)', margin: '0 0 0.5rem', color: toneColor('blocked'), fontWeight: 600 }}
+                    // FB-211: attention, not blocked. Over budget is a decision waiting on a
+                    // founder — the same class as the amber banner at the top of this page — and
+                    // red is for a fault nobody on the venture can clear. Spending the alarm colour
+                    // on a routine state is how a founder learns to stop seeing it.
+                    style={{ fontSize: 'var(--fs-meta-lg)', margin: '0 0 0.5rem', color: toneColor('attention'), fontWeight: 600 }}
                   >
                     {describeBudget(budget, d.name)}{' '}
                     <span className="muted" style={{ fontWeight: 400 }}>

@@ -206,7 +206,10 @@ function BudgetStrip() {
   const row = (label: string, b: ReturnType<typeof githubBudget>['rest']) =>
     b ? (
       <span data-testid={`budget-${label}`} data-low={budgetIsLow(b) ? 'true' : 'false'}
-            style={{ color: budgetIsLow(b) ? toneColor('blocked') : undefined, fontWeight: budgetIsLow(b) ? 600 : undefined }}>
+            /* FB-211: amber. A budget running low is a decision waiting on the founder who set the
+               limit — the same fact the desk and the rail now show in amber, and it must not be a
+               different colour here just because it is a different screen. */
+            style={{ color: budgetIsLow(b) ? toneColor('attention') : undefined, fontWeight: budgetIsLow(b) ? 600 : undefined }}>
         {label}: {b.remaining.toLocaleString()} of {b.limit.toLocaleString()} left, refills {ago(b.resetsAt) ?? 'shortly'}
       </span>
     ) : null;
@@ -297,8 +300,12 @@ function ActivityRow({ event, parked = false }: { event: ActivityEvent; parked?:
       </span>
       <span style={{ flex: 1, fontSize: 'var(--fs-body-sm)' }}>
         {event.title}
+        {/* FB-211: amber. The sentence says it — "It needs a person" — and `attention` means exactly
+            that: needs a human, or a next step the founder must take. Red is for a fault nobody on
+            the venture can clear, and this is its opposite: the one thing that clears it is somebody
+            looking at it. */}
         {parked ? (
-          <span data-testid="activity-parked" style={{ color: toneColor('blocked'), fontWeight: 600 }}>
+          <span data-testid="activity-parked" style={{ color: toneColor('attention'), fontWeight: 600 }}>
             {' '}— tried since, and stopped. It needs a person.
           </span>
         ) : null}

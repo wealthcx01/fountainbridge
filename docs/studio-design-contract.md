@@ -66,6 +66,14 @@ Two rules that fall out of this, and matter more than they look:
   ability to triage, and violates non-negotiable 10.
 - **An unclassified fault reads `blocked`.** When we do not know what went wrong, we say so loudly.
   `laneErrorTone` tones only the two *known* setup states as `attention`; everything else is red.
+- **Red is for a fault nobody on the venture can clear** — a stalled machine, a read that will not
+  come good on its own, a grant the studio cannot verify. **Anything a founder can end by deciding is
+  amber**, however large the number on it.
+
+  Added by FB-211, because a surface over its spending limit rendered red on the desk and in the
+  rail. It is not a fault: it is the single most decidable thing on the screen, and it belongs in the
+  same colour as the banner at the top of the page that says so. The test is not how bad it is — it
+  is whether a founder reading it can end it.
 
 Adding a sixth tone means the founder has a new colour to learn. That is a design decision — it
 belongs in a PR to this document, not in a component.

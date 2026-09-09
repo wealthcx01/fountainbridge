@@ -38,9 +38,32 @@ describe('what colour a venture is', () => {
     expect(rowTone(row({ engine: { state: 'stalled', text: 'Nothing since June.' } }))).toBe('blocked');
   });
 
-  it('is red when it is over its own budget', () => {
-    expect(rowTone(row({ spend: { spentMinor: 600_000, limitMinor: 500_000, currency: 'GBP', over: true } })))
-      .toBe('blocked');
+  it('is AMBER, not red, when it is over its own budget (FB-211)', () => {
+    // The colour was inherited rather than chosen. Red is for a fault nobody on the venture can
+    // clear; spending past a limit is the single most decidable thing on the screen, and it belongs
+    // in the same colour as the banner that says so.
+    const over = row({ spend: { spentMinor: 600_000, limitMinor: 500_000, currency: 'GBP', over: true } });
+    expect(rowTone(over)).toBe('attention');
+    expect(rowReason(over)).toMatch(/passed the limit/);
+  });
+
+  it('says the money, not the queue, when a row is over budget AND holding work (FB-211)', () => {
+    // Both are amber now, so the sentence is the only thing that distinguishes them — and the one
+    // that costs money is the one to say out loud.
+    const both = row({ needsThem: 4, spend: { spentMinor: 600_000, limitMinor: 500_000, currency: 'GBP', over: true } });
+    expect(rowTone(both)).toBe('attention');
+    expect(rowReason(both)).toMatch(/passed the limit/);
+  });
+
+  it('a stopped team still outranks an over-budget one', () => {
+    // The precedence that must survive the colour change: a fault beats a decision, because a
+    // founder deciding cannot restart a machine.
+    const both = row({
+      engine: { state: 'stalled', text: 'Nothing since June.' },
+      spend: { spentMinor: 600_000, limitMinor: 500_000, currency: 'GBP', over: true },
+    });
+    expect(rowTone(both)).toBe('blocked');
+    expect(rowReason(both)).toMatch(/needs fixing, not deciding/);
   });
 
   it('is red, not amber, when both are true at once', () => {
