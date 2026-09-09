@@ -15,7 +15,7 @@ import { isUnnumbered } from '@/lib/ticket-ids';
 import type { ReactNode } from 'react';
 import {
   DEFAULT_FILTER, FILTER_LABEL, TICKET_FILTERS, countTickets, decisionOrder, decisionPosition,
-  filterTickets, nextDecision, resolveSelected, rowKey, ticketsSummary, type TicketFilter,
+  filterTickets, nextDecision, provenFact, resolveSelected, rowKey, ticketsSummary, type TicketFilter,
   type TicketRow,
 } from '@/lib/tickets-view';
 
@@ -128,7 +128,11 @@ export function TicketsView({
       <p className="eyebrow"><span className="eyebrow-id">{ventureName}</span> — Tickets</p>
       <h1 style={{ margin: '0 0 0.5rem' }}>Tickets</h1>
 
-      <div role="tablist" aria-label="Filter tickets" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', margin: '0.75rem 0' }}>
+      {/* FB-208: tabs on a hairline, not four buttons.
+          `.btn` and `.btn-primary` made the four most button-shaped objects on this screen the ones
+          that only narrow a list — beside a detail pane whose buttons merge finished work into a
+          founder's product. `role="tab"` is unchanged; what they look like is the change. */}
+      <div role="tablist" aria-label="Filter tickets" className="tabs">
         {TICKET_FILTERS.map((f) => {
           const n = f === 'needs' ? counts.needs : f === 'underway' ? counts.underway : f === 'settled' ? counts.settled : counts.total;
           return (
@@ -138,13 +142,14 @@ export function TicketsView({
               role="tab"
               aria-selected={f === filter}
               data-testid={`tickets-filter-${f}`}
-              className={f === filter ? 'btn btn-primary' : 'btn'}
+              className="tab"
               onClick={() => go(f, null, 'replace')}
             >
               {/* FB-137: `0` on every filter is four claims about a backlog nobody could read —
                   and "Needs you 0" is the reassuring one. A dash, with a word for the reader who
                   cannot see it. */}
               {FILTER_LABEL[f]}{' '}
+              <span className="tab-count">
               {panel === 'unreadable' ? (
                 <>
                   <span aria-hidden="true">—</span>
@@ -153,6 +158,7 @@ export function TicketsView({
               ) : (
                 n
               )}
+              </span>
             </button>
           );
         })}
@@ -193,44 +199,32 @@ export function TicketsView({
                 data-testid={`tickets-row-${r.id}`}
                 aria-current={selected && rowKey(selected) === rowKey(r) ? 'true' : undefined}
                 onClick={() => go(filter, rowKey(r))}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 0.5rem',
-                  background: selected && rowKey(selected) === rowKey(r) ? 'var(--color-paper-sunken)' : 'none',
-                  border: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer',
-                }}
+                className="ticket-row"
               >
-                <span style={{ display: 'block' }}>{r.title}</span>
-                <span className="muted" style={{ fontSize: 'var(--fs-meta-lg)' }}>
-                  {/* FB-097's rule, on the screen that is now the only list of tickets (FB-178).
-                      It had only ever been applied on the desk's board, so removing that board would
-                      have quietly reintroduced the defect it was written to fix: four distinct
-                      pieces of work all displayed as "ARCA-NEW", as though it were a name. */}
-                  <span className="mono" data-testid={`tickets-id-${r.id}`}>
-                    {isUnnumbered(r.id) ? 'unnumbered' : r.id}
-                  </span> · {STATUS_LABEL[r.group]}
-                  {/* FB-098's "is anything happening to the thing I asked for", moved off the desk's
-                      board when FB-178 removed it. Rendered as text on the row rather than as a link:
-                      the row itself already opens the ticket, and a link inside a link is not a
-                      control a keyboard user can reach. Its destination is on the ticket. */}
-                  {r.progress ? (
-                    <>
-                      {' · '}
-                      <span
-                        data-testid={`ticket-progress-${r.id}`}
-                        data-state={r.progress.state}
-                        style={{ color: toneColor(r.progress.tone) }}
-                      >
-                        {r.progress.text}
-                      </span>
-                    </>
-                  ) : null}
-                  {r.waiting ? (
-                    <>
-                      {' '}· waiting {howLongMs(r.waiting.ageMs)}
-                      {r.waiting.also ? <> · {r.waiting.also + 1} pieces of work on this one</> : null}
-                    </>
-                  ) : null}
+                <span className="ticket-row-body">
+                  <span className="ticket-row-title">{r.title}</span>
+                  {/* FB-208: the reference and the SURFACE. The meta line concatenated id, status,
+                      progress, waiting and a count — one line that wrapped to three on ARCA, and
+                      never named the surface a founder owns. Status does not repeat on every row
+                      because status is the filter; progress moved to the detail's eyebrow, where
+                      there is room to say what is actually happening. */}
+                  <span className="ticket-row-meta">
+                    {/* FB-097's rule, on the screen that is now the only list of tickets (FB-178).
+                        It had only ever been applied on the desk's board, so removing that board
+                        would have quietly reintroduced the defect it was written to fix: four
+                        distinct pieces of work all displayed as "ARCA-NEW", as though it were a
+                        name. */}
+                    <span className="mono" data-testid={`tickets-id-${r.id}`}>
+                      {isUnnumbered(r.id) ? 'unnumbered' : r.id}
+                    </span>
+                    {r.surface ? <> · {r.surface}</> : null}
+                    {r.waiting?.also ? <> · {r.waiting.also + 1} pieces of work on this one</> : null}
+                  </span>
                 </span>
+                {/* Pushed right, in amber, because how long it has waited is the reason to open it. */}
+                {r.waiting ? (
+                  <span className="ticket-row-when">waiting {howLongMs(r.waiting.ageMs)}</span>
+                ) : null}
               </button>
             </li>
           ))}
@@ -320,6 +314,21 @@ function Detail({
           {isUnnumbered(row.id) ? 'unnumbered' : row.id}
         </span>
         {row.surface ? <> · {row.surface}</> : null} · {STATUS_LABEL[row.group]}
+        {/* FB-098's "is anything happening to the thing I asked for", moved here from the row by
+            FB-208. On the row it was one clause of five on a line that wrapped to three; here it is
+            beside the status it qualifies, on the screen a founder opened to find out. */}
+        {row.progress ? (
+          <>
+            {' · '}
+            <span
+              data-testid={`ticket-progress-${row.id}`}
+              data-state={row.progress.state}
+              style={{ color: toneColor(row.progress.tone) }}
+            >
+              {row.progress.text}
+            </span>
+          </>
+        ) : null}
       </p>
       <h2 data-testid="detail-title" style={{ margin: '0.25rem 0 0.75rem' }}>{row.title}</h2>
 
@@ -413,10 +422,11 @@ function Detail({
           <dl style={{ margin: '0 0 0.9rem', fontSize: 'var(--fs-body-sm)' }}>
             <Fact label="Reaches" value={`${row.repo}, in your venture’s own code. Nothing outside the company.`} />
             <Fact label="Costs" value="Nothing. This is work your team already did; approving it makes it part of your product." />
-            <Fact
-              label="Proven"
-              value={`Your team's own checks ran before this reached you. Read it in full before deciding.`}
-            />
+            {/* FB-208: what the checks actually said, not a sentence printed regardless.
+                `provenFact` is in `lib/tickets-view.ts` beside the field it reads, and the work page
+                reads the same `ciStatus` — so the two screens cannot tell a founder different things
+                about one piece of work. */}
+            <Fact label="Proven" value={provenFact(row.waiting.ciStatus)} />
           </dl>
 
           <p style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.6rem' }}>

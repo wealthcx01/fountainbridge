@@ -6,7 +6,7 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { loadVentureTickets, applyStatusInference, STATUS_GROUPS } from '@/lib/tickets';
 import { loadFiledForLanes, defaultBranchFileReader, type FiledTicket } from '@/lib/filed-tickets';
 import { ticketsByRepoFrom } from '@/lib/venture-tickets-index';
-import { loadVentureAttention } from '@/lib/attention';
+import { loadVentureAttention, type PrCiStatus } from '@/lib/attention';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { TicketsView } from '@/components/TicketsView';
 import { TicketTrail } from '@/components/TicketTrail';
@@ -79,13 +79,13 @@ export default async function TicketsPage({
   // — a lane retries, or files a revision — and a `Map` that took whichever came last would drop the
   // other from the list while the rail's badge went on counting it. Every waiting item is still
   // counted; they are just gathered under the ticket they belong to.
-  const waitingFor = new Map<string, { repo: string; number: number; ageMs: number; also: number; headSha: string | null }>();
+  const waitingFor = new Map<string, { repo: string; number: number; ageMs: number; also: number; headSha: string | null; ciStatus: PrCiStatus | null }>();
   for (const pr of attention.approvals) {
     if (!pr.linkedTicketId) continue;
     const key = `${pr.repo} ${pr.linkedTicketId}`;
     const held = waitingFor.get(key);
-    if (!held) waitingFor.set(key, { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, also: 0, headSha: pr.headSha });
-    else if (pr.ageMs > held.ageMs) waitingFor.set(key, { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, also: held.also + 1, headSha: pr.headSha });
+    if (!held) waitingFor.set(key, { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, also: 0, headSha: pr.headSha, ciStatus: pr.ciStatus });
+    else if (pr.ageMs > held.ageMs) waitingFor.set(key, { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, also: held.also + 1, headSha: pr.headSha, ciStatus: pr.ciStatus });
     else held.also += 1;
   }
   const surfaceOf = new Map((venture.departments ?? []).map((d) => [d.repo, d.name]));
@@ -100,6 +100,7 @@ export default async function TicketsPage({
   // disagreement in the same change.
   const ageOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.ageMs]));
   const shaOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.headSha]));
+  const ciOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.ciStatus]));
   const filedPrs = new Set(
     [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => `${repo}#${f.prNumber}`)),
   );
@@ -107,7 +108,7 @@ export default async function TicketsPage({
     for (const f of fs) {
       const age = ageOfPr.get(`${repo}#${f.prNumber}`);
       if (age === undefined) continue;   // its pull request is not open, so nothing waits
-      waitingFor.set(`${repo} ${f.ticket.id}`, { repo, number: f.prNumber, ageMs: age, also: 0, headSha: shaOfPr.get(`${repo}#${f.prNumber}`) ?? null });
+      waitingFor.set(`${repo} ${f.ticket.id}`, { repo, number: f.prNumber, ageMs: age, also: 0, headSha: shaOfPr.get(`${repo}#${f.prNumber}`) ?? null, ciStatus: ciOfPr.get(`${repo}#${f.prNumber}`) ?? null });
     }
   }
   // Where a filed ticket actually LIVES — its own branch, not the default one. Without this the
@@ -168,7 +169,7 @@ export default async function TicketsPage({
       // No ticket file, so there is no ticket for progress to be about. The row still belongs here
       // — it waits on the founder — but "what is happening to this ticket" has no subject.
       progress: null,
-      waiting: { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, headSha: pr.headSha },
+      waiting: { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, headSha: pr.headSha, ciStatus: pr.ciStatus },
       surface: surfaceOf.get(pr.repo) ?? null,
     });
   }

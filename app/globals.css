@@ -887,6 +887,68 @@ body:has(.rail) .main {
   .surface-col:first-child { border-top: 0; padding-top: 0; }
 }
 
+/* ---- The tickets screen (FB-208) --------------------------------------------------------------
+
+   Tabs on a hairline, not four buttons. The filter row held `.btn` and `.btn-primary`, which made
+   the four most button-shaped objects on the screen the ones that only narrow a list — beside a
+   detail pane whose buttons merge work into a founder's product. */
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: 0.75rem 0 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.tab {
+  font-family: var(--font-sans);
+  font-size: var(--fs-meta-lg);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 0 0.5rem;
+  margin-bottom: -1px;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+.tab[aria-selected='true'] { color: var(--color-ink); border-bottom-color: var(--color-accent); }
+.tab-count { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--color-ink-muted); }
+
+/* The row: title, then reference and surface beneath, with the wait pushed right in amber. The meta
+   line used to concatenate id, status, progress, waiting and a count — one line that wrapped to
+   three on ARCA, and never named the surface. */
+.ticket-row {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  padding: 0.8125rem 0.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.ticket-row[aria-current='true'] { background: var(--color-paper-sunken); }
+@media (hover: hover) { .ticket-row:hover { background: var(--color-paper-sunken); } }
+.ticket-row-body { flex: 1 1 auto; min-width: 0; }
+.ticket-row-title { display: block; font-size: var(--fs-body-sm); font-weight: 500; }
+.ticket-row-meta { display: block; font-size: var(--fs-meta); color: var(--color-ink-muted); }
+.ticket-row-when {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: var(--fs-meta-lg);
+  font-weight: 600;
+  color: var(--color-warn);
+  white-space: nowrap;
+}
+@media (max-width: 48rem) {
+  .ticket-row { flex-wrap: wrap; }
+  .ticket-row-when { flex: 1 1 100%; margin-left: 0; }
+}
+
 /* ---- Waiting on you (FB-203, item 10) --------------------------------------------------------
 
    The reference gets a column of its own, so titles start on one edge instead of wherever the

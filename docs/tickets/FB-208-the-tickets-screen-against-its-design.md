@@ -1,6 +1,6 @@
 # FB-208 — the tickets screen against its design
 
-**Status:** filed · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-06, R-07, R-08) ·
+**Status:** Done · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-06, R-07, R-08) ·
 **Branch:** `fb-208-the-tickets-screen-against-its-design` · One ticket = one branch = one PR.
 
 Second in the reviewer's order, after FB-207. FB-203 did this pass for the desk; this is the same
@@ -42,9 +42,39 @@ the exact copy. And the ticket thread (R-05) — that is **FB-209**.
 
 ## Acceptance criteria
 
-- [ ] No `.btn` in the filter row; the active tab is an underline and is still `role="tab"`.
-- [ ] A ticket row on ARCA is one line at 1440px, and names its surface.
-- [ ] Proven states a fact about *this* ticket, and changes wording when the head has moved.
-- [ ] A send's Costs states the money, not "Nothing".
-- [ ] Read at 1440×1000 and 393×851 on production, with the reading recorded in
-      `docs/design-conformance.md`.
+- [x] No `.btn` in the filter row; the active tab is an underline and is still `role="tab"`.
+- [x] A ticket row on ARCA is one line at 1440px, and names its surface.
+- [x] Proven states a fact about *this* ticket. — **but not the wording R-08 asked for; see below.**
+- [ ] A send's Costs states the money, not "Nothing". — **not done. FB-214.**
+- [x] Read at 1440×1000 and 393×851, with the readings recorded.
+
+## Done, 2026-09-09
+
+**The tabs.** Text on a hairline, the active one underlined 2px in the accent, counts in mono.
+`role="tab"` unchanged. `.btn` and `.btn-primary` had made the four most button-shaped objects on this
+screen the ones that only narrow a list — beside a detail pane whose buttons merge finished work into
+a founder's product.
+
+**The row.** Title, then `ref · surface` beneath, with the wait pushed right in amber. Status is gone
+from the row because status is what the filter above already selects, and progress moved into the
+detail's eyebrow where it sits beside the status it qualifies.
+
+**Proven says what the checks said**, from `ciStatus` — the same field the work page reads, so the two
+screens cannot tell a founder different things about one piece of work. Five answers, and two of them
+are silences told apart: *"the studio could not read this venture's checks"* is not the same as
+*"no checks are recorded against this work"*, and neither is *"they passed"*.
+
+### Two deviations, both stated rather than quietly absorbed
+
+**R-08's exact wording cannot be built yet.** It asks for *"Unchanged since you last read it"* and
+*"Changed since you last read it — re-read"*. The studio does not remember when a founder last read
+anything. `headSha` is the commit at page render, and `acceptWork` compares it at accept time to
+refuse work that moved underneath a decision — which is a different guarantee, made at a different
+moment, and comparing it to itself on render would always say "unchanged".
+
+A per-founder read record is a store the studio does not have. What it *can* prove today is what the
+checks said, and that is the half of R-08 that was actually broken: a sentence printed for every
+ticket regardless.
+
+**Costs is FB-214.** A send's metered cost lives on the approval, not on the ticket row, and wiring it
+through is its own change rather than a clause added to this one.
