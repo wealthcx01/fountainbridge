@@ -1,6 +1,6 @@
 # FB-072 — The lane's token can reach the whole org, including the studio
 
-**Status:** Open · **Phase:** 0 (security) · **Found by:** FB-071, checking a premise rather than
+**Status:** Done · **Phase:** 0 (security) · **Found by:** FB-071, checking a premise rather than
 assuming it · **Repo:** fountainbridge (+ every venture box) ·
 **Branch:** `fb-072-scope-the-lane-token` · One ticket = one branch = one PR.
 
@@ -130,50 +130,70 @@ Splitting per-tool is a further step and deserves its own ticket rather than bei
 here and left half-done.
 
 ## Verification
-On the box, after the swap — the check that found this, run again:
+
+**Not the check this ticket originally gave.** That one asks `GET /repos/{owner}/{repo}` and expects a
+404 outside the venture — which never happens here, because these repositories are public and that
+endpoint answers 200 for anyone. It reads a response that is not about the token, which is the same
+defect this ticket condemns in the `permissions` block.
+
+Use a call that **requires push access**, so a refusal is the token's own:
 
 ```bash
-for r in fountainbridge arca grassmarket; do
-  echo -n "$r: "
+for r in arca arca-marketing arca-ops fountainbridge grassmarket; do
+  printf "%-18s " "$r"
   curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TICKET_GITHUB_TOKEN" \
-    https://api.github.com/repos/wealthcx01/$r
+    https://api.github.com/repos/wealthcx01/$r/collaborators
 done
-# want: arca 200, everything else 404
+# want: this venture's repos 200, everything else 403.
+# Sanity-check it with no token at all: 401. If that is 200, the endpoint is not proving anything.
 ```
 
 Then file one real ticket through the composer and let one lane wake, so the narrower token is proven
 by use and not just by a probe.
 
-## Re-checked on the box — 2026-09-09
+## Closed on the box — 2026-09-09. **The token is correctly scoped.**
 
-John reports that a fine-grained `arca-box` token exists, scoped to `arca`, `arca-marketing` and
-`arca-ops`, and that `foundry-studio-approvals` now includes `fountainbridge`. Both are the right
-shape.
-
-**The `arca-box` token is not the one on the box.** Run from `/etc/foundry/credentials` on
-`venture-arca`, against the check at the top of this ticket:
+Run from `/etc/foundry/credentials` on `venture-arca`, against an endpoint that actually requires
+push access:
 
 ```
-arca               200
-arca-marketing     200
-arca-ops           200
-fountainbridge     200      ← the studio's own repository
-grassmarket        200      ← another venture entirely
+GET /repos/wealthcx01/<repo>/collaborators
+  arca               200     ← has push
+  arca-marketing     200     ← has push
+  arca-ops           200     ← has push
+  fountainbridge     403     ← refused
+  grassmarket        403     ← refused
+  (unauthenticated)  401     ← so the 403s are real refusals, not an open endpoint
 ```
 
-It is a `github_pat_` token, so those are not visibility artefacts: a fine-grained token that was
-never granted a repository returns 404. And the decisive test —
-`GET /repos/wealthcx01/fountainbridge/contents/README.md` — returns **200**. The credential the lane,
-the composer's ticket-filer and the deposit tool all share can read files out of the studio a founder
-approves things in.
+The `arca-box` token John minted **is** the token on the box, and it reaches this venture's three
+repositories and nothing else. **The criterion at the top of this ticket is met.**
 
-So the token was minted and never installed. The old org-wide one is still live and still in use.
+### The verification method in this ticket was wrong, and it produced a wrong answer
 
-**This is now a one-file change**, which it was not before today. FB-176 put every secret on that box
-in `/etc/foundry/credentials` (root, `0600`), so swapping it is: put the new value in that file,
-restart `foundry-lane.timer`, recreate the composer container, and revoke the old token — in that
-order, so the box is proven working before anything is revoked
-(`docs/rotating-a-venture-credential.md`).
+The check written here — *"a venture box's token returns 404 for every repo outside its own
+venture"* — **cannot work, because all five of these repositories are public.** An unauthenticated
+`GET /repos/wealthcx01/fountainbridge` returns 200. So does one with any token, scoped or not. The
+404 that this ticket calls "the proof" never happens.
+
+I ran that check on 2026-09-09, read five 200s, and reported that the box could reach the studio's
+own repository — **stated as confirmed beyond doubt, and wrong.** John pushed back rather than
+accepting it, which is the only reason it was caught.
+
+The lesson is the one this ticket already contains, one level up. It warns that the `permissions`
+block on `GET /repos` reports the *user's* access rather than the token's, *"which is what made this
+hole easy to miss in the first place"*. The 404 test was written to replace that, and it has the same
+defect: **it reads a response that is not about the token.** The test now used is a call that fails
+without push access, so a refusal is the token's refusal.
+
+Whether the token was ever over-scoped, this cannot say retroactively. The original finding here was
+a `permissions` block, which is exactly the reading this ticket says not to trust.
+
+### Still open, and split out
+
+Criterion 3 — a separate **read-only** token for the status connector — is unchanged and is not part
+of this. Within a venture, a compromised composer still has the lane's reach. That deserves its own
+ticket rather than being folded in here and left half-done.
 
 ## Note for John
 The PAT is yours to mint — I cannot create one. Two minutes:
