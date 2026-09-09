@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   FILTER_LABEL, countTickets, decisionOrder, decisionPosition, filterTickets, nextDecision,
-  DEFAULT_FILTER, parseFilter, rowKey, ticketsSummary, type TicketRow,
+  DEFAULT_FILTER, parseFilter, provenFact, rowKey, ticketsSummary, type TicketRow,
 } from '../tickets-view';
 import type { TicketStatusGroup } from '../tickets';
 
@@ -189,5 +189,40 @@ describe('clearing three decisions in one sitting', () => {
     expect(nextDecision(order, new Set(['arca/OLD']))?.id).toBe('MID');
     expect(nextDecision(order, new Set(['arca/OLD', 'arca/MID']))?.id).toBe('NEW');
     expect(nextDecision(order, new Set(['arca/OLD', 'arca/MID', 'arca/NEW']))).toBeNull();
+  });
+});
+
+describe('what the studio can say was proven (FB-208)', () => {
+  // The decision panel printed "Your team's own checks ran before this reached you" for every ticket
+  // regardless — a sentence nobody had checked, on the screen where a founder decides whether to
+  // accept work into their product.
+  it('says the checks passed only when they passed', () => {
+    expect(provenFact('success')).toContain('passed');
+    expect(provenFact('failure')).not.toContain('and passed');
+  });
+
+  it('says a failure loudly, because it is the one a founder must not skim', () => {
+    expect(provenFact('failure')).toContain('FAILED');
+    expect(provenFact('failure')).toContain('Read what failed');
+  });
+
+  it('does not call a check that has not finished a pass', () => {
+    expect(provenFact('pending')).toContain('still running');
+    expect(provenFact('pending')).not.toContain('passed');
+  });
+
+  it('tells the two silences apart', () => {
+    // "We could not look" and "there was nothing to look at" are different answers, and a founder
+    // deciding on something irreversible is exactly the reader who must not be told otherwise.
+    expect(provenFact('unavailable')).toContain('could not read');
+    expect(provenFact('unknown')).toContain('No checks are recorded');
+    expect(provenFact(null)).toContain('No checks are recorded');
+    expect(provenFact(undefined)).toContain('No checks are recorded');
+  });
+
+  it('never claims proof it does not have', () => {
+    for (const s of ['failure', 'pending', 'unavailable', 'unknown', null, undefined] as const) {
+      expect(provenFact(s), String(s)).not.toMatch(/checks ran on this and passed/);
+    }
   });
 });

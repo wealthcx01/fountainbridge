@@ -17,6 +17,7 @@
 
 import type { TicketProgress } from './ticket-progress';
 import type { TicketStatusGroup, TicketWithMeta } from './tickets';
+import type { PrCiStatus } from './attention';
 
 /** The work waiting on a ticket — a pull request carrying finished work, or an external action. */
 export interface WaitingOn {
@@ -40,6 +41,16 @@ export interface WaitingOn {
    * that landed after they looked — which is precisely what that parameter exists to prevent.
    */
   headSha?: string | null;
+  /**
+   * What this venture's own checks said about the work (FB-208).
+   *
+   * The decision panel printed *"Your team's own checks ran before this reached you"* for every
+   * ticket regardless — a sentence the studio had not checked, on the screen where a founder decides
+   * whether to accept work. It is the same field the work page reads, so the two cannot disagree.
+   *
+   * Absent when the studio does not know, which is a different answer from "they passed".
+   */
+  ciStatus?: PrCiStatus | null;
 }
 
 export interface TicketRow {
@@ -254,4 +265,35 @@ export function decisionPosition(order: TicketRow[], key: string): { n: number; 
  */
 export function nextDecision(order: TicketRow[], decided: ReadonlySet<string>): TicketRow | null {
   return order.find((r) => !decided.has(rowKey(r))) ?? null;
+}
+
+/**
+ * What the studio can actually say about the checks on a piece of work (FB-208).
+ *
+ * The decision panel printed *"Your team's own checks ran before this reached you. Read it in full
+ * before deciding."* for **every ticket regardless** — a sentence nobody had checked, on the screen
+ * where a founder decides whether to accept work into their product. The review's word for it was
+ * that Proven should be a fact.
+ *
+ * So it says what is known, and says plainly when nothing is. `unknown` and `unavailable` are two
+ * different silences and both are honest ones: the first is a piece of work with no checks recorded,
+ * the second is the studio failing to read them. Neither is "they passed", and a founder deciding on
+ * something irreversible is exactly the reader who must not be told the difference does not matter.
+ *
+ * The `null` case is the important one. It means the work is not waiting on the founder at all, so
+ * there is nothing to prove yet.
+ */
+export function provenFact(ciStatus: PrCiStatus | null | undefined): string {
+  switch (ciStatus) {
+    case 'success':
+      return 'Your team’s own checks ran on this and passed. Read it in full before deciding.';
+    case 'failure':
+      return 'Your team’s own checks ran on this and FAILED. Read what failed before deciding.';
+    case 'pending':
+      return 'Your team’s checks are still running on this. What they say is not known yet.';
+    case 'unavailable':
+      return 'The studio could not read this venture’s checks, so it cannot tell you what they said.';
+    default:
+      return 'No checks are recorded against this work, so the studio cannot say it was proven.';
+  }
 }

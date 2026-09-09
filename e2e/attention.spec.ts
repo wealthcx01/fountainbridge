@@ -51,7 +51,12 @@ test('open PR moves its ticket to "Needs your OK" (status inference)', async ({ 
   await page.goto('/venture/arca/tickets');
   // ARCA-1's markdown status is "In progress", but open PR #10 references it → "Needs your OK".
   // The point is that the inferred status wins over the file's own claim.
-  await expect(page.getByTestId('tickets-row-ARCA-1')).toContainText('Needs your OK');
+  //
+  // FB-208 took the status off the row: it was one clause of five on a line that wrapped to three,
+  // and status is what the filter above the list already selects. The inference is read where it now
+  // lives — the ticket's own eyebrow — which is the same claim in a place with room for it.
+  await page.getByTestId('tickets-row-ARCA-1').click();
+  await expect(page.getByTestId('tickets-detail')).toContainText('Needs your OK');
 });
 
 test('a founder sees only their own ventures in the queue', async ({ page }) => {

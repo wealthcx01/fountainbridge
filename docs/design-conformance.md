@@ -23,7 +23,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | **1,000px** | **851px** | **compared, FB-189** — matched on height, wrong on everything else |
 | The desk | ~1,900px | **1,984px** | **2,228px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 1–13 |
-| Tickets | 1,090px | **1,202px** | **1,470px** | fixed FB-185, widened FB-188 (was 6,864 / 8,008) |
+| Tickets | 1,090px | **1,137px** | **1,059px** | fixed FB-185, widened FB-188, FB-208 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
 | Memory | ~1,000px | **1,096px** | **1,988px** | fixed FB-181, widened FB-188 (was 1,570 / 2,881) |
@@ -487,6 +487,29 @@ its signature did not verify.
 
 Unchanged from the FB-203 reading, which is the expected result of deleting two sections that were
 not rendering.
+
+## FB-208 — the tickets screen, 2026-09-09
+
+Read at 1440×1000 and 393×851 on fixtures: **1,137px** and **1,059px**, no sideways scroll at either
+size. The design is 1,090px.
+
+Tabs are text on a hairline now rather than four buttons — which had made the four most button-shaped
+objects on the screen the ones that only narrow a list, beside a detail pane whose buttons merge
+finished work into a founder's product. The row is title, then `ref · surface`, with the wait pushed
+right in amber; status left the row because status is what the filter already selects, and progress
+moved into the detail's eyebrow.
+
+**"Proven" said the same thing about every ticket whether or not it was true.** It now reads
+`ciStatus` — the same field the work page reads, so the two screens cannot tell a founder different
+things about one piece of work — and it tells two silences apart: *"the studio could not read this
+venture's checks"* is not *"no checks are recorded against this work"*, and neither is *"they passed"*.
+
+**One part of R-08 cannot be built yet, and it is worth saying why.** It asks for *"Unchanged since you
+last read it"*. The studio does not remember when a founder last read anything: `headSha` is the commit
+at page render, and `acceptWork` compares it at accept time to refuse work that moved underneath a
+decision. Comparing it to itself on render would always say "unchanged". A per-founder read record is a
+store the studio does not have, and inventing the sentence without it would be the same fault the
+ticket is about.
 
 ## What this scorecard cannot tell you
 

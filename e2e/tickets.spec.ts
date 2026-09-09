@@ -107,16 +107,20 @@ test.describe('the loop is visible on the queue (FB-098)', () => {
   });
 
   test('a worked ticket says so, and the ticket carries the way through', async ({ page }) => {
+    // FB-208 moved progress off the row and into the detail's eyebrow. On the row it was one clause
+    // of five on a line that wrapped to three; here it sits beside the status it qualifies, on the
+    // screen a founder opened to find out. Same text, same states, one click further in.
+    await page.getByTestId('tickets-row-ARCA-1').click();
     const line = page.getByTestId('ticket-progress-ARCA-1');
     await expect(line).toHaveAttribute('data-state', 'worked');
     await expect(line).toContainText('read it and decide');
-    // The line itself is text, not a link: the row already opens the ticket, and a link inside a
-    // link is not a control a keyboard user can reach. The destination is on the ticket.
-    await page.getByTestId('tickets-row-ARCA-1').click();
+    // The line itself is text, not a link: a link inside the eyebrow would be a second control for
+    // the destination the decision panel already carries.
     await expect(page.getByTestId('detail-read-work')).toHaveAttribute('href', '/venture/arca/work/arca/10');
   });
 
   test('a ticket being worked shows when it was picked up and the real check-in', async ({ page }) => {
+    await page.getByTestId('tickets-row-ARCA-6').click();
     const line = page.getByTestId('ticket-progress-ARCA-6');
     await expect(line).toHaveAttribute('data-state', 'working');
     await expect(line).toContainText('picked this up');
@@ -125,6 +129,7 @@ test.describe('the loop is visible on the queue (FB-098)', () => {
 
   test('nothing on a card counts to a finish it cannot know', async ({ page }) => {
     // The honesty rule. A progress bar that lies is the composer-said-it-filed bug in a costume.
+    await page.getByTestId('tickets-row-ARCA-6').click();
     const line = page.getByTestId('ticket-progress-ARCA-6');
     await expect(line).not.toContainText('%');
     await expect(page.locator('progress')).toHaveCount(0);
@@ -166,9 +171,12 @@ test.describe('one number for what is waiting (FB-099)', () => {
   test('work the lane filed under its own branch reaches its ticket', async ({ page }) => {
     // PR 13 is `foundry/deck-export` / "build: deck-export (Foundry lane)" — no id anywhere. Before
     // FB-099 it matched nothing and ARCA-3 sat in "To do" while the badge counted the work.
-    // The board is gone (FB-178); the same claim is now made by the row's status and its progress.
-    await page.goto('/venture/arca/tickets');
-    await expect(page.getByTestId('tickets-row-ARCA-3')).toContainText('Needs your OK');
+    // The board is gone (FB-178) and FB-208 took the status off the row, because status is what the
+    // filter above already selects. The claim is unchanged and is read where it now lives: the
+    // ticket opens under "Needs your OK" in its own eyebrow, with its progress beside it.
+    await page.goto('/venture/arca/tickets?filter=all');
+    await page.getByTestId('tickets-row-ARCA-3').click();
+    await expect(page.getByTestId('tickets-detail')).toContainText('Needs your OK');
     await expect(page.getByTestId('ticket-progress-ARCA-3')).toHaveAttribute('data-state', 'worked');
   });
 
