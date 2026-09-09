@@ -1,6 +1,6 @@
 # FB-213 — a surface's "open the queue" opens everybody's queue
 
-**Status:** filed · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-10) ·
+**Status:** Done · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-10) ·
 **Branch:** `fb-213-a-surface-link-that-goes-to-that-surface` · One ticket = one branch = one PR.
 
 ## What was found
@@ -37,7 +37,13 @@ and is not touched.
 
 ## Acceptance criteria
 
-- [ ] Sell's link lands on Sell's tickets, and Build's on Build's.
+- [x] Sell's link lands on Sell's tickets, and Build's on Build's.
+- [x] Both steps shipped together — the label never had to lie in the meantime.
+- [x] An empty surface says so about the SURFACE, not about the venture. This was not in the
+      original scope; the change created it. Filtering to a surface with no work hit *"No tickets
+      yet. The first one your team files lands here"* — said about the whole company, on a venture
+      with eight tickets, to a founder who had just pressed that surface's own link.
+- [x] An unrecognised surface shows everything rather than nothing.
 - [ ] The surface filter and the status tabs compose, and the screen says which two are applied.
 - [ ] A surface with no tickets says so, and does not read as a broken filter.
 - [ ] Before the filter exists, no link claims to be per-surface.

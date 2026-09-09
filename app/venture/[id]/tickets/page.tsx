@@ -11,7 +11,7 @@ import { VentureForbidden } from '@/components/VentureForbidden';
 import { TicketsView } from '@/components/TicketsView';
 import { TicketTrail } from '@/components/TicketTrail';
 import type { VentureSummary } from '@/lib/ventures';
-import { filterTickets, parseFilter, resolveSelected, rowKey, type TicketRow } from '@/lib/tickets-view';
+import { filterTickets, parseFilter, resolveSelected, rowKey, type TicketRow, onSurface, resolveSurface } from '@/lib/tickets-view';
 import { type ActiveGraphApproval } from '@/lib/approvals';
 import { engineState, type RunReport } from '@/lib/runreports';
 import { ticketProgress } from '@/lib/ticket-progress';
@@ -43,13 +43,13 @@ export default async function TicketsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ filter?: string; t?: string; refresh?: string }>;
+  searchParams: Promise<{ filter?: string; t?: string; refresh?: string; surface?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.email) redirect('/login');
 
   const { id } = await params;
-  const { filter, t, refresh } = await searchParams;
+  const { filter, t, refresh, surface } = await searchParams;
 
   const ventures = loadVentures();
   const access = authorizeVentures(session.user.email, ventures, parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS));
@@ -176,14 +176,36 @@ export default async function TicketsPage({
 
   const refs = new Map(inferred.map((lane) => [lane.repo, lane.ref]));
 
+  // FB-213: which part of the company, before which state its work is in. The desk's three surface
+  // columns each said "open the queue →" and all three landed here unfiltered, so pressing Sell's
+  // showed Build's work — a control the studio drew, telling a founder something untrue.
+  //
+  // An unresolvable surface falls back to everything rather than to nothing: an empty screen would
+  // read as "this surface has no work", which is a claim about the venture made from a typo.
+  const askedSurface = resolveSurface(
+    surface,
+    // A department can be declared with no repository yet — Scale, before it is connected. It has
+    // no queue to open, so it is not a surface anybody can be sent to.
+    (venture.departments ?? [])
+      .filter((d): d is typeof d & { repo: string } => typeof d.repo === 'string' && d.repo.length > 0)
+      .map((d) => ({ id: d.id, repo: d.repo })),
+    [...new Set(rows.map((r) => r.repo))],
+  );
+  const surfaceRows = onSurface(rows, askedSurface);
+  const surfaceName = askedSurface
+    ? (venture.departments ?? []).find((d) => d.repo === askedSurface)?.name ?? askedSurface
+    : null;
+
   const activeFilter = parseFilter(filter);
-  const selected = resolveSelected(rows, filterTickets(rows, activeFilter), typeof t === 'string' ? t : null);
+  const selected = resolveSelected(surfaceRows, filterTickets(surfaceRows, activeFilter), typeof t === 'string' ? t : null);
 
   return (
     <TicketsView
       ventureId={venture.id}
       ventureName={venture.name}
-      rows={rows}
+      rows={surfaceRows}
+      surfaceName={surfaceName}
+      surfaceKey={surface ?? null}
       filter={activeFilter}
       // The RESOLVED key, not the raw query. The client used to resolve it again with different
       // fallbacks, so the trail loaded here could belong to a different ticket than the one rendered.

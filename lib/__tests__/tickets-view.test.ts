@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   FILTER_LABEL, countTickets, decisionOrder, decisionPosition, filterTickets, nextDecision,
-  DEFAULT_FILTER, parseFilter, provenFact, rowKey, ticketsSummary, type TicketRow,
+  DEFAULT_FILTER, onSurface, parseFilter, provenFact, resolveSurface, rowKey, ticketsSummary,
+  type TicketRow,
 } from '../tickets-view';
 import type { TicketStatusGroup } from '../tickets';
 
@@ -224,5 +225,61 @@ describe('what the studio can say was proven (FB-208)', () => {
     for (const s of ['failure', 'pending', 'unavailable', 'unknown', null, undefined] as const) {
       expect(provenFact(s), String(s)).not.toMatch(/checks ran on this and passed/);
     }
+  });
+});
+
+/**
+ * FB-213 — a surface's link goes to that surface.
+ */
+describe('which surface the founder asked for', () => {
+  const depts = [{ id: 'build', repo: 'arca' }, { id: 'sell', repo: 'arca-marketing' }];
+  const repos = ['arca', 'arca-marketing', 'arca-ops'];
+
+  it('resolves a department id, which is what belongs in a URL', () => {
+    expect(resolveSurface('sell', depts, repos)).toBe('arca-marketing');
+  });
+
+  it('resolves a bare repository, for a queue with no department', () => {
+    // "Other queues" on the desk are lanes the manifest does not claim. They have no founder-facing
+    // name, so their link can only carry the repository — one parameter, both kinds.
+    expect(resolveSurface('arca-ops', depts, repos)).toBe('arca-ops');
+  });
+
+  it('is not case-sensitive, because a URL gets typed and pasted', () => {
+    expect(resolveSurface('SELL', depts, repos)).toBe('arca-marketing');
+  });
+
+  it('returns null for a surface it does not know, rather than filtering to nothing', () => {
+    // An empty screen would read as "this surface has no work" — a claim about the venture made
+    // from a typo in a URL.
+    expect(resolveSurface('markteing', depts, repos)).toBeNull();
+    expect(resolveSurface('', depts, repos)).toBeNull();
+    expect(resolveSurface(undefined, depts, repos)).toBeNull();
+  });
+
+  it('prefers the department id when a repo happens to share the name', () => {
+    expect(resolveSurface('build', [{ id: 'build', repo: 'arca' }], ['build'])).toBe('arca');
+  });
+});
+
+describe('the rows of one surface', () => {
+  const row = (repo: string, id: string): TicketRow => ({
+    id, title: id, repo, group: 'todo', item: null, waiting: null, surface: null, progress: null,
+  });
+
+  it('keeps only that surface', () => {
+    const rows = [row('arca', 'A-1'), row('arca-marketing', 'M-1'), row('arca', 'A-2')];
+    expect(onSurface(rows, 'arca').map((r) => r.id)).toEqual(['A-1', 'A-2']);
+  });
+
+  it('keeps everything when no surface was asked for', () => {
+    const rows = [row('arca', 'A-1'), row('arca-marketing', 'M-1')];
+    expect(onSurface(rows, null)).toHaveLength(2);
+  });
+
+  it('does not mutate the caller’s array', () => {
+    const rows = [row('arca', 'A-1')];
+    onSurface(rows, 'arca-marketing');
+    expect(rows).toHaveLength(1);
   });
 });

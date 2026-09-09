@@ -51,11 +51,23 @@ export function TicketsView({
   filedBranches = {},
   org,
   errors = [],
+  surfaceName = null,
+  surfaceKey = null,
 }: {
   ventureId: string;
   ventureName: string;
   rows: TicketRow[];
   filter: TicketFilter;
+  /**
+   * The surface being shown, in the founder's words — "Sell — Go-to-market" (FB-213).
+   *
+   * Null means every surface. When it is set the screen must SAY so: a filtered list that looks
+   * like the whole list is how a founder concludes work has vanished, and the three desk links that
+   * caused this ticket were untrue in exactly that direction.
+   */
+  surfaceName?: string | null;
+  /** What the URL asked for, so "show every surface" can drop just this parameter. */
+  surfaceKey?: string | null;
   selectedId: string | null;
   /**
    * True when the founder actually opened a ticket (`?t=` is in the URL), as opposed to the screen
@@ -129,6 +141,29 @@ export function TicketsView({
       <p className="eyebrow"><span className="eyebrow-id">{ventureName}</span> — Tickets</p>
       <h1 style={{ margin: '0 0 0.5rem' }}>Tickets</h1>
 
+      {/* Which surface, when the founder came from one (FB-213).
+          A filtered list that looks like the whole list is how somebody concludes their work has
+          vanished — and the three desk links that caused this ticket were untrue in exactly that
+          direction, so this half has to be as loud as the filtering. The way back drops only the
+          surface, keeping whichever status tab they are on. */}
+      {surfaceName ? (
+        <p data-testid="tickets-surface" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.5rem' }}>
+          Showing <strong>{surfaceName}</strong>.{' '}
+          <button
+            type="button"
+            className="link-button"
+            data-testid="tickets-surface-clear"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('surface');
+              router.replace(`${url.pathname}${url.search}`, { scroll: false });
+            }}
+          >
+            Show every surface
+          </button>
+        </p>
+      ) : null}
+
       {/* FB-208: tabs on a hairline, not four buttons.
           `.btn` and `.btn-primary` made the four most button-shaped objects on this screen the ones
           that only narrow a list — beside a detail pane whose buttons merge finished work into a
@@ -171,7 +206,7 @@ export function TicketsView({
           a partial list plus a note of what is missing beats an apology instead of the half we have. */}
       {panel === 'unreadable' ? null : (
         <p data-testid="tickets-summary" className="muted" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-          {ticketsSummary(counts)}
+          {ticketsSummary(counts, surfaceName)}
         </p>
       )}
 
@@ -190,7 +225,9 @@ export function TicketsView({
               said about a list the studio could not read. */}
           {shown.length === 0 && panel !== 'unreadable' ? (
             <li className="card muted" data-testid="tickets-list-empty" style={{ fontSize: 'var(--fs-body-sm)' }}>
-              Nothing here. The queue is clear.
+              {/* "The queue is clear" is a claim about the venture. On a filtered surface it is a
+                  claim about the filter, and the two must not read the same (FB-213). */}
+              {surfaceName ? `Nothing here on ${surfaceName}.` : 'Nothing here. The queue is clear.'}
             </li>
           ) : null}
           {shown.map((r) => (

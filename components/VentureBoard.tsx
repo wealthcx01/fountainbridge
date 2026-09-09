@@ -713,8 +713,14 @@ export function VentureBoard({
                       Open your outbox ↗
                     </a>
                   ) : null}
+                  {/* FB-213: to THIS surface's queue. All three of these linked `/tickets` with no
+                      filter, so Build, Sell and Scale landed on the same screen and a founder
+                      pressing Sell's got Build's work — a control the studio drew, promising
+                      something it did not do. The department's own id is what goes in the URL,
+                      because it is the name the founder just pressed. */}
                   {laneOf(d.repo) && !laneOf(d.repo)?.error && laneOf(d.repo)!.total > 0 ? (
-                    <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${d.repo}`}>
+                    <Link href={`/venture/${venture.id}/tickets?surface=${encodeURIComponent(d.id)}`}
+                          data-testid={`lane-open-${d.repo}`}>
                       open the queue →
                     </Link>
                   ) : null}
@@ -791,7 +797,11 @@ export function VentureBoard({
               <span className="mono muted" style={{ fontSize: 'var(--fs-meta)' }}>{lane.repo}</span>{' '}
               <span className="muted">{lane.total} ticket{lane.total === 1 ? '' : 's'}</span>
               {' — '}
-              <Link href={`/venture/${venture.id}/tickets`} data-testid={`lane-open-${lane.repo}`}>
+              {/* No department claims this lane, so it has no founder-facing name to put in the
+                  URL — its repository is the only thing that identifies it. `resolveSurface`
+                  accepts either, which is what keeps this one mechanism (FB-213). */}
+              <Link href={`/venture/${venture.id}/tickets?surface=${encodeURIComponent(lane.repo)}`}
+                    data-testid={`lane-open-${lane.repo}`}>
                 open the queue
               </Link>
             </p>
