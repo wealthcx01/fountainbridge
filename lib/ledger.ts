@@ -81,7 +81,20 @@ export type LedgerTone = 'unknown' | 'blocked' | 'attention' | 'ok' | 'idle';
 
 export function rowTone(row: LedgerRow): LedgerTone {
   if (row.degraded) return 'unknown';
-  if (row.engine?.state === 'stalled' || row.spend?.over) return 'blocked';
+  // FB-211: a stalled machine is `blocked`; over budget is NOT.
+  //
+  // These sat together on one line and the colour was inherited rather than chosen. Red is for a
+  // fault nobody on the venture can clear — a machine that has stopped, a read that will not come
+  // good. Spending past a limit is a decision waiting on the one person who can end it, which is
+  // what `attention` means, and it is the same class as the amber banner on the desk.
+  //
+  // It has to change HERE and not only in the cell's colour: `rowTone` drives the row's single
+  // state mark and `rowReason`'s words (FB-210). Re-colouring the number alone would have left an
+  // amber figure on a row marked red — one fact, two answers, which is the thing FB-210 fixed.
+  if (row.engine?.state === 'stalled') return 'blocked';
+  // Over budget outranks a plain count of things waiting: both are `attention`, and the sentence
+  // below picks the more urgent of the two to say out loud.
+  if (row.spend?.over) return 'attention';
   if ((row.needsThem ?? 0) > 0) return 'attention';
   if ((row.underway ?? 0) > 0) return 'ok';
   return 'idle';
@@ -100,9 +113,13 @@ export function rowReason(row: LedgerRow): string {
     case 'unknown':
       return 'Some of this venture’s records could not be read, so these numbers are incomplete.';
     case 'blocked':
-      if (row.engine?.state === 'stalled') return 'Its team has stopped — this needs fixing, not deciding.';
-      return 'Spending has passed the limit this venture set.';
+      // Only one thing reaches here now (FB-211). Kept as a branch rather than collapsed, so that a
+      // future state added to `blocked` has to say what it is instead of inheriting this sentence.
+      return 'Its team has stopped — this needs fixing, not deciding.';
     case 'attention': {
+      // Over budget first: it is the more urgent of the two things amber can mean here, and a row
+      // that is both over its limit and holding work should say the part that costs money.
+      if (row.spend?.over) return 'Spending has passed the limit this venture set.';
       const n = row.needsThem ?? 0;
       return `${n} thing${n === 1 ? '' : 's'} waiting on ${row.founderName ?? 'its founder'}.`;
     }

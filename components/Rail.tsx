@@ -116,7 +116,10 @@ export function Rail({
                   display: 'flex',
                   justifyContent: 'space-between',
                   gap: '0.5rem',
-                  color: b?.overLimit ? toneColor('blocked') : 'var(--color-ink-muted)',
+                  // FB-211: amber. Over budget is a decision waiting on this founder, not a fault
+                  // they cannot clear — and this rail is on every screen, so a routine state in the
+                  // alarm colour is the fastest way to teach somebody to ignore it.
+                  color: b?.overLimit ? toneColor('attention') : 'var(--color-ink-muted)',
                 }}
               >
                 <span>{shortName(d.name)}</span>

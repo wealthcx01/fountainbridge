@@ -1,6 +1,6 @@
 # FB-211 — amber for a decision, red only for a fault nobody can clear
 
-**Status:** filed · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-03) ·
+**Status:** Done · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-03) ·
 **Branch:** `fb-211-amber-for-decisions-red-for-faults` · One ticket = one branch = one PR.
 
 ## What was found

@@ -38,7 +38,11 @@ test.describe('department budget disclosure', () => {
     // The board shows committed spend plus what is queued — it is not deciding a proposal.
     await expect(budget).toContainText('The venture reports £4,000 spent, £5,200 more awaiting your OK');
     await expect(budget).toContainText('192% of the limit');
-    await expect(budget).toHaveCSS('color', 'rgb(138, 32, 32)'); // --color-error
+    // AMBER, not red (FB-211). Over budget is a decision waiting on the founder who set the limit —
+    // the same class as the banner at the top of this page — and red is reserved for a fault nobody
+    // on the venture can clear. Spending the alarm colour on a routine state is how a founder learns
+    // to stop seeing it.
+    await expect(budget).toHaveCSS('color', 'rgb(138, 90, 0)'); // --tone-attention
     // FB-068: the provenance moved here with the position. FB-054's reasoning is unchanged — the
     // studio owns the limit and does not own the spend, and it says so where the figure is stated.
     await expect(budget).toContainText('Limit set in the studio; spend as reported by the venture');

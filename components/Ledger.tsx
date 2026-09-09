@@ -89,8 +89,12 @@ export function LedgerRowView({ row }: { row: LedgerRow }) {
           style={{ color: row.engine?.state === 'stalled' ? toneColor('blocked') : undefined }}>
         {row.engine ? row.engine.text : <Absent />}
       </td>
+      {/* FB-211: amber, not red. This is the same over-limit state the desk and the rail show, and
+          it is a decision waiting on somebody rather than a fault nobody can clear — so it must not
+          be a third colour for one fact. The stalled-engine column beside it stays red, because that
+          is a fault. */}
       <td data-testid={`ledger-spend-${row.ventureId}`}
-          style={{ color: row.spend?.over ? toneColor('blocked') : undefined }}>
+          style={{ color: row.spend?.over ? toneColor('attention') : undefined }}>
         {row.spend ? (
           <>
             {formatMoney(row.spend.spentMinor, row.spend.currency)}
