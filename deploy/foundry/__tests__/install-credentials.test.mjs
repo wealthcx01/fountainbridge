@@ -100,3 +100,34 @@ describe('moving a box to one credential home (FB-176)', () => {
     expect(existsSync(at('etc/foundry/credentials')), 'an empty home file was left behind').toBe(false);
   });
 });
+
+describe('a key list is always one short of the box it is run on (FB-176)', () => {
+  it('moves a secret whose key nobody thought to write down', () => {
+    // ARCA's composer held a TAVILY_API_KEY. It was not in SECRET_KEYS, so the first real migration
+    // left it behind and the scan afterwards found it — the same partial rotation this ticket exists
+    // to prevent, committed by the script written to prevent it.
+    const FAKE_TAVILY = `tvly-${'C'.repeat(30)}`;
+    writeFileSync(at('opt/foundry/librechat/.env'),
+      `HOST=0.0.0.0\nSOMETHING_NOBODY_LISTED=${FAKE_TAVILY}\nTICKET_GITHUB_TOKEN=${FAKE_PAT}\n`);
+    run();
+
+    const home = readFileSync(at('etc/foundry/credentials'), 'utf8');
+    expect(home, 'a credential the list did not name was left behind').toContain(FAKE_TAVILY);
+    expect(read('opt/foundry/librechat/.env')).not.toContain(FAKE_TAVILY);
+
+    // And the scanner agrees, which is the property that matters: anything it would fail on has
+    // already been moved.
+    const { findings } = scanRoots([at('opt'), at('etc')], { allowed: new Set([at('etc/foundry/credentials')]) });
+    expect(findings, findings.map((f) => `${f.path}:${f.line}`).join(', ')).toEqual([]);
+  });
+
+  it('leaves a setting that merely looks like a name alone', () => {
+    // The value is what decides, not the key. A key called SECRET_MODE holding "off" is a setting.
+    writeFileSync(at('opt/foundry/lane/lane.env'),
+      `SECRET_MODE=off\nAPI_KEY_HEADER=x-api-key\nTICKET_GITHUB_TOKEN=${FAKE_PAT}\n`);
+    run();
+    const lane = read('opt/foundry/lane/lane.env');
+    expect(lane).toContain('SECRET_MODE=off');
+    expect(lane).toContain('API_KEY_HEADER=x-api-key');
+  });
+});

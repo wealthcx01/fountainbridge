@@ -144,6 +144,37 @@ done
 Then file one real ticket through the composer and let one lane wake, so the narrower token is proven
 by use and not just by a probe.
 
+## Re-checked on the box — 2026-09-09
+
+John reports that a fine-grained `arca-box` token exists, scoped to `arca`, `arca-marketing` and
+`arca-ops`, and that `foundry-studio-approvals` now includes `fountainbridge`. Both are the right
+shape.
+
+**The `arca-box` token is not the one on the box.** Run from `/etc/foundry/credentials` on
+`venture-arca`, against the check at the top of this ticket:
+
+```
+arca               200
+arca-marketing     200
+arca-ops           200
+fountainbridge     200      ← the studio's own repository
+grassmarket        200      ← another venture entirely
+```
+
+It is a `github_pat_` token, so those are not visibility artefacts: a fine-grained token that was
+never granted a repository returns 404. And the decisive test —
+`GET /repos/wealthcx01/fountainbridge/contents/README.md` — returns **200**. The credential the lane,
+the composer's ticket-filer and the deposit tool all share can read files out of the studio a founder
+approves things in.
+
+So the token was minted and never installed. The old org-wide one is still live and still in use.
+
+**This is now a one-file change**, which it was not before today. FB-176 put every secret on that box
+in `/etc/foundry/credentials` (root, `0600`), so swapping it is: put the new value in that file,
+restart `foundry-lane.timer`, recreate the composer container, and revoke the old token — in that
+order, so the box is proven working before anything is revoked
+(`docs/rotating-a-venture-credential.md`).
+
 ## Note for John
 The PAT is yours to mint — I cannot create one. Two minutes:
 

@@ -112,3 +112,77 @@ describe('the net itself', () => {
     }
   });
 });
+
+/**
+ * FB-176, second pass — what running it on a real box taught.
+ *
+ * The first version returned **727 findings** on ARCA's box. Two were real; the rest were a settings
+ * form with a `password` field, a pricing provider with `apiKey =`, jQuery's minified bundle, a
+ * ticket file *about* an API key in source, and the scanner's own credential helper matching on the
+ * words `access-token` in its documentation.
+ *
+ * A report nobody can read is the same failure as a log nobody opens, which is the thing this ticket
+ * exists to fix.
+ */
+describe('a report a person can actually read (FB-176)', () => {
+  it('does not let source code bury a real credential', () => {
+    put('opt/foundry/lane/arca/client/SettingsPage.tsx', 'const f = { password: "placeholder-value" }\n');
+    put('opt/foundry/lane/arca/db/seed.ts', 'const admin = { password: "seed-password-here" }\n');
+    put('opt/foundry/lane/arca/modules/pricing.ts', 'const apiKey = process.env.PRICING_KEY ?? "unset-placeholder"\n');
+    const real = put('opt/foundry/lane/lane.env', `TICKET_GITHUB_TOKEN=${FAKE_PAT}\n`);
+
+    const { findings, weak } = scanRoots([at('opt')]);
+    // The credential is the finding. The three source files are counted, not listed among them.
+    expect(findings.map((f) => f.path)).toEqual([real]);
+    expect(weak.length).toBe(3);
+
+    const said = report({ findings, weak, problems: [] });
+    expect(said).toContain('1 credential found');
+    expect(said).toContain('3 lines also matched the looser password/secret rule');
+    expect(said, 'the loose matches were listed without being asked for').not.toContain('SettingsPage.tsx');
+  });
+
+  it('lists the loose matches when asked, because they are counted and not hidden', () => {
+    put('opt/foundry/lane/arca/db/seed.ts', 'const admin = { password: "seed-password-here" }\n');
+    const result = scanRoots([at('opt')]);
+    const said = report(result, '/etc/foundry/credentials', true);
+    expect(said).toContain('seed.ts');
+    expect(said).toContain('a password/secret assignment');
+  });
+
+  it('exits on a credential, and not on a form field', () => {
+    // The exit code is what a systemd timer notices. A scan that failed daily because a venture's
+    // own source contains the word `password` is a scan whose failure means nothing within a week.
+    put('opt/foundry/lane/arca/client/SettingsPage.tsx', 'const f = { password: "placeholder-value" }\n');
+    expect(scanRoots([at('opt')]).findings, 'a form field counted as a credential').toEqual([]);
+
+    put('opt/foundry/lane/lane.env', `TICKET_GITHUB_TOKEN=${FAKE_PAT}\n`);
+    expect(scanRoots([at('opt')]).findings.length, 'a real credential did not count').toBe(1);
+  });
+
+  it('keeps reading a file after a loose match, in case a real one is further down', () => {
+    put('opt/foundry/lane/arca/config.ts', [
+      'const form = { password: "placeholder-value" }',
+      'const other = 1',
+      `const token = "${FAKE_PAT}"`,
+    ].join('\n'));
+    const { findings } = scanRoots([at('opt')]);
+    expect(findings.length, 'a loose match on line 1 hid a credential on line 3').toBe(1);
+    expect(findings[0].line).toBe(3);
+  });
+});
+
+describe('what the scan skips, and what it must never skip (FB-176)', () => {
+  it('does not fail daily over a dependency’s example credentials', () => {
+    // 23 of the 26 findings on ARCA's box were a vendored toolkit's redaction test fixtures.
+    put('root/.claude/skills/gstack/test/redact.test.ts', `expect(redact("${FAKE_PAT}"))\n`);
+    expect(scanRoots([at('root')]).findings, 'a dependency’s fixture counted as a credential').toEqual([]);
+  });
+
+  it('still reads the agent transcripts, which is where three real ones were found', () => {
+    // The sibling directory, and the reason this scanner exists. A token was written into three
+    // session transcripts over three weeks by nobody's decision, and nothing noticed.
+    const t = put('root/.claude/projects/arca/2026-08-03.jsonl', `{"text":"${FAKE_PAT}"}\n`);
+    expect(scanRoots([at('root')]).findings.map((f) => f.path)).toEqual([t]);
+  });
+});

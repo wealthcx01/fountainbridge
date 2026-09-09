@@ -67,13 +67,35 @@ describe('the studio and the composer refuse the same credentials', () => {
     }
   });
 
-  /** The same extraction, against the box's credential scanner (FB-176). */
-  const scannerLabels = (() => {
+  /**
+   * The same extraction, against the box's credential scanner (FB-176) — which carries a third
+   * element, the grade.
+   *
+   * The box scanner sweeps a whole filesystem rather than one deposited document, so it sorts its
+   * patterns into `strong` (a shape only a credential has) and `loose` (the assignment heuristic).
+   * Run against ARCA's box for the first time the ungraded version returned 727 findings, two of
+   * them real. The grade decides what a person is shown first; it does not decide what is looked
+   * for, which is what this test is about.
+   */
+  const scannerRows = (() => {
     const start = scannerSource.indexOf('const SECRET_PATTERNS = [');
     expect(start, 'the box scanner has no SECRET_PATTERNS array').toBeGreaterThan(-1);
     const block = scannerSource.slice(start, scannerSource.indexOf('\n];', start));
-    return [...block.matchAll(/,\s*'([^']+)'\]/g)].map((m) => m[1]);
+    return [...block.matchAll(/,\s*'([^']+)',\s*'(strong|loose)'\]/g)].map((m) => ({ label: m[1], grade: m[2] }));
   })();
+  const scannerLabels = scannerRows.map((r) => r.label);
+
+  it('every pattern on the box is graded, so none is silently downgraded', () => {
+    // A pattern that lost its grade would fall out of the extraction above and then out of the two
+    // comparisons below — a rule quietly stopping being checked, which is the failure this whole
+    // file exists to catch.
+    const ungraded = scannerSource
+      .slice(scannerSource.indexOf('const SECRET_PATTERNS = ['), scannerSource.indexOf('\n];', scannerSource.indexOf('const SECRET_PATTERNS = [')))
+      .split('\n')
+      .filter((l) => l.trim().startsWith('[/'))
+      .filter((l) => !/'(strong|loose)'\],?$/.test(l.trim()));
+    expect(ungraded, 'a pattern on the box scanner has no grade').toEqual([]);
+  });
 
   it('the box\u2019s credential scanner looks for everything the studio refuses', () => {
     // The scanner is the third copy. A rule added to the studio and not to it means a box stops
