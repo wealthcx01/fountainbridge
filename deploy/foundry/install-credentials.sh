@@ -16,7 +16,40 @@ CHAT_ENV="${CHAT_ENV:-/opt/foundry/librechat/.env}"
 
 # The keys that are secrets. Everything else in those files stays exactly where it is — this moves
 # credentials, it does not reorganise a box's configuration.
-SECRET_KEYS="TICKET_GITHUB_TOKEN STATUS_GITHUB_TOKEN ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN COMPOSER_API_KEY FOUNDRY_OFFICE_SECRET FOUNDRY_APPROVAL_SECRET"
+#
+# Two ways in, because one was not enough. This list is the named set; below it, ANY key whose VALUE
+# looks like a credential is moved too.
+#
+# The list alone missed one on the first real run. ARCA's composer held a `TAVILY_API_KEY`, which
+# nobody had thought to write down here, so the migration left it behind and the scan found it — the
+# same partial rotation this ticket exists to prevent, committed by the script written to prevent it.
+# A hand-maintained list of key names will always be one short of the box it is run on.
+SECRET_KEYS="TICKET_GITHUB_TOKEN STATUS_GITHUB_TOKEN ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN COMPOSER_API_KEY FOUNDRY_OFFICE_SECRET FOUNDRY_APPROVAL_SECRET TAVILY_API_KEY"
+
+# What a credential's VALUE looks like — the same shapes `deploy/foundry/secret-scan.mjs` calls
+# `strong`. So the installer moves anything the scanner would flag, and the two cannot disagree about
+# what a secret is: if the scan would fail on it, the migration has already moved it.
+SECRET_VALUE_RE='^(github_pat_[A-Za-z0-9_]{40,}|gh[pousr]_[A-Za-z0-9]{36,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|tvly-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})'
+
+# Every key in a source file whose value looks like a credential, named but not printed.
+keys_by_value() {
+  [ -f "$1" ] || return 0
+  while IFS= read -r line; do
+    case "$line" in
+      [A-Z]*=*)
+        k="${line%%=*}"
+        v="${line#*=}"
+        v="${v%\"}"; v="${v#\"}"
+        if printf '%s\n' "$v" | grep -Eq "$SECRET_VALUE_RE"; then printf '%s\n' "$k"; fi
+        ;;
+    esac
+  done < "$1"
+  # Always 0. The last command in that loop is a test, and a file with no credentials in it makes it
+  # false — which under `set -e`, inside the command substitution that calls this, killed the whole
+  # script before it reached its own "nothing to move" check. It left an empty credentials file
+  # behind: the exact state the check exists to prevent, caused by the check never running.
+  return 0
+}
 
 say() { printf '[credentials] %s\n' "$*"; }
 die() { printf '[credentials] %s\n' "$*" >&2; exit 1; }
@@ -45,9 +78,13 @@ value_of() {
 
 has_key() { grep -q "^${1}=" "$HOME_FILE" 2>/dev/null; }
 
+# The named set plus whatever the values give away, deduplicated.
+ALL_KEYS="$(printf '%s\n' $SECRET_KEYS; keys_by_value "$LANE_ENV"; keys_by_value "$CHAT_ENV")"
+ALL_KEYS="$(printf '%s\n' "$ALL_KEYS" | sort -u)"
+
 moved=0
 kept=0
-for key in $SECRET_KEYS; do
+for key in $ALL_KEYS; do
   if has_key "$key"; then
     kept=$((kept + 1))
     continue
@@ -82,7 +119,7 @@ fi
 for src in "$LANE_ENV" "$CHAT_ENV"; do
   [ -f "$src" ] || continue
   touched=0
-  for key in $SECRET_KEYS; do
+  for key in $ALL_KEYS; do
     has_key "$key" || continue
     grep -q "^[[:space:]]*${key}=" "$src" || continue
     if [ "$touched" -eq 0 ]; then

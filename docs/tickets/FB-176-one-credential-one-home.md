@@ -67,6 +67,54 @@ credentials actually are.
       `deploy/foundry/secret-scan.mjs`, tested against all five, asserting it names the file and the
       line and never the value.
 - [ ] **A planted token surfaces in the studio, not only in a log.** — **not done. FB-206.**
+
+## Run on ARCA's box — 2026-09-09
+
+John authorised the migration. It is done, and the box's own scan says so:
+
+> **No credential found outside `/etc/foundry/credentials`.** (exit 0)
+
+Four secrets now live in one root-only file: `TICKET_GITHUB_TOKEN`, `ANTHROPIC_API_KEY`,
+`CLAUDE_CODE_OAUTH_TOKEN`, `TAVILY_API_KEY`. The lane ran a pass and pushed a run report — a real git
+write, through a **tokenless remote** and the new credential helper — and the composer answers 200
+with its credentials from the same file.
+
+### Three things the real box taught, none of which a fixture would have
+
+**1. The scan returned 727 findings.** Two were real. The rest were a settings form with a `password`
+field, a pricing provider with `apiKey =`, jQuery's minified bundle, a ticket file *about* an API key
+in source, and **this ticket's own credential helper**, matching on the words `access-token` in its
+documentation.
+
+The other two copies of that pattern set scan **one document a founder hands over**, where a coarse
+net is right: a false positive costs a rename. This one sweeps **a filesystem containing source
+code**, where the same net is unusable. The patterns are graded now — `strong` shapes only a
+credential has, `loose` for the assignment heuristic, which is counted and summarised rather than
+listed. A report nobody can read is the same failure as a log nobody opens.
+
+**2. Twenty-three of the remaining twenty-six were a dependency's test fixtures.** `/root/.claude/skills/gstack/`
+is a vendored toolkit whose redaction library ships example AWS keys and private keys, as it should.
+A daily timer that fails every day because a dependency contains an example credential is a timer
+whose failure means nothing within a week. `skills` is skipped, like `node_modules`. **`projects` is
+not** — that is the sibling directory where three live tokens were actually found, and it is the
+reason this scanner exists.
+
+**3. The key list was one short of the box it ran on.** ARCA's composer held a `TAVILY_API_KEY` that
+nobody had written into `SECRET_KEYS`, so the first migration left it behind and the scan found it —
+**the same partial rotation this ticket exists to prevent, committed by the script written to prevent
+it.** The installer now also moves any key whose *value* matches a strong pattern, so it moves
+anything the scanner would fail on and the two cannot disagree about what a secret is.
+
+And one bug found by that fix: the value check's last command is a test, which under `set -e` inside a
+command substitution killed the script before it reached its own "nothing to move" guard — leaving an
+empty credentials file behind, which is exactly the state that guard exists to prevent.
+
+### Left behind on purpose
+
+The box still runs the pre-FB-205 `run-once.sh`, so new run reports still say *"Daily lane budget
+reached"*. The studio's rewriter renders it correctly, so a founder reads the right sentence either
+way. Deploying the lane scripts is a bigger blast radius than a credential move and was not what was
+authorised today.
 - [x] The runbook lists every consumer, and rotating by it leaves nothing stale. —
       `docs/rotating-a-venture-credential.md`.
 
