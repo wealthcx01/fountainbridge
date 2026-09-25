@@ -37,6 +37,7 @@ import { loadVentures, type VentureSummary } from './ventures';
 import { GitHubClient } from './github';
 import { loadApprovals, githubApprovalSource, fixtureApprovalSource, type ActiveGraphApproval } from './approvals';
 import { loadRunReports, loadLiveness, type RunReport } from './runreports';
+import { cachedRunReportSource } from './runreports-cache';
 import { githubRunReportSource, fixtureRunReportSource } from './runreports-load';
 
 /**
@@ -52,10 +53,22 @@ function approvalSource() {
     : githubApprovalSource(new GitHubClient());
 }
 
-function runReportSource() {
-  return process.env.RUNREPORTS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1'
-    ? fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR)
-    : githubRunReportSource(new GitHubClient());
+/**
+ * Where run reports come from, and what remembers them (FB-170).
+ *
+ * The fixture source is untouched: the UI gate must exercise the studio, not a cache, and a gate
+ * whose answers depend on what a previous test warmed is a gate that reports different things on
+ * different days.
+ *
+ * In production the GitHub source is wrapped. `cachedRunReportSource` hands the origin straight back
+ * when no database is configured, so a studio without one behaves exactly as it did — this is a
+ * saving, never a dependency.
+ */
+function runReportSource(ventureId: string) {
+  if (process.env.RUNREPORTS_FIXTURE_DIR && process.env.E2E_TEST_LOGIN === '1') {
+    return fixtureRunReportSource(process.env.RUNREPORTS_FIXTURE_DIR);
+  }
+  return cachedRunReportSource(ventureId, githubRunReportSource(new GitHubClient()));
 }
 
 /** The manifest for an id, or null. Cheap — the manifests are files in this repo. */
@@ -68,7 +81,7 @@ const NO_RUNS: Runs = { reports: [], heartbeats: [], checkIns: [], total: 0 };
 
 const runsById = cache(async (ventureId: string): Promise<Runs> => {
   const venture = ventureFor(ventureId);
-  return venture ? loadRunReports(venture, runReportSource()) : NO_RUNS;
+  return venture ? loadRunReports(venture, runReportSource(ventureId)) : NO_RUNS;
 });
 
 const approvalsById = cache(async (ventureId: string): Promise<ActiveGraphApproval[]> => {
@@ -91,7 +104,7 @@ export const ventureApprovals = (venture: VentureSummary): Promise<ActiveGraphAp
 
 const livenessById = cache(async (ventureId: string): Promise<{ at: string | null; degraded: boolean }> => {
   const venture = ventureFor(ventureId);
-  return venture ? loadLiveness(venture, runReportSource()) : { at: null, degraded: false };
+  return venture ? loadLiveness(venture, runReportSource(ventureId)) : { at: null, degraded: false };
 });
 
 /**
