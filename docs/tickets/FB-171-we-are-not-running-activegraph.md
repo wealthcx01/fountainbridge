@@ -36,6 +36,68 @@ From the repo and the paper (*"The Log is the Agent"*, arXiv 2605.21997):
 The overlap with what the studio already believes is close to total. The difference is that
 ActiveGraph has replay, forking and edge-behaviours, and our JSON files have none of those.
 
+## What is actually on the box, measured 2026-09-25
+
+Checked on the real ARCA box (`venture-arca`, 167.233.160.141), not from memory. My earlier note said
+"its service is inactive" — that was imprecise, and the truth matters:
+
+- **The package is installed and it is a real one.** `activegraph 1.10.0` in the venv at
+  `/opt/activegraph`, alongside the `anthropic` and `openai` SDKs. CLI at `/usr/local/bin/activegraph`.
+- **There is no systemd unit at all.** `systemctl is-active activegraph` returns `inactive` because the
+  unit does not exist, not because a service is stopped. Nothing was ever configured to run.
+- **No event store anywhere on the box.** Untouched since 2026-08-18 18:52.
+- **Room to run it:** 5.8 GB of 7.7 GB RAM available, but the disk is at **83% (6.4 GB free)**. Disk is
+  the constraint to watch, not memory.
+
+### It works, and it already does what non-negotiable 4 needs
+
+Smoke-tested on the box (in `/tmp`, removed afterwards). This recorded the exact
+`approval.proposed` → `approval.granted` chain as an event-sourced log:
+
+```
+evt_001 object.created    ticket    ARCA-001 "send the launch email"
+evt_002 object.created    approval  state=proposed action=email.send
+evt_003 relation.created  approval#2 --gates--> ticket#1
+evt_004 patch.applied     approval#2 state -> granted, by john.gallagher@wealthcx.com
+```
+
+Then rebuilt from the event log alone with `Runtime.load(path, run_id)`:
+
+```
+IDENTICAL: True
+```
+
+**That is this ticket's third acceptance criterion, demonstrated.** Replaying the log reproduces the
+graph exactly.
+
+### What `Runtime` gives us that our JSON log does not
+
+Reading the API surface rather than the paper: `approve`, `pending_approvals`, `authority_ceiling`,
+`set_authority_ceiling`, `evaluate_capability_authority`, `dev_override`, `validate_dev_override` — an
+approval gate with an authority ceiling, as a first-class concept rather than something we assemble.
+Plus `fork(at_event)` and `diff(other)` for the fork-and-diff this ticket asks for, `budget` for spend
+limits (which `lib/ledger.ts` already models as `spend.over`), and `replay_strict` /
+`replay_llm_cache` / `replay_tool_cache` for replay that does not re-hit a model.
+
+Two practical notes for whoever implements this:
+
+- `add_relation` takes object **ids**, not `Object` instances. Passing the object raises
+  `NonSerializableEventError` at emit time.
+- `SQLiteEventStore` refuses to construct without a `run_id`. Use `Runtime(graph, persist_to=...)`,
+  which manages it.
+- The library **fails loud with genuinely good errors** — it refuses to persist an event it cannot
+  serialise rather than silently pickling it, and says why. That matches non-negotiable 10.
+
+### So the answer to "do we need ActiveGraph running?"
+
+Yes, and it is closer than this ticket assumed: the runtime works on the box today and already
+implements the gate, the replay and the fork. What is missing is not ActiveGraph. It is the Postgres
+event store this ticket depends on (**FB-170**), which is built but uncommitted on
+`fb-170-read-model-runs` and needs a real before/after measurement before it merges.
+
+**This ticket is blocked on FB-170 and on nothing else.** SQLite would work today, and is still the
+wrong choice for the reason already given: two writers.
+
 ## Scope
 
 - Stand up ActiveGraph properly on a venture box, with the **Postgres event store** pointed at the
