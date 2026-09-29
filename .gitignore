@@ -37,6 +37,13 @@ Thumbs.db
 npm-debug.log*
 .gbrain-source
 
+# gbrain writes these into whatever directory it is run from (FB-219). Neither belongs in the repo:
+# .gbrain-owner.json carries a token, and notes/ is gbrain's own page store, not project
+# documentation. Ignored rather than tidied away by hand, because the next `gbrain capture` recreates
+# them and CLAUDE.md #8 says no credential is ever committed.
+.gbrain-owner.json
+/notes/
+
 # Source reference material — kept locally (and on the VM) but NEVER committed:
 # - reference-pdfs: Aulet (Disciplined Entrepreneurship) + Helmer (7 Powers) are licensed to us
 #   for USE/guidance, not redistribution; also large binaries. Chapter authoring must produce

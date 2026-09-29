@@ -3,6 +3,12 @@
 **Status:** filed · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-05) ·
 **Branch:** `fb-209-the-conversation-on-a-ticket` · One ticket = one branch = one PR.
 
+
+> **Prior art, from FB-220 (block/buzz, declined 2026-09-25, revised 2026-09-29).** Buzz makes a code
+> branch into a room, so the conversation, the review and the decision live together and the room *is*
+> the record of why the code exists. That is one answer to both this ticket and FB-184. Worth reading
+> before choosing where a ticket's conversation lives: the branch is a candidate owner, not just the
+> ticket. We are not taking Buzz; we are taking the shape of its answer.
 ## What was found
 
 > `appendToThread` / `readThread` exist and the MCP tool `comment_on_ticket` writes to them. **No

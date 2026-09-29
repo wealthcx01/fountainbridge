@@ -3,6 +3,13 @@
 **Status:** Open · **Phase:** 3 · **Touches:** bcap-contracts · **Raised by:** Claude Design, 2026-09-02 ·
 **Restated with exact copy, 2026-09-08 (R-04)**
 
+
+> **Prior art, from FB-220 (block/buzz, declined 2026-09-25, revised 2026-09-29).** Buzz answers this
+> ticket and FB-209 with one idea: **the branch owns the conversation.** A code branch automatically
+> becomes a room, so the patches, the test result, the review and the merge decision all sit in one
+> place, and that room becomes the record of why the code exists. Worth reading before designing the
+> link this ticket adds — the answer may be that the link points at a branch-shaped thing rather than a
+> pull request. We are not taking Buzz; we are taking the shape of its answer.
 ## What was asked for
 
 > "That's the trail's terminal hop, made a first-class field. Every ticket carries one resolvable

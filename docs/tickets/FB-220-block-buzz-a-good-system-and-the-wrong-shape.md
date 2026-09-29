@@ -119,20 +119,58 @@ ActiveGraph project in the same terms: *"It is Python, and a service plus datast
 against D1/D2 and the TypeScript stack."* What it took instead was the **model**, not the code. The same
 answer applies here, for the same reasons.
 
-## What is genuinely good in it, and worth reading for free
+## What is worth taking from it
 
-Not a consolation prize. Two ideas, and reading a README costs nothing.
+**Revised 2026-09-29, after John pushed back: "are we sure there is nothing else from Buzz
+worthwhile?"** He was right to ask. The first version of this section put everything in a "worth
+reading" pile, which is the comfortable place to put an idea you have just declined. Re-reading Buzz
+against our own open tickets, **three of these are real work and one was simply missed.** The verdict
+on adopting Buzz is unchanged; the verdict on learning from it was too quick.
 
-- **Per-actor keypairs instead of permission flags.** In Buzz, an agent cannot sign as a human because
-  it does not hold the human's key. Our version of that guarantee is a shared HMAC secret kept off the
-  lane box. Both work; theirs survives a wider set of mistakes. If the approval record is ever
-  reopened, that is the shape to compare against — as a design, not a dependency.
-- **"Branch as room".** A feature branch becomes a channel, so the patches, the CI result, the review
-  and the merge decision all sit in the same place, and the channel becomes the record of why the code
-  exists. FB-209 and FB-184 are walking toward the same idea from the other side. Worth holding next to
-  them.
+### 1. Branch as room — this is FB-184 and FB-209, already solved
 
-Neither is a ticket. If either becomes one, it gets filed on its own merits.
+The one I was most wrong about. In Buzz a code branch automatically becomes a channel, so the patches,
+the test result, the review and the merge decision all sit in one place, and that channel becomes the
+record of *why* the code exists.
+
+We have **two open tickets walking toward this from opposite ends**: FB-184 ("every ticket carries one
+link to where you can see the result") and FB-209 ("the conversation on a ticket has nowhere to be
+read"). Buzz has one answer to both, and the answer is that the *branch* is the thing that owns the
+conversation, not the ticket and not the pull request.
+
+Filing this as "worth reading" was wrong. It is a design we should copy into FB-184 and FB-209 — the
+shape of the answer, not the code. Both tickets should reference this.
+
+### 2. `NO_REPLY` as a first-class outcome — the twenty-sentence bug, named
+
+Buzz's workflow steps can conclude **"nothing worth saying"** as a declared output rather than
+producing something because the step ran.
+
+This is the direct fix for the failure named in CLAUDE.md #11: *"'What happened' was printing the same
+sentence twenty times."* We fixed that screen and never wrote down the rule, so nothing prevents the
+next surface doing it again.
+
+It is also the same idea as Cole Medin's fire budget (FB-222, take 1), reached independently by two
+different projects. When two systems arrive at the same answer from different directions, that is
+usually a sign the answer is right. **FB-222's fire-budget ticket should carry both citations.**
+
+### 3. Per-actor keypairs instead of a shared secret
+
+In Buzz an agent cannot sign as a human because it does not hold the human's key. Each agent has its
+own keypair and its own line in the audit log.
+
+Ours is a shared HMAC secret kept off the lane box (FB-071, FB-072). That works, and it fails
+differently: **one leaked secret makes everything forgeable, where theirs degrades one agent at a
+time.** Given how much FB-071 and FB-072 cost to get right, that difference is worth holding onto.
+
+Not a ticket now — the approval record was hard-won and is not in question. But if it is ever reopened,
+or when a second founder means a second signing identity, this is the design to compare against. Noted
+against FB-111 ("one name for the approval record").
+
+### Still firmly not taking
+
+The relay itself, its git hosting, and a Rust server plus Postgres plus Redis plus object storage on
+every venture box. That last one is not a preference: ARCA is at 83% disk with 6.4 GB free.
 
 ## Scope
 
@@ -142,6 +180,10 @@ Neither is a ticket. If either becomes one, it gets filed on its own merits.
 2. Record it in gbrain, in the fountainbridge lane, so a future session asking "should we use Buzz"
    finds the answer instead of re-reading 33 Rust crates.
 3. Add nothing to `package.json`. Add nothing to any box.
+4. **Cross-reference the three takes into the tickets that own them**, so they are found by whoever
+   does that work rather than by whoever re-reads this decision: branch-as-room into FB-184 and
+   FB-209; `NO_REPLY` into FB-222's fire-budget ticket, citing both Buzz and Cole Medin;
+   per-actor keypairs into FB-111.
 
 ## Out of scope
 
@@ -149,7 +191,8 @@ Neither is a ticket. If either becomes one, it gets filed on its own merits.
   the verdict changes it changes by a PR to the phased plan, like every other decision here.
 - Revisiting the composer, the office, the approval record or git-as-source-of-truth. Those are three
   separate spines and none of them is in question.
-- The two ideas in "what is genuinely good". Reading is free; changing anything is a separate ticket.
+- Implementing any of the three takes. This ticket cross-references them into the tickets that own
+  them; the work happens there, on those tickets' own merits.
 
 ## Acceptance criteria
 
@@ -157,8 +200,12 @@ Neither is a ticket. If either becomes one, it gets filed on its own merits.
       reason in one sentence a non-technical reader understands.
 - [ ] The reason names the real conflict — the relay is Buzz's source of truth, git is ours — and not a
       vaguer objection like "too heavy".
-- [ ] The two ideas worth borrowing (per-actor keypairs, branch-as-room) are written down as reading,
-      explicitly not as work.
+- [ ] The three ideas worth borrowing are recorded where the work will happen, not only in this
+      decision: branch-as-room in FB-184 and FB-209, `NO_REPLY` in FB-222, per-actor keypairs in
+      FB-111.
+- [ ] The document says plainly that the first version of this decision under-filed them, and that
+      John's challenge is what surfaced it. A decision record that hides its own correction teaches
+      the next reader to trust it more than it deserves.
 - [ ] No new dependency in `package.json`, no new service in `deploy/`, no change to any box.
 - [ ] gbrain returns this decision when asked whether the studio should use Buzz.
 - [ ] The decision is dated and attributed, so a later reader can tell whether it is stale. Buzz is
