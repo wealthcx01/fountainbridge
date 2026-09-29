@@ -20,7 +20,8 @@
  */
 import { createServer, request as httpRequest } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { readTicket, allowedFromBrowser, routeFor, dressDocument } from './office-gate-lib.mjs';
+import { readFileSync, statSync } from 'node:fs';
+import { readTicket, allowedFromBrowser, routeFor, dressDocument, liveRoster, forwardToBrowser } from './office-gate-lib.mjs';
 
 const VENTURE = process.env.OFFICE_VENTURE?.trim();
 const SECRET = process.env.OFFICE_SECRET?.trim();
@@ -40,6 +41,49 @@ const UPSTREAM_HOST = '127.0.0.1';
  * without one is shown nothing at all.
  */
 const FRAME_ANCESTORS = process.env.OFFICE_FRAME_ANCESTORS?.trim() || "'none'";
+
+/**
+ * Where pixel-agents keeps its registry (FB-218).
+ *
+ * The roster it sends over the socket carries ids and palettes but not the transcript each agent
+ * belongs to, and the transcript's write time is the only thing on this box that says whether an
+ * agent is still working. That mapping lives in its state file, so the gate reads it.
+ */
+const OFFICE_STATE_FILE = process.env.OFFICE_STATE_FILE?.trim()
+  || '/root/.pixel-agents/standalone-state.json';
+
+/** Re-read the registry at most this often. It changes when an agent is created, not per message. */
+const STATE_TTL_MS = 10_000;
+let stateCache = { at: 0, files: new Map() };
+
+/**
+ * agent id → its transcript path, from the office's own state file.
+ *
+ * An unreadable state file returns an empty map, and an empty map means `liveRoster` keeps every
+ * agent (it has no path for any of them, so it cannot tell). That is the right way round: a gate that
+ * cannot read the registry should show the room it is given rather than empty it.
+ */
+function transcriptsById(now = Date.now()) {
+  if (now - stateCache.at < STATE_TTL_MS) return stateCache.files;
+  const files = new Map();
+  try {
+    const state = JSON.parse(readFileSync(OFFICE_STATE_FILE, 'utf8'));
+    for (const agent of state?.agents ?? []) {
+      if (typeof agent?.id === 'number' && typeof agent?.jsonlFile === 'string') {
+        files.set(agent.id, agent.jsonlFile);
+      }
+    }
+  } catch {
+    /* unreadable: show what we are given */
+  }
+  stateCache = { at: now, files };
+  return files;
+}
+
+/** When a transcript was last written, or null when it is gone. */
+const mtimeOf = (path) => {
+  try { return statSync(path).mtimeMs; } catch { return null; }
+};
 
 if (!VENTURE || !SECRET) {
   console.error('[office-gate] refusing to start: OFFICE_VENTURE and OFFICE_SECRET are both required');
@@ -162,9 +206,36 @@ server.on('upgrade', (req, socket, head) => {
       try { office.close(); } catch { /* going anyway */ }
     };
 
-    // office → browser: everything. This is the direction that carries the room.
+    // Which agents this watcher has been told exist. Starts as null, meaning "no roster yet, so
+    // withhold nothing" — the sprites and the layout arrive before `existingAgents` does.
+    let shown = null;
+
+    // office → browser: the room, with agents that finished left out of it (FB-218).
+    //
+    // Binary frames carry sprite sheets and are forwarded untouched. Only the JSON is inspected, and
+    // only two kinds of it are ever changed: the roster, and news about one agent.
     office.on('message', (data, isBinary) => {
-      if (client.readyState === WebSocket.OPEN) client.send(data, { binary: isBinary });
+      if (client.readyState !== WebSocket.OPEN) return;
+      if (isBinary) { client.send(data, { binary: true }); return; }
+
+      const raw = data.toString();
+      let message = null;
+      try { message = JSON.parse(raw); } catch { client.send(raw); return; }
+
+      if (message?.type === 'existingAgents') {
+        const { roster, dropped } = liveRoster(message, transcriptsById(), mtimeOf);
+        shown = new Set(roster.agents);
+        if (dropped.length) {
+          console.log('[office-gate] left finished agents out of the room', {
+            venture: VENTURE, drawing: roster.agents.length, finished: dropped.length,
+          });
+        }
+        client.send(JSON.stringify(roster));
+        return;
+      }
+
+      if (shown && !forwardToBrowser(message, shown)) return;
+      client.send(raw);
     });
 
     // The office says nothing until it is asked, and the browser's own ask has to cross the whole

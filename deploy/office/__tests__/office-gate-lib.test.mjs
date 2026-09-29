@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   signTicket, readTicket, allowedFromBrowser, routeFor, dressDocument, CHROME_HIDDEN,
   ALLOWED_FROM_BROWSER,
+  liveRoster, forwardToBrowser, LIVE_WINDOW_MS,
 } from '../office-gate-lib.mjs';
 
 /**
@@ -174,5 +175,96 @@ describe('the document the founder gets', () => {
       '.absolute.bottom-42.right-28',
       '.absolute.bottom-8.right-28',
     ]);
+  });
+});
+
+
+describe('the office stops drawing agents that finished (FB-218)', () => {
+  // ARCA's real numbers on 2026-09-29, six days after the restart that was called "a reset, not a
+  // fix": 120 agents in the registry, and not one transcript written in the previous two hours.
+  const NOW = 1_800_000_000_000;
+  const minsAgo = (m) => NOW - m * 60_000;
+
+  /** A roster shaped exactly like the office's own `existingAgents` message. */
+  const rosterOf = (ids) => ({
+    type: 'existingAgents',
+    agents: [...ids],
+    agentMeta: Object.fromEntries(ids.map((i) => [String(i), { palette: i % 8, hueShift: 0 }])),
+    externalAgents: Object.fromEntries(ids.map((i) => [String(i), true])),
+    folderNames: {},
+  });
+
+  it('keeps the working ones and drops the finished ones', () => {
+    const files = new Map([[1, '/a.jsonl'], [2, '/b.jsonl'], [3, '/c.jsonl']]);
+    const mtimes = { '/a.jsonl': minsAgo(1), '/b.jsonl': minsAgo(29), '/c.jsonl': minsAgo(240) };
+    const { roster, dropped } = liveRoster(rosterOf([1, 2, 3]), files, (p) => mtimes[p], NOW);
+    expect(roster.agents).toEqual([1, 2]);
+    expect(dropped).toEqual([3]);
+  });
+
+  it('takes a room of 120 under ten, which is the whole point', () => {
+    // Four working, 116 finished -- ARCA's shape. The acceptance criterion is "fewer than ten
+    // figures in normal use, a day after any reset", so assert the bound and not just the filter.
+    const ids = Array.from({ length: 120 }, (_, i) => i + 1);
+    const files = new Map(ids.map((i) => [i, `/s${i}.jsonl`]));
+    const mtimeOf = (p) => {
+      const n = Number(/\/s(\d+)\.jsonl/.exec(p)[1]);
+      return n <= 4 ? minsAgo(2) : minsAgo(60 * 24);
+    };
+    const { roster } = liveRoster(rosterOf(ids), files, mtimeOf, NOW);
+    expect(roster.agents).toEqual([1, 2, 3, 4]);
+    expect(roster.agents.length).toBeLessThan(10);
+  });
+
+  it('strips the dropped agents out of agentMeta and externalAgents too', () => {
+    // Leaving them behind would hand the browser metadata for figures it was told do not exist, and
+    // pixel-agents draws from whatever it is given.
+    const files = new Map([[1, '/a.jsonl'], [2, '/b.jsonl']]);
+    const { roster } = liveRoster(rosterOf([1, 2]), files,
+      (p) => (p === '/a.jsonl' ? minsAgo(1) : minsAgo(600)), NOW);
+    expect(Object.keys(roster.agentMeta)).toEqual(['1']);
+    expect(Object.keys(roster.externalAgents)).toEqual(['1']);
+  });
+
+  it('never empties a room where work is happening', () => {
+    // Criterion two. An empty office over a working machine is a worse lie than a full one, so this
+    // is the case that must never regress.
+    const ids = [7, 8, 9];
+    const files = new Map(ids.map((i) => [i, `/w${i}.jsonl`]));
+    const { roster, dropped } = liveRoster(rosterOf(ids), files, () => minsAgo(0), NOW);
+    expect(roster.agents).toEqual(ids);
+    expect(dropped).toEqual([]);
+  });
+
+  it('keeps an agent whose transcript it cannot find, rather than guessing it ended', () => {
+    // No path recorded is "we cannot tell", not "it finished". Fail towards showing.
+    const { roster, dropped } = liveRoster(rosterOf([1, 2]), new Map([[1, '/a.jsonl']]),
+      () => minsAgo(1), NOW);
+    expect(roster.agents).toEqual([1, 2]);
+    expect(dropped).toEqual([]);
+  });
+
+  it('drops an agent whose transcript is gone', () => {
+    const { dropped } = liveRoster(rosterOf([5]), new Map([[5, '/gone.jsonl']]), () => null, NOW);
+    expect(dropped).toEqual([5]);
+  });
+
+  it('holds back per-agent news about an agent the browser was never told about', () => {
+    // Without this the room refills itself one agentStatus at a time.
+    const kept = new Set([1, 2]);
+    expect(forwardToBrowser({ type: 'agentStatus', id: 1, status: 'waiting' }, kept)).toBe(true);
+    expect(forwardToBrowser({ type: 'agentStatus', id: 97, status: 'waiting' }, kept)).toBe(false);
+    expect(forwardToBrowser({ type: 'agentContextUsage', id: 97, contextTokens: 1 }, kept)).toBe(false);
+  });
+
+  it('forwards everything that is not about one agent', () => {
+    const kept = new Set([1]);
+    for (const type of ['layoutLoaded', 'settingsLoaded', 'characterSpritesLoaded', 'existingAgents']) {
+      expect(forwardToBrowser({ type }, kept), type).toBe(true);
+    }
+  });
+
+  it('uses a window generous enough that a long model call does not erase an agent', () => {
+    expect(LIVE_WINDOW_MS).toBeGreaterThanOrEqual(15 * 60 * 1000);
   });
 });
