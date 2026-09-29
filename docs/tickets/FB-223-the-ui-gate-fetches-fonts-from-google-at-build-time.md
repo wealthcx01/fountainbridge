@@ -1,6 +1,6 @@
 # FB-223 — the required gate depends on Google being up
 
-**Status:** filed · **Phase:** 3 · **Found by:** a red gate on a markdown-only PR, 2026-09-29
+**Status:** filed · **Seen twice on 2026-09-29** · **Phase:** 3 · **Found by:** a red gate on a markdown-only PR, 2026-09-29
 · **Related:** FB-217 · One ticket = one branch = one PR.
 
 ## What happened
@@ -39,6 +39,34 @@ The cost is not the minutes. It is that a required gate which fails for reasons 
 **teaches people to re-run it without reading it**, and a gate nobody reads is the gate that let FB-124
 ship a studio with two navigations. This is the same shape as FB-217 (the gate makes a live GitHub call
 and hangs when it cannot) and should probably be fixed with it.
+
+## Second occurrence, same day (2026-09-29)
+
+It happened again within hours, on **PR #291 — a single markdown file**. This time it took out the
+standalone **Build** job rather than the Playwright gate, with the identical error:
+
+```
+Failed to compile.
+An error occurred in `next/font`.
+TypeError: Cannot read properties of null (reading '1')
+> Build failed because of webpack errors
+```
+
+Green on the next run with no change. **Twice in one day, on two different jobs, on PRs that touched only
+markdown.** That moves this from a nuisance to the most frequent source of red on this repo.
+
+### It also caused a real process failure
+
+I merged #291 while that check was red. My own wait-for-green loop exhausted its iteration count and then
+merged unconditionally instead of refusing — so the flake did not just waste a run, it produced exactly the
+behaviour CLAUDE.md #2 forbids, on the day the same flake had already trained me to expect a spurious red.
+
+**That is the cost this ticket is really about.** A required gate that fails for reasons unrelated to the
+change teaches people to merge past it, and a gate people merge past is the gate that let FB-124 ship a
+studio with two navigations. The fix is to remove the external dependency, not to get better at ignoring it.
+
+`main` was verified green afterwards, and the PR's content was one ticket file, so nothing shipped broken.
+Recorded here because the near-miss is the evidence.
 
 ## Scope
 
