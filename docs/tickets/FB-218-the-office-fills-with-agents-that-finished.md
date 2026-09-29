@@ -1,6 +1,16 @@
 # FB-218 — the office fills with agents that finished days ago
 
-**Status:** filed · **Phase:** 3 · **Found by:** John, looking at the office, 2026-09-23
+**Status:** Shipped in part · **Phase:** 3 · **Found by:** John, looking at the office, 2026-09-23
+
+> **Shipped in part:** PR #279 shipped the diagnosis and a restart. **None of the three acceptance
+> criteria below are met**, because a restart is not a bound — at ~41 sessions a day the room is back
+> over ten figures within a day. What is left is choosing one of the four options below and
+> implementing it, and the last of them ("show the team, not the process") is a question for Claude
+> Design before it is a question for code.
+>
+> Recorded this way rather than as Done because the board a founder reads is built from these lines. A
+> ticket marked Done over a screen that still fills up is the board lying, which is the failure
+> non-negotiable 10 exists to forbid.
 
 ## What a founder sees
 
