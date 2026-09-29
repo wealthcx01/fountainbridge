@@ -48,10 +48,63 @@ cards already gone, because ARCA has one external send and the design's row shap
 meta to all ten waiting rows, so the two roughly cancel. The desk's real remaining height is its
 surfaces, stated twice.
 
+## Slice 2 (2026-09-29): the rule became a mechanism
+
+The rule was written down in **three separate comments** and was still only a sentence. D13's finding
+applies to architectural rules as much as to knowledge bases: *anything that must happen every time needs
+a mechanism, not a sentence.*
+
+`lib/__tests__/one-signing-surface.test.ts` walks every source file under `app/`, `components/`, `lib/`,
+`scripts/` and `deploy/` and asserts six things:
+
+1. The walk found a real tree — a guard on the guard, because a renamed directory would make every check
+   below pass by finding no violations anywhere.
+2. **Exactly one component** calls `approveExternalAction` / `refuseExternalAction`, and it is
+   `ApprovalCard`.
+3. **Exactly one page** passes `decide`, and it is the approval page. This catches a second signing
+   surface even if the card is rendered somewhere new, because it is only a signing surface when `decide`
+   is passed.
+4. **The desk renders no `ApprovalCard` at all.**
+5. No studio tool can grant — cross-checked here as well as in `mcp.test.ts`, because this is the file a
+   person reads when asking "where can a grant happen?" and an answer omitting the tool surface would be
+   wrong.
+6. Nothing under `deploy/` calls the grant actions. The lane proposes.
+
+### A vacuous test, caught by trying to break it
+
+The first version of check 4 looped over the desk's `<ApprovalCard>` elements asserting none passed
+`decide`. **There are none** — the desk renders rows now — so it looped over nothing and passed no matter
+what. It was found because the mutation could not even be applied: the patch script reported "no
+ApprovalCard element found".
+
+**The real property turned out to be stronger than the one first written**, and an empty loop was hiding
+it. The test now asserts the absence directly.
+
+The same slip was in the source: a comment in `VentureBoard.tsx` said *"every `ApprovalCard` below renders
+read-only, because `decide` defaults to false"* — true when written, stale once the last one went, and it
+was what made the weaker test look sufficient. Corrected.
+
+### Both mutations now caught
+
+- Rendering `<ApprovalCard ... decide />` on the desk → 2 tests fail.
+- A second component importing `approveExternalAction` → 1 test fails.
+
+### What this does not unblock
+
+**`propose_approval`, the eighth MCP tool, is still blocked** — and for a different reason than this
+ticket addresses. This proves there is one place a grant is **signed**. That tool needs one place a
+proposal is **written**, and today proposals are written by the lane (`deploy/lane/proposal-lib.mjs`) with
+no studio-side writer at all. Giving the studio one is its own ticket, and until it exists a tool would be
+a second writer for the record that gates every external action.
+
 ## Acceptance criteria
 
 - [ ] An external send can be approved and refused from its own page.
 - [ ] The desk carries rows, not cards, and no approve control.
 - [ ] The desk is under 2,500px on ARCA's production data at 1440×1000. **Not met — FB-186.**
-- [ ] A test proves the ActiveGraph grant is signed on exactly one surface.
+- [x] A test proves the ActiveGraph grant is signed on exactly one surface.
+      *(FB-183 slice 2, 2026-09-29: `lib/__tests__/one-signing-surface.test.ts`. A source-level test,
+      because the property is structural — it is not "the button works", it is **"there is only one
+      button"**, and no runtime test can prove a second surface was not added elsewhere. Only reading
+      the whole tree can.)*
 - [ ] No approval is left unreachable at any point in the change.
