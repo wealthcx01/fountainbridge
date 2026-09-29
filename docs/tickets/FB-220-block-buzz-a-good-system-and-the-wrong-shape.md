@@ -1,8 +1,21 @@
 # FB-220 — block/buzz: a good system, and the wrong shape for this one
 
-**Status:** filed · **Phase:** n/a (decision record) · **Raised by:** John, 2026-09-25, asking whether
-`block/buzz` belongs in the Foundry Studio · **Branch:** `fb-220-block-buzz-decision` ·
-One ticket = one branch = one PR.
+**Status:** Done · **Phase:** n/a (decision record) · **Raised by:** John, 2026-09-25,
+asking whether `block/buzz` belongs in the Foundry Studio · One ticket = one branch = one PR.
+
+> **How this landed.** PR #282 landed the revised decision and scope item 4 — the three takes are
+> cross-referenced into FB-184, FB-209, FB-111 and FB-222, which is the part that matters, because it
+> is how the work gets found.
+>
+> **Scope item 1 is now done too:** `docs/fountainbridge-phased-plan.md` carries **D9 — what we
+> evaluated and refused**, which answers "should we use Buzz" (and Jev, and upstream ActiveGraph)
+> without opening a ticket file. Each entry is dated, because both products are moving.
+>
+> **A note for the next decision record**, because this is structural rather than a slip: a ticket
+> whose deliverable is the ticket will always trip `make ticket-drift`, since the commit that files it
+> is the commit that ships it, and its Status cannot say Done at the moment it is written. The fix is
+> not to special-case the check — it caught something true both times today. It is to file a decision
+> record with its `docs/` entry in the same PR, so filing and shipping are genuinely one act.
 
 ## Verdict
 
