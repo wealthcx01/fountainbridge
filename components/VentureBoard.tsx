@@ -511,8 +511,12 @@ export function VentureBoard({
           `ApprovalCard` carried the only approve control in the studio — turning it into a row first
           would have deleted the only way a founder can approve anything leaving their company
           (non-negotiable 4). The page came first; this section went second.
-          The desk cannot sign now: every `ApprovalCard` below renders read-only, because `decide`
-          defaults to false and only the approval page passes it. */}
+          The desk cannot sign now, and the reason is stronger than it used to be: this file renders
+          NO `ApprovalCard` at all. An earlier version of this comment said "every `ApprovalCard` below
+          renders read-only, because `decide` defaults to false" -- true when written, stale once the
+          last one went, and it made a test that looped over those elements pass by looping over
+          nothing (FB-183, corrected 2026-09-29). `lib/__tests__/one-signing-surface.test.ts` now
+          asserts the absence directly. */}
 
       {/* FB-207: "Decided — what happened next" and "Went out, or tried to — needs your eye" stood
           here, and both are gone.
