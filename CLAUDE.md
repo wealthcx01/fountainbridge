@@ -134,50 +134,53 @@ gbrain is wired for this lane; record decisions and cross-session context there,
 ## GBrain Search Guidance (configured by /sync-gbrain)
 <!-- gstack-gbrain-search-guidance:start -->
 
-GBrain is set up and synced on this machine. The agent should prefer gbrain
-over Grep when the question is semantic or when you don't know the exact
-identifier yet.
+gbrain is the searchable memory of this repo. Prefer it over Grep when the question is about meaning
+("where is X handled?") and you do not yet know the exact word to search for. Grep is still right when
+you know the exact string, need a regex, or want a file glob.
 
-**This worktree is pinned to a worktree-scoped code source** via the
-`.gbrain-source` file in the repo root (kubectl-style context).
-`gbrain code-def`, `code-refs`, `code-callers`, `code-callees`, `search`, and
-`query` from anywhere under this worktree route to that source by default —
-no `--source` flag needed (gbrain >= 0.41.38.0; on older gbrain the call-graph
-commands need `--source "$(cat .gbrain-source)"`). Conductor sibling worktrees
-of the same repo each have their own pin and their own indexed pages, so
-semantic results match the code on disk here.
+**What is indexed.** One source, `fountainbridge`, holding 682 pages: **415 code pages** (every
+tracked `.ts`/`.tsx`/`.mjs`/`.sh` file, chunked by symbol) and **267 notes** (`docs/tickets/`,
+`docs/`, `context/`). It is pinned by the `.gbrain-source` file in the repo root, so every `gbrain`
+command run from anywhere under this worktree routes here with no `--source` flag. It is federated, so
+searches from other repos on this box can reach it too.
 
-Call-graph queries (`code-callers`/`code-callees`) also need the graph to be
-built first — run `/sync-gbrain --dream` (or `--full`) if they return
-`count: 0`. This only works if this source's gbrain schema pack extracts code
-symbols; on a non-code-aware pack `--dream` completes but the graph stays empty
-and reports a WARN. `code-def`/`code-refs` need the same extraction.
+**Commands, and what each is for:**
 
-Two indexed corpora available via the `gbrain` CLI:
-- This worktree's code (auto-pinned via `.gbrain-source`).
-- `~/.gstack/` curated memory (registered as `gstack-brain-<user>` source via
-  the existing federation pipeline).
+- `gbrain search "<terms>"` — keyword search over code and tickets together.
+- `gbrain query "<question>"` — hybrid search; use it for a real question.
+- `gbrain code-def <symbol>` — where a symbol is defined. Returns file, line range and the snippet.
+- `gbrain code-refs <symbol>` — every reference to it.
+- `gbrain code-callers <symbol>` / `gbrain code-callees <symbol>` — the call graph, symbol to symbol.
+  Callers are the *functions* that call it, not the raw line count, and test files are excluded. When
+  you need every call site including tests, use Grep.
 
-Prefer gbrain when:
-- "Where is X handled?" / semantic intent, no exact string yet:
-    `gbrain search "<terms>"` or `gbrain query "<question>"`
-- "Where is symbol Y defined?" / symbol-based code questions:
-    `gbrain code-def <symbol>` or `gbrain code-refs <symbol>`
-- "What calls Y?" / "What does Y depend on?":
-    `gbrain code-callers <symbol>` / `gbrain code-callees <symbol>`
-- "What did we decide last time?" / past plans, retros, learnings:
-    `gbrain search "<terms>" --source gstack-brain-<user>`
+**The pack trap — read this before trusting a zero.** Symbol lookup only works when the active gbrain
+schema pack declares a `code` page type **with `extractable: true`**. The bundled packs do not:
+`gbrain-base-v2` dropped the `code` type entirely, and `gbrain-base` declares it
+`extractable: false`. Under either one, `code-def` returns `count: 0` and a dream cycle reports success
+while resolving nothing. This box therefore runs a local fork, `bcap-engineer`
+(`~/.gbrain/schema-packs/bcap-engineer/pack.json`), which declares `code` extractable. Check it with:
 
-Grep is still right for known exact strings, regex, multiline patterns, and
-file globs. Run `/sync-gbrain` after meaningful code changes; for ongoing
-auto-sync across all worktrees, run `gbrain autopilot --install` once per
-machine — gbrain's daemon handles incremental refresh on a schedule.
+```
+gbrain schema active          # expect: bcap-engineer
+gbrain schema explain code    # expect: extractable: true
+```
 
-Safety: don't run `/sync-gbrain` while `gbrain autopilot` is active — the
-orchestrator refuses destructive source ops when it detects a running autopilot
-to avoid racing it (#1734). Prefer registering user repos with `gbrain sources
-add --path <dir>` (no `--url`): URL-managed sources can auto-reclone, and the
-sync code walk for them requires an explicit `--allow-reclone` opt-in.
+**If a code query returns nothing,** the cause is almost always one of three things, in this order:
+
+1. The active pack is not `bcap-engineer` — a `gbrain self-upgrade` or a `gbrain schema use` can reset
+   it. Fix: `gbrain schema use bcap-engineer`.
+2. The code pages were never imported. A plain `gbrain sources add --path` does a **markdown-only**
+   walk, and `gbrain sync` without `--strategy code` never looks at a `.ts` file. Fix:
+   `gbrain sync --strategy code --source fountainbridge --full` (about 3 minutes, 415 files).
+   `--full` matters: the incremental path reports "0 changed, 1 unchanged" and does nothing.
+3. The call graph was never built. `resolve_symbol_edges` is a **global-scope** phase, so
+   `gbrain dream --source fountainbridge` silently skips it. Fix:
+   `gbrain dream --phase resolve_symbol_edges --once`.
+
+Do not run `/sync-gbrain` while `gbrain autopilot` is active (autopilot is not installed on this box).
+Note that `/sync-gbrain`'s own orchestrator does not fix any of the three faults above: it reports
+`OK synced fountainbridge` on a no-op incremental pass.
 
 <!-- gstack-gbrain-search-guidance:end -->
 
