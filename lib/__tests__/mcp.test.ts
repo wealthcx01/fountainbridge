@@ -40,7 +40,40 @@ describe('nothing here grants', () => {
       'read:whats_waiting',
       'read:read_ticket',
       'write:comment_on_ticket',
+      'read:what_happened',
+      'read:budgets',
+      'read:venture_memory',
+      'write:file_ticket',
     ]);
+  });
+
+  it('still has no propose tool, because there is no choke-point for one', () => {
+    // FB-200 designed `propose_approval` and it is deliberately absent: proposals are written by the
+    // lane today, and a second writer for them is exactly the drift FB-140 caused. A tool a model can
+    // see and cannot use is a dead control, so it stays off the list until one function writes a
+    // proposal. When that exists this assertion is the thing that has to change.
+    expect(STUDIO_TOOLS.filter((t) => t.kind === 'propose')).toEqual([]);
+    expect(toolFor('propose_approval')).toBeNull();
+  });
+
+  it('the one real write tells the model it starts nothing and spends nothing', () => {
+    // FB-079's guidance lives in this description now. If it is ever trimmed for brevity, the quality
+    // of filed tickets drops with nobody noticing -- which is the failure FB-200 warned about.
+    const f = toolFor('file_ticket');
+    expect(f?.kind).toBe('write');
+    expect(f?.description).toMatch(/starts no work/i);
+    expect(f?.description).toMatch(/spends nothing/i);
+    // The advice a founder's ticket needs, asserted rather than hoped for.
+    expect(f?.description).toMatch(/one piece of work/i);
+    expect(f?.description).toMatch(/how anyone would know it worked|way to check/i);
+    expect(f?.description).toMatch(/plain, direct English/i);
+    expect(f?.description).toMatch(/ask the founder before filing/i);
+  });
+
+  it('every read tool says it reads and none of them claims to decide', () => {
+    for (const t of STUDIO_TOOLS.filter((x) => x.kind === 'read')) {
+      expect(t.description, t.name).not.toMatch(/\b(decide|approve|grant)s?\b/i);
+    }
   });
 
   it('refuses a tool it does not have, rather than guessing at one it does', () => {

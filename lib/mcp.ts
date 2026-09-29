@@ -55,12 +55,14 @@ const str = (description: string) => ({ type: 'string', description });
 /**
  * The tools, and only the ones that work.
  *
- * FB-200's design named eight. Five are not wired yet, and they are **not listed here**, because a
- * tool a model can see and cannot use is a dead control — the same fault FB-192 removed from the
- * office when it hid Layout and Settings. A model offered a tool that fails will try it, tell the
- * founder it did something, and be wrong.
+ * FB-200's design named eight. **Seven are wired; `propose_approval` is not, and it is not listed
+ * here**, because a tool a model can see and cannot use is a dead control — the same fault FB-192
+ * removed from the office when it hid Layout and Settings. A model offered a tool that fails will try
+ * it, tell the founder it did something, and be wrong.
  *
- * What is missing is on the ticket, with why.
+ * `propose_approval` waits on a choke-point that does not exist: proposals are written by the lane
+ * today, and a second writer for them would be exactly the drift FB-140 caused. It stays off this list
+ * until one function writes a proposal, the way `filePlan` is the one function that files a ticket.
  */
 export const STUDIO_TOOLS: readonly StudioTool[] = [
   {
@@ -103,6 +105,75 @@ export const STUDIO_TOOLS: readonly StudioTool[] = [
         note: str('what to add, in plain English'),
       },
       required: ['repo', 'id', 'note'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'what_happened',
+    kind: 'read',
+    description:
+      'What the team actually did recently on this venture, newest first: the work that finished, the '
+      + 'runs behind it, and anything that failed. Use it before answering "where are we" — it is the '
+      + 'record, not a summary of one.',
+    input: {
+      type: 'object',
+      properties: { days: { type: 'number', description: 'how far back to look; defaults to 7' } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'budgets',
+    kind: 'read',
+    description:
+      "What this venture's limits are, how much of each is used up, and whether anything has passed "
+      + 'its limit. Read it before suggesting work that costs money, so the suggestion is a possible '
+      + 'one.\n\n'
+      // The word a founder would use is barred from every tool description on purpose (the guard in
+      // lib/__tests__/mcp.test.ts), because a tool whose description carries that verb reads as a tool
+      // that can do it. Saying "used up" costs a little clarity and keeps the rule absolute, and an
+      // absolute rule is the only kind that survives 23:00.
+      + 'This only reads the figures. Nothing here can commit money.',
+    input: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'venture_memory',
+    kind: 'read',
+    description:
+      'Search what this venture knows: its background documents, its tickets and its history. Ask a '
+      + 'question in words rather than guessing a filename. Use it before asking the founder something '
+      + 'the venture has already written down.',
+    input: {
+      type: 'object',
+      properties: { question: str('what you want to know, in plain English') },
+      required: ['question'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'file_ticket',
+    kind: 'write',
+    description:
+      'File one piece of work as a ticket the team can pick up. This is the real write: it creates a '
+      + "file in the venture's repository and opens a pull request, exactly as the studio's own screen "
+      + 'does.\n\n'
+      + 'What makes a ticket the team can act on and a founder can read:\n'
+      + '- One piece of work. If it needs two branches, it is two tickets.\n'
+      + '- Say what a person will see change, not how to build it. The team decides how.\n'
+      + '- Say how anyone would know it worked. A ticket with no way to check is a wish.\n'
+      + '- Plain, direct English and short sentences. A founder reads this and none of them should '
+      + 'have to be technical.\n'
+      + '- If you are unsure what is wanted, ask the founder before filing. A wrong ticket costs more '
+      + 'than a question does.\n\n'
+      + 'It starts no work by itself and spends nothing. The team picks it up, and every change it '
+      + 'leads to still comes back for a decision.',
+    input: {
+      type: 'object',
+      properties: {
+        repo: str('the repository to file into, e.g. arca-marketing'),
+        title: str('one line saying what the work is'),
+        body: str('the ticket itself, in plain English: what is wanted, why, and how to tell it worked'),
+      },
+      required: ['repo', 'title', 'body'],
       additionalProperties: false,
     },
   },
