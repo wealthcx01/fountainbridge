@@ -137,6 +137,19 @@ export function fromLaneRecord(raw: unknown, repo: string): RunReport | null {
 export interface RunReportSource {
   list(repo: string): Promise<string[]>;
   read(repo: string, name: string): Promise<unknown | null>;
+  /**
+   * Read many at once, when the source can (FB-170).
+   *
+   * Optional, and the loader falls back to `read` per name when it is absent — so the GitHub and
+   * fixture sources are unchanged. It exists because this interface is file-shaped, and a
+   * file-shaped interface against a database is sixty round trips for one screen: the desk opens
+   * `limit × READ_MARGIN` reports, and asking Postgres sixty times for rows it would return in one
+   * query throws away most of the reason for having a database.
+   *
+   * Returns a map keyed by name. A name that is missing from the map is a MISS, not an error — the
+   * cache is allowed to be incomplete, and the caller fetches the rest from git.
+   */
+  readMany?(repo: string, names: readonly string[]): Promise<Map<string, unknown>>;
 }
 
 /**
@@ -175,7 +188,10 @@ export function newestWrittenAt(names: readonly string[]): string | null {
 }
 
 /** The liveness beacon's filename, fixed by the lane (`foundry-lib.sh`). */
-const HEARTBEAT_FILE = '_heartbeat.json';
+/** The liveness beacon's filename, fixed by the lane (`foundry-lib.sh`). Exported since FB-170,
+ *  because the cache has to know the one file it must never keep: the lane overwrites this in place,
+ *  so a cached copy would report a stopped machine as running. */
+export const HEARTBEAT_FILE = '_heartbeat.json';
 
 /**
  * How many extra reports to open beyond the render limit (FB-123).
@@ -273,10 +289,32 @@ export async function loadRunReports(
   const newest = dated.slice(0, limit * READ_MARGIN);
 
   const all: RunReport[] = [];
+  const wanted = [...beacons, ...newest];
+
+  // One round trip per repository where the source offers one (FB-170). Grouped by repo because
+  // that is how both `read` and `readMany` are addressed, and because a cache lookup for sixty
+  // names is one query only if they share a table scan.
+  const batched = new Map<string, unknown>();
+  if (source.readMany) {
+    const byRepo = new Map<string, string[]>();
+    for (const w of wanted) byRepo.set(w.repo, [...(byRepo.get(w.repo) ?? []), w.name]);
+    await Promise.all(
+      [...byRepo].map(async ([repo, names]) => {
+        try {
+          for (const [name, payload] of await source.readMany!(repo, names)) batched.set(`${repo}/${name}`, payload);
+        } catch {
+          // A cache that fails is a cache miss, not a broken screen. Everything falls through to
+          // `read` below, which is where it came from before this existed.
+        }
+      }),
+    );
+  }
+
   const read = await Promise.all(
-    [...beacons, ...newest].map(async ({ repo, name }) => {
+    wanted.map(async ({ repo, name }) => {
       try {
-        return fromLaneRecord(await source.read(repo, name), repo);
+        const hit = batched.get(`${repo}/${name}`);
+        return fromLaneRecord(hit ?? await source.read(repo, name), repo);
       } catch {
         // One unreadable report must not lose the other nineteen.
         return null;
