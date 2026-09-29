@@ -4,6 +4,13 @@
 ActiveGraph question raised by FB-110 · **Repo:** fountainbridge **+ bcap-contracts** (see below) ·
 **Branch:** `fb-111-one-name-for-the-approval-record` · One ticket = one branch = one PR.
 
+
+> **Design to compare against, from FB-220 (block/buzz, declined 2026-09-25, revised 2026-09-29).** In
+> Buzz every agent holds its own keypair, so an agent cannot sign as a human and each one has its own
+> line in the audit log. Ours is a shared HMAC secret kept off the lane box (FB-071, FB-072). Both work;
+> they fail differently — **one leaked shared secret makes everything forgeable, where per-actor keys
+> degrade one agent at a time.** Not a reason to reopen a hard-won record, but the right comparison when
+> this ticket settles what the approval record is called and how many signing identities it admits.
 ## The collision
 
 **ActiveGraph** is an open-source event-sourced runtime for agentic systems, installed on the venture

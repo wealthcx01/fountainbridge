@@ -5,6 +5,12 @@ have used him in other projects on this VM… That should help improve our memor
 we implement his principals."* · **Branch:** `fb-222-cole-medin-principles` ·
 One ticket = one branch = one PR.
 
+> **Second citation for take 1, added 2026-09-29.** Buzz (FB-220) independently reached the same idea
+> as Cole Medin's fire budget: it makes **`NO_REPLY` a declared outcome** of a workflow step, so
+> "nothing worth saying" is a real answer rather than the absence of one. Two systems arriving at the
+> same answer from different directions is usually a sign the answer is right. The fire-budget ticket
+> this one files should cite both.
+
 ## What we already took, and where from
 
 Cole Medin runs a knowledge base of 198 videos, 243 concept pages and about 925,000 words of
