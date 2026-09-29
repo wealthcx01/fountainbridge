@@ -41,6 +41,8 @@
     "ajv-formats": "^3.0.1",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.4",
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"
   }
