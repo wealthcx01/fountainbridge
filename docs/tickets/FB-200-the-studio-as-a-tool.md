@@ -175,12 +175,21 @@ to retry a write.
 
 ## What is left
 
-- [ ] `file_ticket` — the last real write. `filePlan` needs the same actor thread-through and a
+- [x] `file_ticket` — the last real write. *(FB-225, 2026-09-29: `filePlan` now takes an optional
+      `Actor`, passed to `requireVentureRepo`, which enforces `scopedTo` before anything else. Same
+      function the composer's confirm button calls, so a ticket filed by Claude is indistinguishable
+      downstream from one typed on the desk.)* The original note read: `filePlan` needs the same actor
+      thread-through and a
       `PlanDraft` assembled from a title and a body. It touches the studio's most privileged write
       path, so it gets its own PR rather than riding on this one.
-- [ ] `propose_approval` — no choke-point exists for it yet. Proposals are written by the lane today,
+- [ ] `propose_approval` — **still the only one unwired, and deliberately so.** No choke-point exists for it yet. Proposals are written by the lane today,
       so this is new write machinery rather than a call to something that already works.
-- [ ] The read tools for what happened, budgets and memory
+- [x] The read tools for what happened, budgets and memory *(FB-225: `what_happened` reuses the same
+      `buildFeed` the activity screen uses, so the tool cannot answer differently from the screen;
+      `budgets` uses the same `rowReason` the desk shows, so a founder is never told two things about
+      their own money; `venture_memory` lists what exists and says plainly that it is not answering the
+      question, because a confident answer from a filename match would be worse than a list — the real
+      corpus search is FB-169.)*
 - [ ] A claude.ai connector, which needs OAuth rather than a bearer ticket — the step that reaches a
       founder who has never opened a terminal
 - [ ] Somewhere in the studio to get a connection. Chapter 9 says "ask us"; that should become a

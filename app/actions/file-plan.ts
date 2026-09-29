@@ -31,6 +31,7 @@ import { clearTicketCache } from '@/lib/tickets';
 import { clearAttentionCache } from '@/lib/attention';
 import { fullRepoName } from '@/lib/venture-repos';
 import { requireVentureRepo } from '@/lib/venture-access';
+import type { Actor } from '@/lib/venture-access';
 import {
   PLAN_MARKER, allocatePlanIds, effectiveDependsOn, keptTickets, parsePlanDraft, planBranch,
   planFilingOrder, planProblem, ticketPrefixFor, withDependsOn, type PlanDraft,
@@ -110,8 +111,20 @@ export async function filePlan(
    * everything above is pure.
    */
   confirmedCount: number,
+  /**
+   * Who is filing, when it is not a signed-in browser (FB-225).
+   *
+   * Absent, this reads the session and behaves exactly as it always has. Present, it is the MCP
+   * ticket's claim, and `requireVentureRepo` enforces `scopedTo` before anything else — so a ticket
+   * naming one venture cannot file into another, whatever the arguments say.
+   *
+   * Threaded through rather than given its own writer, because FB-200's whole point is that a ticket
+   * filed by Claude is indistinguishable downstream from one typed on the desk. A second writer is
+   * the one that drifts.
+   */
+  actor?: Actor,
 ): Promise<FilePlanResult> {
-  const access = await requireVentureRepo(ventureId, repo);
+  const access = await requireVentureRepo(ventureId, repo, actor);
   if (!access.ok) return { ok: false, message: access.error };
 
   // The plan arrives from a browser. Everything below it turns a slug into a repository path with a
