@@ -57,3 +57,5 @@ Tickets live in `docs/tickets/`; one ticket = one branch = one PR; PRs merge onc
 **Dependency order:** FB-001 ∥ FB-002 (bcap-contracts) → FB-003 → FB-004 ∥ FB-005 ∥ FB-011 → FB-006 → FB-007 ∥ FB-008 → FB-009 → FB-010 (retro → Phase 2 set). FB-012 ratified — Phase 4b tickets (FB-02x) to be drafted from `docs/research-gtm.md` §7.
 
 - `docs/architecture-replan-2026-09.md` — **PROPOSAL, awaiting John's ruling.** D10–D13 and an amendment to D1: Claude Code as the workbench, a Foundry MCP server that proposes and never grants, ephemeral per-ticket build environments, skills our agents load, and memory split into state and event. Read it before starting anything in Phase 3.
+
+- `docs/design-gaps-open.md` — the open design questions, written so a section can go straight to Claude Design. Five today: what the desk becomes once work happens in Claude Code, what an empty office looks like, whether a figure means an agent, two tokens that do not exist, and the ledger on a phone.
