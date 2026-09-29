@@ -44,6 +44,31 @@ Fountainbridge is therefore **not** a Bruntsfield-wide operations dashboard (Hol
 
 **D8 — Venture context & library live in the venture repo.** Founder-supplied context (brand kit, ICP notes, decks, research) and agent outputs need a home every lane can read — Cofounder has Company Memory + Department Context + Library; gbrain alone doesn't cover it. Convention: `context/` (durable background, department-tagged) and `library/` (artifacts/outputs) in the venture repo, heavy binaries in object storage with pointers. Git stays the source of truth; gbrain indexes it.
 
+**D9 — What we evaluated and refused, and why (added 2026-09-29).** Recorded here so a link someone
+sends is answered without re-researching it. A verdict here is about the state of both products on the
+date given; each is dated so a later reader can tell whether it has gone stale.
+
+- **`block/buzz` — DECLINED, 2026-09-25 (FB-220).** A self-hosted Nostr relay where humans and AI
+  agents are members of the same rooms. Genuinely good, and the wrong shape: **Buzz's relay is its
+  source of truth and D2's git is ours**, and the two cannot both hold. Everything it would give us
+  already works here (the office, the approval record after FB-071/072, the conversation on a ticket,
+  the lane timer, the venture brain), and the cost is a Rust relay plus Postgres, Redis and object
+  storage on every venture box — against D1, and ARCA is at 83% disk. **Three ideas taken:**
+  branch-as-room (FB-184, FB-209), `NO_REPLY` as a declared outcome (FB-222), per-actor keypairs
+  (FB-111).
+- **TypeSafe System One / "Jev" — DECLINED, 2026-09-25 (FB-221).** A fast typed classifier: you supply
+  state and typed questions, it returns typed answers with probabilities and never writes prose. Its
+  type safety is real (23,703 independent calls, zero invalid outputs). Two reasons it does not fit:
+  the only two places we call a model both need it to **write** English or code, which Jev
+  deliberately does not do; and the confidence score — the only thing we would have built on — is
+  measurably overconfident (0.99 on random letters, and none of 30 confidently-wrong answers flagged).
+  Reopen conditions are in the ticket. "0% hallucination" means the answer is always one of the
+  options you listed, not that it is right.
+- **Upstream ActiveGraph as a service — DECLINED as a dependency, 2026-08 (FB-071), but the package is
+  in use.** We took the model, not a Python service per venture. Corrected 2026-09-25: the real
+  package **is** installed on ARCA, works, and records `proposed` → `granted` with exact replay. See
+  FB-171, which is blocked only on FB-170.
+
 ## 3. Phases
 
 ### Phase 0 — Foundations
