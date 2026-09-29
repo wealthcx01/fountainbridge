@@ -156,3 +156,103 @@ export function dressDocument(html) {
   const style = `<style data-foundry="office-chrome">${CHROME_HIDDEN.join(',')}{display:none !important}</style>`;
   return html.includes('</head>') ? html.replace('</head>', `${style}</head>`) : `${style}${html}`;
 }
+
+/**
+ * How long since an agent's transcript was written before the office stops drawing it (FB-218).
+ *
+ * A Claude session writes to its `.jsonl` continuously while it works and stops the moment it ends.
+ * That is the ONLY per-agent signal on this box that separates working from finished, and it took
+ * three measurements on ARCA to establish that:
+ *
+ *   - The agent record in `standalone-state.json` carries `id, sessionId, jsonlFile, projectDir,
+ *     palette, hueShift` and **no status and no timestamp**. pixel-agents has no concept of an agent
+ *     ending, so there is nothing in its registry to reap by.
+ *   - Its own `agentStatus` message is no help either: all 120 agents reported `waiting`, including
+ *     the hundred whose transcripts had not been touched for over a day. `waiting` is its resting
+ *     state for everything, not a claim about liveness.
+ *   - `watchAllSessions` was NOT the cause. `settingsLoaded` reports it as `false` while the office
+ *     still held 120 agents, so the earlier diagnosis blaming that flag was wrong. The cause is
+ *     simply that the lane opens a new session per wake and pixel-agents never removes one.
+ *
+ * Thirty minutes, because a lane round can sit inside a single long model call and a founder must
+ * never watch a working agent vanish. It is generous on purpose: this bounds a room that reached 120,
+ * so precision is not what it is for.
+ */
+export const LIVE_WINDOW_MS = Number(process.env.OFFICE_LIVE_WINDOW_MS || 30 * 60 * 1000);
+
+/**
+ * Keep the agents that are working; drop the ones that finished.
+ *
+ * Why this runs in the gate rather than on the office: pixel-agents is an npm package that
+ * `provision-office.sh` reinstalls at a pinned version, so anything edited inside it is overwritten
+ * on the next provision. The gate is ours and is already the only thing between a browser and this
+ * machine, which makes it the one place a bound can be stated and kept.
+ *
+ * Why this is more truthful rather than less: the office was drawing 120 figures over a machine where
+ * **nothing had run for two hours**. Dropping the finished ones does not hide work, it stops the room
+ * claiming work that ended days ago — which is the failure CLAUDE.md #10 exists to forbid. When the
+ * lane is genuinely busy every one of its agents is writing, so every one of them passes.
+ *
+ * `mtimeOf` is injected so the tests can drive time instead of touching a filesystem.
+ *
+ * @param {{type: string, agents: number[], agentMeta?: object, externalAgents?: object, folderNames?: object}} roster
+ * @param {Map<number, string>} files  agent id → its transcript path
+ * @param {(path: string) => number | null} mtimeOf  epoch ms, or null when the file is gone
+ * @param {number} now
+ * @returns the roster with only live agents, and the ids that were dropped
+ */
+export function liveRoster(roster, files, mtimeOf, now = Date.now(), windowMs = LIVE_WINDOW_MS) {
+  const ids = Array.isArray(roster?.agents) ? roster.agents : [];
+  const live = [];
+  const dropped = [];
+
+  for (const id of ids) {
+    const path = files.get(id);
+    // No transcript recorded for this id is not evidence that it finished. It is evidence that we
+    // cannot tell, and the office should keep drawing what it has rather than delete a figure on a
+    // guess. Fail towards showing, because an empty office over a working machine is the worse lie.
+    if (!path) { live.push(id); continue; }
+    const at = mtimeOf(path);
+    if (at === null || at === undefined) { dropped.push(id); continue; }
+    (now - at <= windowMs ? live : dropped).push(id);
+  }
+
+  const keep = new Set(live);
+  const only = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) if (keep.has(Number(k))) out[k] = v;
+    return out;
+  };
+
+  return {
+    roster: {
+      ...roster,
+      agents: live,
+      ...(roster.agentMeta ? { agentMeta: only(roster.agentMeta) } : {}),
+      ...(roster.externalAgents ? { externalAgents: only(roster.externalAgents) } : {}),
+    },
+    dropped,
+  };
+}
+
+/**
+ * Messages that name a single agent, and so must not reach the browser for one we dropped.
+ *
+ * Without this the room refills itself: `agentStatus` arrives for agent 97, the browser has never
+ * heard of 97, and it draws it anyway. Filtering the roster and then forwarding per-agent traffic for
+ * agents not in it would have looked like the bound failing at random.
+ */
+export const PER_AGENT_MESSAGES = new Set(['agentStatus', 'agentContextUsage', 'agentActivity']);
+
+/**
+ * Should this office→browser message be forwarded, given the agents we decided are working?
+ *
+ * Anything that is not about one specific agent passes untouched — the room, the sprites, the layout,
+ * the settings. This only ever withholds news about an agent the browser was never told exists.
+ */
+export function forwardToBrowser(message, keptIds) {
+  if (!message || typeof message !== 'object') return true;
+  if (!PER_AGENT_MESSAGES.has(message.type)) return true;
+  return keptIds.has(message.id);
+}
