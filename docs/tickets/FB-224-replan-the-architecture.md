@@ -1,7 +1,13 @@
 # FB-224 — replan the architecture: Claude Code is the workbench, Foundry is the ledger
 
-**Status:** filed · **Phase:** 3 · **Raised by:** John, 2026-09-29 at the mid-project check-in —
+**Status:** Done · **Phase:** 3 · **Raised by:** John, 2026-09-29 at the mid-project check-in —
 *"I think we need to replan the architecture"* · One ticket = one branch = one PR.
+
+> **Done on merge.** Its whole scope is "put the proposal in the repo, change nothing else", and that
+> is complete. **Done here means the proposal is filed, not that it is approved** — the document is
+> marked PROPOSAL and nothing in it binds until John rules. Set this way rather than left at `filed`
+> because FB-220 taught the lesson twice: a ticket whose deliverable is the ticket ships in the commit
+> that files it, and `ticket-drift` is right to say so.
 
 ## What this ticket is
 
