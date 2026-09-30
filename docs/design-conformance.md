@@ -9,10 +9,25 @@ change to add a line to.
 
 ## How to take it again
 
-Sign in to production as the venture's founder, and for each route record
-`document.documentElement.scrollHeight` and
-`scrollWidth - clientWidth` at **1440×1000** and on an **iPhone 13** profile. Open the design
-artifact in the same browser and click through to the matching screen. Then *look at both.*
+**The short way, added 2026-09-30:**
+
+    export GITHUB_TOKEN="$(gh auth token)"
+    export E2E_TEST_LOGIN=1 E2E_TEST_LOGIN_SECRET=pick-anything-local
+    export AUTH_SECRET=pick-anything-local AUTH_TRUST_HOST=true
+    export STUDIO_ADMIN_EMAILS=john.gallagher@wealthcx.com
+    npm run build && npm run start -- --port 3200 &
+    node scripts/measure-on-real-data.mjs
+
+That reads the venture's **real** data. Git is the source of truth for work items, so a local build
+with a real token reads exactly what production reads; the deployment adds a hostname, not a fact.
+Sign in as the **founder**, not an admin — an admin sees wiring warnings a founder never does, worth
+136px on the desk. Both `E2E_TEST_LOGIN` variables are required: with only the first, sign-in fails
+silently and every height you record is of the sign-in page.
+
+For each route the script records `document.documentElement.scrollHeight` and
+`scrollWidth - clientWidth` at **1440×1000** and **393×851**, and says where it landed, so a reading
+taken on the wrong page announces itself. Then open the design artifact in a browser, click through
+to the matching screen, and *look at both.*
 
 Height is not the point — it is the cheapest visible proxy for "this screen shows more than it was
 designed to". Every gap below was found by the number and then confirmed by reading the picture.
@@ -22,7 +37,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | screen | design | desktop | phone | verdict |
 | --- | --- | --- | --- | --- |
 | Sign in | one screen | **1,000px** | **851px** | **compared, FB-189** — matched on height, wrong on everything else |
-| The desk | ~1,900px | **1,984px** | **2,228px** | rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 1–13 |
+| The desk | ~1,900px | **1,689px** | **2,175px** | **re-measured 2026-09-30 on real data as the founder — under the design.** rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 1–13, bounded FB-178 |
 | Tickets | 1,090px | **1,325px** | **1,600px** | fixed FB-185, widened FB-188, FB-208 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
 | What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
@@ -556,11 +571,32 @@ height had been measured against all along could not distinguish a bounded desk 
 `e2e/desk-at-scale.spec.ts` measures it, in its own CI step. Checked by breaking it: putting the run
 cap back to twenty takes the desktop reading to **2,795px** and fails the ratchet.
 
-### What these numbers still cannot tell you
+### And then the real reading, the same day
 
-Production's ticket titles and approval text are real sentences of unknown length, and a longer
-sentence wraps to more lines. The generated fixture wraps, but not in ARCA's own words. **The number
-of things on the desk is proven bounded; the height of each row over real copy is not.**
+The fixture readings above were taken because the reading on ARCA's own data was recorded as blocked.
+**It was not blocked.** Git is the source of truth for work items — the studio is a view over the
+venture repos' `docs/tickets/` through the GitHub API, with no separate database of record — so a
+local build with a real `GITHUB_TOKEN` reads exactly the data production reads. And `gh auth token`
+had held `repo` scope on `wealthcx01/arca` the whole time.
+
+| the desk, on ARCA's own data | 1440×1000 | 393×851 |
+| --- | --- | --- |
+| **as the founder** | **1,689px** | **2,175px** |
+| as a Bruntsfield admin | 1,825px | 2,465px |
+
+Over **73 tickets and 9,889 run reports**. Below the design's own ~1,900px, and 1,200px below where
+FB-186 left the desk. Neither viewport scrolls sideways, and nothing on either screen reported a
+failed read.
+
+Take it again with `node scripts/measure-on-real-data.mjs` — see the method note above. Sign in as
+the **founder**, not as an admin: an admin sees wiring warnings a founder never does, and they cost
+136px on the desk.
+
+### One thing the real reading settled that the fixture could not
+
+On real data the rail and the body **agree** — both say *"Your team checked in 3 minutes ago"*. The
+contradiction that FB-240 was filed for appears only under the pinned test clock, which confirms that
+ticket's own conclusion: it is a fault in the gate, not in the product.
 
 ### Read the pictures, not only the table
 
