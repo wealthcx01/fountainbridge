@@ -43,6 +43,32 @@ fixture.
 3. **The failure names nothing.** `ERR_ABORTED` is what a founder-facing timeout looks like from the
    outside, and it should not be what a developer sees either.
 
+## Seen again, 2026-09-30
+
+On PR #300 — **four markdown files, no code.** The Playwright gate failed after a full 5m6s run (not the
+fast build failure FB-223 fixed):
+
+```
+✘ e2e/approvals.spec.ts:164 › a price the studio could not read (FB-214)
+  › a genuinely free action stays silent, because free is a real answer (35.0s)
+  ✘ retry #1 (35.1s)
+Error: page.goto: net::ERR_ABORTED; maybe frame was detached?
+```
+
+Green on re-run with no change.
+
+**The approvals page is the one that hangs, and it is the one this ticket is about.** FB-214 spent an hour
+on this exact failure before finding the cause: the page makes a live call to GitHub, and when that call is
+slow or rate-limited the page never settles, so the test times out at 35 seconds.
+
+That it failed on a documentation-only pull request is the whole argument. **A required gate whose result
+depends on a third party's response time is a gate that reports on the weather**, and this project has
+already shown what that costs: FB-223 records a merge made past a red check, on the day a different
+unrelated flake had trained the expectation.
+
+FB-223 removed the font dependency. **This is the remaining one**, and it is the more valuable of the two
+because it fails slowly and expensively rather than quickly.
+
 ## Scope
 
 - A fixture source for the approval record, matching every other read: a
