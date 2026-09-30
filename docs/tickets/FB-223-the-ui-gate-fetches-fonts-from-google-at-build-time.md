@@ -1,6 +1,6 @@
 # FB-223 — the required gate depends on Google being up
 
-**Status:** filed · **Seen twice on 2026-09-29** · **Phase:** 3 · **Found by:** a red gate on a markdown-only PR, 2026-09-29
+**Status:** Done · **Seen twice on 2026-09-29, fixed 2026-09-30** · **Phase:** 3 · **Found by:** a red gate on a markdown-only PR, 2026-09-29
 · **Related:** FB-217 · One ticket = one branch = one PR.
 
 ## What happened
@@ -93,6 +93,66 @@ Recorded here because the near-miss is the evidence.
 - [ ] A build that cannot reach a required external resource says which resource, in plain words.
 - [ ] Screens render with the same typefaces as before — this is a supply change, not a design change.
       Compare against the design per non-negotiable 11 and record the reading.
+
+## Fixed, 2026-09-30
+
+The fonts are now **served from this repository**. `next/font/google` is gone, and the build makes no
+outbound request at all.
+
+### What shipped
+
+`app/fonts/` holds the exact files Google serves for the **latin** subset — 204 KB, four files:
+
+| file | bytes | covers |
+|---|---|---|
+| `source-serif-4-latin.woff2` | 122,360 | variable, weights 400–500 |
+| `inter-latin.woff2` | 48,256 | variable, weights 100–900 |
+| `ibm-plex-mono-400-latin.woff2` | 14,708 | 400 |
+| `ibm-plex-mono-500-latin.woff2` | 14,888 | 500 |
+
+`app/layout.tsx` uses `next/font/local`. `display: 'swap'` and every `--font-*` variable name are
+unchanged, so nothing downstream had to move.
+
+**The build ships 4 font files where it shipped 23.** The other 19 were Cyrillic, Greek and Vietnamese
+subsets nothing on any screen renders.
+
+### Proved, three ways
+
+1. **No `next/font/google` anywhere** in `app/`, `components/` or `lib/` — the only match left is the
+   comment explaining why.
+2. **No Google host in the build output.** `grep` for `fonts.gstatic.com` and `fonts.googleapis.com`
+   across `.next/static` and `.next/server` returns nothing.
+3. **The committed files are the ones shipped**, matched byte-for-byte by size into `.next/static/media`.
+
+### And it was looked at, because the numbers were suspicious
+
+Fifteen of the thirty-four captured screens changed height. **Every one got shorter, none taller** —
+between 1% and 7%.
+
+That is exactly what a font failing to load and falling back to a system face would look like, so it was
+not accepted on the measurement. Two screens were opened and read as pictures: a desktop page and a phone
+one. The type is right on both — serif headings, Inter body, Plex Mono eyebrows, no fallback anywhere.
+
+The real cause is that a **variable font replaces the static instances** Next was requesting, and its line
+boxes are fractionally tighter. Ink coverage moved by less than 0.4% on every screen, which is consistent
+with the same words in the same typeface set very slightly tighter — and not with a substitution.
+
+`scripts/visual-parity-diff.mjs` (FB-226) did the measuring. This is the first change it was used on, and
+it earned its place: without it the height shift would have gone unnoticed, and noticing it is what
+prompted looking at the pictures.
+
+### Gates
+
+lint, typecheck, 1,703 unit tests, and **310 browser tests** all pass with the self-hosted fonts.
+
+## Acceptance criteria, met
+
+- [x] The Playwright gate builds and runs with no outbound request to a font host — proved by the absence
+      of any Google host in the build output, rather than by the build merely succeeding.
+- [x] A build that cannot reach a required external resource now cannot happen for fonts, because there is
+      no such resource.
+- [x] Screens render with the same typefaces. Compared per non-negotiable 11, the height changes recorded
+      above, and two screens looked at as pictures.
 
 ## Verification
 
