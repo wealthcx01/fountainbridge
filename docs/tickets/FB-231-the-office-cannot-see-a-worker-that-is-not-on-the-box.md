@@ -1,6 +1,6 @@
 # FB-231 — the office cannot see a worker that is not on the box, and nothing records what it loaded
 
-**Status:** filed · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"when each railway launches will
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"when each railway launches will
 that represent an agent in the pixel office, and we can see what type of skills have been loaded for that
 worker? and then can we view the result via link?"* · One ticket = one branch = one PR.
 
@@ -110,6 +110,82 @@ character count, the skills display and the off-box case together.
 
 So the sequence is: **contracts change → lane records it → office and trail read it.** Not the other way
 round, and not three separate mechanisms.
+
+## Shipped 2026-09-30: one character per ticket, and the blocker that dissolved
+
+**The blocker I recorded was wrong**, and finding that out took one command.
+
+I said the session-to-ticket mapping needed a `bcap-contracts` change, because the only place a session's
+ticket appears is inside the transcript. **`claude -p` takes `--session-id <uuid>`.** So the lane can
+choose the id and write down which ticket it belongs to, and nothing about the contract has to move.
+
+That matters beyond this ticket: **the thing that looked like a schema problem was a "we did not read the
+help" problem.** The other half — recording which *skills* a worker used — genuinely does belong on the
+`RunReport` and genuinely is still blocked. Two facts, two mechanisms, and I had assumed one.
+
+### What the lane now does
+
+`claude_lane` generates a UUID per call, passes `--session-id`, and appends one line to
+`$STATE_DIR/sessions.jsonl`:
+
+```
+{"session":"<uuid>","ticket":"ARCA-61","stage":"implement","at":"2026-09-30T17:22:04Z"}
+```
+
+`supervisor.sh` exports `FOUNDRY_TICKET` once, derived the same way the studio derives it so the two agree
+on what names a piece of work, and labels each of the five stages.
+
+**Each call still gets its own id and its own session.** No `--resume` anywhere, so `/review` continues to
+see the diff and not the reasoning that produced it. That hold-out critic is the thing most easily lost by
+someone reusing a session to save tokens, and it is now written down beside the code that would lose it.
+
+**It never fails the wake.** A lane that cannot write its index still has work to do, and an office drawing
+one character too many is a smaller fault than a ticket that did not get built.
+
+**Deliberately not a `RunReport` field.** That is a bcap-contracts entity and the record a founder reads;
+this is operational state only the office needs, and changing a shared schema to solve a drawing problem
+would be the wrong reason.
+
+### What the office now does
+
+Two passes, in this order:
+
+1. **`liveRoster`** drops what has finished (FB-218).
+2. **`oneCharacterPerTicket`** collapses what remains to one character per ticket, keeping the **most
+   recently active** session so the character tracks the work rather than whichever stage started first.
+
+Collapsing first would sometimes keep a finished session as a ticket's representative and draw a character
+for work that had stopped.
+
+**It fails towards showing**, exactly as the liveness bound does. An agent whose session the index does not
+know is **kept**, because no record means "we cannot tell", not "this is a helper". An unreadable or absent
+index empties nothing.
+
+### The measurement
+
+| | characters drawn |
+|---|---|
+| one ticket, five stages | **5 → 1** |
+| one ticket at its worst (2 rounds, 11 sessions, 8 finished) | **11 → 1** |
+| two tickets in flight, four sessions | **4 → 2** |
+
+### Every guard checked by breaking it
+
+- Stop collapsing → **4 tests fail**, including the eleven-to-one case.
+- Keep the oldest session instead of the newest → 3 fail, because the character would track stopped work.
+- Hide agents the index does not know → 2 fail, which is the empty-room failure.
+
+Restored, all 42 pass.
+
+## Still open, and honestly
+
+- **Which skills a worker used.** This genuinely needs a `RunReport` field and `bcap-contracts` is not on
+  this machine. Unchanged.
+- **Off-box workers.** Still no producer, so still a dead control to build. But the index above **is** the
+  shape it would use: a worker on another machine writes the same line, and the gate already reads it.
+- **Not yet on a box.** `provision-office.sh` and the lane installer have to run for any of this to reach
+  ARCA, and that is a deploy (non-negotiable 4). The office there still draws one character per session
+  until then.
 
 ## Scope
 

@@ -21,7 +21,10 @@
 import { createServer, request as httpRequest } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { readFileSync, statSync } from 'node:fs';
-import { readTicket, allowedFromBrowser, routeFor, dressDocument, liveRoster, forwardToBrowser } from './office-gate-lib.mjs';
+import {
+  readTicket, allowedFromBrowser, routeFor, dressDocument, liveRoster, forwardToBrowser,
+  ticketsBySession, oneCharacterPerTicket, SESSION_INDEX_DEFAULT,
+} from './office-gate-lib.mjs';
 
 const VENTURE = process.env.OFFICE_VENTURE?.trim();
 const SECRET = process.env.OFFICE_SECRET?.trim();
@@ -52,6 +55,9 @@ const FRAME_ANCESTORS = process.env.OFFICE_FRAME_ANCESTORS?.trim() || "'none'";
 const OFFICE_STATE_FILE = process.env.OFFICE_STATE_FILE?.trim()
   || '/root/.pixel-agents/standalone-state.json';
 
+/** Where the lane records which ticket each session was working (FB-231). */
+const SESSION_INDEX = process.env.OFFICE_SESSION_INDEX?.trim() || SESSION_INDEX_DEFAULT;
+
 /** Re-read the registry at most this often. It changes when an agent is created, not per message. */
 const STATE_TTL_MS = 10_000;
 let stateCache = { at: 0, files: new Map() };
@@ -78,6 +84,21 @@ function transcriptsById(now = Date.now()) {
   }
   stateCache = { at: now, files };
   return files;
+}
+
+/**
+ * Which ticket each session was working, from the lane's index (FB-231).
+ *
+ * Re-read on the same cadence as the registry. Unreadable returns an empty map, and an empty map means
+ * every agent is kept as it was — the office draws what it is given rather than collapsing on a guess.
+ */
+let indexCache = { at: 0, tickets: new Map() };
+function ticketsBySessionCached(now = Date.now()) {
+  if (now - indexCache.at < STATE_TTL_MS) return indexCache.tickets;
+  let tickets = new Map();
+  try { tickets = ticketsBySession(readFileSync(SESSION_INDEX, 'utf8')); } catch { /* not written yet */ }
+  indexCache = { at: now, tickets };
+  return tickets;
 }
 
 /** When a transcript was last written, or null when it is gone. */
@@ -223,14 +244,23 @@ server.on('upgrade', (req, socket, head) => {
       try { message = JSON.parse(raw); } catch { client.send(raw); return; }
 
       if (message?.type === 'existingAgents') {
-        const { roster, dropped } = liveRoster(message, transcriptsById(), mtimeOf);
-        shown = new Set(roster.agents);
-        if (dropped.length) {
-          console.log('[office-gate] left finished agents out of the room', {
-            venture: VENTURE, drawing: roster.agents.length, finished: dropped.length,
+        const files = transcriptsById();
+        // Two passes, in this order. Drop what has finished (FB-218), then collapse what remains to one
+        // character per ticket (FB-231). Collapsing first would sometimes keep a finished session as a
+        // ticket's representative and draw a character for work that had stopped.
+        const live = liveRoster(message, files, mtimeOf);
+        const one = oneCharacterPerTicket(live.roster, ticketsBySessionCached(), files, mtimeOf);
+        shown = new Set(one.roster.agents);
+        if (live.dropped.length || one.collapsed.length) {
+          console.log('[office-gate] drew one character per ticket', {
+            venture: VENTURE,
+            drawing: one.roster.agents.length,
+            finished: live.dropped.length,
+            helpersHidden: one.collapsed.length,
+            tickets: Object.values(one.ticketOfAgent),
           });
         }
-        client.send(JSON.stringify(roster));
+        client.send(JSON.stringify(one.roster));
         return;
       }
 

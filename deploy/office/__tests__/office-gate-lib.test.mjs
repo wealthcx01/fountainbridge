@@ -3,6 +3,7 @@ import {
   signTicket, readTicket, allowedFromBrowser, routeFor, dressDocument, CHROME_HIDDEN,
   ALLOWED_FROM_BROWSER,
   liveRoster, forwardToBrowser, LIVE_WINDOW_MS,
+  ticketsBySession, sessionIdFromPath, oneCharacterPerTicket,
 } from '../office-gate-lib.mjs';
 
 /**
@@ -266,5 +267,127 @@ describe('the office stops drawing agents that finished (FB-218)', () => {
 
   it('uses a window generous enough that a long model call does not erase an agent', () => {
     expect(LIVE_WINDOW_MS).toBeGreaterThanOrEqual(15 * 60 * 1000);
+  });
+});
+
+
+describe('one character per ticket, helpers invisible (FB-231)', () => {
+  // John's ruling, 2026-09-30. A character means a PIECE OF WORK, not an agent and not a department.
+  //
+  // Why it is needed on top of FB-218's bound: supervisor.sh calls claude_lane five times per round --
+  // plan, implement, gate check, review, qa -- each a fresh `claude -p` writing its own transcript, and
+  // MAX_VALIDATION_ROUNDS defaults to 2. So before this, ONE TICKET DREW FIVE TO ELEVEN CHARACTERS.
+  const NOW = 1_800_000_000_000;
+  const minsAgo = (m) => NOW - m * 60_000;
+
+  const rosterOf = (ids) => ({
+    type: 'existingAgents',
+    agents: [...ids],
+    agentMeta: Object.fromEntries(ids.map((i) => [String(i), { palette: i % 8 }])),
+    externalAgents: Object.fromEntries(ids.map((i) => [String(i), true])),
+  });
+
+  it('reads the lane index, and skips a half-written line rather than throwing', () => {
+    // A partial last line is normal for a file being appended to while it is read.
+    const text = [
+      '{"session":"a","ticket":"ARCA-61","stage":"plan","at":"x"}',
+      '',
+      'not json at all',
+      '{"session":"b","ticket":"ARCA-61","stage":"implement","at":"y"}',
+      '{"session":"c","ticket":"ARCA-9"',
+    ].join('\n');
+    const m = ticketsBySession(text);
+    expect(m.get('a')).toBe('ARCA-61');
+    expect(m.get('b')).toBe('ARCA-61');
+    expect(m.has('c')).toBe(false);
+  });
+
+  it('lets a later entry correct an earlier one for the same session', () => {
+    const m = ticketsBySession([
+      '{"session":"a","ticket":"WRONG"}',
+      '{"session":"a","ticket":"ARCA-61"}',
+    ].join('\n'));
+    expect(m.get('a')).toBe('ARCA-61');
+  });
+
+  it('takes the session id out of a transcript path', () => {
+    expect(sessionIdFromPath('/root/.claude/projects/-opt-foundry-lane-arca/abc-123.jsonl')).toBe('abc-123');
+    expect(sessionIdFromPath('nonsense')).toBeNull();
+    expect(sessionIdFromPath(undefined)).toBeNull();
+  });
+
+  it('draws ONE character for a ticket worked by five sessions', () => {
+    // The real shape: one wake, five stages, five transcripts.
+    const ids = [1, 2, 3, 4, 5];
+    const files = new Map(ids.map((i) => [i, `/s${i}.jsonl`]));
+    const ticketOf = new Map(ids.map((i) => [`s${i}`, 'ARCA-61']));
+    const mtimes = { '/s1.jsonl': minsAgo(20), '/s2.jsonl': minsAgo(15), '/s3.jsonl': minsAgo(10), '/s4.jsonl': minsAgo(5), '/s5.jsonl': minsAgo(1) };
+    const { roster, collapsed, ticketOfAgent } = oneCharacterPerTicket(rosterOf(ids), ticketOf, files, (p) => mtimes[p]);
+    expect(roster.agents).toEqual([5]);           // the most recently active stage
+    expect(collapsed).toEqual(expect.arrayContaining([1, 2, 3, 4]));
+    expect(ticketOfAgent[5]).toBe('ARCA-61');
+  });
+
+  it('draws one character per ticket when two tickets are in flight', () => {
+    const ids = [1, 2, 3, 4];
+    const files = new Map(ids.map((i) => [i, `/s${i}.jsonl`]));
+    const ticketOf = new Map([['s1', 'ARCA-61'], ['s2', 'ARCA-61'], ['s3', 'SELL-1'], ['s4', 'SELL-1']]);
+    const mtimes = { '/s1.jsonl': minsAgo(9), '/s2.jsonl': minsAgo(2), '/s3.jsonl': minsAgo(8), '/s4.jsonl': minsAgo(1) };
+    const { roster } = oneCharacterPerTicket(rosterOf(ids), ticketOf, files, (p) => mtimes[p]);
+    expect(roster.agents).toEqual([2, 4]);
+    expect(roster.agents).toHaveLength(2);
+  });
+
+  it('keeps an agent whose session the index does not know, rather than hiding it', () => {
+    // No record is "we cannot tell", not "this is a helper" -- the same fail-towards-showing rule as the
+    // liveness bound, because an empty office over a working machine is the worse lie.
+    const ids = [1, 2];
+    const files = new Map([[1, '/known.jsonl'], [2, '/unknown.jsonl']]);
+    const ticketOf = new Map([['known', 'ARCA-61']]);
+    const { roster, collapsed } = oneCharacterPerTicket(rosterOf(ids), ticketOf, files, () => minsAgo(1));
+    expect(roster.agents).toEqual([1, 2]);
+    expect(collapsed).toEqual([]);
+  });
+
+  it('keeps every agent when the index is empty, so an unreadable file empties nothing', () => {
+    const ids = [1, 2, 3];
+    const files = new Map(ids.map((i) => [i, `/s${i}.jsonl`]));
+    const { roster } = oneCharacterPerTicket(rosterOf(ids), new Map(), files, () => minsAgo(1));
+    expect(roster.agents).toEqual(ids);
+  });
+
+  it('strips the collapsed helpers out of agentMeta and externalAgents too', () => {
+    const ids = [1, 2];
+    const files = new Map(ids.map((i) => [i, `/s${i}.jsonl`]));
+    const ticketOf = new Map([['s1', 'ARCA-61'], ['s2', 'ARCA-61']]);
+    const mtimes = { '/s1.jsonl': minsAgo(9), '/s2.jsonl': minsAgo(1) };
+    const { roster } = oneCharacterPerTicket(rosterOf(ids), ticketOf, files, (p) => mtimes[p]);
+    expect(Object.keys(roster.agentMeta)).toEqual(['2']);
+    expect(Object.keys(roster.externalAgents)).toEqual(['2']);
+  });
+
+  it('keeps the office\'s own order, so the room does not reshuffle between messages', () => {
+    const ids = [7, 3, 9];
+    const files = new Map(ids.map((i) => [i, `/s${i}.jsonl`]));
+    const ticketOf = new Map([['s7', 'A'], ['s3', 'B'], ['s9', 'C']]);
+    const { roster } = oneCharacterPerTicket(rosterOf(ids), ticketOf, files, () => minsAgo(1));
+    expect(roster.agents).toEqual([7, 3, 9]);
+  });
+
+  it('together with the liveness bound, eleven sessions become one character', () => {
+    // The whole point, end to end: a ticket at its worst (2 rounds x 5 stages, plus a stray) where some
+    // stages have finished. FB-218 drops the finished; FB-231 collapses the rest to one.
+    const ids = Array.from({ length: 11 }, (_, i) => i + 1);
+    const files = new Map(ids.map((i) => [i, `/s${i}.jsonl`]));
+    const ticketOf = new Map(ids.map((i) => [`s${i}`, 'ARCA-61']));
+    // The first eight finished long ago; the last three are recent.
+    const mtimeOf = (p) => {
+      const n = Number(/\/s(\d+)\.jsonl/.exec(p)[1]);
+      return n <= 8 ? minsAgo(600) : minsAgo(12 - n);
+    };
+    const live = liveRoster(rosterOf(ids), files, mtimeOf, NOW);
+    expect(live.roster.agents).toEqual([9, 10, 11]);
+    const one = oneCharacterPerTicket(live.roster, ticketOf, files, mtimeOf);
+    expect(one.roster.agents).toHaveLength(1);
   });
 });

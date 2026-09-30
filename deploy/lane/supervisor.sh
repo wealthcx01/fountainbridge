@@ -41,6 +41,14 @@ API="https://api.github.com"
 
 SLUG="${1:?usage: supervisor.sh <slug> <ticket-file>}"
 TICKET_FILE="${2:?usage: supervisor.sh <slug> <ticket-file>}"
+
+# Which ticket this wake is working, for the office (FB-231).
+#
+# Exported so `claude_lane` can record each session against it, which is what lets the office draw ONE
+# character per ticket rather than one per session — John's ruling of 2026-09-30. Derived the same way
+# the studio derives it, so the two agree on what names a piece of work.
+FOUNDRY_TICKET="$(basename "$TICKET_FILE" .md | grep -oiE '^[a-z]{2,}-[0-9]+[a-z]?' || true)"
+export FOUNDRY_TICKET
 BRANCH="foundry/${SLUG}"
 NOW() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 STARTED="$(NOW)"
@@ -225,6 +233,7 @@ else
   for attempt in 1 2; do
     log "PLAN: writing the PRP (attempt $attempt)…"
     set +e
+    LANE_STAGE=plan \
     claude_lane "$PLAN_TIMEOUT" "You are a Foundry engineering lane on the '$REPO' repo working ONE ticket.
 FIRST research, THEN plan — do not write any code yet.${CONTEXT_HINT}${PRP_RETRY_HINT:-}
 
@@ -363,6 +372,7 @@ source into the work itself — say so here instead. This file is what the found
   fi
   rm -f "$HANDOFF_FILE"
   set +e
+  LANE_STAGE=implement \
   claude_lane "$IMPL_TIMEOUT" "$IMPL_PROMPT
 
 TICKET:
@@ -419,6 +429,7 @@ $(cat "$TICKET_FILE")" >"$RUNDIR/impl-$ROUND.log" 2>&1
     log "VALIDATE: the PRP's own validation gates…"
     GATES_JSON="$RUNDIR/gates-$ROUND.json"
     set +e
+    LANE_STAGE=gate-check \
     claude_lane "$GATE_CHECK_TIMEOUT" "Check this branch's changes against the validation gates in the PRP at $PLAN_FILE. Read the code;
 run the venture's own tests or commands where that is how a gate is proven. Do NOT edit any files —
 report only, and do NOT weaken or rewrite the gates.
@@ -479,6 +490,7 @@ $GATE_REPORT"
     log "VALIDATE: /review…"
     REVIEW_JSON="$RUNDIR/review-$ROUND.json"
     set +e
+    LANE_STAGE=review \
     claude_lane "$REVIEW_TIMEOUT" "Run /review on the changes in this branch versus $BASE_BRANCH — a thorough staff-engineer audit
 (correctness, security, the CLAUDE.md trust boundaries). Do NOT edit files; report only.
 When done, write your verdict as JSON to the absolute path $REVIEW_JSON:
@@ -533,6 +545,7 @@ $(tail -c 2000 "$RUNDIR/review-$ROUND.log" 2>/dev/null || true)"
       log "VALIDATE: /qa (browser)…"
       QA_JSON="$RUNDIR/qa-$ROUND.json"
       set +e
+      LANE_STAGE=qa \
       claude_lane "$QA_TIMEOUT" "Run /qa-only against this app to check the change works (report-only — do NOT edit any files).
 If the change has no web-facing surface, or you cannot boot the app headless, that is NOT a failure —
 just say so. When done, write JSON to the absolute path $QA_JSON:

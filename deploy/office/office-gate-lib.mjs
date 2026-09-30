@@ -256,3 +256,110 @@ export function forwardToBrowser(message, keptIds) {
   if (!PER_AGENT_MESSAGES.has(message.type)) return true;
   return keptIds.has(message.id);
 }
+
+/**
+ * Where the lane records which ticket each session was working (FB-231).
+ *
+ * One JSON object per line: `{"session":"<uuid>","ticket":"ARCA-61","stage":"implement","at":"…"}`.
+ * The lane appends; nothing ever rewrites it. An append-only log of operational facts, not a record of
+ * anything a founder reads — the RunReport remains that, and this deliberately does not duplicate it.
+ *
+ * Read from disk rather than passed in, because the gate and the lane are separate services on the same
+ * machine and a file is the cheapest thing they can both reach.
+ */
+export const SESSION_INDEX_DEFAULT = '/opt/foundry/lane/state/sessions.jsonl';
+
+/**
+ * session id → ticket, from the lane's index.
+ *
+ * Tolerant on purpose: a malformed line is skipped rather than throwing, because a half-written line is
+ * normal for a file being appended to while it is read. The last entry for a session wins, so a session
+ * re-recorded under a corrected ticket takes the correction.
+ */
+export function ticketsBySession(indexText) {
+  const out = new Map();
+  for (const line of String(indexText ?? '').split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const row = JSON.parse(t);
+      if (typeof row?.session === 'string' && typeof row?.ticket === 'string' && row.ticket) {
+        out.set(row.session, row.ticket);
+      }
+    } catch { /* a half-written line is normal while the lane is appending */ }
+  }
+  return out;
+}
+
+/** The session id out of a transcript path: `/…/<uuid>.jsonl` → `<uuid>`. */
+export function sessionIdFromPath(path) {
+  const m = /([^/\\]+)\.jsonl$/.exec(String(path ?? ''));
+  return m ? m[1] : null;
+}
+
+/**
+ * One character per ticket, helpers invisible (FB-231).
+ *
+ * **Ruled by John on 2026-09-30**: *"one machine and one character per ticket, helpers invisible."* So a
+ * character means a piece of work, not an agent and not a department.
+ *
+ * ## Why this is needed on top of the liveness bound
+ *
+ * FB-218 stopped the room filling with agents that had finished. It did not stop **one ticket being drawn
+ * many times over**, and nobody had ruled on that yet. `supervisor.sh` calls `claude_lane` five times per
+ * round — plan, implement, gate check, review, qa — each a fresh `claude -p` writing its own transcript,
+ * and `MAX_VALIDATION_ROUNDS` defaults to 2. **So one ticket produced between five and eleven characters.**
+ *
+ * ## What it keeps
+ *
+ * The **most recently active** session for each ticket, so the character tracks the work rather than
+ * whichever stage happened to start first. Everything else for that ticket is collapsed into it.
+ *
+ * An agent whose session is not in the index is **kept, not dropped**. No record is "we cannot tell", not
+ * "this is a helper" — the same fail-towards-showing rule as the liveness bound, for the same reason: an
+ * empty office over a working machine is the worse lie.
+ */
+export function oneCharacterPerTicket(roster, ticketOf, files, mtimeOf) {
+  const ids = Array.isArray(roster?.agents) ? roster.agents : [];
+  const bestForTicket = new Map();
+  const keep = [];
+  const collapsed = [];
+
+  for (const id of ids) {
+    const session = sessionIdFromPath(files.get(id));
+    const ticket = session ? ticketOf.get(session) : undefined;
+    if (!ticket) { keep.push(id); continue; }
+
+    const at = mtimeOf(files.get(id)) ?? 0;
+    const held = bestForTicket.get(ticket);
+    if (!held) { bestForTicket.set(ticket, { id, at }); continue; }
+    // The newer transcript is the one still being written, so it is the one to draw.
+    if (at > held.at) { bestForTicket.set(ticket, { id, at }); collapsed.push(held.id); }
+    else collapsed.push(id);
+  }
+
+  for (const { id } of bestForTicket.values()) keep.push(id);
+  // Back into the office's own order, so the room does not reshuffle between messages.
+  const order = new Map(ids.map((id, i) => [id, i]));
+  keep.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+
+  const kept = new Set(keep);
+  const only = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) if (kept.has(Number(k))) out[k] = v;
+    return out;
+  };
+
+  return {
+    roster: {
+      ...roster,
+      agents: keep,
+      ...(roster.agentMeta ? { agentMeta: only(roster.agentMeta) } : {}),
+      ...(roster.externalAgents ? { externalAgents: only(roster.externalAgents) } : {}),
+    },
+    collapsed,
+    // What each drawn character is working, so a surface above can say so rather than only draw it.
+    ticketOfAgent: Object.fromEntries([...bestForTicket].map(([ticket, { id }]) => [id, ticket])),
+  };
+}
