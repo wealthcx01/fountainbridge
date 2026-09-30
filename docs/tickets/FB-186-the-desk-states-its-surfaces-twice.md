@@ -39,16 +39,49 @@ is the kind of thing only looking finds — every count in both blocks is correc
 - Re-measure both viewports and put the numbers in the PR (CLAUDE.md rule 11).
 
 **Shipped in part.** The desk states each surface once now, and each card states its own ticket
-count once. The desk came down from 2,912px to 2,603px, against a 2,500px target it does not meet.
+count once. The desk came down from 2,912px to 2,603px, against a 2,500px target it did not meet.
 
-The remaining 103px is not more duplication. It is that **the content column beside the rail is
-766px where the design's is 1,080px** — 29% narrower, so every sentence wraps sooner and every block
-is taller. Our own stylesheet says it meant to give the content ~1,080px; the 68rem measure includes
-the rail, so it does not. That is one line and it moves every screen in the studio, which is why it
-is FB-188 and not folded in here.
+The remaining 103px was not more duplication. It was that **the content column beside the rail was
+766px where the design's is 1,080px** — 29% narrower, so every sentence wrapped sooner and every
+block was taller. That was one line, it moved every screen in the studio, and it shipped as FB-188.
+
+## Closed out 2026-09-30 (FB-178)
+
+**Shipped in part:** every change this ticket asked for has shipped and the desk is comfortably under
+its target — but the one reading the target is stated against, on the production server, cannot be
+taken until the studio can sign in to production.
+
+
+**FB-188 landed, and the 103px went with it.** The desk now measures **2,165px at 1440×1000** — 335px
+under this ticket's 2,500px target, and 438px below where this ticket left it.
+
+Measured again over a venture the size ARCA actually is — 73 tickets and 1,773 run reports, against
+the six this gate's fixture used to hold — it is **2,230px**. Still under target. The full reasoning
+for why that second reading was needed, and why a six-ticket fixture could not produce it, is in
+FB-178 and in `docs/design-conformance.md`.
+
+| the desk, at 1440×1000 | height |
+| --- | --- |
+| when this ticket was written | 2,912px |
+| when this ticket shipped in part | 2,603px |
+| now, with FB-188 landed | **2,165px** |
+| now, over 73 tickets and 1,773 run reports | **2,230px** |
+
+**What is still not measured: the production server.** This ticket's target says "on ARCA's
+production data", and that reading needs a signed-in founder session the lane does not have —
+checked on 2026-09-30, and every request without one lands on `/login`. So the criterion below stays
+unticked, with the number recorded beside it, rather than ticked over a fixture reading.
+
+What that leaves genuinely open is narrow: production's ticket titles and approval text are real
+sentences of unknown length, and a longer sentence wraps to more lines. The **number** of things on
+the desk is proven bounded (`lib/__tests__/the-desk-is-bounded.test.ts`); the **height of each row
+over real copy** is not. One production reading closes this ticket and FB-178's first criterion at
+the same time.
 
 ## Acceptance criteria
 
 - [x] The desk states each surface once.
-- [ ] The desk is under 2,500px on ARCA's production data at 1440×1000. **2,603px — the rest is FB-188.**
+- [ ] The desk is under 2,500px on ARCA's **production** data at 1440×1000. **Not measured — needs a
+      signed-in session. It is 2,165px on the gate's fixture and 2,230px over a fixture at ARCA's
+      real size, both under target.**
 - [x] Nothing reachable from either block today becomes unreachable.
