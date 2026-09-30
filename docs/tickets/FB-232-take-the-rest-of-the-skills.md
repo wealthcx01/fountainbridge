@@ -3,9 +3,9 @@
 **Status:** Done · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"why don't we include all the
 skills?"* · **Follows:** D12, FB-226 · One ticket = one branch = one PR.
 
-> **Groups 1 and 2 shipped, 2026-09-30.** The ticket loop — `write-ticket`, `implement-ticket`,
-> `close-ticket` — and the quality gates — `write-tests`, `audit-tests`, `code-hygiene`,
-> `refactor-clean`. Groups 3 to 5 remain, and the count is now **8 of 26**.
+> **Groups 1, 2 and 3 shipped, 2026-09-30.** The ticket loop, the quality gates, and the thinking tools —
+> **All five groups shipped, 2026-09-30.** **18 of 26 taken**, 2 declined with reasons, 6 left with
+> reasons. The count that matters is not 26 — it is that every one of the 26 now has a decision attached.
 
 ## Why this exists
 
@@ -178,6 +178,119 @@ mid-ticket becomes its own ticket (non-negotiable 3).
 
 Groups 3 to 5: the thinking tools, the visual set, and writing and authoring.
 
+## Group 3, shipped 2026-09-30: the thinking tools
+
+### `explore-unknowns` — and it is FB-236's dependency delivered
+
+The quadrant walk: known knowns, known unknowns, unknown knowns, unknown unknowns, then **hand over the
+map**. Theirs ships a reference file per stage; this folds the essentials into one page and points at our
+ticket format as the deliverable.
+
+Its two moves are why it was worth taking rather than writing:
+
+- **"Reacting beats imagining."** Never ask a founder to describe what they want when you can hand them
+  something to react to. **A founder who is not technical can always tell you what is wrong with a thing in
+  front of them**, which is the whole problem of the founding conversation solved in one line.
+- **"Every answer should be nearly free to give."** A recommended answer attached to each question, so a
+  reply costs a word.
+
+Stage 4 hunts *"half-built or reverted earlier attempts at the same job — the reason one died is usually
+the landmine"*. This repository is unusually rich in those and they are named in the adapted version: the
+listing capped at a thousand entries, the fixture that left no rows, the comment describing elements that
+no longer existed.
+
+**For a venture that is starting, the map becomes its first tickets**, filed through `write-ticket`, with
+the map kept in `context/` so the reasoning survives. That is FB-236's dependency, now in place.
+
+### `audit-choices` — the one that names the risk of an autonomous factory
+
+> Wherever the task is underspecified, the agent makes the decision itself — **silently, and the diff won't
+> flag it.**
+
+**This is the thing to be most careful about as the lane runs unattended.** It picks up a ticket and runs
+five stages with no person in the loop. Every stage meets a question the ticket did not answer and answers
+it. The code works, the pull request is green, **and the venture now has architecture its founder never
+chose.**
+
+"Keeping the founder in the loop" cannot mean reading every diff — no founder will, and the ones who would
+are not who this is for. It means **surfacing the decisions**, which is a short list a person can judge.
+
+It changes no code and blocks nothing. Its three suspicions are ours: a point fix that works, a new
+abstraction that sits beside the old one rather than replacing it, and **a silently narrowed scope — the
+failure that most resembles success.**
+
+### `eli5` → `plain-english`, renamed on purpose
+
+*"Explain like I'm five"* is the wrong register for the person it is aimed at: **a founder is not a child,
+they are an expert in something else.** Their own line is the right one — *"simplify the telling, never the
+claims"* — and the rest is **non-negotiable 12 with a procedure**.
+
+Its closing test is the useful part: *could the founder act on this without asking a follow-up question?*
+If not, the missing thing is one of three — what happened, what it means for them, or what you need them to
+do. And its step 4, **say what was not checked**, is the one most often skipped and the one that builds the
+most trust.
+
+### `auto-research` — taken, with an honest note about when it applies
+
+It optimises against a number that can be scored, and **most questions here are not that shape.** "Should
+we use Buzz", "what does an empty office look like", "what is a founder's first ticket" are judgement and
+taste; reaching for this on those produces the appearance of rigour and nothing else. The adapted version
+says so.
+
+Where it genuinely fits: **FB-237's golden question set** (that is exactly a benchmark, and the workshop it
+came from went 16/26 → 23/26 by treating it as one), before-and-after measurements where there are
+competing ways to do one thing, and skill changes once `eval-skills` exists to score them.
+
+Its rule worth keeping: **record the first score even when it is bad.** This project has said "it is faster
+now" more than once without being able to say faster than what.
+
+### What is left
+
+Groups 4 and 5: the visual set, and writing and authoring.
+
+## Group 4, shipped 2026-09-30: the visual set — two taken, one refused
+
+### `screenshot-critique` — the hold-out critic, for screens
+
+> Use an **unprimed** sub-agent as a second set of eyes. **Primed eyes pass defects fresh eyes catch.**
+
+**This is a rule the lane already runs on code and we do not have for screens.** `/review` runs as a fresh
+`claude -p` with no `--resume`, so it sees the diff and not the reasoning that produced it — FB-222 records
+that we implement Cole Medin's hold-out critic by accident of how `claude_lane` is written.
+
+The same argument is stronger for pictures. **The person who just spent an hour on a layout is the worst
+possible judge of whether it reads correctly**, because they know what it is supposed to say and their eyes
+supply it. That is not hypothetical: thirty tickets shipped while the desk was 9,908px against a design of
+~1,900, and everyone involved had looked at it — **while knowing what it meant.**
+
+The rule it adds is the operational one: **give the reviewer the image and the question and nothing else.**
+*"I fixed the row spacing, does it look right now?"* destroys the whole value, because the moment you say
+what to look for they stop looking at anything else.
+
+**Settled against `/design-review`**, which stays: that one asks *is this screen good?*, this one asks *is
+this specific claim about it true?* — of someone not told what the answer should be.
+
+### `design-against-the-artifact` — their second half, which is the half we need
+
+Theirs generates mockups to explore a direction, then implements against the chosen one. **We do not need
+the exploring half** — the design exists and John owns it, and it is a working prototype rather than a
+picture.
+
+What carries is the discipline: *"the deliverable is the working design, visibly matched to the approved
+reference — do not stop at the first code approximation."* **The first approximation always looks fine to
+the person who wrote it.**
+
+It also carries what to do when the design is silent: **stop and ask, and write it into
+`docs/design-gaps-open.md`** rather than defaulting to the artifact or inventing.
+
+### `preview-shots` — refused, with the reason
+
+It opens images in **macOS Preview** (`open -a Preview`). This machine is Linux, and the reviewer here is a
+model that reads an image directly rather than a person flipping through a window.
+
+**Adapting it would mean inventing a Linux equivalent of a workflow we do not have**, which is padding the
+count rather than taking a skill. Named here so the gap is a decision rather than an oversight.
+
 ## Group 5, shipped 2026-09-30: writing and authoring
 
 ### `eval-skills` — the one that makes the other seventeen accountable
@@ -203,9 +316,9 @@ tests this project has shipped, and see whether it catches it.** The answer is k
 > every run, not producing the same output.
 
 Its most useful rule is about the `description`, which is the trigger and where most skills fail: vague
-never fires, broad fires on everything. The adapted version also writes down **the adaptation pattern used
-eighteen times today**: keep their judgement, replace their machinery, attach our evidence, credit the
-source, settle any clash by name and by job.
+never fires, broad fires on everything. It also writes down **the adaptation pattern used eighteen times
+today**: keep their judgement, replace their machinery, attach our evidence, credit the source, settle any
+clash by name and by job.
 
 ### `write-docs` — the question that governs a document
 
@@ -216,18 +329,11 @@ A document listing every file or flag is a second copy of something that changes
 second copy is the one that drifts.** We have the small version of that scar already: a comment naming a
 count the code had since changed, which made a weaker test look sufficient.
 
-The adapted version names which document owns which question here, so the answer to "where does this go" is
-not a sixth architecture document.
-
 ### `marketing-pages` — taken, and dormant on purpose
 
-The Foundry has no public pages: Phase 4a is content and site, Phase 5 the public front door. It is taken
-now for one reason — **the first marketing page is the one most likely to be written in a hurry**, and a
-rulebook that already exists gets read while one that must be found does not. Its description is narrow
-enough to stay out of the way until then.
-
-It also records where our rules override it: never reproduce another product's copy; written for the
-founder; anything that sends or collects an address is an external action; interest-based only.
+No public pages exist yet: Phase 4a is content and site, Phase 5 the public front door. It is taken now for
+one reason — **the first marketing page is the one most likely to be written in a hurry**, and a rulebook
+that already exists gets read while one that must be found does not.
 
 ## Final count, and every one has a decision
 
@@ -236,8 +342,8 @@ founder; anything that sends or collects an address is an external action; inter
 | | |
 |---|---|
 | **Taken (18)** | write-ticket, implement-ticket, close-ticket, write-tests, audit-tests, code-hygiene, refactor-clean, explore-unknowns, audit-choices, plain-english, auto-research, compare-screenshots, screenshot-critique, design-against-the-artifact, eval-skills, write-skills, write-docs, marketing-pages |
-| **Declined** | `preview-shots` — macOS Preview, a workflow we do not have. `review` — gstack's `/review` does this job and two skills with one job is worse than neither. |
-| **Left, with reasons** | `codex`, `claude`, `implement-spec-with-codex` — harness-specific, and we run neither harness that way. `audit-performance` — wait until something is slow enough to point it at. `eli5` and `code-review` are counted as taken under their new names. |
+| **Declined** | `preview-shots` — macOS Preview, a workflow we do not have. `review` — gstack's `/review` does this job, and two skills with one job is worse than neither. |
+| **Left, with reasons** | `codex`, `claude`, `implement-spec-with-codex` — harness-specific. `audit-performance` — wait until something is slow enough to point it at. `eli5` and `code-review` are counted as taken under their new names. |
 
 **The number that matters is not eighteen.** It is that all twenty-six now carry a decision, so nobody has
 to evaluate this collection again from scratch.
@@ -253,7 +359,7 @@ to evaluate this collection again from scratch.
 - [x] Every adapted file credits its source and says what was changed and why.
 - [ ] A skill that reads paths or runs a script is proved to work **in this repo**, not assumed from its
       documentation.
-- [x] `eval-skills` is in place — though the count passed a dozen first, which is recorded rather than hidden, so a borrowed skill that is not helping
+- [x] `eval-skills` is in place — the count passed a dozen first, which is recorded rather than hidden, so a borrowed skill that is not helping
       can be found.
 
 ## Verification
