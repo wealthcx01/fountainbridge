@@ -55,13 +55,71 @@ different work loads different skills, and right now that choice is invisible.
 
 So the link a founder wants most is one repository setting away, not one feature away.
 
+## Found while starting this, 2026-09-30: the ruling makes the office wrong *today*
+
+John's ruling — **one character per ticket, helpers invisible** — is not only a rule for the future. It
+means **the office is wrong right now, by a factor of five to eleven.**
+
+The office draws one character per Claude **session transcript**. One ticket is not one session:
+`supervisor.sh` calls `claude_lane` **five times** per round — plan, implement, gate check, `/review`,
+`/qa-only` — and `MAX_VALIDATION_ROUNDS` defaults to **2**. Each call is a fresh `claude -p` with no
+`--resume`, so each writes its own transcript.
+
+**So one ticket already produces between five and eleven characters.** The crowded room FB-218 bounded was
+not only old agents accumulating; it was also every ticket being drawn many times over. The bound fixed the
+first cause and not the second, because nobody had ruled on the second yet.
+
+### And it cannot be fixed with the data the office has
+
+To draw one character per ticket, the office must know **which ticket a session belongs to**. The agent
+record cannot tell it:
+
+- `terminalName` is empty on every agent — checked on ARCA's live registry.
+- `projectDir` is identical for all of them (`/root/.claude/projects/-opt-foundry-lane-arca`).
+- `jsonlFile` is a path with a session id in it and no ticket.
+
+The only place the ticket appears is **inside** the transcript, and reading transcript contents to draw a
+room would be both expensive and a new reason for the office to touch a founder's data.
+
+**So the lane has to say so.** That makes it the same shape as the skills question above: a fact the lane
+knows, that nothing currently writes down, that the office and the trail both want. One mechanism answers
+both, and it should be built once rather than twice.
+
+## Two blockers, named rather than worked around
+
+**1. The run-report field needs `bcap-contracts`, which is not on this machine.**
+
+Non-negotiable 7: *"Schema changes happen there, consumed here as generated TS types. Schemas win on
+conflict."* Adding `skills` (and a ticket id) to `RunReport` is a change in that repository.
+
+The tempting shortcut is to put it in `summary_md`, which is free text and already exists. **That is
+exactly the parallel type non-negotiable 7 forbids**, and it would be read back by string-matching
+prose. Not doing it.
+
+**2. Off-box workers have no producer yet.**
+
+Building a "remote workers" feed the gate merges in, with nothing writing to it, would be a dead control —
+the same fault FB-192 removed from the office and FB-225 refused to add to the tool surface. It waits for
+the thing that writes it.
+
+## What this changes about the order
+
+The office cannot be finished before the lane records two facts per session: **which ticket** and **which
+skills**. That is one small change to `claude_lane`'s callers and one schema change, and it unblocks the
+character count, the skills display and the off-box case together.
+
+So the sequence is: **contracts change → lane records it → office and trail read it.** Not the other way
+round, and not three separate mechanisms.
+
 ## Scope
 
 Three pieces, smallest first, each shippable alone:
 
-1. **Record what a worker loaded.** Add it where a lane already writes a fact the studio already reads —
-   the run report — rather than inventing a channel. A list of skill names per session, written at the end
-   of a wake. Requires a `bcap-contracts` change (non-negotiable 7), so the schema moves first.
+1. **Record what a worker loaded, and which ticket it was working.** Both, together, because they are the
+   same missing mechanism and the office needs the second as much as the trail needs the first. It goes
+   where the lane already writes facts the studio already reads — the run report. Requires a
+   `bcap-contracts` change (non-negotiable 7), **which is not on this machine**, so that moves first and
+   somebody with access has to make it.
 2. **Show it.** Once recorded, the office and the ticket's trail can both say it. The office is the more
    valuable of the two and the harder, so the trail first.
 3. **Let the office see a worker that is not on the box.** The design decision this needs is *what feeds
