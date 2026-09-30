@@ -7,6 +7,7 @@ import { toSpends, type ActiveGraphApproval } from './approvals';
 import { engineStateAt, type EngineState } from './runreports';
 import { ventureApprovals, ventureLiveness } from './venture-reads';
 import { timed } from './timing';
+import { studioNow } from './when';
 
 /**
  * What the rail needs, loaded once per request (FB-124).
@@ -70,7 +71,7 @@ export interface RailData {
  * situation it would be reporting on, a venture whose reads are failing, is exactly when a founder
  * most needs the page to still render (CLAUDE.md #10).
  */
-export const loadRailData = cache(async (venture: VentureSummary, nowMs: number): Promise<RailData> =>
+export const loadRailData = cache(async (venture: VentureSummary, nowMs: number = studioNow()): Promise<RailData> =>
   timed('rail: everything', () => railData(venture, nowMs), venture.id));
 
 async function railData(venture: VentureSummary, nowMs: number): Promise<RailData> {

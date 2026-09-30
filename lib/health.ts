@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { loadVentures, type VentureSummary } from './ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from './authz';
 import { GitHubClient, GitHubError } from './github';
+import { studioNow } from './when';
 
 export const DEFAULT_STALE_DAYS = 7;
 const ACTIVITY_WINDOW_MS = 14 * 86_400_000;
@@ -265,12 +266,10 @@ function staleDays(): number {
  * instant so "active vs stale" is stable. Never set `E2E_NOW` in production (like the other e2e seams).
  */
 export function defaultNow(): number {
-  const override = process.env.E2E_NOW;
-  if (override) {
-    const t = Date.parse(override);
-    if (Number.isFinite(t)) return t;
-  }
-  return Date.now();
+  // Delegates rather than re-implementing. Two functions that each parsed `E2E_NOW` were two clocks
+  // with one name between them, and FB-240 is what that cost: the rail and the desk read the same
+  // heartbeat and said 70 days and 10 minutes.
+  return studioNow();
 }
 
 export async function loadVentureHealth(
