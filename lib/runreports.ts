@@ -168,6 +168,42 @@ export interface RunReportSource {
  * Null for a name carrying no stamp. The heartbeat beacon is overwritten in place and has none, so
  * it is read as a file — one read per repository rather than sixty.
  */
+/**
+ * The ticket a report is about, from its filename. Null when the name carries no stamp to strip.
+ *
+ * The lane names every report `<ticket-slug>-YYYYMMDDTHHMMSSZ.json`, which is the same property
+ * `writtenAtFromName` relies on — so the whole record can be characterised from the listing without
+ * opening a file.
+ */
+export function ticketFromName(name: string): string | null {
+  const m = name.match(/^(.+)-\d{8}T\d{6}Z\.json$/);
+  return m ? m[1] : null;
+}
+
+/**
+ * The ticket that accounts for most of a record, when one does (FB-242).
+ *
+ * The threshold is half. Below that there is no single story and the honest answer is none — a
+ * venture working steadily across twenty tickets must not have one of them singled out because it
+ * happened to come first.
+ */
+export function dominantTicket(
+  names: readonly string[],
+  total: number,
+): { ticket: string; count: number } | null {
+  if (total <= 0) return null;
+  const counts = new Map<string, number>();
+  for (const name of names) {
+    const ticket = ticketFromName(name);
+    if (ticket) counts.set(ticket, (counts.get(ticket) ?? 0) + 1);
+  }
+  let best: { ticket: string; count: number } | null = null;
+  for (const [ticket, count] of counts) {
+    if (!best || count > best.count) best = { ticket, count };
+  }
+  return best && best.count > total / 2 ? best : null;
+}
+
 export function writtenAtFromName(name: string): string | null {
   const m = name.match(/-(\d{8})T(\d{6})Z\.json$/);
   if (!m) return null;
@@ -233,7 +269,33 @@ export async function loadRunReports(
   venture: VentureSummary,
   source: RunReportSource,
   limit = 20,
-): Promise<{ reports: RunReport[]; heartbeats: RunReport[]; checkIns: RunReport[]; total: number }> {
+): Promise<{
+  reports: RunReport[];
+  heartbeats: RunReport[];
+  checkIns: RunReport[];
+  total: number;
+  /**
+   * When the oldest report on the ref was written, or null if none carries a stamp (FB-242).
+   *
+   * **Read off the listing, so it costs nothing.** Every report's time is in its own filename, which
+   * is why `dated` exists at all — so the true span of a venture's history is knowable without
+   * opening a single extra file. That matters because a screen showing the newest twenty of 9,889
+   * had no way to say how far back the other 9,869 go, and said "everything since" the oldest one it
+   * had opened instead.
+   */
+  earliest: string | null;
+  /**
+   * The one thing the record is mostly about, when it is mostly about one thing (FB-242).
+   *
+   * Also free: the ticket is in every report's filename. It exists because "your team has written
+   * 9,895 reports" sounds like a great deal of work, and on ARCA **9,738 of them are one ticket the
+   * lane has re-parked on since July**. The count was the honest number and still the wrong story.
+   *
+   * Null when no single ticket dominates — a healthy venture has no such number, and a screen must
+   * not go looking for a villain where there is none.
+   */
+  busiest: { ticket: string; count: number } | null;
+}> {
   const repos = approvalRepos(venture);
 
   // Every surface listed at once. This used to be a sequential `for…of await`, so a venture with
@@ -342,7 +404,14 @@ export async function loadRunReports(
   // the end of the list that decides whether the venture is alive. It is still bounded by the read
   // budget above (`limit × READ_MARGIN`), which is FB-083's rule and stays — and safely, because the
   // names read are the newest ones, so the most recent wake is always among them.
-  return { reports: reports.slice(0, limit), heartbeats, checkIns: all.sort(byRecency), total };
+  // The oldest STAMPED name. `dated` is sorted newest-first and undateable names sort last with
+  // `at: ''`, so walking back to the last non-empty stamp is the real start of the history.
+  const earliest = [...dated].reverse().find((d) => d.at)?.at ?? null;
+  const busiest = dominantTicket(dated.map((d) => d.name), total);
+
+  return {
+    reports: reports.slice(0, limit), heartbeats, checkIns: all.sort(byRecency), total, earliest, busiest,
+  };
 }
 
 /**

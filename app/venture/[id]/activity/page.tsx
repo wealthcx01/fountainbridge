@@ -12,7 +12,7 @@ import { buildFeed } from '@/lib/activity-feed';
 import { composeActivitySummary } from '@/lib/activity-summary';
 import { classifyActivity, dedupeActivity, isFounderVisible } from '@/lib/activity-kind';
 import { groupFailures } from '@/lib/read-failures';
-import { onDate } from '@/lib/when';
+import { historyScope, readWasBounded } from '@/lib/history-scope';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { Mark } from '@/components/Mark';
@@ -115,7 +115,7 @@ async function Record({
     // Shared with the rail around this page (FB-157), which reads both of these too.
     ventureRuns(venture).catch(() => {
       unreadable.push('what your team has been doing');
-      return { reports: [], heartbeats: [], checkIns: [], total: 0 };
+      return { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null };
     }),
     ventureApprovals(venture).catch((): ActiveGraphApproval[] => {
       unreadable.push('the decisions you have made');
@@ -133,7 +133,7 @@ async function Record({
   // FB-180: the meta column names the surface a founder owns, not the repository git happens to
   // keep it in. Built here because the manifest is the only place that knows the mapping.
   const surfaces = Object.fromEntries((venture.departments ?? []).map((d) => [d.repo, d.name]));
-  const { items: feed, truncated } = buildFeed({
+  const { items: feed } = buildFeed({
     activity, runs: runs.reports, approvals, limit: FEED_LIMIT, surfaces, ventureName: venture.name,
   });
   // Composed from the SAME list the rows come from. `lib/activity-summary.ts` states that invariant
@@ -144,8 +144,25 @@ async function Record({
   const summary = composeActivitySummary({ events: activity, windowDays: 14, openAreas: [], withoutList: true });
 
   const failures = health.repos.filter((r) => r.error).map((r) => r.error as string);
-  // How far back the list actually reaches, from the list itself rather than from any window.
-  const oldest = feed.length ? onDate(feed[feed.length - 1].at) : null;
+
+  // FB-242. What the screen may honestly claim about a record it has only partly read.
+  //
+  // `buildFeed` also returns a `truncated` flag. It is deliberately NOT used here: it answers "did
+  // the last step drop anything", which is a question about the final list and not about the record.
+  // On ARCA it answered NO while 9,869 reports were missing — twenty were read, they collapsed to
+  // one row because they were all the same park, and one item built with one item kept is not a
+  // truncation. The read was bounded long before that, and only `runs.total` knows it.
+  // Reports read against reports that exist — the same kind of number on both sides.
+  const bounded = readWasBounded(runs.reports.length, runs.total);
+  const scope = historyScope({
+    ventureName: venture.name,
+    shown: feed.length,
+    total: runs.total,
+    earliest: runs.earliest,
+    oldestShown: feed.length ? feed[feed.length - 1].at : null,
+    busiest: runs.busiest,
+    bounded,
+  });
 
   return (
     <section data-testid="venture-activity">
@@ -165,15 +182,17 @@ async function Record({
       </div>
 
       <p className="muted" data-testid="activity-scope" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
-        Everything {venture.name} did{oldest ? <> since {oldest}</> : null}, newest first. Sent,
-        failed, refused: it stays here with its state. Decisions appear the moment they are made.
+        {scope ? <>{scope} </> : null}Sent, failed, refused: it stays here with its state. Decisions
+        appear the moment they are made.
       </p>
 
       <ActivityFeed items={feed} couldNotRead={unreadable.length > 0 || failures.length > 0} />
 
-      {truncated ? (
+      {/* Fires on the bound that matters — the record being larger than the page — not on whether
+          the last step happened to drop a row. */}
+      {bounded ? (
         <p className="muted" data-testid="activity-capped" style={{ fontSize: 'var(--fs-meta-lg)' }}>
-          Showing the {FEED_LIMIT} most recent. Older entries are still in your venture’s records.
+          Older entries are still in your venture’s records. Nothing here has been deleted.
         </p>
       ) : null}
 

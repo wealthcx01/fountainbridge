@@ -129,6 +129,23 @@ test.describe('the desk over a real backlog (FB-178)', () => {
       .toHaveAttribute('href', '/venture/arca/activity');
   });
 
+  test('“What happened” never claims everything over a record it only partly read (FB-242)', async ({ page }) => {
+    // The scale fixture is the only place in the gate where the record is larger than the page:
+    // 1,773 run reports against a read that stops at twenty. The committed fixture holds six, so it
+    // takes the unbounded branch and cannot exercise this at all — which is how the old sentence
+    // shipped saying "Everything ARCA did since [today]" over 9,889 reports on production.
+    await page.goto('/venture/arca/activity');
+    const scope = (await page.getByTestId('activity-scope').textContent()) ?? '';
+
+    expect(scope, 'the page claims to show everything over a partly-read record')
+      .not.toMatch(/Everything .* did since/);
+    expect(scope, 'the page does not say how much the record holds').toMatch(/1,773 reports/);
+    expect(scope, 'the page does not say how far back the record goes').toMatch(/since \d+ \w+ 2026/);
+
+    // And the caveat, which used to depend on whether the last step dropped a row.
+    await expect(page.getByTestId('activity-capped')).toContainText('still in your venture’s records');
+  });
+
   test('the repeated park is one row that says how many times', async ({ page }) => {
     // FB-178's fourth criterion. The fixture parks on ARCA-61 nineteen times in twenty, the way
     // production did, so if the merge stopped working the panel fills with one sentence.
