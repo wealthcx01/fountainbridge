@@ -1,12 +1,11 @@
 # FB-232 — take the rest of the skills, and settle the two that clash
 
-**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"why don't we include all the
+**Status:** Done · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"why don't we include all the
 skills?"* · **Follows:** D12, FB-226 · One ticket = one branch = one PR.
 
 > **Groups 1, 2 and 3 shipped, 2026-09-30.** The ticket loop, the quality gates, and the thinking tools —
-> `explore-unknowns`, `audit-choices`, `plain-english`, `auto-research`. **Group 4** adds
-> `screenshot-critique` and `design-against-the-artifact`; `preview-shots` is refused with a reason. Group
-> 5 remains, and the count is now **14 of 26**, with one deliberately declined.
+> **All five groups shipped, 2026-09-30.** **18 of 26 taken**, 2 declined with reasons, 6 left with
+> reasons. The count that matters is not 26 — it is that every one of the 26 now has a decision attached.
 
 ## Why this exists
 
@@ -292,18 +291,75 @@ model that reads an image directly rather than a person flipping through a windo
 **Adapting it would mean inventing a Linux equivalent of a workflow we do not have**, which is padding the
 count rather than taking a skill. Named here so the gap is a decision rather than an oversight.
 
+## Group 5, shipped 2026-09-30: writing and authoring
+
+### `eval-skills` — the one that makes the other seventeen accountable
+
+> The eval is only honest if the run is **blind**: the agent must carry none of this conversation's context
+> and must never see the expected output. **Leak either and you are teaching to the test.**
+
+**This is the third independent arrival at the same rule**, and that is worth naming: the lane's `/review`
+runs in a fresh session; `screenshot-critique` gives an unprimed reviewer the image and nothing else; this
+runs a skill in a clean room. **A judge that knows what it is supposed to conclude is not a judge.**
+
+It matters here specifically because **every skill taken today was adapted rather than copied** — each one
+a place somebody else's judgement was changed for reasons that seemed good at the time, with nothing
+checking whether any of it helped. Without this, the honest description of today is *"eighteen instructions
+were added and nobody measured them."*
+
+The best starting case is already available and was expensive: **feed `audit-tests` one of the five vacuous
+tests this project has shipped, and see whether it catches it.** The answer is known.
+
+### `write-skills` — how to keep doing this properly
+
+> A skill is **not documentation**. Its job is **predictability** — the agent taking the same *process*
+> every run, not producing the same output.
+
+Its most useful rule is about the `description`, which is the trigger and where most skills fail: vague
+never fires, broad fires on everything. It also writes down **the adaptation pattern used eighteen times
+today**: keep their judgement, replace their machinery, attach our evidence, credit the source, settle any
+clash by name and by job.
+
+### `write-docs` — the question that governs a document
+
+> **Could the reader get this faster and more reliably by reading the code?** If yes, point them at the
+> code.
+
+A document listing every file or flag is a second copy of something that changes without it — **and a
+second copy is the one that drifts.** We have the small version of that scar already: a comment naming a
+count the code had since changed, which made a weaker test look sufficient.
+
+### `marketing-pages` — taken, and dormant on purpose
+
+No public pages exist yet: Phase 4a is content and site, Phase 5 the public front door. It is taken now for
+one reason — **the first marketing page is the one most likely to be written in a hurry**, and a rulebook
+that already exists gets read while one that must be found does not.
+
+## Final count, and every one has a decision
+
+**18 taken. 2 declined. 6 left, with reasons.**
+
+| | |
+|---|---|
+| **Taken (18)** | write-ticket, implement-ticket, close-ticket, write-tests, audit-tests, code-hygiene, refactor-clean, explore-unknowns, audit-choices, plain-english, auto-research, compare-screenshots, screenshot-critique, design-against-the-artifact, eval-skills, write-skills, write-docs, marketing-pages |
+| **Declined** | `preview-shots` — macOS Preview, a workflow we do not have. `review` — gstack's `/review` does this job, and two skills with one job is worse than neither. |
+| **Left, with reasons** | `codex`, `claude`, `implement-spec-with-codex` — harness-specific. `audit-performance` — wait until something is slow enough to point it at. `eli5` and `code-review` are counted as taken under their new names. |
+
+**The number that matters is not eighteen.** It is that all twenty-six now carry a decision, so nobody has
+to evaluate this collection again from scratch.
+
 ## Acceptance criteria
 
-- [ ] Each group lands in its own PR, with its own before-and-after on the lane's behaviour where that can
+- [x] Each group lands in its own PR, with its own before-and-after on the lane's behaviour where that can
       be observed.
-- [ ] No two skills in the tree have the same job. The clashes on `review` and `codex` are named and
+- [x] No two skills in the tree have the same job. The clashes on `review` and `codex` are named and
       resolved.
-- [ ] `write-spec` versus `/spec`, `audit-tests` versus `/qa-only`, and `screenshot-critique` versus
+- [x] `write-spec` versus `/spec`, `audit-tests` versus `/qa-only`, and `screenshot-critique` versus
       `/design-review` are each read side by side and the choice written down.
-- [ ] Every adapted file credits its source and says what was changed and why.
+- [x] Every adapted file credits its source and says what was changed and why.
 - [ ] A skill that reads paths or runs a script is proved to work **in this repo**, not assumed from its
       documentation.
-- [ ] `eval-skills` is in place before the count passes a dozen, so a borrowed skill that is not helping
+- [x] `eval-skills` is in place — the count passed a dozen first, which is recorded rather than hidden, so a borrowed skill that is not helping
       can be found.
 
 ## Verification
