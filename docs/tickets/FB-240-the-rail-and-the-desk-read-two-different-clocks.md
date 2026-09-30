@@ -1,6 +1,6 @@
 # FB-240 — the rail and the desk read two different clocks, so the gate always shows a contradiction
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-178, 2026-09-30
+**Status:** Done · **Phase:** 3 · **Found by:** FB-178, 2026-09-30
 
 ## What is on the screen
 
@@ -46,11 +46,51 @@ It matters because of what it does to the gate. The UI gate is the only gate tha
   Put it where a future caller passing `Date.now()` again is what breaks it.
 - Re-take the desk screenshots and confirm the rail and the body now say the same thing.
 
+## What shipped
+
+**One clock, and it defaults.** `studioNow()` is now the studio's only clock — `defaultNow()`
+delegates to it rather than parsing `E2E_NOW` a second time, because two functions that each read the
+same variable were two clocks with one name between them.
+
+The clock-taking functions now **default** their argument: `loadRailData`, `loadLedgerRow`,
+`loadWaitingAges`, `engineState` and `engineStateAt`. So the easy call is the correct one, and a
+caller has to go out of its way to introduce a second clock. That is the mechanism this needed; the
+comment asking for it already existed in `lib/rail.ts` and sat one level below the call site that was
+wrong.
+
+**Three call sites were wrong, not one.** The rail (`layout.tsx`), the tickets screen, and the
+approvals screen — whose own comment says *"it must not show a cheaper number than the desk did"*
+while reading a different clock from the desk. The MCP tools had it too.
+
+**The rule is not "never call `Date.now()`."** There are two kinds of clock here:
+
+- a clock the founder **reads** — ages, staleness, "checked in 3 minutes ago" — which must be the
+  one shared clock, or two surfaces disagree in front of a founder;
+- a clock **written into a record** — `granted_at` on an approval, a thread's timestamp — which must
+  be the real one. Stamping a pinned test time into a signed grant would be a far worse bug than this
+  ticket's.
+
+`lib/__tests__/one-clock.test.ts` encodes that split: it allows `new Date().toISOString()` and
+refuses every other raw clock under `app/`. Each of its five tests was checked by reintroducing the
+fault and watching it go red.
+
 ## Acceptance criteria
 
-- [ ] The rail and the desk state the same engine age over the same heartbeat, in the gate.
-- [ ] A test fails if a caller gives one of them a different clock.
-- [ ] The desk screenshots in `e2e/__screenshots__/` no longer contradict themselves.
+- [x] The rail and the desk state the same engine age over the same heartbeat, in the gate. Both now
+      read *"Your team checked in 10 minutes ago."*
+- [x] A test fails if a caller gives one of them a different clock. Mutation-checked four ways,
+      including putting `Date.now()` back in the rail.
+- [x] The desk screenshots in `e2e/__screenshots__/` no longer contradict themselves — for the rail
+      and the desk. **One pair remains and is filed as FB-241**, below.
+
+## Found while doing this
+
+**FB-241** — the run rows hydrate in the browser, where `E2E_NOW` does not exist, so they read the
+real clock while the sentence above them reads the pinned one: *"checked in 10 minutes ago"* four
+lines above *"70 days ago"*. A different fault with the same symptom, and `lib/when.ts` already
+documents it and already carries the helper that fixes it. Production is not affected.
+
+Found by looking at the regenerated screenshot instead of trusting that the fix was complete.
 
 ## Notes
 

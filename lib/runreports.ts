@@ -27,6 +27,7 @@
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
 import { inFounderWords } from './glossary';
+import { studioNow } from './when';
 
 export const STATE_REF = 'foundry-state';
 
@@ -372,7 +373,7 @@ export type EngineState = 'running' | 'quiet' | 'stalled' | 'unknown';
 export function engineState(
   /** Every check-in: heartbeats AND run reports. A report written is a wake that happened. */
   checkIns: RunReport[],
-  now: Date,
+  now: Date = new Date(studioNow()),
   /** How long without a wake before a lane that should be waking counts as stalled. */
   stalledAfterMinutes = 30,
 ): { state: EngineState; lastSeen: string | null; text: string; ageMinutes: number | null } {
@@ -393,7 +394,7 @@ export function engineState(
  */
 export function engineStateAt(
   latest: string | null,
-  now: Date,
+  now: Date = new Date(studioNow()),
   stalledAfterMinutes = 30,
 ): { state: EngineState; lastSeen: string | null; text: string; ageMinutes: number | null } {
   if (!latest) {

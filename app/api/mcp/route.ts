@@ -10,6 +10,7 @@ import { rowReason } from '@/lib/ledger';
 import { readThread, appendToThread } from '@/app/actions/threads';
 import { filePlan } from '@/app/actions/file-plan';
 import { handleMcp, readMcpTicket, type McpCaller } from '@/lib/mcp';
+import { studioNow } from '@/lib/when';
 
 /**
  * The studio, spoken to as a set of tools (FB-200).
@@ -141,7 +142,7 @@ async function runTool(
     const { items } = buildFeed({
       activity, runs: runs.reports, approvals, limit: 40, surfaces, ventureName: venture.name,
     });
-    const since = Date.now() - days * 86_400_000;
+    const since = studioNow() - days * 86_400_000;
     const recent = items.filter((i) => Date.parse(i.at) >= since);
     const failures = health.repos.filter((r) => r.error).map((r) => r.error as string);
     if (!recent.length) {
@@ -161,7 +162,7 @@ async function runTool(
 
   if (name === 'budgets') {
     const envelopes = loadEnvelopes(venture.id);
-    const row = await loadLedgerRow(venture, Date.now());
+    const row = await loadLedgerRow(venture);
     const lines: string[] = [`What ${venture.name} may spend:`];
     if (!envelopes.envelopes.length) {
       lines.push('- No limits are set for this venture yet, so nothing here is bounded by one.');
