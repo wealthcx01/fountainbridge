@@ -1,6 +1,6 @@
 # FB-186 — the desk states its surfaces twice, and is still 700px over its design
 
-**Status:** Shipped in part · **Phase:** 3 · **Found by:** FB-183, 2026-09-03
+**Status:** Done · **Phase:** 3 · **Found by:** FB-183, 2026-09-03
 
 ## The measurement
 
@@ -47,9 +47,13 @@ block was taller. That was one line, it moved every screen in the studio, and it
 
 ## Closed out 2026-09-30 (FB-178)
 
-**Shipped in part:** every change this ticket asked for has shipped and the desk is comfortably under
-its target — but the one reading the target is stated against, on the production server, cannot be
-taken until the studio can sign in to production.
+**Closed 2026-09-30.** Every change this ticket asked for has shipped, and the reading its target is
+stated against has now been taken on ARCA's own data — **1,689px**, against a 2,500px target.
+
+The "cannot sign in to production" blocker recorded here was not real. Git is the source of truth for
+work items, so a local build with a real `GITHUB_TOKEN` reads exactly the data production reads, and
+`gh auth token` had held `repo` scope on `wealthcx01/arca` the whole time. The full reasoning is in
+FB-178; `scripts/measure-on-real-data.mjs` takes the reading again.
 
 
 **FB-188 landed, and the 103px went with it.** The desk now measures **2,165px at 1440×1000** — 335px
@@ -64,24 +68,24 @@ FB-178 and in `docs/design-conformance.md`.
 | --- | --- |
 | when this ticket was written | 2,912px |
 | when this ticket shipped in part | 2,603px |
-| now, with FB-188 landed | **2,165px** |
-| now, over 73 tickets and 1,773 run reports | **2,230px** |
+| the gate's fixture, with FB-188 landed | 2,165px |
+| a fixture at ARCA's size (73 tickets, 1,773 runs) | 2,230px |
+| **ARCA's own data, as its founder (73 tickets, 9,889 runs)** | **1,689px** |
 
-**What is still not measured: the production server.** This ticket's target says "on ARCA's
-production data", and that reading needs a signed-in founder session the lane does not have —
-checked on 2026-09-30, and every request without one lands on `/login`. So the criterion below stays
-unticked, with the number recorded beside it, rather than ticked over a fixture reading.
+On a phone it is 2,175px. Below the design's own ~1,900px, and **1,223px below where this ticket
+left it**.
 
-What that leaves genuinely open is narrow: production's ticket titles and approval text are real
-sentences of unknown length, and a longer sentence wraps to more lines. The **number** of things on
-the desk is proven bounded (`lib/__tests__/the-desk-is-bounded.test.ts`); the **height of each row
-over real copy** is not. One production reading closes this ticket and FB-178's first criterion at
-the same time.
+The reading is over ARCA's real ticket titles and approval text, so the wrapping question the fixture
+could not answer is answered: those are the venture's own words, at its own length. Signed in as the
+founder rather than as an admin, because an admin sees wiring warnings a founder never does and they
+cost 136px.
+
+Neither viewport scrolls sideways, and nothing on the screen reported a failed read — so this is not
+the height of a degraded page. Both screens were looked at as pictures.
 
 ## Acceptance criteria
 
 - [x] The desk states each surface once.
-- [ ] The desk is under 2,500px on ARCA's **production** data at 1440×1000. **Not measured — needs a
-      signed-in session. It is 2,165px on the gate's fixture and 2,230px over a fixture at ARCA's
-      real size, both under target.**
+- [x] The desk is under 2,500px on ARCA's production data at 1440×1000. **1,689px**, signed in as
+      ARCA's founder over its own 73 tickets and 9,889 run reports. 2,175px on a phone.
 - [x] Nothing reachable from either block today becomes unreachable.
