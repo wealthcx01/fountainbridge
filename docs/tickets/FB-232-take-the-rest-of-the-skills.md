@@ -1,7 +1,10 @@
 # FB-232 — take the rest of the skills, and settle the two that clash
 
-**Status:** filed · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"why don't we include all the
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"why don't we include all the
 skills?"* · **Follows:** D12, FB-226 · One ticket = one branch = one PR.
+
+> **Group 1 shipped, 2026-09-30.** The ticket loop is in: `write-ticket`, `implement-ticket`,
+> `close-ticket`. Groups 2 to 5 are still to do, and the count is now **4 of 26**.
 
 ## Why this exists
 
@@ -78,6 +81,43 @@ reading before they are wanted.
 - `launch-video` / `renderer` (FB-233), the founding research loop (FB-236), `duet-agent` (FB-238).
 - Removing any gstack skill. A clash is settled by choosing which one the lane reaches for, not by
   deleting the other.
+
+## Group 1, shipped 2026-09-30
+
+`write-spec`, `implement-spec` and `close-spec` are adapted into `.claude/skills/` as **write-ticket**,
+**implement-ticket** and **close-ticket**.
+
+### The adaptation, and why the rename settles the clash
+
+Theirs plans a feature into a ladder of slices under a `specs/<feature>/` directory. **This repository has
+no `specs/` directory.** The unit here is a ticket — `docs/tickets/FB-XXX-slug.md` — and one ticket is one
+branch is one pull request.
+
+Renaming them for tickets also settles the overlap flagged above: **gstack's `/spec` writes a spec; these
+write, build and close a ticket in this repository's format.** An agent choosing between them now has a
+clear answer instead of an arbitrary one.
+
+### What each one carries from here rather than from them
+
+- **`write-ticket`** keeps their best idea — *"grill before planning, one question at a time, with your
+  recommended answer attached"* — and adds this repository's ticket format, non-negotiable 3 (discovered
+  work becomes its own ticket) and non-negotiable 12 (written for the founder). Its test for an acceptance
+  criterion is ours: **can someone else check it, and what would prove it false.**
+- **`implement-ticket`** keeps the rule the factory actually needs — *"a pass is a commit checkpoint, not a
+  stopping point; finishing a pass means starting the next one"* — and carries the four checks this project
+  learned expensively: delete the fix and watch the test go red; print where you landed; look at the screen
+  beside its design; read the failure rather than re-running it.
+- **`close-ticket`** is the one that earns its place immediately. Their insight is that **a spec is a build
+  plan while building and a rationale record once shipped.** We have **21 tickets at "Shipped in part"** and
+  `ticket-drift` has turned `main` red three times in two days catching a status that no longer matched
+  reality. Every catch was correct. It also records the trap that caused all three: a ticket whose
+  deliverable *is* the ticket ships in the commit that files it, so file the record together with the
+  document it produces.
+
+### What is left
+
+Groups 2 to 5: the quality gates, the thinking tools, the visual set, and writing and authoring. Each its
+own pull request, in that order.
 
 ## Acceptance criteria
 
