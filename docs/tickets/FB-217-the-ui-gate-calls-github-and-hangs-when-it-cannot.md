@@ -1,6 +1,6 @@
 # FB-217 — the UI gate calls GitHub, and hangs when it cannot
 
-**Status:** filed · **Phase:** 3 · **Found by:** an hour lost to FB-214, 2026-09-09
+**Status:** Done · **Fixed 2026-09-30** · **Phase:** 3 · **Found by:** an hour lost to FB-214, 2026-09-09
 
 ## What is wrong
 
@@ -84,3 +84,74 @@ because it fails slowly and expensively rather than quickly.
 - [ ] The approval page renders in the gate with no network available.
 - [ ] A failed history read shows a stated reason, not a hang.
 - [ ] Something fails if a new page adds a live call to the gate.
+
+## Fixed, 2026-09-30
+
+Two changes, because there were two faults: the gate should not have been reading at all, and the read
+should not have been able to hang.
+
+### 1. The gate does not read the record
+
+`historyIsReadable()` in `lib/activegraph-log.ts` answers whether this process should reach for the signed
+record. **No, in the rig; no, without a secret; yes otherwise.**
+
+**Deliberately not a fixture directory of events**, which is what this ticket's scope originally asked for.
+An event means something only if its signature verifies, so a fixture would need the real signing secret to
+be worth reading — and fixture events signed with a test key would exercise the *unverified* path, which is
+the opposite of what these tests are about. `lib/trail-sources.ts` had already reached this conclusion for
+the trail: *"No events is the honest answer there, not a failure."* This is the same answer at the surface
+that was missed.
+
+It takes **both** rig signals to stand down. A stray `APPROVALS_FIXTURE_DIR` on a production machine must
+not silently hide a real history, so either one alone still reads.
+
+### 2. The read is bounded, and says so when it gives up
+
+`historyForBounded()` wraps it at **8 seconds** and returns `{ ok: false, reason }` rather than throwing or
+stalling. The page renders the reason where the history would be: *"The studio could not read this
+approval's record: …"*.
+
+A founder looking at an approval whose record could not be read still needs the approval (CLAUDE.md #10),
+and **"no history" and "could not read the history" are different facts.** The timeout is cleared on
+success, or a fast read would still hold the page for the full eight seconds.
+
+### 3. Something now fails if a new page adds a live call
+
+`lib/__tests__/no-live-call-in-the-gate.test.ts` walks every `page`, `layout` and `route` under `app/` and
+requires that any file constructing a `GitHubClient` also routes through a seam the rig can switch off.
+
+It does not forbid the client — most pages legitimately read from GitHub. It requires a way out, which is
+exactly what this page lacked.
+
+## The measurement
+
+The test that has failed twice — `approvals.spec.ts:164`, *"a genuinely free action stays silent"*:
+
+| | |
+|---|---|
+| before | **timed out at 35.0s**, and again at 35.1s on retry |
+| after | **passes in 669ms** |
+
+The whole approval suite: **13 passed in 50.1s.**
+
+## Every guard was checked by breaking it
+
+- Remove the rig check → *"refuses to read in the rig"* fails.
+- Make the read unbounded again → *"gives up and states the reason"* fails, **after hanging for 5,008ms**,
+  which is the original bug reproduced on demand.
+- Add a page that builds a `GitHubClient` with no way out → *"every page can be told not to"* fails.
+
+Restored, all nine pass.
+
+## Acceptance criteria, met
+
+- [x] The approval page renders in the gate with no network available — it no longer reaches for the record
+      at all there.
+- [x] A failed history read shows a stated reason, not a hang.
+- [x] Something fails if a new page adds a live call to the gate.
+
+## What was assumed and turned out wrong
+
+The ticket's scope asked for a fixture directory of events. **That would have been the wrong fix** — see
+above. The trail had already solved this correctly months earlier and the answer only needed carrying to
+the second surface, which is a cheaper fix than the one this ticket proposed.
