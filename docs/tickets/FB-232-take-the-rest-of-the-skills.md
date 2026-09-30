@@ -178,6 +178,52 @@ mid-ticket becomes its own ticket (non-negotiable 3).
 
 Groups 3 to 5: the thinking tools, the visual set, and writing and authoring.
 
+## Group 4, shipped 2026-09-30: the visual set — two taken, one refused
+
+### `screenshot-critique` — the hold-out critic, for screens
+
+> Use an **unprimed** sub-agent as a second set of eyes. **Primed eyes pass defects fresh eyes catch.**
+
+**This is a rule the lane already runs on code and we do not have for screens.** `/review` runs as a fresh
+`claude -p` with no `--resume`, so it sees the diff and not the reasoning that produced it — FB-222 records
+that we implement Cole Medin's hold-out critic by accident of how `claude_lane` is written.
+
+The same argument is stronger for pictures. **The person who just spent an hour on a layout is the worst
+possible judge of whether it reads correctly**, because they know what it is supposed to say and their eyes
+supply it. That is not hypothetical: thirty tickets shipped while the desk was 9,908px against a design of
+~1,900, and everyone involved had looked at it — **while knowing what it meant.**
+
+The rule it adds is the operational one: **give the reviewer the image and the question and nothing else.**
+*"I fixed the row spacing, does it look right now?"* destroys the whole value, because the moment you say
+what to look for they stop looking at anything else.
+
+**Settled against `/design-review`**, which stays: that one asks *is this screen good?*, this one asks *is
+this specific claim about it true?* — of someone not told what the answer should be. Reach for this before
+writing "verified" or "fixed" about anything visual.
+
+### `design-against-the-artifact` — their second half, which is the half we need
+
+Theirs generates mockups to explore a direction, then implements against the chosen one. **We do not need
+the exploring half** — the design exists and John owns it, and it is a working prototype rather than a
+picture.
+
+What carries is the discipline: *"the deliverable is the working design, visibly matched to the approved
+reference — do not stop at the mockups or the first code approximation."* **The first approximation always
+looks fine to the person who wrote it.**
+
+It also carries what to do when the design is silent: **stop and ask, and write it into
+`docs/design-gaps-open.md`** rather than defaulting to the artifact or inventing. Guessing at a design
+decision is how a screen acquires an owner nobody chose.
+
+### `preview-shots` — refused, with the reason
+
+It opens images in **macOS Preview** (`open -a Preview`). This machine is Linux, and the reviewer here is a
+model that reads an image directly rather than a person flipping through a window.
+
+**Adapting it would mean inventing a Linux equivalent of a workflow we do not have**, which is padding the
+count rather than taking a skill. Named here so the gap is a decision rather than an oversight: **14 of 26
+taken, one declined.**
+
 ## Acceptance criteria
 
 - [ ] Each group lands in its own PR, with its own before-and-after on the lane's behaviour where that can
