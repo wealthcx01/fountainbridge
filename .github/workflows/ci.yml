@@ -171,6 +171,16 @@ jobs:
       - name: Run the UI gate with every read failing
         timeout-minutes: 8
         run: npm run test:e2e:degraded
+      # FB-178: the desk again, over a venture the size ARCA actually is.
+      #
+      # A third server for the same reason as the second: the fixture directory is read from the
+      # process environment. The committed fixture holds six tickets, and every list on the desk is
+      # capped -- so a cap of four over six items renders the same screen as no cap at all, and the
+      # gate above cannot tell a bounded desk from the 9,908px one FB-178 was raised for. This step
+      # builds 73 tickets and 1,773 run reports and measures the height at both viewports.
+      - name: Run the UI gate over a real backlog
+        timeout-minutes: 8
+        run: npm run test:e2e:scale
       - name: Upload UI-gate gallery (screenshots + report)
         if: always()
         uses: actions/upload-artifact@v4

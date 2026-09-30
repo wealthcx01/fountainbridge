@@ -487,17 +487,24 @@ test.describe('the desk fits on a desk (FB-178)', () => {
   });
 
   test('the whole page is a readable length', async ({ page }) => {
-    // A RATCHET, not a design target. The named sections now total 1,892px against the design's
-    // ~1,900 — the shape is right. What is left above that is `approvals-queue` (739px) and
-    // `approvals-decided` (356px), which are a separate question from the ticket board and are
-    // named as follow-up in FB-178 rather than changed here.
+    // A RATCHET, not a design target. The desk measures 2,165px here against the design's ~1,900.
     //
     // The structural assertions above are the real guard; this one exists because the defect was a
     // page that grew without bound as a venture aged, and only a measurement sees that. Returning
-    // the board would add thousands of pixels and fail this immediately.
+    // the board would add about 4,600px and fail this immediately.
+    //
+    // This fixture holds SIX tickets, so what it cannot tell you is whether the desk stays this
+    // length over a venture that has done real work — and a cap of four over six items renders the
+    // same screen as no cap at all. `e2e/desk-at-scale.spec.ts` is the reading that answers that
+    // (73 tickets, 1,773 run reports: 2,230px, sixty-five pixels more than this).
+    // At 1440x1000, which is the viewport FB-178 and FB-186 both state their targets at. The
+    // project's default is 1280x720, and a narrower viewport wraps more and measures TALLER -- so
+    // the old reading was answering a question neither ticket asked.
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/venture/arca');
     const h = await page.evaluate(() => document.documentElement.scrollHeight);
-    expect(h, `the desk is ${h}px; it was 9,908px on production before FB-178`)
-      .toBeLessThan(4300);
+    expect(h, `the desk is ${h}px at 1440x1000; it was 9,908px on production before FB-178`)
+      .toBeLessThan(2_300);
   });
 });
 
