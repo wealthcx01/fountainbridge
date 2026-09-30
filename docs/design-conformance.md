@@ -592,6 +592,34 @@ Take it again with `node scripts/measure-on-real-data.mjs` — see the method no
 the **founder**, not as an admin: an admin sees wiring warnings a founder never does, and they cost
 136px on the desk.
 
+### Every screen, on real data, 2026-09-30 (FB-175)
+
+The full sweep, signed in as ARCA's founder over its own 79 tickets and 9,889 run reports. Taken with
+`node scripts/measure-on-real-data.mjs`.
+
+| screen | desktop | phone | verdict |
+| --- | --- | --- | --- |
+| Sign in | 1,000px | 851px | **matches** — compared in full by FB-189 |
+| The desk | **1,689px** | **2,175px** | **under the design's ~1,900px** |
+| Tickets | 1,169px | 1,474px | **matches** — and says plainly when history is unreadable |
+| What happened | 1,000px | 1,014px | **wrong, FB-242** — one row over 9,889 reports, claiming completeness |
+| Memory | 1,000px | 1,945px | reads as intended over 5 documents |
+| Handbook | 1,000px | 1,581px | **explained** — see below |
+| Composer | 1,000px | 1,014px | **matches** |
+| Needs you | — | — | redirects to Tickets' "Needs you" filter, by FB-129's design |
+| The ledger (`/`) | — | — | a founder with one venture is sent to its desk, by design |
+
+No screen scrolls sideways at either size.
+
+**The Handbook's phone height is not a fault.** FB-175 left it recorded as unexplained: 1,581px on a
+phone against 1,000px on desktop. It is nine chapters. On desktop they sit in a grid; on a phone they
+stack one per row at about 115px each. A list of nine things is taller in one column than in three.
+Explained, and closed.
+
+**"What happened" is the one real divergence the sweep found**, and it is the worst kind: the page
+renders, in the right order, with correct data — correct about the twenty reports it read, and wrong
+about the venture. Filed as FB-242.
+
 ### One thing the real reading settled that the fixture could not
 
 On real data the rail and the body **agree** — both say *"Your team checked in 3 minutes ago"*. The
