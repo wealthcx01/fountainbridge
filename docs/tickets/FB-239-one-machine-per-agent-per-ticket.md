@@ -30,16 +30,23 @@ Three things, all already written up, and this ticket is the one that assembles 
 **So this ticket is deliberately last.** Doing it first would break the one screen that tells a founder the
 factory is alive.
 
-## The design question underneath, which is John's to rule
+## RULED by John, 2026-09-30: one machine and one character per ticket, helpers invisible
 
-*"One machine per pixel agent"* needs one thing settled, and it is already an open design gap
-(`docs/design-gaps-open.md`, gap 3): **does a character mean an agent, a department, or a piece of work?**
+*"one machine and one character per ticket, helpers invisible."*
 
-It matters here more than anywhere. A single wake can spawn eight subagents. If each gets a machine and a
-character, the room becomes a picture of how the runtime parallelised rather than of what the company is
-doing — the exact objection FB-218 raised. **One machine per *ticket* with one character per *ticket* is
-probably the right answer**, with subagents inside it invisible, but that is a ruling rather than a
-conclusion.
+So a character means **a piece of work**, not an agent and not a department. A wake that spawns eight
+subagents shows **one** character, because eight would make the room a picture of how the runtime
+parallelised rather than of what the company is doing — the objection FB-218 raised.
+
+Three consequences, and they are what this ticket builds to:
+
+- **The unit is the ticket.** One temporary machine, one character, one preview link, one entry in the
+  record. Anything the worker spawns inside itself is its own business and is never drawn.
+- **FB-218's bound still has to hold.** A character appears while its ticket is being worked and is gone
+  when it stops. That is easier under this ruling than the old one, because there is one thing to track
+  per ticket rather than a fluctuating count of subagents.
+- **This closes design gap 3.** `docs/design-gaps-open.md` asked whether a figure means an agent, a
+  department or a piece of work. It means a piece of work. The gap moves to Closed with this date.
 
 ## Scope
 
