@@ -268,15 +268,62 @@ ensure_approvals_ref() {
 # Runs one headless Claude Code session with the auth ladder (Max preferred, API fallback) under
 # acceptEdits + the lane allowlist. Prints the session's stdout; returns claude's exit code (124 on
 # timeout). The caller inspects the output for a headless BLOCKED marker (see phase_blocked).
+# Where the lane records which ticket each session was working (FB-231).
+#
+# One JSON object per line, appended and never rewritten. The office reads it to draw ONE character per
+# ticket rather than one per session — John's ruling of 2026-09-30, "one machine and one character per
+# ticket, helpers invisible".
+#
+# Before this, the office drew a character per transcript, and a ticket is five to eleven transcripts:
+# supervisor.sh calls claude_lane five times a round and MAX_VALIDATION_ROUNDS defaults to 2. So every
+# ticket appeared five to eleven times over.
+#
+# Deliberately NOT a RunReport field. The RunReport is a bcap-contracts entity and the record a founder
+# reads (non-negotiable 7); this is operational state that only the office needs, and adding it to the
+# contract to satisfy a drawing problem would be the wrong reason to change a shared schema.
+SESSION_INDEX="${SESSION_INDEX:-${STATE_DIR:-/opt/foundry/lane/state}/sessions.jsonl}"
+
+# Record one session against the ticket it is working.
+#
+# Never fails the wake. A lane that cannot write its index still has work to do, and an office drawing
+# one character too many is a smaller fault than a ticket that did not get built (CLAUDE.md #10 is about
+# telling the truth, and the truth here is recoverable on the next wake).
+note_session() {
+  local session="$1" ticket="$2" stage="$3"
+  [ -n "$session" ] && [ -n "$ticket" ] || return 0
+  mkdir -p "$(dirname "$SESSION_INDEX")" 2>/dev/null || return 0
+  printf '{"session":"%s","ticket":"%s","stage":"%s","at":"%s"}\n' \
+    "$session" "$ticket" "$stage" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$SESSION_INDEX" 2>/dev/null || true
+}
+
 claude_lane() {
   local to="$1" prompt="$2"
+  # The stage comes from the environment rather than a third argument, because every call site passes a
+  # multi-line prompt and an argument after it is easy to attach to the wrong call.
+  local stage="${LANE_STAGE:-work}"
+
+  # A session id the lane chooses, so it can say which ticket the transcript belongs to. Without this the
+  # id is only knowable by reading the transcript, and reading transcripts to draw a room would be both
+  # expensive and a new reason for the office to touch a founder's data.
+  #
+  # Each call still gets its OWN id and its own session: no --resume anywhere, so /review continues to see
+  # the diff and not the reasoning that produced it. That hold-out critic is the thing most easily lost by
+  # someone reusing a session to save tokens, and it is why this sets an id rather than sharing one.
+  local session=""
+  if command -v uuidgen >/dev/null 2>&1; then session="$(uuidgen)"; fi
+  local session_args=()
+  if [ -n "$session" ]; then
+    session_args=(--session-id "$session")
+    note_session "$session" "${FOUNDRY_TICKET:-}" "$stage"
+  fi
+
   # shellcheck disable=SC2086  # LANE_ALLOWED_TOOLS is an intentional space-separated arg list
   if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
     env -u ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN" \
-      timeout "$to" claude -p "$prompt" --permission-mode acceptEdits --allowedTools $LANE_ALLOWED_TOOLS --output-format text
+      timeout "$to" claude -p "$prompt" "${session_args[@]}" --permission-mode acceptEdits --allowedTools $LANE_ALLOWED_TOOLS --output-format text
   else
     ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
-      timeout "$to" claude -p "$prompt" --permission-mode acceptEdits --allowedTools $LANE_ALLOWED_TOOLS --output-format text
+      timeout "$to" claude -p "$prompt" "${session_args[@]}" --permission-mode acceptEdits --allowedTools $LANE_ALLOWED_TOOLS --output-format text
   fi
 }
 
