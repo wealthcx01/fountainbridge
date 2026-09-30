@@ -24,6 +24,7 @@ import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
 import { GitHubClient } from '@/lib/github';
 import { trailSources } from '@/lib/trail-sources';
 import { loadTrail } from '@/lib/trail-load';
+import { studioNow } from '@/lib/when';
 
 /**
  * Tickets (FB-129) — the list, the ticket, and the decision, on one screen.
@@ -121,8 +122,8 @@ export default async function TicketsPage({
   // a board, so it comes here — the only list of tickets a founder now has. `ventureRuns` is cached
   // per request (FB-157), so the ticket detail below reading it again costs nothing.
   const runsForProgress = await ventureRuns(venture).catch(() => NO_RUNS_FOR_PROGRESS);
-  const engineForProgress = engineState(runsForProgress.checkIns, new Date());
-  const nowForProgress = Date.now();
+  const engineForProgress = engineState(runsForProgress.checkIns);
+  const nowForProgress = studioNow();
 
   const rows: TicketRow[] = [];
   for (const lane of inferred) {

@@ -146,6 +146,9 @@ async function RailWithNumbers({
   venture: VentureSummary;
   shell: { ventureId: string; ventureName: string; ventureStatus: string; departments: { id: string; name: string }[] };
 }) {
-  const data = await loadRailData(venture, Date.now());
+  // No clock argument: `loadRailData` uses the studio's one clock. Passing `Date.now()` here was
+  // FB-240 — the rail then read a different "now" from the desk's, and the two said 70 days and 10
+  // minutes about the same heartbeat.
+  const data = await loadRailData(venture);
   return <Rail {...shell} data={data} />;
 }
