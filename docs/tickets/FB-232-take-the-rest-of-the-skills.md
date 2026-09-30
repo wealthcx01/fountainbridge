@@ -3,8 +3,9 @@
 **Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"why don't we include all the
 skills?"* · **Follows:** D12, FB-226 · One ticket = one branch = one PR.
 
-> **Group 1 shipped, 2026-09-30.** The ticket loop is in: `write-ticket`, `implement-ticket`,
-> `close-ticket`. Groups 2 to 5 are still to do, and the count is now **4 of 26**.
+> **Groups 1 and 2 shipped, 2026-09-30.** The ticket loop — `write-ticket`, `implement-ticket`,
+> `close-ticket` — and the quality gates — `write-tests`, `audit-tests`, `code-hygiene`,
+> `refactor-clean`. Groups 3 to 5 remain, and the count is now **8 of 26**.
 
 ## Why this exists
 
@@ -118,6 +119,64 @@ clear answer instead of an arbitrary one.
 
 Groups 2 to 5: the quality gates, the thinking tools, the visual set, and writing and authoring. Each its
 own pull request, in that order.
+
+## Group 2, shipped 2026-09-30: the quality gates
+
+`write-tests`, `audit-tests`, `code-review` and `refactor-clean`, adapted. **The clash on `code-review` is
+settled** — see below.
+
+### `write-tests` names both of our failure modes in one sentence
+
+> A good test fails **only** when real behaviour breaks… Most bad tests fail the opposite way: **red on
+> harmless changes, green while the real path is broken.**
+
+Green-while-broken is the five vacuous tests this project has shipped. Red-on-harmless is the two required
+gates that failed on markdown-only pull requests. **One sentence, both problems**, which is why this skill
+was worth taking rather than writing.
+
+The adapted version carries all five vacuous tests by name and the three smells that find them: the fixture
+cannot produce the failure; the test holds its own copy of the thing under test; the expected order is also
+the natural order. It also carries the vitest memory flags, which are not decoration — the default pool has
+taken this session down.
+
+### `audit-tests` asks the question we keep needing
+
+> What bug would escape if this test disappeared?
+
+**This repository has 1,712 unit tests and about 310 browser tests, and still shipped five that proved
+nothing.** Volume was never the problem; knowing which test owns which contract is. The adapted version
+adds where proof belongs here — and the observation that **a structural rule tested at runtime is usually
+untestable**, which is why FB-183's check reads the whole tree rather than rendering a button.
+
+### The `code-review` clash, settled
+
+Renamed to **`code-hygiene`**, because it is a different job from gstack's `/review` and a duplicate name
+is worse than an absence — an agent offered two skills with the same name picks one arbitrarily, and the
+arbitrary choice is invisible.
+
+- **`/review`** — the staff-engineer correctness audit with an adversarial pass. *Is this right?* Before a
+  pull request.
+- **`code-hygiene`** — names, stale references, needless guards, misleading comments. *Is this tidy?* After
+  implementing, before committing.
+
+Its third rule is one we have been bitten by twice in a week: **a comment that names a count, a state or a
+file is a claim with an expiry date.** `VentureBoard.tsx` said "every `ApprovalCard` below renders
+read-only" when there were none below, and that stale comment is what made a weaker test look sufficient —
+the test then looped over nothing and passed regardless.
+
+### `refactor-clean` states the rule we keep relearning
+
+> Refactoring is not adding a compatibility layer beside the problem; it is moving ownership until every
+> concept has exactly one clear home.
+
+**A second copy is the one that drifts**, and every expensive fault here has that shape: two deposit paths
+one of which was unscanned; two places an approval could be signed; a SQL expression that existed in the
+code and again in its test. The adapted version names those and adds where it stops — a refactor discovered
+mid-ticket becomes its own ticket (non-negotiable 3).
+
+### What is left
+
+Groups 3 to 5: the thinking tools, the visual set, and writing and authoring.
 
 ## Acceptance criteria
 
