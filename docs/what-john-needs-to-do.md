@@ -14,42 +14,25 @@ telling me rather than hunting for it.
 
 ---
 
-## 1. Let Railway see the arca repository
+## 1. Ask Railway why one project makes preview environments and the other does not
 
-**What it unblocks:** the preview link. A founder clicking through from a ticket to the thing actually
-running. It is the single biggest gap between the studio you have and one you would rely on.
+**Done and ruled out:** you checked, and the connector is set to **All repositories**. So access was never
+the problem, and my suspicion was wrong.
 
-**Why it is needed:** Railway talks to GitHub through a connector, and that connector is given permission
-**one repository at a time**. It has permission for the studio's code. My strong suspicion is that it was
-never given permission for `arca`. Everything else is already done and verified.
+I then checked two more things, and both are conclusive. Every setting on both the project and the service
+is identical to the project where this works — only the names differ. And Railway **can read arca's pull
+requests**: asked about PR 88 it returned the real title, *"Add Bruntsfield's two working rules"*.
 
-**Why I got this wrong last time:** I told you to go to organisation settings. **`wealthcx01` is a personal
-account, not an organisation**, so that path does not exist. Below is the personal-account path.
+**So there is nothing left to find from our side.** Six causes ruled out by experiment, two by exhaustive
+comparison. It is Railway's product behaving differently on two identically-configured projects.
 
-### The steps
+**What I need from you:** send Railway support the message written out in
+`docs/tickets/FB-230-pr-environments-on-arca.md` (the section "What to ask Railway support"). It carries
+both project ids, everything already confirmed, and the one question worth asking. You have the account, so
+it has to come from you.
 
-1. Click your **profile picture**, top right of GitHub.
-2. Click **Settings**.
-3. In the left sidebar, under the heading **Integrations**, click **Applications**.
-4. Click the **Installed GitHub Apps** tab.
-5. Find **Railway** in the list and click **Configure** next to it.
-6. Scroll to **Repository access**.
-7. Look at which option is selected:
-   - If it says **All repositories** — Railway can already see `arca`, and this is not the problem. Stop
-     here and tell me; it means Railway is behaving differently on two identically-configured projects and
-     belongs with their support.
-   - If it says **Only select repositories** — look at the list underneath. **Is `arca` there?**
-8. If `arca` is missing: open the **Select repositories** dropdown, choose **arca**, then click **Save** at
-   the bottom.
-
-*A shortcut to step 4, if you prefer: `github.com/settings/installations`. The documentation describes the
-click path rather than the URL, so the clicks above are the reliable route.*
-
-**How you will know it worked:** tell me, and I will open one throwaway pull request on arca and watch for a
-temporary environment to appear. That takes about three minutes and I will close the test immediately, as I
-did twice already.
-
----
+**Nothing else is blocked by it.** Everything downstream is built and tested — the moment Railway creates
+one environment, the preview link appears with no further work from me.
 
 ## 2. The memory system cannot record new work
 

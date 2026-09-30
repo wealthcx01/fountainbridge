@@ -231,6 +231,49 @@ guessing here.
 - `prDeploys`, `botPrEnvironments`, `focusedPrEnvironments` all `true` — identical to foundry-studio.
 - **No preview for a lane PR yet.** One check stands between here and a founder seeing their work run.
 
+## Slice 4 (2026-09-30): it is Railway's, and here is what to ask them
+
+John checked the GitHub side: **Railway's connector is set to "All repositories."** So the hypothesis in
+slice 3 is dead — access was never the problem.
+
+Two further checks, both conclusive:
+
+- **Service-level settings are identical too.** Slice 3 compared every `Project` field; this compares every
+  scalar on the `ServiceInstance` for both production environments. **The only difference is the service's
+  name.**
+- **Railway can read arca's pull requests.** `githubPRInfo` for arca PR 88 returns
+  *"Add Bruntsfield's two working rules"* — the real title of a real open pull request. The same query
+  against a foundry-studio PR works identically.
+
+So: Railway has full access to the repository, can read its pull requests, and every project and service
+setting matches the project where this works. **Six causes have now been ruled out by experiment and two by
+exhaustive comparison.** There is nothing further to find from this side.
+
+### What to ask Railway support
+
+> Two projects on my account are configured identically and only one creates PR environments.
+>
+> **Works:** project `foundry-studio` (`e46a7bb4-463f-475d-a20d-78e0d5b7eedd`), repo
+> `wealthcx01/fountainbridge`. A PR creates an environment and it is torn down on merge.
+>
+> **Does not:** project `arca` (`4df47e04-f7ed-4d81-8243-2b00b5d44153`), repo `wealthcx01/arca`, branch
+> `master`. No PR environment is ever created.
+>
+> On the non-working project I have confirmed: `prDeploys` true, `botPrEnvironments` true,
+> `focusedPrEnvironments` true; the service is connected to the repo; a `staging` environment exists; the
+> service has built successfully from git; the GitHub connector is set to "All repositories"; and
+> `githubPRInfo` returns real pull-request titles for that repo. Every scalar field on both `Project` and
+> `ServiceInstance` is identical between the two projects apart from names and ids.
+>
+> Test pull requests were opened and closed on the working repo's pattern and no environment appeared.
+> What else determines whether a PR environment is created?
+
+### What this does not block
+
+Nothing except the preview link itself. Everything downstream is built and tested: `previewUrlFrom` reads
+the URL, refuses console links, and `lib/trail.ts` renders the hop. **The moment Railway creates one
+environment, the link appears with no further work.**
+
 ## Verification
 
 No screen and no code changed — this is an infrastructure record. Non-negotiable 11 does not apply, said
