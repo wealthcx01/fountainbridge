@@ -1,6 +1,6 @@
 # FB-178 — the desk renders the entire backlog, and is five times longer than its design
 
-**Status:** Shipped in part · **Phase:** 3 · **Found by:** the design comparison, 2026-09-02
+**Status:** Done · **Phase:** 3 · **Found by:** the design comparison, 2026-09-02
 
 > **Done:** the ticket board is off the desk, runs are collapsed and cut to the design's four, and a
 > height ratchet guards it — now measured over a venture the size ARCA actually is.
@@ -10,9 +10,10 @@
 > reports is **2,165px**. Sixty-five pixels separate a venture's first week from its 1,773rd run
 > report.
 >
-> **Left:** the reading on the production server itself. It needs a signed-in founder session, which
-> the lane does not have — checked again on 2026-09-30, and every request without one still lands on
-> `/login`. What that leaves unproven is named under "What was not measured" below.
+> **The reading on ARCA's real data, taken 2026-09-30.** Signed in as ARCA's founder, over the
+> venture's own 73 tickets and **9,889 run reports**: **1,689px at 1440x1000** and **2,175px at
+> 393x851**. That is below the design's own ~1,900px. Nothing on the screen reported a failed read,
+> and neither viewport scrolls sideways.
 
 ## Measured, both sides, 1440×1000
 
@@ -91,24 +92,52 @@ almost nothing and the ratchet stayed green. It was found by trying to break it.
 carries both distinct work and clusters of the repeated park, and the same mutation takes the desk to
 **2,795px** and fails.
 
-## What was not measured
+## The reading on real data, and the blocker that was never real
 
-**The production server.** Both this ticket and FB-186 state their targets "on ARCA's production
-data", and that reading has not been taken. It needs a signed-in founder session; without one every
-request lands on `/login`, confirmed again on 2026-09-30.
+This ticket sat for weeks with its first criterion unticked, recorded as blocked on "a signed-in
+session on production that the lane does not have". **That blocker did not exist**, and John said so:
+there were already GitHub tokens for foundry and arca.
 
-What that leaves genuinely unproven: production ticket titles and approval text are real sentences of
-unknown length, and a longer sentence wraps to more lines. The generated fixture uses titles long
-enough to wrap, but they are not ARCA's own words. The **count** of things on the desk is proven
-bounded; the **height of each row** over real copy is not.
+He was right, and the reasoning is worth keeping because it generalises. **Git is the source of truth
+for work items.** The studio is a view over the venture repos' `docs/tickets/` through the GitHub
+API, with no separate database of record. So a local build pointed at a real `GITHUB_TOKEN` reads
+*exactly* the data production reads. The production deployment adds a hostname, not a fact.
 
-To close it, the studio needs a way to read production — a signed-in session, or `GITHUB_TOKEN` and
-the database URL in `.env.local`. That is blocker 3 in `docs/what-john-needs-to-do.md`.
+And the token was already on the machine. `gh auth token` has had `repo` scope on `wealthcx01/arca`
+the whole time. What was recorded as an external blocker was a thing nobody had looked for.
+
+### What was measured
+
+Signed in as **ARCA's founder** — the view CLAUDE.md #11 asks for, because an admin sees banners a
+founder never does and they add height.
+
+| the desk, on ARCA's own data | 1440×1000 | 393×851 |
+| --- | --- | --- |
+| as the founder | **1,689px** | **2,175px** |
+| as a Bruntsfield admin | 1,825px | 2,465px |
+
+Over **73 tickets and 9,889 run reports** — the run history has grown more than fivefold since the
+1,773 recorded at the top of this ticket, and the desk did not grow with it. Neither viewport scrolls
+sideways. Nothing on the screen said anything could not be read, so these are not the heights of a
+degraded page.
+
+Both screens were rendered and looked at as pictures, not as markup.
+
+`scripts/measure-on-real-data.mjs` takes the reading again, so this capability cannot be mislaid a
+second time. It is not a gate and never runs in CI: it reaches the live GitHub API, and a gate that
+needs the network fails when GitHub has a bad morning.
+
+### What is still not the production deployment
+
+These readings are of a local build of this commit, reading production's data. They are not taken
+against `foundry-studio-production-4a73.up.railway.app` itself. The data is identical; what a reading
+on that host would additionally prove is that its own environment renders the same — which is a
+deployment question rather than a question about this ticket.
 
 ## Acceptance criteria
 
-- [ ] The desk is under 3,000px on ARCA's **production** data at 1440×1000. **Not measured — needs a
-      signed-in session (above). Over a fixture at ARCA's real size it is 2,230px.**
+- [x] The desk is under 3,000px on ARCA's production data at 1440×1000. **1,689px**, signed in as
+      ARCA's founder over its own 73 tickets and 9,889 run reports. 2,175px on a phone.
 - [x] No finished ticket is rendered on the desk. Asserted over a backlog that is half finished work,
       the same proportion production had (37 of 73).
 - [x] Four runs, with an accurate "showing N of M" and a link to the rest. *"Showing the 4 most recent
