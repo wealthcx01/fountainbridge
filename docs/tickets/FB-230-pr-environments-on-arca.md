@@ -166,6 +166,71 @@ another spend — outside what was approved, and not something to add to a ventu
 - [ ] A lane-opened PR on arca produces an environment with a preview URL on the ticket's trail. **Still
       not working** — the three ruled-out causes and the remaining hypothesis are above.
 
+## Slice 3 (2026-09-30): staging created, hypothesis disproved, and the search ended systematically
+
+**Approved by John:** *"create the staging environment and re-test."* Done. **The hypothesis was wrong**,
+and rather than keep guessing the two projects were diffed field by field.
+
+### What was created
+
+`staging` on arca, cloned from production's configuration with `skipInitialDeploys: true` — so it arrived
+with **0 deployments** and nothing was built or charged for on creation. Production stayed on its
+2026-08-03 deployment and kept serving HTTP 200 throughout.
+
+It was then deployed once from git (`serviceInstanceDeploy`, `latestCommit: true`) to answer a second
+question, and **it built and deployed successfully** — so arca's repository builds fine from Railway. That
+is worth knowing on its own: nothing about the repo is the obstacle.
+
+**Staging is now asleep** (`sleepApplication: true`) so it costs nothing while unused. It wakes on request.
+It is kept rather than deleted because **FB-229 needs exactly this** — its migration must deploy to staging
+and be watched before production, and until now there was nowhere to do that.
+
+### Five causes ruled out, each by experiment
+
+| suspected cause | test | result |
+|---|---|---|
+| Production auto-deploy being off | enabled it briefly, re-pushed | no |
+| `focusedPrEnvironments` skipping a PR affecting no service | set `false`, re-pushed | no |
+| Railway's GitHub App cannot reach the repo | `railway-app[bot]` creates deployments on it; `serviceConnect` read its branch list | no |
+| **arca having no non-production base environment** | created `staging`, re-pushed | **no** |
+| **The service having never built successfully from git** | built staging from git — it succeeded — re-pushed | **no** |
+
+Every setting changed for a test was restored. Both probe pull requests were closed with their branches
+deleted; nothing about arca was changed or kept.
+
+### Then the systematic check, instead of a sixth guess
+
+Every scalar field on `Project` was compared between arca and foundry-studio. **The only difference is
+`primaryEnvironmentId`**, which is each project's own production id — not a difference at all.
+
+So the two projects are **provably identical** on every project-level setting, and one creates PR
+environments while the other does not. That rules out the whole class of explanation being searched.
+
+### What is left, and why it needs John
+
+The remaining difference must be outside the project: the **Railway GitHub App's installation scope on the
+`wealthcx01/arca` repository**. It is consistent with everything observed — Railway can read the repo and
+create deployments using an account-level credential, while pull-request *webhooks* require the App to be
+installed on that specific repository.
+
+It cannot be checked from here. `GET /repos/wealthcx01/arca/installation` needs a GitHub App JWT,
+`/user/installations` needs a token authorised to a GitHub App, listing the org's installations needs
+`admin:org`, and Railway's own `gitHubRepoAccessAvailable` needs a user-session token rather than the
+CLI's.
+
+**What John can check in two minutes:** GitHub → Settings → Applications → Railway → Configure, and see
+whether `arca` is in its repository list. If it is not, add it. If it is, this is Railway's product
+behaving differently on two identically-configured projects and is worth their support rather than more
+guessing here.
+
+### State right now
+
+- Repo connected on `master`; production auto-deploy **off**; production serving **HTTP 200** on its
+  original deployment.
+- `staging` exists, has built from git once, and is **asleep**.
+- `prDeploys`, `botPrEnvironments`, `focusedPrEnvironments` all `true` — identical to foundry-studio.
+- **No preview for a lane PR yet.** One check stands between here and a founder seeing their work run.
+
 ## Verification
 
 No screen and no code changed — this is an infrastructure record. Non-negotiable 11 does not apply, said
