@@ -11,6 +11,7 @@ import { VentureForbidden } from '@/components/VentureForbidden';
 import { historyForBounded, historyIsReadable } from '@/lib/activegraph-log';
 import { narrate, narrateFault } from '@/lib/activegraph';
 import { GitHubClient } from '@/lib/github';
+import { studioNow } from '@/lib/when';
 
 /**
  * One external send, and the only place a decision about it is made (FB-183).
@@ -77,7 +78,7 @@ export default async function ApprovalPage({
     [found],
     envelopes,
     new Set((venture.departments ?? []).map((d) => d.id)),
-    new Date(),
+    new Date(studioNow()),
   );
 
   // The signed history, narrated server-side. Verifying an event needs the signing secret, and that

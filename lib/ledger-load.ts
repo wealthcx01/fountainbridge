@@ -23,8 +23,9 @@ import { loadRailData } from './rail';
 import { ventureApprovals } from './venture-reads';
 import { loadVentureTickets } from './tickets';
 import { toRow, type LedgerRow } from './ledger';
+import { studioNow } from './when';
 
-export async function loadLedgerRow(venture: VentureSummary, nowMs: number): Promise<LedgerRow> {
+export async function loadLedgerRow(venture: VentureSummary, nowMs: number = studioNow()): Promise<LedgerRow> {
   let degraded = false;
   const fell = <T,>(fallback: T) => (): T => {
     degraded = true;
@@ -61,7 +62,7 @@ export async function loadLedgerRow(venture: VentureSummary, nowMs: number): Pro
  * Read off the attention queue's own ages rather than recomputed — the queue already knows, and a
  * second arithmetic for the same question is how two screens come to disagree.
  */
-export async function loadWaitingAges(ventures: readonly VentureSummary[], nowMs: number): Promise<number[]> {
+export async function loadWaitingAges(ventures: readonly VentureSummary[], nowMs: number = studioNow()): Promise<number[]> {
   const { loadVentureAttention } = await import('./attention');
   const perVenture = await Promise.all(
     ventures.map((v) =>
