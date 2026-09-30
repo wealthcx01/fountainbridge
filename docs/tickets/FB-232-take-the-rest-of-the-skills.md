@@ -4,8 +4,9 @@
 skills?"* · **Follows:** D12, FB-226 · One ticket = one branch = one PR.
 
 > **Groups 1, 2 and 3 shipped, 2026-09-30.** The ticket loop, the quality gates, and the thinking tools —
-> `explore-unknowns`, `audit-choices`, `plain-english`, `auto-research`. Groups 4 and 5 remain, and the
-> count is now **12 of 26**.
+> `explore-unknowns`, `audit-choices`, `plain-english`, `auto-research`. **Group 4** adds
+> `screenshot-critique` and `design-against-the-artifact`; `preview-shots` is refused with a reason. Group
+> 5 remains, and the count is now **14 of 26**, with one deliberately declined.
 
 ## Why this exists
 
@@ -247,6 +248,49 @@ now" more than once without being able to say faster than what.
 ### What is left
 
 Groups 4 and 5: the visual set, and writing and authoring.
+
+## Group 4, shipped 2026-09-30: the visual set — two taken, one refused
+
+### `screenshot-critique` — the hold-out critic, for screens
+
+> Use an **unprimed** sub-agent as a second set of eyes. **Primed eyes pass defects fresh eyes catch.**
+
+**This is a rule the lane already runs on code and we do not have for screens.** `/review` runs as a fresh
+`claude -p` with no `--resume`, so it sees the diff and not the reasoning that produced it — FB-222 records
+that we implement Cole Medin's hold-out critic by accident of how `claude_lane` is written.
+
+The same argument is stronger for pictures. **The person who just spent an hour on a layout is the worst
+possible judge of whether it reads correctly**, because they know what it is supposed to say and their eyes
+supply it. That is not hypothetical: thirty tickets shipped while the desk was 9,908px against a design of
+~1,900, and everyone involved had looked at it — **while knowing what it meant.**
+
+The rule it adds is the operational one: **give the reviewer the image and the question and nothing else.**
+*"I fixed the row spacing, does it look right now?"* destroys the whole value, because the moment you say
+what to look for they stop looking at anything else.
+
+**Settled against `/design-review`**, which stays: that one asks *is this screen good?*, this one asks *is
+this specific claim about it true?* — of someone not told what the answer should be.
+
+### `design-against-the-artifact` — their second half, which is the half we need
+
+Theirs generates mockups to explore a direction, then implements against the chosen one. **We do not need
+the exploring half** — the design exists and John owns it, and it is a working prototype rather than a
+picture.
+
+What carries is the discipline: *"the deliverable is the working design, visibly matched to the approved
+reference — do not stop at the first code approximation."* **The first approximation always looks fine to
+the person who wrote it.**
+
+It also carries what to do when the design is silent: **stop and ask, and write it into
+`docs/design-gaps-open.md`** rather than defaulting to the artifact or inventing.
+
+### `preview-shots` — refused, with the reason
+
+It opens images in **macOS Preview** (`open -a Preview`). This machine is Linux, and the reviewer here is a
+model that reads an image directly rather than a person flipping through a window.
+
+**Adapting it would mean inventing a Linux equivalent of a workflow we do not have**, which is padding the
+count rather than taking a skill. Named here so the gap is a decision rather than an oversight.
 
 ## Acceptance criteria
 
