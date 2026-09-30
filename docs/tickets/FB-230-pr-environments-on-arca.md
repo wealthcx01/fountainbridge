@@ -1,6 +1,6 @@
 # FB-230 — PR environments enabled on the arca project, and the one step it still needs
 
-**Status:** Shipped in part · **Phase:** 3 · **Approved by:** John, 2026-09-29 — *"yes enable PR
+**Status:** Shipped in part · **Slice 2 2026-09-30** · **Phase:** 3 · **Approved by:** John, 2026-09-29 — *"yes enable PR
 environments on arca"* · **Follows:** FB-228 (D11) · One ticket = one branch = one PR.
 
 ## What was changed on the live Railway account
@@ -96,6 +96,75 @@ idea for them entirely; naming it here so the absence is a decision rather than 
       on production auto-deploy.
 - [ ] A lane-opened PR on arca produces an environment, and its preview URL appears on the ticket's trail.
       Verifiable end to end only after the step above.
+
+## Slice 2 (2026-09-30): the repo is connected, production is safe, and PR environments still do not fire
+
+**Approved by John:** *"connect the repo with production auto-deploy off."* Done, and production is
+verified untouched. **The previews still do not appear**, and three plausible causes were ruled out by
+experiment rather than by reasoning. The remaining hypothesis needs another spend decision, so it stopped
+there.
+
+### What was done, in order, with the rollback prepared first
+
+The order mattered, because connecting a repo can trigger a deploy of a live venture app. Before touching
+anything: `deploymentRollback` and `deploymentRedeploy` were confirmed to exist, and the good production
+deployment `94638067…` (2026-08-03, SUCCESS) was confirmed `canRedeploy: true`.
+
+1. **The first connect attempt failed usefully.** `branch: "main"` was refused —
+   *"Branch `main` does not exist in the repo `wealthcx01/arca`"*. **arca's default branch is `master`.**
+   Nothing changed. Worth knowing: every lane PR on arca targets `master`, so the studio's assumptions
+   should not hard-code `main` anywhere.
+2. **Connected** `wealthcx01/arca` on `master`. `source` is now `{repo: "wealthcx01/arca"}`.
+3. **It immediately triggered a production build** (`5f1fb65b…`, BUILDING) and **defaulted auto-deploy to
+   enabled** — exactly what John asked to avoid. Cancelled within the minute: `deploymentCancel` → `true`,
+   and that deployment is now `REMOVED`.
+4. **Disabled auto-deploy** on the production instance. Note the shape: the mutation takes a single
+   `input` object, not flat arguments, and the first attempt failed validation because of it.
+5. **Verified:** production still serves **HTTP 200**, its live deployment is still the 2026-08-03 one, and
+   the volume is untouched at 84.9 MB on production's environment id.
+
+So the outcome John asked for holds: the repo is connected, and production deploys only when someone
+deploys it.
+
+### Three causes ruled out, by experiment
+
+A temporary PR was opened on arca (#89) purely to see whether an environment appeared, then closed and its
+branch deleted. Nothing about arca was changed or kept.
+
+| suspected cause | test | result |
+|---|---|---|
+| **Production auto-deploy being off** suppresses PR environments | enabled it briefly, re-pushed | **No.** Still no environment. Set back to off immediately; production untouched. |
+| **`focusedPrEnvironments`** skipping a PR that affects no service | set it to `false`, re-pushed | **No.** Still no environment. Restored to `true`, its original value. |
+| **Railway's GitHub App cannot reach the repo** | checked who creates deployments | **No.** `railway-app[bot]` created a deployment on `wealthcx01/arca`, and `serviceConnect` validated the branch list, so it has access. |
+
+`watchPatterns` is `[]` and `rootDirectory` is `null`, so path filtering is not excluding anything either.
+
+### The remaining hypothesis, and why it stopped here
+
+**`foundry-studio` has a `staging` environment. `arca` has only `production`.** That is now the clearest
+difference between the project where PR environments work and the one where they do not. Railway may need a
+non-default base environment to clone a PR environment from, rather than cloning the production one.
+
+Testing it means **creating a `staging` environment on arca**, which is another environment and therefore
+another spend — outside what was approved, and not something to add to a venture's project on a hunch.
+`baseEnvironmentId` is `null` on both projects, which is consistent with the guess but does not confirm it.
+
+### What is true right now
+
+- Repo connected, auto-deploy off, production serving and unchanged. **Nothing is at risk.**
+- A lane PR on arca still produces no preview, so a founder still cannot see their own work running.
+- The remaining gap is one experiment, gated on one decision.
+
+## Acceptance criteria, updated
+
+- [x] The arca service is connected to `wealthcx01/arca`, on the branch its PRs actually target (`master`).
+- [x] Production auto-deploy is off, verified by a fresh query.
+- [x] Production is verified still serving its original deployment, by HTTP and by deployment id.
+- [x] The deploy that connecting triggered was cancelled, not merged into production.
+- [x] Every setting changed for testing was restored to its original value.
+- [x] The probe PR was closed and its branch deleted.
+- [ ] A lane-opened PR on arca produces an environment with a preview URL on the ticket's trail. **Still
+      not working** — the three ruled-out causes and the remaining hypothesis are above.
 
 ## Verification
 
