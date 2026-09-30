@@ -3,9 +3,9 @@
 **Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"why don't we include all the
 skills?"* · **Follows:** D12, FB-226 · One ticket = one branch = one PR.
 
-> **Groups 1 and 2 shipped, 2026-09-30.** The ticket loop — `write-ticket`, `implement-ticket`,
-> `close-ticket` — and the quality gates — `write-tests`, `audit-tests`, `code-hygiene`,
-> `refactor-clean`. Groups 3 to 5 remain, and the count is now **8 of 26**.
+> **Groups 1, 2 and 3 shipped, 2026-09-30.** The ticket loop, the quality gates, and the thinking tools —
+> `explore-unknowns`, `audit-choices`, `plain-english`, `auto-research`. Groups 4 and 5 remain, and the
+> count is now **12 of 26**.
 
 ## Why this exists
 
@@ -177,6 +177,76 @@ mid-ticket becomes its own ticket (non-negotiable 3).
 ### What is left
 
 Groups 3 to 5: the thinking tools, the visual set, and writing and authoring.
+
+## Group 3, shipped 2026-09-30: the thinking tools
+
+### `explore-unknowns` — and it is FB-236's dependency delivered
+
+The quadrant walk: known knowns, known unknowns, unknown knowns, unknown unknowns, then **hand over the
+map**. Theirs ships a reference file per stage; this folds the essentials into one page and points at our
+ticket format as the deliverable.
+
+Its two moves are why it was worth taking rather than writing:
+
+- **"Reacting beats imagining."** Never ask a founder to describe what they want when you can hand them
+  something to react to. **A founder who is not technical can always tell you what is wrong with a thing in
+  front of them**, which is the whole problem of the founding conversation solved in one line.
+- **"Every answer should be nearly free to give."** A recommended answer attached to each question, so a
+  reply costs a word.
+
+Stage 4 hunts *"half-built or reverted earlier attempts at the same job — the reason one died is usually
+the landmine"*. This repository is unusually rich in those and they are named in the adapted version: the
+listing capped at a thousand entries, the fixture that left no rows, the comment describing elements that
+no longer existed.
+
+**For a venture that is starting, the map becomes its first tickets**, filed through `write-ticket`, with
+the map kept in `context/` so the reasoning survives. That is FB-236's dependency, now in place.
+
+### `audit-choices` — the one that names the risk of an autonomous factory
+
+> Wherever the task is underspecified, the agent makes the decision itself — **silently, and the diff won't
+> flag it.**
+
+**This is the thing to be most careful about as the lane runs unattended.** It picks up a ticket and runs
+five stages with no person in the loop. Every stage meets a question the ticket did not answer and answers
+it. The code works, the pull request is green, **and the venture now has architecture its founder never
+chose.**
+
+"Keeping the founder in the loop" cannot mean reading every diff — no founder will, and the ones who would
+are not who this is for. It means **surfacing the decisions**, which is a short list a person can judge.
+
+It changes no code and blocks nothing. Its three suspicions are ours: a point fix that works, a new
+abstraction that sits beside the old one rather than replacing it, and **a silently narrowed scope — the
+failure that most resembles success.**
+
+### `eli5` → `plain-english`, renamed on purpose
+
+*"Explain like I'm five"* is the wrong register for the person it is aimed at: **a founder is not a child,
+they are an expert in something else.** Their own line is the right one — *"simplify the telling, never the
+claims"* — and the rest is **non-negotiable 12 with a procedure**.
+
+Its closing test is the useful part: *could the founder act on this without asking a follow-up question?*
+If not, the missing thing is one of three — what happened, what it means for them, or what you need them to
+do. And its step 4, **say what was not checked**, is the one most often skipped and the one that builds the
+most trust.
+
+### `auto-research` — taken, with an honest note about when it applies
+
+It optimises against a number that can be scored, and **most questions here are not that shape.** "Should
+we use Buzz", "what does an empty office look like", "what is a founder's first ticket" are judgement and
+taste; reaching for this on those produces the appearance of rigour and nothing else. The adapted version
+says so.
+
+Where it genuinely fits: **FB-237's golden question set** (that is exactly a benchmark, and the workshop it
+came from went 16/26 → 23/26 by treating it as one), before-and-after measurements where there are
+competing ways to do one thing, and skill changes once `eval-skills` exists to score them.
+
+Its rule worth keeping: **record the first score even when it is bad.** This project has said "it is faster
+now" more than once without being able to say faster than what.
+
+### What is left
+
+Groups 4 and 5: the visual set, and writing and authoring.
 
 ## Acceptance criteria
 
