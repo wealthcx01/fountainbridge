@@ -6,6 +6,21 @@ import { defineConfig, devices } from '@playwright/test';
 // artifact (the "gallery per PR"). Google client vars are dummies — e2e uses the test provider.
 const PORT = 3100;
 
+/**
+ * FB-178: measure the desk against a backlog, not against six tickets.
+ *
+ * When `E2E_SCALE_FIXTURES` names a directory, the four sources that GROW with a venture are read
+ * from it instead of from the committed fixture — 73 tickets and 1,773 run reports, ARCA's real
+ * numbers. Everything else (health, the corpus, recurring work) stays pointed at the committed
+ * fixture, because none of it grows with how much work a venture has done.
+ *
+ * Built by `scripts/make-scale-fixture.mjs` and run by `npm run test:e2e:scale`. Same shape as
+ * `E2E_FAIL_READS` below: the fixture directory has to be chosen when the server starts, so it
+ * cannot be a per-test decision.
+ */
+const SCALE = process.env.E2E_SCALE_FIXTURES?.trim();
+const backlog = (source: string, committed: string) => (SCALE ? `${SCALE}/${source}` : committed);
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -31,15 +46,15 @@ export default defineConfig({
     env: {
       E2E_TEST_LOGIN: '1',
       E2E_TEST_LOGIN_SECRET: 'e2e-playwright-shared-secret',
-      TICKETS_FIXTURE_DIR: 'e2e/fixtures/tickets',
-      PRS_FIXTURE_DIR: 'e2e/fixtures/prs',
+      TICKETS_FIXTURE_DIR: backlog('tickets', 'e2e/fixtures/tickets'),
+      PRS_FIXTURE_DIR: backlog('prs', 'e2e/fixtures/prs'),
       HEALTH_FIXTURE_DIR: 'e2e/fixtures/health',
       APPROVALS_FIXTURE_DIR: 'e2e/fixtures/approvals',
       // FB-042. The heartbeat fixture is dated relative to E2E_NOW below, so the engine reads as
       // running rather than as stalled-for-six-months every time the real clock moves on.
-      RUNREPORTS_FIXTURE_DIR: 'e2e/fixtures/runreports',
+      RUNREPORTS_FIXTURE_DIR: backlog('runreports', 'e2e/fixtures/runreports'),
       // FB-064. Gated on E2E_TEST_LOGIN at the call site as well — this surface can MERGE.
-      WORK_FIXTURE_DIR: 'e2e/fixtures/work',
+      WORK_FIXTURE_DIR: backlog('work', 'e2e/fixtures/work'),
       // FB-106: the venture's corpus, offline.
       KNOWLEDGE_FIXTURE_DIR: 'e2e/fixtures/knowledge',
       READINGS_FIXTURE_DIR: 'e2e/fixtures/readings',

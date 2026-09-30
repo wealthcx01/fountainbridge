@@ -525,3 +525,46 @@ right length, wrong copy, wrong order, or a control that does not work. Every on
 found here by reading the picture, and three of them — the desk's finished-ticket board, "What
 happened" printing one sentence twenty times, and Memory listing README files as founder knowledge —
 passed every automated gate in the repository.
+
+## The desk over a real backlog — FB-178, 2026-09-30
+
+**These are fixture readings, not production readings.** They are kept separate from the scorecard
+above for that reason: every number in that table was taken on the production server signed in as
+ARCA's founder, and these were not. Production still needs a signed-in session the lane does not
+have — checked on 2026-09-30, and an unauthenticated request lands on `/login`.
+
+| the desk, at 1440×1000 | backlog | height |
+| --- | --- | --- |
+| the gate's committed fixture | 6 tickets, 6 run reports | **2,165px** |
+| a fixture at ARCA's real size | 73 tickets, 1,773 run reports | **2,230px** |
+| the same, at 393×851 | 73 tickets, 1,773 run reports | **2,721px** |
+
+**Sixty-five pixels separate a venture's first week from its 1,773rd run report.** That is the
+reading worth having, and it is not a height — it is the difference between two heights. The desk's
+design target is ~1,900px, and a single number against it says whether the desk is short enough
+today; only the difference says whether it will still be short enough in a year, which is the fault
+FB-178 was actually raised for.
+
+### Why this reading needed a new fixture
+
+The committed fixture holds six tickets. Every list on the desk is capped — the waiting queue at
+four rows, the engine list at four runs, the brief at one sentence per kind. **A cap of four over six
+items renders exactly the same screen as no cap at all over six items.** So the fixture the desk's
+height had been measured against all along could not distinguish a bounded desk from the 9,908px one.
+
+`scripts/make-scale-fixture.mjs` builds the venture at ARCA's numbers and
+`e2e/desk-at-scale.spec.ts` measures it, in its own CI step. Checked by breaking it: putting the run
+cap back to twenty takes the desktop reading to **2,795px** and fails the ratchet.
+
+### What these numbers still cannot tell you
+
+Production's ticket titles and approval text are real sentences of unknown length, and a longer
+sentence wraps to more lines. The generated fixture wraps, but not in ARCA's own words. **The number
+of things on the desk is proven bounded; the height of each row over real copy is not.**
+
+### Read the pictures, not only the table
+
+`e2e/__screenshots__/20-desk-at-scale-desktop.png` and `-phone.png`, taken at these sizes. Looking at
+them is how **FB-240** was found — the rail saying *"your team has not checked in for 70 days"* beside
+a body saying *"your team checked in 10 minutes ago"*, both reading the same heartbeat, on a screen
+whose every measurement had just come back correct.

@@ -59,3 +59,7 @@ docs/source/reference-pdfs/
 # venture's `library/build/…` is a real content path. The e2e passed locally on a file git never
 # received and only failed in CI, which is the expensive way to find this.
 !e2e/fixtures/**
+
+# FB-178: the generated ARCA-sized fixture (73 tickets, 1,773 run reports). Built on demand by
+# scripts/make-scale-fixture.mjs; a fixture larger than the application does not belong in history.
+e2e/__scale__/

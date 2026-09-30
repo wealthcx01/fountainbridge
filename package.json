@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:scale": "node scripts/make-scale-fixture.mjs && E2E_SCALE_FIXTURES=e2e/__scale__ playwright test e2e/desk-at-scale.spec.ts",
     "test:e2e:degraded": "E2E_FAIL_READS=all playwright test e2e/degraded.spec.ts"
   },
   "dependencies": {
