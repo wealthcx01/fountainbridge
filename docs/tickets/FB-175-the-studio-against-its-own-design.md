@@ -1,6 +1,6 @@
 # FB-175 — the studio, checked screen by screen against its own design
 
-**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-02
+**Status:** Done · **Phase:** 3 · **Raised by:** John, 2026-09-02
 
 > **Done:** the audit itself. Nine screens rendered on both sides in a real browser, at desktop and
 > phone, and looked at. The scorecard is `docs/design-conformance.md` and can be re-run.
@@ -11,8 +11,14 @@
 >
 > **Matching, leave alone:** the Composer, a Handbook chapter, and the Handbook on desktop.
 >
-> **Not done:** Sign in was never compared — the one screen a founder sees before they trust
-> anything. And the Handbook is 1,782px on a phone against 1,096px on desktop, which is unexplained.
+> **Both gaps closed 2026-09-30.** Sign in *was* compared, by FB-189 — which this ticket's own
+> admission caused to be filed, so the note above was stale rather than wrong. And the Handbook's
+> phone height is explained: nine chapters, stacked one per row on a phone where desktop lays them in
+> a grid. A list of nine things is taller in one column than in three. Not a fault.
+>
+> **And the whole sweep was re-run on real data**, which was not possible when this ticket was
+> written. Every screen, signed in as ARCA's founder over its own 79 tickets and 9,889 run reports.
+> The table is in `docs/design-conformance.md`. It found one real divergence: **FB-242**.
 
 ## Why
 
@@ -53,8 +59,34 @@ Rebuilding anything. This ticket produces the list; the list produces the ticket
 
 ## Acceptance criteria
 
-- [ ] Every design screen has a recorded verdict: matches / differs (with the difference named) /
-      deliberately departs (with the reason).
-- [ ] Both viewports covered.
-- [ ] Each real divergence has its own ticket.
-- [ ] The scorecard lives in `docs/` and states the date and the commit it was taken against.
+- [x] Every design screen has a recorded verdict: matches / differs (with the difference named) /
+      explained. The current table is the 2026-09-30 real-data sweep in `docs/design-conformance.md`.
+- [x] Both viewports covered. 1440×1000 and 393×851, every screen.
+- [x] Each real divergence has its own ticket. From the first pass: FB-178, FB-180, FB-181, FB-185,
+      FB-160. From the re-run: **FB-242**.
+- [x] The scorecard lives in `docs/` and states the date and the commit it was taken against.
+
+## What the re-run changed about the method
+
+The first pass could only be done by hand against production, which is why it was never repeated and
+why two of its own gaps sat open for four weeks.
+
+It is now one command. `scripts/measure-on-real-data.mjs` signs in as the founder, walks every route
+at both viewports, records the height and whether anything scrolls sideways, and **says where it
+landed** — so a reading taken on a redirect announces itself instead of being written down. FB-178
+established why this works at all: git is the source of truth, so a local build with a real token
+reads exactly what production reads.
+
+Two of its guards earned their keep immediately on this run: it caught that `/attention` redirects to
+Tickets (by FB-129's design, not a fault) and that a ticket screen says out loud when part of its
+history could not be read (correct behaviour, and the sentence "What happened" should be borrowing).
+
+## What the re-run found
+
+**FB-242.** "What happened" shows one row over 9,889 run reports and tells the founder that
+everything ARCA did began this morning. Every automated gate was green. The page renders, in the
+right order, with correct data — correct about the twenty reports it read, and wrong about the
+venture.
+
+That is the third time that sentence has been written in this repo, and it is the argument for this
+ticket existing.
