@@ -67,25 +67,6 @@ Options worth considering rather than a recommendation, because this is a taste 
 
 ---
 
-## 3. Should a figure mean an agent at all?
-
-**From FB-218's fourth option, still open.**
-
-The design's line is *"each character is 1 agent on Arca's machine"*, written when that meant a handful.
-A single wake can spawn eight. Bounding the room stops it filling with the dead, but it does not answer
-whether **one figure per agent is the right picture** when the number is driven by how the runtime
-happens to parallelise.
-
-If a wake spawns eight, the room stops being a picture of the company and becomes a picture of the
-runtime. A founder does not care that the implementation step fanned out; they care that Build is working
-on ARCA-61.
-
-**The question:** should a figure be an agent, or a department — or a piece of work?
-
-This changes what is drawn, not whether it is bounded, so FB-218 shipped without waiting on it.
-
----
-
 ## 4. Two design tokens that do not exist, used on four screens
 
 **FB-150, already filed, needs a design answer before it can be fixed.**
@@ -114,5 +95,15 @@ different screen entirely — that is a design decision.
 
 ## Closed
 
-Nothing yet. When a gap is ruled, move it here with the date and a pointer to the reading in
-`docs/design-conformance.md`.
+### 3. Should a figure mean an agent at all? — RULED 2026-09-30
+
+**A figure means a piece of work.** John: *"one machine and one character per ticket, helpers
+invisible."*
+
+So one ticket gets one temporary machine and one character, however many subagents the worker spawns
+inside itself. Those are never drawn. The room stays a picture of what the company is doing rather than
+of how the runtime parallelised, which was the objection FB-218 raised when it found one wake spawning
+eight.
+
+Built in FB-239. A reading goes in `docs/design-conformance.md` when the office first draws a worker
+under this rule.

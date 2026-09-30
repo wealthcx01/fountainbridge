@@ -59,3 +59,5 @@ Tickets live in `docs/tickets/`; one ticket = one branch = one PR; PRs merge onc
 - `docs/architecture-replan-2026-09.md` — **PROPOSAL, awaiting John's ruling.** D10–D13 and an amendment to D1: Claude Code as the workbench, a Foundry MCP server that proposes and never grants, ephemeral per-ticket build environments, skills our agents load, and memory split into state and event. Read it before starting anything in Phase 3.
 
 - `docs/design-gaps-open.md` — the open design questions, written so a section can go straight to Claude Design. Five today: what the desk becomes once work happens in Claude Code, what an empty office looks like, whether a figure means an agent, two tokens that do not exist, and the ledger on a phone.
+
+- `docs/what-john-needs-to-do.md` — the four things waiting on John, each with exact steps, what it unblocks, and how he will know it worked. Read this before asking him for anything.
