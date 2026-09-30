@@ -314,3 +314,71 @@ async function shaOf(client: GitHubClient, repo: string, path: string): Promise<
     return undefined;
   }
 }
+
+/**
+ * How long a history read may take before the studio gives up on it (FB-217).
+ *
+ * The approval page used to `await` this read with no bound. An unauthenticated GitHub client is not
+ * an error — it is sixty requests an hour and then a stall — so the page did not fail, it **never
+ * returned**. Playwright reported `page.goto: net::ERR_ABORTED` after 35 seconds, a message that names
+ * neither the token, nor the network, nor GitHub.
+ *
+ * That cost an hour on FB-214, and it happened again on 2026-09-30 to a pull request containing four
+ * markdown files. Eight seconds is well past a healthy read and well inside any test's patience.
+ */
+export const HISTORY_READ_TIMEOUT_MS = Number(process.env.HISTORY_READ_TIMEOUT_MS || 8_000);
+
+/**
+ * Should this process read the approval record over the network at all? (FB-217)
+ *
+ * **No, in the UI gate.** A fixture venture has no signed event store, so reaching for one is a network
+ * read in a suite that has none — and `lib/trail-sources.ts` already answers it this way for the trail:
+ * *"No events is the honest answer there, not a failure."* This is the same answer at the surface that
+ * was missed.
+ *
+ * Deliberately NOT a fixture directory of events. An event means something only if its signature
+ * verifies, so a fixture would need the real signing secret to be worth reading — and fixture events
+ * signed with a test key would exercise the *unverified* path, which is the opposite of what these
+ * tests are about. Nothing is the truthful answer, and it is cheap.
+ */
+export function historyIsReadable(env: Record<string, string | undefined> = process.env): boolean {
+  const rig = Boolean(env.APPROVALS_FIXTURE_DIR) && env.E2E_TEST_LOGIN === '1';
+  return !rig && Boolean(env.FOUNDRY_APPROVAL_SECRET);
+}
+
+/**
+ * The same read, bounded, and saying so when it cannot finish.
+ *
+ * Returns `{ ok: false }` rather than throwing or hanging, because the page above it has to render
+ * either way: a founder looking at an approval whose history could not be read still needs the
+ * approval (CLAUDE.md #10). A stated reason and a silent absence are different facts, and the page
+ * shows the difference.
+ */
+export async function historyForBounded(
+  client: GitHubClient,
+  venture: string,
+  repo: string,
+  id: string,
+  secret: string,
+  timeoutMs: number = HISTORY_READ_TIMEOUT_MS,
+): Promise<{ ok: true; history: Projection & { refused: number } } | { ok: false; reason: string }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const history = await Promise.race([
+      historyFor(client, venture, repo, id, secret),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`the approval record did not answer within ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+    return { ok: true, history };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : 'the approval record could not be read' };
+  } finally {
+    // Without this the timer keeps the process alive for its full duration after a fast success, which
+    // turns an 8-second bound into an 8-second delay on every page that succeeded.
+    if (timer) clearTimeout(timer);
+  }
+}

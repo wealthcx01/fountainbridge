@@ -8,7 +8,7 @@ import { ventureApprovals } from '@/lib/venture-reads';
 import { loadEnvelopes } from '@/lib/budgets-load';
 import { ApprovalCard } from '@/components/ApprovalCard';
 import { VentureForbidden } from '@/components/VentureForbidden';
-import { historyFor } from '@/lib/activegraph-log';
+import { historyForBounded, historyIsReadable } from '@/lib/activegraph-log';
 import { narrate, narrateFault } from '@/lib/activegraph';
 import { GitHubClient } from '@/lib/github';
 
@@ -107,17 +107,32 @@ export default async function ApprovalPage({
   );
 }
 
-/** The story of this approval, or nothing when the studio cannot verify one. */
+/**
+ * The story of this approval, or nothing when the studio cannot verify one (FB-217).
+ *
+ * Two things changed here, and both are about a page that used to hang.
+ *
+ * **It asks whether the record is readable before reaching for it.** In the UI gate a fixture venture
+ * has no signed event store, so this was a live call to GitHub inside a suite with no network — the
+ * only read in the studio without a fixture path. When that call stalled (an unauthenticated client is
+ * not an error, it is sixty requests an hour and then silence) the page never returned, and Playwright
+ * reported `net::ERR_ABORTED` after 35 seconds. That cost an hour on FB-214 and happened again on
+ * 2026-09-30 to a pull request of four markdown files.
+ *
+ * **And the read is now bounded.** A history that cannot be read is reported as a stated reason rather
+ * than an absence, because a founder looking at an approval whose record could not be read still needs
+ * the approval, and "no history" and "could not read the history" are different facts (CLAUDE.md #10).
+ */
 async function approvalHistory(ventureId: string, repo: string, approvalId: string) {
+  if (!historyIsReadable()) return undefined;
   const secret = process.env.FOUNDRY_APPROVAL_SECRET ?? '';
-  if (!secret) return undefined;
-  try {
-    const h = await historyFor(new GitHubClient(), ventureId, repo, approvalId, secret);
-    if (h.applied.length === 0 && h.refused === 0) return undefined;
-    return { lines: h.applied.map(narrate), faults: h.faults.map(narrateFault), refused: h.refused };
-  } catch {
-    return undefined;
+  const read = await historyForBounded(new GitHubClient(), ventureId, repo, approvalId, secret);
+  if (!read.ok) {
+    return { lines: [], faults: [`The studio could not read this approval's record: ${read.reason}`], refused: 0 };
   }
+  const h = read.history;
+  if (h.applied.length === 0 && h.refused === 0) return undefined;
+  return { lines: h.applied.map(narrate), faults: h.faults.map(narrateFault), refused: h.refused };
 }
 
 function NotHere({ ventureId }: { ventureId: string }) {
