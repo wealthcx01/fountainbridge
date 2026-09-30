@@ -1,7 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { Source_Serif_4, Inter, IBM_Plex_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { auth, signOut } from '@/auth';
@@ -12,9 +12,57 @@ import { timed } from '@/lib/timing';
 import { THEME_COLOR } from '@/lib/brand';
 import { RegisterServiceWorker } from '@/components/RegisterServiceWorker';
 
-const serif = Source_Serif_4({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-source-serif' });
-const sans = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-plex-mono' });
+/**
+ * The studio's typefaces, served from this repository (FB-223).
+ *
+ * These were `next/font/google`, which **downloads the font files from Google at build time**. That put
+ * a third party on the critical path of a required check, and twice on 2026-09-29 it failed:
+ *
+ *     An error occurred in `next/font`.
+ *     TypeError: Cannot read properties of null (reading '1')
+ *     > Build failed because of webpack errors
+ *
+ * Both times on pull requests that changed only markdown, and both times green on the next run. The
+ * message never mentions the network, so it reads as "your branch broke the build" — which is why it took
+ * four checks to exonerate a two-file change, and why it trained me to merge past a red gate. It worked:
+ * I merged #291 while that check was failing.
+ *
+ * A required gate that fails for reasons unrelated to the change teaches people to ignore it, and a gate
+ * people ignore is the one that let FB-124 ship a studio with two navigations and a 250px rail on a phone.
+ * So the dependency is removed rather than retried: 204 KB of woff2 in `app/fonts/`, and a build that
+ * needs no network at all.
+ *
+ * The exact files Google serves for the **latin** subset, fetched once and committed. Source Serif and
+ * Inter are variable fonts, so one file each covers every weight we use; Plex Mono ships a file per weight.
+ * The build now ships **4** font files where it shipped 23 — the other 19 were subsets nothing renders.
+ *
+ * **The typefaces are the same and the measurements moved slightly.** Fifteen of the thirty-four captured
+ * screens got between 1% and 7% shorter, every one of them shorter and none taller, because a variable
+ * font replaces the static instances Next was requesting and its line boxes are fractionally tighter.
+ * Two screens were looked at rather than trusted to the numbers — a desktop page and a phone one — and the
+ * type is right on both: serif headings, Inter body, Plex Mono eyebrows, no system fallback. A fallback is
+ * what "every screen got shorter" would look like if this had gone wrong, which is why it was checked.
+ */
+const serif = localFont({
+  src: [{ path: './fonts/source-serif-4-latin.woff2', style: 'normal' }],
+  weight: '400 500',
+  display: 'swap',
+  variable: '--font-source-serif',
+});
+const sans = localFont({
+  src: [{ path: './fonts/inter-latin.woff2', style: 'normal' }],
+  weight: '100 900',
+  display: 'swap',
+  variable: '--font-inter',
+});
+const mono = localFont({
+  src: [
+    { path: './fonts/ibm-plex-mono-400-latin.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/ibm-plex-mono-500-latin.woff2', weight: '500', style: 'normal' },
+  ],
+  display: 'swap',
+  variable: '--font-plex-mono',
+});
 
 export const metadata: Metadata = {
   title: 'Foundry Studio',

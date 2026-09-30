@@ -1,9 +1,17 @@
 # FB-239 — one machine per agent per ticket, with the skills it used on the record
 
-**Status:** filed · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"should it not be one temp VM on
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-30 — *"should it not be one temp VM on
 railway per pixel agent, per ticket that is being worked, with the right skills files loaded to tackle the
 ticket? and we should be able to see what skills each worker used"* · **Depends on:** FB-228, FB-231 ·
 One ticket = one branch = one PR.
+
+> **Shipped in part.** PR #296 landed **the ruling only** — a character means a piece of work, helpers
+> invisible — and closed design gap 3 with it. **None of the build has started**, and it deliberately
+> cannot until the preview link arrives (FB-228, FB-230) and the office can see a worker that is not on
+> the venture's machine (FB-231).
+>
+> Recorded this way rather than left at `filed`, because the commit that carried the ruling names this
+> ticket and `ticket-drift` is right to notice. A decision landing is not the work landing.
 
 ## The shape John is describing
 
