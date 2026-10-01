@@ -7,6 +7,7 @@ import { toSpends, type ActiveGraphApproval } from './approvals';
 import { engineStateAt, type EngineState } from './runreports';
 import { ventureApprovals, ventureLiveness } from './venture-reads';
 import { timed } from './timing';
+import { needsYouCount } from './needs-you';
 import { studioNow } from './when';
 
 /**
@@ -39,18 +40,19 @@ import { studioNow } from './when';
  */
 export interface RailData {
   /**
-   * How much finished work is waiting on this founder — the one number the badge shows.
+   * How much waits on this founder — the one number the badge shows (FB-149).
    *
-   * **Open work only, deliberately.** The desk's summary and its amber banner count external actions
-   * awaiting the gate as well, because the desk shows both. This badge's row goes to `/attention`,
-   * which lists open work and nothing else — so counting more here would put a badge saying 8 over a
-   * page whose own count says 4. That is the FB-099 badge/destination mismatch, one level up, and
-   * introducing it while closing it below would be a poor trade.
+   * Open pull requests AND external sends waiting on the founder, from `needsYouCount`. The same
+   * number the desk's sentence and amber banner state, and the same number the badge's destination
+   * — Tickets, filtered to "Needs you" — lists, because that screen now carries the sends as rows.
    *
-   * Unifying the two is FB-149, and it belongs with FB-129, where "Needs you" stops being a link to
-   * a cross-venture page and becomes a filter that can show both kinds.
+   * It used to be open work only, because the badge's row led to a page that could not list a send,
+   * and a badge saying 8 over a page saying 4 is the FB-099 mismatch. Now the destination can, so
+   * the number widened with it, and they cannot disagree.
    */
   needsYou: number;
+  /** Open pull requests alone — the half of `needsYou` that is finished work. The ledger wants it. */
+  openWork: number;
   /**
    * Per-department budgets. `null` **inside** the array where a department declares no envelope;
    * the whole array `null` when the spend could not be read at all (FB-137).
@@ -121,8 +123,9 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
   if (runs?.degraded) degraded = true;
 
   return {
-    // Also not 0 when unread — see `RailData.needsYou`.
-    needsYou: attention?.approvals.length ?? 0,
+    // A failed read is `degraded`, and the badge is then a floor, not a claim of zero.
+    needsYou: needsYouCount(attention?.approvals.length ?? 0, approvals),
+    openWork: attention?.approvals.length ?? 0,
     budgets: spendUnread ? null : budgets,
     engine: { state: engine.state, text: engine.text, ageMinutes: engine.ageMinutes },
     degraded,

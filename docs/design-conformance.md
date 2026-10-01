@@ -632,3 +632,19 @@ ticket's own conclusion: it is a fault in the gate, not in the product.
 them is how **FB-240** was found — the rail saying *"your team has not checked in for 70 days"* beside
 a body saying *"your team checked in 10 minutes ago"*, both reading the same heartbeat, on a screen
 whose every measurement had just come back correct.
+
+## FB-149 — one "Needs you" number, 2026-10-01
+
+Read on ARCA's real data, signed in as its founder, on a local build of this branch pointed at the
+same GitHub repositories production reads. The desk is **1,689px** at 1440×1000 and **2,175px** at
+393×851; Tickets is **1,245px** and **1,600px**. The rail's badge, the desk's sentence, the amber
+banner, the phone header and the Tickets "Needs you" filter all say **9**. ARCA has no send waiting
+today, so on real data the nine are all finished work.
+
+The fixtures do hold sends, so they are where the sends were seen: all five places say **10** (four
+pieces of work, six sends). Desk 2,165px / 2,368px; Tickets 1,322px / 1,701px. Before this branch
+the phone header said 4 over that same desk.
+
+Two faults were found only by looking at the pictures, and both are fixed here: a send's row read
+"send · … · external send · …", and every send was labelled "Build — Product" because it was named by
+the repository it came from rather than the department it names (ARCA's investor email is Sell).

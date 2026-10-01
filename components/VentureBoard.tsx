@@ -24,6 +24,7 @@ import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue
 import { PromptBar } from './PromptBar';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
+import { sendSurface, sendsWaitingOnFounder } from '@/lib/needs-you';
 import { EngineActivity } from './EngineActivity';
 import { WhileWorking } from './WhileWorking';
 import type { Brief } from '@/lib/brief';
@@ -221,9 +222,8 @@ export function VentureBoard({
    * is one queue because a founder has one queue, and a send that failed is more urgent than most of
    * what was above it — so a separate block underneath was the wrong shape twice over.
    */
-  const pendingApprovals = approvals.filter(
-    (a) => a.status === 'proposed' || a.status === 'failed' || a.status === 'unverified-action',
-  );
+  // FB-149: the same predicate the rail's badge, the desk's sentence and Tickets all ask.
+  const pendingApprovals = sendsWaitingOnFounder(approvals);
   // FB-142: the venture's own Workspace sent view, for the Sell surface's reference link.
   const outbox = outboxUrl(venture.founderEmail ?? null);
   // FB-109: which surface the founder is looking at, if any. Deliberately not routed and not
@@ -261,7 +261,8 @@ export function VentureBoard({
    * are internal.
    */
   const waitingItems = [
-    ...pendingApprovals.map((a) => externalWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
+    // FB-149: a send names its own department; the repository it was proposed from is only a fallback.
+    ...pendingApprovals.map((a) => externalWaitingItem(a, venture.id, sendSurface(departments, a))),
     ...openWorkQueue.map((a) => prWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
   ];
 
