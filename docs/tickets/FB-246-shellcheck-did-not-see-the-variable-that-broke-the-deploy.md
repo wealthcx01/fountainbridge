@@ -77,9 +77,33 @@ One test of mine was wrong and is worth recording: removing `STATE_REF="foundry-
 `supervisor.sh` did **not** trip the check — correctly, because `foundry-lib.sh` still assigns it and
 shellcheck now follows the source. The check was right and the test was wrong.
 
+## The linter's own test
+
+CI's "Provision scripts" job went green on the first run — which is exactly the shape of result worth
+distrusting. A pass can mean *"the check ran and found nothing"* or *"shellcheck did not understand
+the setting and ignored it"*, and those look identical from outside.
+
+So `scripts/lint-canary/undefined-uppercase.sh` exists: a file whose only content is an undefined
+uppercase variable, which `provision-lint` asserts shellcheck **fails** on.
+
+    provision-lint: the undefined-variable check is live (canary fails, as it must)
+
+Comment the setting out of `.shellcheckrc` and the lint stops with:
+
+    provision-lint: shellcheck PASSED the canary — check .shellcheckrc is being read
+
+**A configuration file is a claim.** The canary is the thing that checks the claim is still true —
+on every run, on whatever shellcheck version the runner happens to ship, forever. Without it, a
+future runner upgrade that renamed or dropped the option would take the check away silently and
+nothing would go red.
+
+It sits in its own directory so none of the existing globs lint it by accident, and its header says
+in the first line not to fix the fault inside it.
+
 ## Acceptance criteria
 
 - [x] An undefined uppercase variable fails the lint.
 - [x] It applies to the lane scripts, not only the provisioning ones.
 - [x] It applies to a run by hand, not only to CI.
 - [x] No false reports left behind for somebody to learn to ignore.
+- [x] The setting is proved live on every run, not assumed from a green tick.

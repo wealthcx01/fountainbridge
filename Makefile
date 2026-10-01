@@ -51,6 +51,12 @@ ticket-drift:
 	bun scripts/ticket-drift.mjs
 
 provision-lint:
+	# FB-246: the linter's own test. shellcheck MUST fail on this file; if it ever passes, the
+	# setting that catches undefined uppercase variables has stopped applying and every script here
+	# would silently lose the check. A configuration file is a claim — this checks the claim.
+	@if shellcheck scripts/lint-canary/undefined-uppercase.sh >/dev/null 2>&1; then \
+		echo "provision-lint: shellcheck PASSED the canary — check .shellcheckrc is being read"; exit 1; \
+	else echo "provision-lint: the undefined-variable check is live (canary fails, as it must)"; fi
 	bash -n scripts/provision-venture.sh
 	shellcheck scripts/provision-venture.sh
 	bash -n scripts/provision-office.sh
