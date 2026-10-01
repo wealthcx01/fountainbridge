@@ -163,8 +163,8 @@ another spend — outside what was approved, and not something to add to a ventu
 - [x] The deploy that connecting triggered was cancelled, not merged into production.
 - [x] Every setting changed for testing was restored to its original value.
 - [x] The probe PR was closed and its branch deleted.
-- [ ] A lane-opened PR on arca produces an environment with a preview URL on the ticket's trail. **Still
-      not working** — the three ruled-out causes and the remaining hypothesis are above.
+- [x] A PR on arca produces an environment with a preview URL. **Fixed 2026-10-01** — see slice 6: the
+      service had no deployment trigger at all.
 
 ## Slice 3 (2026-09-30): staging created, hypothesis disproved, and the search ended systematically
 
@@ -368,3 +368,62 @@ It matters here because this ticket's own closing claim is that *"the moment Rai
 environment, the link appears with no further work."* The link appears. **It is a lie.** Filed as
 FB-243 rather than fixed, because changing production's sign-in variable is a high-blast-radius
 infrastructure change (D7: dual approval).
+
+
+## Slice 6 (2026-10-01): it was ours, not Railway's — the service had no deployment trigger
+
+John: *"Doublecheck, I doubt Railway has it wrong. There must be more troubleshooting possible."*
+
+He was right, and slices 3 to 5 were wrong to conclude otherwise.
+
+### What was never compared
+
+Slice 4 compared every **scalar** field on `Project` and `ServiceInstance` and found them identical.
+That was true, and it could not have found the cause, because the cause is not a scalar. A service's
+**repo triggers** are a list — and a comparison of single values cannot see a list.
+
+    foundry-studio : 4 repo triggers — production and staging track `main`, plus one per open PR
+    arca           : 0 repo triggers
+
+A preview environment is made by copying a trigger. ARCA had none to copy, so it could never make one,
+however every other setting was arranged.
+
+### Why there were none
+
+Slice 2 connected the repository **with production auto-deploy off**, as John asked. On Railway,
+auto-deploy off means **no trigger** on that environment. Production was the only environment with a
+connection, so the service ended up with no trigger anywhere.
+
+Slice 3 did try turning auto-deploy on, re-pushed, and saw nothing — but the probe pull requests in
+that slice were already open, and a trigger created afterwards does not reach back to them. The test
+was sound in shape and wrong in timing.
+
+### The fix, and the rule it keeps
+
+A trigger on **staging**, tracking `master` — **not** on production. Production still has no trigger,
+so it still does not auto-deploy, which is what John asked for in slice 2. Previews fork from the
+trigger that exists.
+
+### Proved
+
+A probe pull request (arca#91) opened after the trigger existed:
+
+- `arca-pr-91` appeared within **20 seconds** — ARCA's first preview environment.
+- It built and published `arca-arca-pr-91.up.railway.app` in the commit status description.
+- `scripts/check-preview-link.mjs` (FB-243): **stays on its own host, 200.** Not production.
+- Production afterwards: **HTTP 200**, and still **no trigger** — untouched.
+- The probe was closed and its branch deleted.
+
+### What this unblocks, and what it does not
+
+It unblocks the **result** half of FB-239: a founder clicking through to see their ticket's work
+running. It does **not** build the **worker** half — the lane running on a machine that exists only for
+one ticket. Those are different machines: the preview is where the work is *shown*, the worker is where
+it is *done*.
+
+### The lesson worth keeping
+
+**"Every field is identical" is a claim about the fields you thought to compare.** Five hypotheses were
+disproved by experiment and the conclusion still went to the wrong place, because the search never
+left the set of things it already knew to look at. The support message drafted in slice 4 would have
+asked Railway to explain a problem we had caused.
