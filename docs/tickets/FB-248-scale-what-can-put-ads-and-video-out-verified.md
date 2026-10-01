@@ -1,6 +1,6 @@
 # FB-248 — Scale: what can put ads, copy and video out to social networks, verified
 
-**Status:** Research done — decisions needed from John · **Phase:** 4 · **Raised by:** John, 2026-10-01 ·
+**Status:** Ruled — Meta first · **Phase:** 4 · **Raised by:** John, 2026-10-01 ·
 **Extends:** `docs/research-gtm.md` (ratified) · One ticket = one branch = one PR.
 
 ## The question
@@ -118,7 +118,7 @@ returned `401`, as it should.
 - [x] Every claim marked primary, secondary or unverified, and nothing stated past its evidence.
 - [x] The spend risk named, and placed under non-negotiable 4 and D7 rather than left implicit.
 - [x] Fitted to the ratified GTM research rather than contradicting it.
-- [ ] John's decisions on accounts, the TikTok audit and the spending rule.
+- [x] John's decision on which platform first: **Meta.** Accounts and the spending rule are still his.
 
 ## Sources
 
@@ -134,3 +134,26 @@ Secondary, held to lower confidence: [Adspirer — Meta Ads MCP](https://www.ads
 [usecarly — YouTube MCP](https://www.usecarly.com/blog/youtube-mcp/) ·
 [AdsMCP TikTok server](https://github.com/AdsMCP/tiktok-ads-mcp-server) ·
 [Ayrshare](https://www.ayrshare.com/).
+
+
+## RULED by John, 2026-10-01: Meta first
+
+> *"Let's start with just Meta as they have both official AI connector and post/spend. We can build to
+> the other platforms later."*
+
+So the order above collapses to Meta alone, for now:
+
+1. **Read first.** Meta's reporting tools on the Scale surface — what is running, what it cost, what
+   it returned. Information, not action.
+2. **Write behind the gate.** Campaign proposals drafted by the lane with the spend stated in pounds,
+   approved, then executed by the gate. The agent never holds the token that spends.
+
+Google, TikTok and YouTube wait. The TikTok audit is **not** started.
+
+**Still needs John before any of this can run:** a Meta Business account and an ad account for ARCA,
+and the largest daily budget a founder may approve alone. And the rule from the promo video holds —
+the plumbing can be built now; **spend waits for a product.**
+
+**Worth checking first:** FB-171 found that the approval gate is named after ActiveGraph while
+ActiveGraph is not what is running. Meta is the first integration that can spend money, so the gate it
+sits behind should be verified as real before it is trusted with a budget.
