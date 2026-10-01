@@ -61,6 +61,14 @@ done
 
 HOST="chat.${VENTURE}.bruntsfield.capital"
 LANE_DIR="${LANE_DIR:-/opt/foundry/lane/${VENTURE}}"
+# Where this script lives, so it can find the gate's files to copy up (FB-245).
+#
+# It was never defined. Every reference to it sat inside the gate-install step, and `set -u` makes an
+# unset variable fatal — so that step has never run to completion, and this script has never actually
+# installed a gate. ARCA's was stood up by hand, which is the thing the header says this exists to
+# stop happening again. `bash -n` cannot see it and the repo's shellcheck run did not fail on it.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 OFFICE_DIR="/opt/foundry/office"
 # Up here rather than beside its first use: the secret is read from this path before the gate is
 # installed, and a path defined later is an empty string at that point (FB-244).
