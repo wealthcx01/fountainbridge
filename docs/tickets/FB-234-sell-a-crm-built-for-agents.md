@@ -1,6 +1,6 @@
 # FB-234 — Sell: a CRM the agents can actually use
 
-**Status:** Unblocked — see the 2026-10-01 addendum · **Phase:** 4 · **Raised by:** John, 2026-09-25 · **Blocks:** FB-235 ·
+**Status:** Shipped in part · **Phase:** 4 · **Raised by:** John, 2026-09-25 · **Blocks:** FB-235 ·
 One ticket = one branch = one PR.
 
 ## Why this one fits when most CRMs would not
@@ -145,6 +145,11 @@ design, both looked at, heights recorded.
 
 
 ## Addendum, 2026-10-01: both repos are private, and the answer changed anyway
+
+**Shipped in part:** the investigation and its recommendation — read `crm.cli` end to end, answered the
+three questions on ARCA's own box, and changed the answer to "contacts belong in the studio's
+Postgres". Nothing is built: the store, the Sell lane's read and the surface all wait on John's
+decision below.
 
 **John made `arca` and `arca-marketing` private.** Verified: `private=true` on both. (`arca-ops` is
 still public — it carries no contact data, but it is worth knowing.) So the blocker above is gone and
