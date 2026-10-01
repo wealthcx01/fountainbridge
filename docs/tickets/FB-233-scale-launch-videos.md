@@ -1,6 +1,6 @@
 # FB-233 — Scale: a launch video a founder can post, and the gate that stops us posting it
 
-**Status:** Shipped in part · **Phase:** 4 · **Raised by:** John, 2026-09-25 and again 2026-09-30 · **Follows:**
+**Status:** Parked until a product exists · **Phase:** 4 · **Raised by:** John, 2026-09-25 and again 2026-09-30 · **Follows:**
 D12 · One ticket = one branch = one PR.
 
 ## What a founder should get
@@ -106,8 +106,9 @@ half-drawn. The last two were found because an earlier version of the test check
 
 ## Acceptance criteria
 
-- [x] One finished video exists for ARCA, made from ARCA's repository and brand. **Sent to John to
-      watch**; his word on it is what closes this line.
+- [ ] One finished video exists for ARCA, made from ARCA's repository and brand, and John has watched it.
+      **Watched, and rejected — rightly.** See John's review below: a promo goes after the product, and
+      this one put unlabelled illustrative numbers on screen.
 - [x] It could not be re-skinned for another venture without being obviously wrong. Argued above and
       checked frame by frame in `lib/__tests__/launch-video.test.ts`.
 - [x] Every asset is reproducible from code in the repo — no hand-edited file with no source. No
@@ -126,6 +127,10 @@ exists for screens.
 
 
 ## John's review, 2026-10-01: parked, and rightly
+
+**Shipped in part:** the rendering capability shipped — frames as a pure function of time, nothing
+hand-edited, every frame checkable. ARCA's promo video itself is parked until ARCA is a product, and
+when it is made it will be made with the `promo-video` skill (FB-247), not this one.
 
 > *"It could be a lot better. It's meant to be a promo video after all? are you using the skill to the
 > full extent? But also a promo video would go after a product is built, currently arca is not built,
