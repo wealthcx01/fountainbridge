@@ -1,3 +1,4 @@
+import { sendsWaitingOnFounder } from '@/lib/needs-you';
 import { Suspense } from 'react';
 import { officeSocketUrl, officeWatchUrl } from '@/lib/office-embed';
 import { redirect } from 'next/navigation';
@@ -287,7 +288,7 @@ async function Desk({
 
   const brief: Brief = composeBrief({
     ventureName: venture.name,
-    awaitingApproval: approvals.filter((a) => a.status === 'proposed').length,
+    awaitingApproval: sendsWaitingOnFounder(approvals).length,
     // The queue itself, not a count of it: the brief says how long the oldest has waited, and a
     // number cannot be asked that.
     openWork: attention.approvals.map((a) => ({ ticketId: a.linkedTicketId, ageMs: a.ageMs })),
@@ -329,7 +330,7 @@ async function Desk({
   // (FB-099), and the acceptance criterion for this ticket is that they cannot.
   const waiting = {
     openWork: attention.approvals.length,
-    awaitingApproval: approvals.filter((a) => a.status === 'proposed').length,
+    awaitingApproval: sendsWaitingOnFounder(approvals).length,
   };
   const oldestMs = attention.approvals.length
     ? Math.max(...attention.approvals.map((a) => a.ageMs ?? 0))

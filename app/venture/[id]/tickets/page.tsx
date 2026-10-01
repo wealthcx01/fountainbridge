@@ -15,6 +15,7 @@ import { filterTickets, parseFilter, resolveSelected, rowKey, type TicketRow, on
 import { type ActiveGraphApproval } from '@/lib/approvals';
 import { engineState, type RunReport } from '@/lib/runreports';
 import { ticketProgress } from '@/lib/ticket-progress';
+import { sendRows, sendSurface } from '@/lib/needs-you';
 
 /** An empty runs shape, so a failed read costs the progress column and never the ticket list. */
 const NO_RUNS_FOR_PROGRESS = {
@@ -175,6 +176,21 @@ export default async function TicketsPage({
     });
   }
 
+  // FB-149: external sends waiting on the founder are rows too. The rail's "Needs you" badge counts
+  // them and leads here, so a list without them is a badge saying 8 over a filter saying 4. Each row
+  // points at the send's own page, which is the only place it can be decided (FB-183).
+  //
+  // Shared with the rail around this page (FB-157), so this is not a second read. A failed read is
+  // said out loud rather than shown as "no sends", which would be a claim the studio cannot make.
+  const approvalsRead = await ventureApprovals(venture).then(
+    (a) => ({ approvals: a, error: null as string | null }),
+    () => ({
+      approvals: [] as ActiveGraphApproval[],
+      error: 'The studio could not read what is waiting to leave your company, so sends are missing from this list.',
+    }),
+  );
+  rows.unshift(...sendRows(approvalsRead.approvals, venture.id, (a) => sendSurface(venture.departments ?? [], a)));
+
   const refs = new Map(inferred.map((lane) => [lane.repo, lane.ref]));
 
   // FB-213: which part of the company, before which state its work is in. The desk's three surface
@@ -235,7 +251,11 @@ export default async function TicketsPage({
       refs={Object.fromEntries(refs)}
       filedBranches={Object.fromEntries(filedBranch)}
       org={process.env.GITHUB_ORG ?? 'wealthcx01'}
-      errors={[...data.lanes.filter((l) => l.error).map((l) => l.error as string), ...attention.errors]}
+      errors={[
+        ...data.lanes.filter((l) => l.error).map((l) => l.error as string),
+        ...attention.errors,
+        ...(approvalsRead.error ? [approvalsRead.error] : []),
+      ]}
     />
   );
 }

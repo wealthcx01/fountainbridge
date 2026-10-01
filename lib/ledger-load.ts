@@ -23,6 +23,7 @@ import { loadRailData } from './rail';
 import { ventureApprovals } from './venture-reads';
 import { loadVentureTickets } from './tickets';
 import { toRow, type LedgerRow } from './ledger';
+import { sendsWaitingOnFounder } from './needs-you';
 import { studioNow } from './when';
 
 export async function loadLedgerRow(venture: VentureSummary, nowMs: number = studioNow()): Promise<LedgerRow> {
@@ -44,8 +45,9 @@ export async function loadLedgerRow(venture: VentureSummary, nowMs: number = stu
 
   return toRow({
     venture,
-    openWork: rail ? rail.needsYou : null,
-    awaitingApproval: approvals ? approvals.filter((a) => a.status === 'proposed').length : null,
+    openWork: rail ? rail.openWork : null,
+    // FB-149: the same sends the desk and the rail count — not only `proposed`.
+    awaitingApproval: approvals ? sendsWaitingOnFounder(approvals).length : null,
     underway: tickets ? tickets.lanes.reduce((n, l) => n + l.groups['in-progress'].length, 0) : null,
     engine: rail ? { state: rail.engine.state, text: rail.engine.text } : null,
     // `rail.budgets` is null when the SPEND could not be read (FB-137), which is not the same as a

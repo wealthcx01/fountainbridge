@@ -86,6 +86,26 @@ export interface TicketRow {
   waiting: WaitingOn | null;
   /** The surface it belongs to (Build / Sell / Scale), when the venture declares one. */
   surface: string | null;
+  /**
+   * Set when this row is an external send waiting on the founder, not a ticket (FB-149).
+   *
+   * A send is decided on its own page and nowhere else (FB-183), so this carries that page's
+   * address. The Tickets screen links to it and never draws an approve control for it.
+   */
+  send?: SendPointer | null;
+}
+
+/** An external send on the Tickets screen: where it is decided, and what state it is in. */
+export interface SendPointer {
+  approvalId: string;
+  /** The ticket the send belongs to, when the proposal names one. */
+  ref: string | null;
+  /** The send's own page — the one place its grant is signed. */
+  href: string;
+  /** The meta words for its state, e.g. "external send · tried and did not go". */
+  state: string;
+  /** True when a grant exists the studio cannot verify. The loudest thing it can say. */
+  unverified: boolean;
 }
 
 /**
@@ -166,7 +186,7 @@ export const FILTER_LABEL: Record<TicketFilter, string> = {
  * only it stays true: a ticket can be moved between columns by anything, and a decision is waiting
  * or it is not.
  */
-export const needsFounder = (r: TicketRow): boolean => r.waiting !== null;
+export const needsFounder = (r: TicketRow): boolean => r.waiting !== null || Boolean(r.send);
 
 /**
  * Work in flight: started, not finished, and not waiting on anyone.
@@ -202,7 +222,10 @@ export const countTickets = (rows: TicketRow[]): TicketCounts => ({
   total: rows.length,
   // Waiting ITEMS, not waiting rows — the rail's badge counts pull requests, and a ticket carrying
   // two of them is two decisions under one heading.
-  needs: rows.reduce((n, r) => n + (r.waiting ? 1 + (r.waiting.also ?? 0) : 0), 0),
+  //
+  // A send is one item (FB-149). The badge counts sends as well, so leaving them out here would put
+  // the two numbers apart again by exactly the number of sends.
+  needs: rows.reduce((n, r) => n + (r.waiting ? 1 + (r.waiting.also ?? 0) : r.send ? 1 : 0), 0),
   underway: rows.filter(isUnderway).length,
   settled: rows.filter(isSettled).length,
 });
@@ -253,10 +276,18 @@ export function ticketsSummary(c: TicketCounts, surfaceName?: string | null): st
  * queue reshuffle underneath them because two arrived in the same second.
  */
 export function decisionOrder(rows: TicketRow[]): TicketRow[] {
+  // Sends first, the same order the desk's list uses: nothing leaves the company without one, and a
+  // send carries no age of its own to sort by (a proposal is a file with no timestamp).
+  const rank = (r: TicketRow) => (r.send ? Number.POSITIVE_INFINITY : r.waiting?.ageMs ?? 0);
   return rows
     .filter(needsFounder)
     .slice()
-    .sort((a, b) => (b.waiting?.ageMs ?? 0) - (a.waiting?.ageMs ?? 0) || rowKey(a).localeCompare(rowKey(b)));
+    .sort((a, b) => {
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return rb > ra ? 1 : -1;
+      return rowKey(a).localeCompare(rowKey(b));
+    });
 }
 
 /** "decision 2 of 5", or null when this ticket is not one. */
