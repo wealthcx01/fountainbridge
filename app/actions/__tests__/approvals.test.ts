@@ -33,7 +33,9 @@ vi.mock('@/lib/github', () => ({
   },
 }));
 
-const { approveExternalAction } = await import('../approvals');
+const { approveExternalAction, refuseExternalAction } = await import('../approvals');
+const { verifyRefusal } = await import('@/lib/provenance');
+const { attestationFor } = await import('@/lib/approval-attestation');
 
 const VENTURE = {
   id: 'the-reset',
@@ -199,5 +201,87 @@ describe('failing closed', () => {
   it('refuses when the proposal no longer exists', async () => {
     getFileWithSha.mockResolvedValue(null);
     expect((await approveExternalAction('the-reset', 'send-1', 'thereset-marketing')).ok).toBe(false);
+  });
+});
+
+/**
+ * Refusing a send (FB-183) — the other half of deciding on the send's own page.
+ *
+ * The refuse button had shipped with no test at all, so "a send can be refused from its own page"
+ * was a claim nobody had checked. These hold the properties that matter: the refusal written is one
+ * the studio will later READ as a refusal; it is never written over a send that has already gone;
+ * and only the person who may decide may refuse.
+ */
+describe('refusing a send', () => {
+  const WHY = 'Not this week — the list is not clean yet.';
+
+  it('writes a refusal the studio will read back as a real, signed refusal', async () => {
+    const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', WHY);
+    expect(r.ok).toBe(true);
+    const write = putFile.mock.calls.find((c) => String(c[1]).endsWith('approvals/send-1/refusal.json'));
+    expect(write, 'no refusal file was written').toBeDefined();
+    expect(write![0]).toBe('wealthcx01/thereset-marketing');
+    const written = JSON.parse(write![2].content);
+    // The round trip: the reader that decides whether a send is closed accepts what was written.
+    const read = verifyRefusal('wealthcx01/thereset-marketing', 'send-1', 'sha-current', written, 'test-secret');
+    expect(read?.refusedBy).toBe('ross@bruntsfield.capital');
+    expect(read?.note).toBe(WHY);
+    // And the history records it as a rejection by a human, on the studio's own repository.
+    const history = putFile.mock.calls.map((c) => `${c[0]} ${c[1]}`).filter((p) => p.includes('activegraph/'));
+    expect(history.some((p) => p.startsWith('wealthcx01/fountainbridge ') && p.endsWith('approval.rejected.json'))).toBe(true);
+  });
+
+  it('asks for a reason, because the team has to know what to change', async () => {
+    const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', '  ');
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('Say why');
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('does not refuse a proposal that changed after the founder read it', async () => {
+    const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-the-founder-read', WHY);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('changed after the page loaded');
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('never writes a refusal over a send that has already gone out', async () => {
+    getFileContent.mockImplementation(async (_r: string, path: string) =>
+      path.endsWith('execution.json') ? '{"status":"executed"}' : null);
+    const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', WHY);
+    expect(r.ok).toBe(false);
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('does not refuse what a named person already approved', async () => {
+    const grant = {
+      id: 'send-1', repo: 'wealthcx01/thereset-marketing', decision: 'granted',
+      approver: 'ross@bruntsfield.capital', proposal_sha: 'sha-current',
+      attestation: attestationFor('wealthcx01/thereset-marketing', 'send-1', 'sha-current', 'ross@bruntsfield.capital', 'test-secret'),
+    };
+    getFileContent.mockImplementation(async (_r: string, path: string) =>
+      path.endsWith('grant.json') ? JSON.stringify(grant) : null);
+    const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', WHY);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('already approved by ross@bruntsfield.capital');
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('can refuse a send whose approval nobody can vouch for — that is when refusing matters most', async () => {
+    // A grant.json the studio cannot verify is not an approval. The founder must still be able to
+    // say no to it, or a forged grant would lock them out of their own decision.
+    getFileContent.mockImplementation(async (_r: string, path: string) =>
+      path.endsWith('grant.json')
+        ? JSON.stringify({ approver: 'ross@bruntsfield.capital', attestation: 'forged', proposal_sha: 'sha-current' })
+        : null);
+    const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', WHY);
+    expect(r.ok).toBe(true);
+  });
+
+  it('refuses someone who is not this decision’s approver (D7)', async () => {
+    loadVentures.mockReturnValue([{ ...VENTURE, approvalMatrix: [{ changeClass: 'high-blast-radius', approver: 'bruntsfield' }] }]);
+    const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', WHY);
+    expect(r.ok).toBe(false);
+    expect(putFile).not.toHaveBeenCalled();
   });
 });
