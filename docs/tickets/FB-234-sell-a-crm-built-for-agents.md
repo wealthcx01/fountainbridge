@@ -218,3 +218,21 @@ API — by exposing it as files or as an MCP tool over our own store, which FB-2
 pattern for.
 
 That is a decision for John, because it closes a direction he asked for by name.
+
+
+## RULED by John, 2026-10-01: our own database
+
+> *"Use our own database then if you believe it's best."*
+
+So: **contacts, companies, deals and activities go in the studio's Postgres**, behind the same
+row-level policies every other table uses, and `crm.cli` is not adopted. Its one good idea — an agent
+reading the pipeline without an integration — is kept by exposing our own store as an MCP tool, the
+pattern FB-200 already built.
+
+The reasons, for whoever reads this later: one venture's data is already isolated at the database
+rather than in the UI; a person can be genuinely erased, which git cannot do; and it avoids running a
+second database beside the one we have. Decile Hub, the product John wants the Sell surface to feel
+like, is built the same way (FB-235).
+
+**Next:** the schema (`db/005_crm.sql`), its isolation test at the database, and the Sell lane's read.
+FB-235 then gives it the shape John uses every day.
