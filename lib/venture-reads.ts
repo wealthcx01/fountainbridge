@@ -76,8 +76,20 @@ function ventureFor(ventureId: string): VentureSummary | null {
   return loadVentures().find((v) => v.id === ventureId) ?? null;
 }
 
-export type Runs = { reports: RunReport[]; heartbeats: RunReport[]; checkIns: RunReport[]; total: number };
-const NO_RUNS: Runs = { reports: [], heartbeats: [], checkIns: [], total: 0 };
+/**
+ * What one venture's run history read back as. `earliest` is the start of the history, taken from
+ * the listing rather than from what was opened (FB-242) — the screens need to say how far back the
+ * record goes, and only `total` and `earliest` know that.
+ */
+export type Runs = {
+  reports: RunReport[];
+  heartbeats: RunReport[];
+  checkIns: RunReport[];
+  total: number;
+  earliest: string | null;
+  busiest: { ticket: string; count: number } | null;
+};
+const NO_RUNS: Runs = { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null };
 
 const runsById = cache(async (ventureId: string): Promise<Runs> => {
   const venture = ventureFor(ventureId);

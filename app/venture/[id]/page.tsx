@@ -15,7 +15,7 @@ import { FirstRun, BoardUnreadable } from '@/components/FirstRun';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
 import { engineState, type RunReport } from '@/lib/runreports';
 import { buildOffice } from '@/lib/office';
-import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
+import { ventureApprovals, ventureRuns, type Runs } from '@/lib/venture-reads';
 import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
 import { blockerLine, degradedGroups, deskSummary, type ReadFailure } from '@/lib/desk';
 import { loadEnvelopes } from '@/lib/budgets-load';
@@ -120,8 +120,9 @@ async function Desk({
   // (NODE_ENV is not usable here: `next start` sets it to production for the UI gate too.)
   const testRig = process.env.E2E_TEST_LOGIN === '1';
 
-  const noRuns: { reports: RunReport[]; heartbeats: RunReport[]; checkIns: RunReport[]; total: number } =
-    { reports: [], heartbeats: [], checkIns: [], total: 0 };
+  // The shape is `Runs` in lib/venture-reads, not a third hand-written copy of it. Two copies is how
+  // adding one field to the read became a typecheck error in three files (FB-242).
+  const noRuns: Runs = { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null };
 
   // FB-046: external-action approvals (the ActiveGraph gate). Most ventures have no foundry-approvals
   // ref yet — a read failure must never blank the board, so degrade to none.
