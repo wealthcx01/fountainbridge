@@ -10,6 +10,74 @@
 
 export const DEPARTMENTS = ['build', 'sell', 'scale', 'general'];
 
+// ── FB-169: the folder a department's knowledge lives in is NOT always its id ──────────────────────
+//
+// gbrain will not index any directory named `build`, at any depth. It is in gbrain's own
+// PRUNE_DIR_NAMES beside `node_modules`, `vendor` and `dist`, on the reasonable assumption that
+// `build/` holds compiled output — and there is no option to waive it (checked against
+// garrytan/gbrain main on 2026-10-01; gbrain made the same mistake with `ops/` and removed it, #2404).
+//
+// The Foundry's departments are build, sell and scale, and each venture keeps its knowledge in
+// `context/<department>/`. So **the whole Build department of every venture was invisible to its
+// brain**: on ARCA, three of its five corpus documents could not be found by any search, and every
+// Build fact a founder ever saved through the composer vanished from the team's knowledge with no
+// error. FB-169 recorded the symptom and ruled out `.gitignore`; the ignore list that mattered was
+// gbrain's.
+//
+// So Build's knowledge lives in `context/product/` — the department's display name is already
+// "Build — Product" — and `build/` is still READ, so anything filed before this keeps its department.
+// The deposit tool (deploy/librechat/deposit-mcp) and the studio (lib/knowledge.ts) carry the same
+// map; `lib/__tests__/department-folders.test.ts` fails if the three ever disagree, or if any
+// department's folder is one gbrain prunes.
+export const FOLDER_OF_DEPARTMENT = { build: 'product', sell: 'sell', scale: 'scale', general: 'general' };
+
+/** Folder → department. `build` stays readable for documents filed before FB-169. */
+export const DEPARTMENT_OF_FOLDER = {
+  product: 'build', build: 'build', sell: 'sell', scale: 'scale', general: 'general',
+};
+
+/**
+ * Directory names gbrain will never descend into, copied from gbrain's `PRUNE_DIR_NAMES`
+ * (src/core/sync.ts). Kept here so a test can fail when a department's folder collides with one —
+ * the collision that hid ARCA's Build department.
+ */
+export const GBRAIN_PRUNED_DIRS = ['node_modules', 'vendor', 'dist', 'build', 'venv', '.raw'];
+
+/**
+ * Which of the venture's tracked documents the brain does not hold (FB-169).
+ *
+ * `tracked` is `git ls-files context library`; `slugs` is `gbrain list`'s first column, which names a
+ * page by its path without `.md` (`context/sell/arca-brand-positioning`, read from the ARCA box
+ * 2026-10-01). README.md is left out on both sides: gbrain skips it by design, and in a venture's
+ * context/ and library/ it is only the folder's own explanation.
+ *
+ * A brain holding a subset looks exactly like a healthy one — the sync succeeds, searches return
+ * results — so this is the only thing that says the answer came from a smaller world.
+ */
+export function corpusGap(tracked, slugs) {
+  const have = new Set(slugs.map((s) => String(s).trim()).filter(Boolean));
+  const corpus = tracked
+    .map((p) => String(p).trim())
+    .filter((p) => /^(context|library)\/.+\.mdx?$/i.test(p) && !/(^|\/)readme\.mdx?$/i.test(p));
+  const missing = corpus.filter((p) => !have.has(pageNameOf(p)));
+  return { corpus: corpus.length, missing };
+}
+
+/**
+ * The name gbrain gives the page for a file: gbrain's `slugifyPath` (src/core/sync.ts), simplified.
+ * Each folder and file name is lowercased, accents dropped, punctuation removed and spaces turned to
+ * hyphens: `context/sell/Brand Notes.md` → `context/sell/brand-notes`. Simplified means a rare name
+ * could be reported missing when it is not — a false alarm, never a missed one.
+ */
+export function pageNameOf(path) {
+  return String(path).replace(/\.mdx?$/i, '').split('/').map((seg) => seg
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\p{M}.\s_-]/gu, '')
+    .replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''))
+    .filter(Boolean).join('/');
+}
+
 // The venture's D8 knowledge areas (FB-043's deposit tool writes `<area>/<dept>/<slug>.md`).
 const AREAS = ['context', 'library'];
 
@@ -31,7 +99,7 @@ const AREAS = ['context', 'library'];
 // Documented limitation, unchanged: a top-level file literally named `context/build-thing.md` also
 // matches and reads as 'build'. The deposit tool only ever writes `<area>/<dept>/<slug>.md` with the
 // dept from a fixed enum, so this does not arise on the deposit path.
-const DEPT_SLUG_RE = new RegExp(`^(?:${AREAS.join('|')})[-/](${DEPARTMENTS.join('|')})(?:[-/]|$)`);
+const DEPT_SLUG_RE = new RegExp(`^(?:${AREAS.join('|')})[-/](${Object.keys(DEPARTMENT_OF_FOLDER).join('|')})(?:[-/]|$)`);
 
 /**
  * The department a brain page belongs to, or null when it is shared/unattributed (tickets, code,
@@ -43,7 +111,8 @@ export function pageDepartment(slug) {
   if (typeof slug !== 'string') return null;
   const m = DEPT_SLUG_RE.exec(slug.trim().toLowerCase());
   if (!m) return null;
-  return m[1] === 'general' ? null : m[1];
+  const dept = DEPARTMENT_OF_FOLDER[m[1]];
+  return !dept || dept === 'general' ? null : dept;
 }
 
 /**

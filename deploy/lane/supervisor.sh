@@ -173,6 +173,13 @@ if [ -r "$BRAIN_STAMP" ]; then
 else
   BRAIN_AGE_NOTE=" — index age unknown"
 fi
+# FB-169: a brain that is current but missing documents is as misleading as a stale one — the team
+# plans without them and nothing says so. gbrain-refresh.sh writes "<missing> <total>" then the paths.
+BRAIN_GAP="${STATE_DIR:-/opt/foundry/lane/state}/brain-corpus-gap"
+if [ -s "$BRAIN_GAP" ]; then
+  read -r GAP_N GAP_OF _ < "$BRAIN_GAP" || true
+  BRAIN_AGE_NOTE="${BRAIN_AGE_NOTE} — incomplete, it cannot see ${GAP_N:-some} of the venture's ${GAP_OF:-} documents"
+fi
 if [ -n "$BRAIN_DIGEST" ]; then
   RESEARCH_MODE="brain (semantic)${BRAIN_AGE_NOTE}"
   log "RESEARCH: brain returned $(grep -c '^- ' <<<"$BRAIN_DIGEST") relevant page(s)${BRAIN_AGE_NOTE}"
