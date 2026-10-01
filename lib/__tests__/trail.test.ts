@@ -43,7 +43,7 @@ const run = (over: Partial<RunReport> = {}): RunReport => ({
   outcome: 'opened-pr',
   summaryMd: 'did the thing',
   ticketsTouched: ['ARCA-068'],
-  errorDetail: null,
+  errorDetail: null, skillsUsed: [],
   prUrl: 'https://github.com/wealthcx01/arca/pull/58',
   repo: 'arca',
   isHeartbeat: false,
@@ -222,7 +222,7 @@ describe('the read budget', () => {
         return Array.from({ length: ventureRuns }, (_, i) => ({
           laneId: 'arca', startedAt: `2026-08-${String(1 + (i % 27)).padStart(2, '0')}T09:00:00.000Z`,
           endedAt: null, trigger: 'scheduled' as const, outcome: 'progress' as const, summaryMd: '',
-          ticketsTouched: [i === 0 ? 'ARCA-068' : `ARCA-${100 + i}`], errorDetail: null, prUrl: null,
+          ticketsTouched: [i === 0 ? 'ARCA-068' : `ARCA-${100 + i}`], errorDetail: null, skillsUsed: [], prUrl: null,
           repo: 'arca', isHeartbeat: false,
         }));
       },

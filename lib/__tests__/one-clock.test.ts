@@ -107,7 +107,7 @@ describe('the rail and the desk agree about the same heartbeat', () => {
 
   const checkIn = (at: string): RunReport => ({
     laneId: 'arca', startedAt: at, endedAt: at, trigger: 'scheduled', outcome: 'no-useful-work',
-    summaryMd: 'Lane awake.', ticketsTouched: [], errorDetail: null, prUrl: null,
+    summaryMd: 'Lane awake.', ticketsTouched: [], errorDetail: null, skillsUsed: [], prUrl: null,
     repo: 'arca', isHeartbeat: true,
   });
 

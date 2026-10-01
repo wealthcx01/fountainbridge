@@ -8,7 +8,7 @@ const at = (iso: string) => iso;
 const run = (over: Partial<RunReport>): RunReport => ({
   laneId: 'arca', startedAt: '2026-08-04T10:00:00Z', endedAt: '2026-08-04T10:05:00Z',
   trigger: 'scheduled', outcome: 'progress', summaryMd: '', ticketsTouched: ['ARCA-1'],
-  errorDetail: null, prUrl: null, repo: 'arca', isHeartbeat: false, ...over,
+  errorDetail: null, skillsUsed: [], prUrl: null, repo: 'arca', isHeartbeat: false, ...over,
 });
 
 const input = (over: Partial<BriefInput> = {}): BriefInput => ({

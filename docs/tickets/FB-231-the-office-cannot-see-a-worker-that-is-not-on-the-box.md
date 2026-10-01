@@ -177,10 +177,60 @@ index empties nothing.
 
 Restored, all 42 pass.
 
-## Still open, and honestly
+## Shipped 2026-10-01: which skills a worker used, end to end
 
-- **Which skills a worker used.** This genuinely needs a `RunReport` field and `bcap-contracts` is not on
-  this machine. Unchanged.
+**The blocker was not real.** This ticket recorded the work as needing *"a `RunReport` field, and
+bcap-contracts is not on this machine"*. It is on this machine, at
+`/home/dev/projects/grassmarket/packages/bcap_contracts` — the second stale blocker found in two days,
+after the one on FB-178 that said production could not be read.
+
+**Nothing needed a new producer.** Both halves of the fact were already on disk and nothing joined
+them:
+
+- Every skill invocation is already in the session transcript Claude writes, as
+  `{"type":"tool_use","name":"Skill","input":{"skill":"write-tests"}}`. Verified against a real
+  66 MB transcript before a line of parsing was written — five distinct skills out of thirteen calls.
+- The lane has written `{session, ticket, stage}` to `sessions.jsonl` on every `claude_lane` call
+  since this ticket's first half.
+
+So `deploy/lane/skills-lib.mjs` joins them, and the wake writes the result into the run report it was
+already writing. The chain:
+
+| where | what |
+| --- | --- |
+| `bcap_contracts` 0.4.0 | `RunReport.skills_used`, additive and optional (GRS-0265) |
+| `deploy/lane/skills-lib.mjs` | the parse — pure, so the part that can be wrong is the part with tests |
+| `deploy/lane/skills-used.mjs` | the I/O half; prints nothing and exits 0 when it cannot tell |
+| `deploy/lane/runreport-record.mjs` | writes `skills_used` |
+| `lib/runreports.ts` | reads it |
+| `lib/trail.ts` | says it, in words |
+
+### One wake is five sessions
+
+`supervisor.sh` calls `claude_lane` five times for one ticket — plan, implement, gate-check, review,
+qa — each with its **own** session id and deliberately no `--resume`, so the review stage sees the diff
+and not the reasoning that produced it. So the skills for a ticket are the **union across its
+sessions**: a founder asking "what did my team use on this?" means the ticket, not one stage of it.
+
+### What a founder reads
+
+> Your team worked on it. **It followed its write tests and compare screenshots guides.**
+
+Never the word "skill", which a founder has no reason to know — a skill is a written guide the worker
+follows, so the sentence says that. The names are unhyphenated, because `write-tests` is a filename
+and "write tests" is a thing a person does.
+
+**And it says nothing at all when the list is empty**, which is the half that matters. Empty means no
+guides were used *or* the run predates the record *or* the transcript could not be read, and those
+cannot be told apart. Every one of ARCA's ~9,900 reports is in that state, so a sentence there would
+state a fact about all of them that nobody ever measured.
+
+### Never fails the wake
+
+A transcript that cannot be read is a missing fact, not a reason to lose the work — the same rule
+`note_session` already follows. Every failure path returns what it has.
+
+## Still open, and honestly
 - **Off-box workers.** Still no producer, so still a dead control to build. But the index above **is** the
   shape it would use: a worker on another machine writes the same line, and the gate already reads it.
 - **Not yet on a box.** `provision-office.sh` and the lane installer have to run for any of this to reach
@@ -212,14 +262,18 @@ Three pieces, smallest first, each shippable alone:
 
 ## Acceptance criteria
 
-- [ ] A run report carries the skills a wake loaded, as a bcap-contracts field rather than free text in
-      `summary_md`.
-- [ ] A ticket's trail shows them in plain English a founder reads without knowing what a skill is.
-- [ ] The office can draw a worker that is not on the venture's machine, and FB-218's bound still holds —
-      an agent that has stopped working still disappears.
-- [ ] An empty office still means nothing is running, and a busy one still means something is. Proved by
-      inducing both, not by reading the code.
-- [ ] Nothing here invents a second place a fact lives. One writer, one reader.
+- [x] A run report carries the skills a wake loaded, as a bcap-contracts field rather than free text —
+      `RunReport.skills_used`, bcap-contracts 0.4.0 (GRS-0265), written by the lane from the
+      transcripts it already keeps.
+- [x] A ticket's trail shows them in plain English a founder reads without knowing what a skill is —
+      *"It followed its write tests and compare screenshots guides."*
+- [ ] The office can draw a worker that is not on the venture's machine, and FB-218's bound still
+      holds. **Not started.** Needs the design decision named in scope item 3: what feeds the office —
+      the persistent machine tailing something central, or each worker reporting in.
+- [ ] An empty office still means nothing is running, and a busy one still means something is. Tied to
+      the item above; neither can be proved without the other.
+- [x] Nothing here invents a second place a fact lives. One writer (the lane), one reader (the
+      studio), one field.
 
 ## Verification
 

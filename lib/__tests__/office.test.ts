@@ -23,6 +23,7 @@ const run = (over: Partial<RunReport> = {}): RunReport => ({
   summaryMd: '# Worked the deck link\n\nMore words.',
   ticketsTouched: ['ARCA-5'],
   errorDetail: null,
+  skillsUsed: [],
   prUrl: null,
   repo: 'build',
   isHeartbeat: false,

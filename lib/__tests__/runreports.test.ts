@@ -153,7 +153,7 @@ describe('engineState — is anything actually running?', () => {
 });
 
 describe('describeRun — one owner for the words', () => {
-  const run = (over: Record<string, unknown>) => ({ ticketsTouched: ['ARCA-3'], summaryMd: '', errorDetail: null, ...over }) as never;
+  const run = (over: Record<string, unknown>) => ({ ticketsTouched: ['ARCA-3'], summaryMd: '', errorDetail: null, skillsUsed: [], ...over }) as never;
 
   it('never reports a stop without its reason', () => {
     expect(describeRun(run({ outcome: 'blocked', errorDetail: 'Tests it could not fix.' }))).toContain('Tests it could not fix.');
@@ -294,7 +294,7 @@ describe('a run report is a check-in (FB-139)', () => {
   const at = (iso: string, over: Partial<RunReport> = {}): RunReport => ({
     laneId: 'build', startedAt: iso, endedAt: iso, trigger: 'scheduled', outcome: 'blocked',
     summaryMd: 'Parked — daily wake budget reached.', ticketsTouched: ['ARCA-61'],
-    errorDetail: null, prUrl: null, repo: 'arca', isHeartbeat: false, ...over,
+    errorDetail: null, skillsUsed: [], prUrl: null, repo: 'arca', isHeartbeat: false, ...over,
   });
 
   it('counts a plain report, not only a heartbeat', () => {
