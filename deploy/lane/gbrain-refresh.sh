@@ -67,6 +67,40 @@ say "syncing prose (source=$BRAIN_SOURCE)…"
 SYNC_OUT="$(brain sync --source "$BRAIN_SOURCE" --no-pull $FULL)" || { say "prose sync failed"; exit 1; }
 printf '%s\n' "$SYNC_OUT" | tail -3 >&2
 
+# 1b. does the brain hold every document the venture has? (FB-169) A brain holding a subset looks
+#     healthy: the sync succeeds and searches return results. ARCA's whole Build department was
+#     missing for a month that way. Checked every run, because the cause can be anything that makes
+#     gbrain skip a file — a folder name it treats as build output was the one that bit.
+#     The gap is written where the supervisor reads it, so each run's report says the brain is short.
+GAP_FILE="$STATE_DIR/brain-corpus-gap"
+# Every way out goes through here, so an incomplete brain fails the run — the timer's unit shows
+# failed — instead of reporting "done." The index is still stamped: it IS current, just incomplete.
+finish() {
+  stamp_sync
+  if [ -s "$GAP_FILE" ]; then
+    say "done, but the brain is missing $GAP_COUNT of the venture's documents (listed above)."
+    exit 3
+  fi
+  say "done."
+  exit 0
+}
+LISTED="$(brain list --limit 5000 --source "$BRAIN_SOURCE" 2>/dev/null | cut -f1 || true)"
+GAP="$(git -C "$REPO_DIR" ls-files context library | LISTED="$LISTED" node --input-type=module -e "
+  import { readFileSync } from 'node:fs';
+  import { corpusGap } from '$(dirname "$0")/brain-lib.mjs';
+  const tracked = readFileSync(0, 'utf8').split('\\n');
+  const g = corpusGap(tracked, process.env.LISTED.split('\\n'));
+  console.log(g.missing.length + ' ' + g.corpus + (g.missing.length ? '\\n' + g.missing.join('\\n') : ''));
+" 2>/dev/null || echo "?")"
+GAP_COUNT="${GAP%% *}"; GAP_COUNT="${GAP_COUNT%%$'\n'*}"
+if [ "$GAP_COUNT" = "0" ]; then
+  rm -f "$GAP_FILE"
+else
+  mkdir -p "$STATE_DIR"; printf '%s\n' "$GAP" > "$GAP_FILE"
+  say "BRAIN IS INCOMPLETE — it does not hold these documents, so no search can find them:"
+  printf '%s\n' "$GAP" | tail -n +2 >&2
+fi
+
 # 2. then code — so RESEARCH can find how something is already built, not just what was written
 #    about it. A code pass failing must not lose the prose pass above.
 say "syncing code…"
@@ -81,9 +115,7 @@ brain sync --source "$BRAIN_SOURCE" --strategy code --no-pull $FULL || say "WARN
 #    process per page, per page, forever, on a 2 GB box that is also serving the founder's composer.
 if [ -z "$FULL" ] && printf '%s' "$SYNC_OUT" | grep -q 'No syncable changes'; then
   say "nothing changed — skipping the tagging pass"
-  stamp_sync
-  say "done."
-  exit 0
+  finish
 fi
 say "tagging department partitions…"
 # Capture the listing FIRST, outside the loop. Feeding the loop from `< <(brain list …)` held the
@@ -97,9 +129,12 @@ PAGES="$(brain list --limit 500 --source "$BRAIN_SOURCE" 2>/dev/null || true)"
 tagged=0
 while IFS=$'\t' read -r slug _rest; do
   case "$slug" in
-    context-build-*|library-build-*) dept=build ;;
-    context-sell-*|library-sell-*)   dept=sell ;;
-    context-scale-*|library-scale-*) dept=scale ;;
+    # gbrain names a page by its path (`context/sell/x`, read from the ARCA box). These read the
+    # dash form only, so this pass tagged nothing until FB-169. Both are accepted; `product/` is
+    # Build's folder, because gbrain skips any folder named `build` (brain-lib.mjs).
+    context[-/]product[-/]*|library[-/]product[-/]*|context[-/]build[-/]*|library[-/]build[-/]*) dept=build ;;
+    context[-/]sell[-/]*|library[-/]sell[-/]*)   dept=sell ;;
+    context[-/]scale[-/]*|library[-/]scale[-/]*) dept=scale ;;
     *) continue ;;
   esac
   if brain tag "$slug" "dept:$dept" --source "$BRAIN_SOURCE" </dev/null >/dev/null 2>&1; then
@@ -108,5 +143,4 @@ while IFS=$'\t' read -r slug _rest; do
 done <<< "$PAGES"
 say "tagged $tagged department page(s)"
 
-stamp_sync
-say "done."
+finish

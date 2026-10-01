@@ -1,6 +1,6 @@
 # FB-169 — the venture brain holds two of ARCA's seven corpus documents
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-165, on the ARCA box
+**Status:** Shipped in part · **Phase:** 3 · **Found by:** FB-165, on the ARCA box
 
 ## What is wrong
 
@@ -55,8 +55,48 @@ Memory screen as a document that never appears in `Last used`. That is a symptom
   silently holding a subset is the same class as FB-161's thousand-file cap: a correct-looking
   answer about a smaller world.
 
+## What was wrong (found 2026-10-01)
+
+**gbrain never reads a folder named `build`.** It treats `build/` as compiled program output, the
+same as `node_modules/` and `dist/`, and skips it at every depth. There is no setting to turn that
+off (gbrain `src/core/sync.ts`, `PRUNE_DIR_NAMES`). Each venture keeps its knowledge in
+`context/<department>/`, and one of the departments is called Build. So **every Build document of
+every venture was invisible to its brain.** The two READMEs are skipped on purpose and are only each
+folder's own explanation, so the real count was three of five documents missing, not five of seven.
+
+A second fault turned up on the way: the step that tags each page with its department matched page
+names written with dashes (`context-sell-x`), but gbrain names pages with slashes
+(`context/sell/x`, read from the ARCA box). It has never tagged a page.
+
+## What this change does
+
+- Build's documents now go in `context/product/` (and `library/product/`). The department is
+  already shown as "Build — Product". The old `build/` folder still reads as Build, so nothing
+  filed there disappears from the studio.
+- The tool that saves a founder's document, the brain on the box, and the studio's Memory screen all
+  use the same folder for each department. A test fails if they ever disagree, or if any
+  department's folder is one gbrain skips.
+- After every sync, the box compares the documents in git with the pages in the brain. If any are
+  missing it names them, writes them to `state/brain-corpus-gap`, and the sync fails (exit code 3),
+  so the timer shows red instead of "done".
+- Each run's report then says the brain is incomplete and how many documents it cannot see, next to
+  where it already says when the brain is stale.
+- The department tagging now matches gbrain's real page names.
+
+## What is left
+
+- **Move ARCA's three files** from `context/build/` to `context/product/`. That is a change in the
+  ARCA repo, not this one.
+- **Put the new lane files on the ARCA box** and run a full sync, then search for each of the five
+  documents. Box deploys wait for John's approval.
+- **Show the count on the Memory screen.** Today it reaches the founder in each run's report, not on
+  the screen.
+
+**Shipped in part:** ARCA's files still need moving to `context/product/`, the box still needs the
+new lane files and a full re-sync, and the Memory screen does not yet show the count.
+
 ## Acceptance criteria
 
 - [ ] All seven of ARCA's corpus documents are findable in the index by keyword.
-- [ ] Something fails, loudly, when a tracked corpus file is not indexed after a sync.
+- [x] Something fails, loudly, when a tracked corpus file is not indexed after a sync.
 - [ ] The count is surfaced where a founder can see it, or the reason it cannot be is written down.

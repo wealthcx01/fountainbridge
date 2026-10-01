@@ -77,11 +77,21 @@ export function titleOf(path: string, text: string | null): string {
 export const isScaffolding = (path: string): boolean =>
   /^(context|library)\/README\.md$/i.test(path.trim());
 
+/**
+ * The department each folder belongs to. Build's documents live in `product/`, because the brain
+ * skips any folder named `build` as compiled output and never finds what is in it (FB-169). The old
+ * `build/` folder still reads as Build, so files saved there before the move are not lost from view.
+ * Must agree with DEPARTMENT_OF_FOLDER in deploy/lane/brain-lib.mjs (department-folders.test.ts).
+ */
+export const DEPARTMENT_OF_FOLDER: Readonly<Record<string, string>> = {
+  product: 'build', build: 'build', sell: 'sell', scale: 'scale', general: 'general',
+};
+
 /** `context/sell/brand-positioning.md` → area `context`, department `sell`. */
 export function placeOf(path: string): { area: KnowledgeArea; department: string } | null {
   const m = path.match(/^(context|library)\/(?:([^/]+)\/)?[^/]+$/);
   if (!m) return null;
-  return { area: m[1] as KnowledgeArea, department: m[2] ?? 'general' };
+  return { area: m[1] as KnowledgeArea, department: m[2] ? (DEPARTMENT_OF_FOLDER[m[2]] ?? m[2]) : 'general' };
 }
 
 /** Build one document from a path and whatever text the read produced. */

@@ -35,6 +35,11 @@ const log = (...a) => console.error('[deposit]', ...a);
 
 const slugRe = /^[a-z0-9][a-z0-9-]{1,60}$/;
 const DEPARTMENTS = new Set(['build', 'sell', 'scale', 'general']);
+// The folder each department's files go in. Build's folder is `product`, not `build`: the brain
+// (gbrain) skips every folder named `build` as if it were compiled output, so a Build document saved
+// under context/build/ is never found by the team (FB-169). Must match FOLDER_OF_DEPARTMENT in
+// deploy/lane/brain-lib.mjs — lib/__tests__/department-folders.test.ts checks they agree.
+const FOLDER_OF_DEPARTMENT = { build: 'product', sell: 'sell', scale: 'scale', general: 'general' };
 
 // Reject a deposit that looks like it contains a secret — this content becomes permanent git history.
 const SECRET_PATTERNS = [
@@ -104,7 +109,7 @@ async function deposit({ department, slug, title, content, kind }) {
   const base = repo.default_branch;
   const owner = REPO.split('/')[0];
   const branch = `foundry/deposit-${dept}-${slug}`;
-  const path = `${area}/${dept}/${slug}.md`;
+  const path = `${area}/${FOLDER_OF_DEPARTMENT[dept]}/${slug}.md`;
   const body = `# ${title}\n\n${content}\n`;
 
   const existingBranch = await ghMaybe(`/repos/${REPO}/git/ref/heads/${branch}`);
