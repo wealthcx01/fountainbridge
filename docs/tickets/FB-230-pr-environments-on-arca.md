@@ -281,3 +281,51 @@ rather than left blank.
 
 The change is one `projectUpdate` mutation and is reversible by the same call with `false`. Everything
 else in this ticket came from reading.
+
+
+## Slice 5 (2026-10-01): checked live before asking John again, and the message needed correcting
+
+John: *"Double check I am actually blocking before asking."* Right to insist. Checked against the live
+account rather than against this ticket, and **one sentence of the support message above was wrong.**
+
+### What is true right now
+
+| | arca | foundry-studio |
+| --- | --- | --- |
+| `prDeploys` / `botPrEnvironments` / `focusedPrEnvironments` | all **true** | all **true** |
+| environments | `staging`, `production` | `staging`, `production` |
+| ephemeral environments | **none** | **none** |
+| open pull requests | **3** (88, 86, 83) | 0 |
+| GitHub repository webhook | **none** | **none** |
+
+**Neither repository has a webhook**, which is not a fault: Railway receives pull-request events
+through its GitHub App installation, not through a per-repo hook. So that is not the difference, and
+it is recorded here so nobody spends an afternoon on it.
+
+### The correction
+
+The message above says foundry-studio *"works"*, in the present tense. The last evidence of it
+working is **2026-07-31** — PR 67, which produced a real preview at
+`foundry-studio-fountainbridge-pr-67.up.railway.app` and is written up in this lane's notes. Scanning
+the last **100 deployments** on foundry-studio finds **not one tied to a pull request**.
+
+So the honest question is not *"why does one project work and the other not"*. It is **"this worked on
+one project in July and has not happened on either since — what changed?"** Those get different
+answers, and the first invites the reply *"your other project does not do it either"*.
+
+### The experiment this ticket update is
+
+This pull request is itself the test. If a preview environment appears for it, the asymmetry is real
+and the corrected message is the right thing to send. If none appears, PR environments have stopped
+working for the whole account and the cause is account-level — a plan change being the obvious
+candidate, since Railway bills preview environments.
+
+The result is recorded below rather than predicted.
+
+### What is genuinely John's, and what is not
+
+- **Not John's:** the GitHub grant. He checked it on 2026-09-30 and the connector is set to "All
+  repositories". That hypothesis is dead and must not be asked for again.
+- **Not John's:** anything about project or service configuration. Every scalar on both is identical.
+- **Possibly John's, and cheap:** whether the Railway plan still includes preview environments. The
+  public API does not expose the subscription to a CLI token; the dashboard does.
