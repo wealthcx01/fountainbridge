@@ -1,6 +1,6 @@
 # FB-234 — Sell: a CRM the agents can actually use
 
-**Status:** Blocked on a decision · **Phase:** 4 · **Raised by:** John, 2026-09-25 · **Blocks:** FB-235 ·
+**Status:** Unblocked — see the 2026-10-01 addendum · **Phase:** 4 · **Raised by:** John, 2026-09-25 · **Blocks:** FB-235 ·
 One ticket = one branch = one PR.
 
 ## Why this one fits when most CRMs would not
@@ -142,3 +142,74 @@ fails. That test is writable once the store's location is decided, and not befor
 
 The Sell surface is a screen, so non-negotiable 11 applies: rendered at 1440×1000 and 393×851 against the
 design, both looked at, heights recorded.
+
+
+## Addendum, 2026-10-01: both repos are private, and the answer changed anyway
+
+**John made `arca` and `arca-marketing` private.** Verified: `private=true` on both. (`arca-ops` is
+still public — it carries no contact data, but it is worth knowing.) So the blocker above is gone and
+the git option is genuinely open.
+
+He also asked the better question: *"yes git is important but maybe we need database? why not?"*
+
+### We already have one, and it is already the right shape for this
+
+The studio runs Postgres. `lib/db.ts` opens it, `DATABASE_URL` is set in production, and `db/*.sql`
+defines `ventures`, `run_reports`, `documents` and `docstore.blobs` — every one of them with
+**`force row level security`** and a policy comparing `venture_id` against a per-transaction
+`app.venture_id`. There is one way in, `withVenture`, and it is a transaction because a pooled
+connection handed to the next request would otherwise carry the last one's scope.
+
+So FB-234's third question — *"a test proves one venture cannot read another's pipeline, at the
+boundary rather than in the UI"* — is already answered by machinery that exists and is proven. It
+would not need building for a CRM; it would need **using**.
+
+### The rule was never "no database"
+
+FB-170's governing criterion is *"nothing in the studio treats the database as authoritative **over
+git**"*, and it is about **work items**: tickets are files in a founder's own repository, and if the
+studio's database became the truth about their work, the founder could no longer leave. That is the
+whole argument, and it is a good one.
+
+**Contacts and deals are not work items.** They are not in git today, never have been, and no lane
+writes them. The rule simply does not reach them.
+
+### And there is a reason the database is better here, not merely allowed
+
+**Git cannot forget.**
+
+A CRM holds personal data — names, emails, what somebody said. Git history is immutable by design:
+deleting a contact from a private repository leaves them in every clone, every fork and every
+checkout forever, and the only true removal is rewriting history everywhere it has been pushed.
+
+A person asking to be forgotten is an ordinary request, and in a database it is one `delete`. In git
+it is a crisis. **That is the argument that decides it**, and the earlier version of this ticket did
+not consider it at all — it was weighing convenience and consistency while the hardest constraint sat
+outside the frame.
+
+### So: the recommendation changes
+
+**Contacts and deals belong in the studio's Postgres**, scoped by the same row-level policies
+everything else uses. Not in git — not even a private repo.
+
+What stays in git is unchanged and still right: tickets, the venture manifest, the lane's run
+reports, the approval record. The record of *work* stays where a founder can take it with them; the
+record of *people* goes where it can be erased.
+
+### What that means for `crm.cli`
+
+It becomes a harder sell rather than an easier one, and this should be said plainly.
+
+Its value was the filesystem view — the Sell lane reading contacts as files with no integration. But
+its store is its own SQLite file, so adopting it means **a second database** beside the one we
+already run, with its own isolation story, its own backups, and no row-level policy. The thing it is
+good at we would get for free from a `withVenture` read; the thing it costs is the isolation
+guarantee we already have.
+
+**Recommendation: do not adopt `crm.cli`.** Put contacts and deals in the studio's existing database,
+behind the existing policies, and give the Sell lane a read through the same seam every other read
+uses. Keep `crm.cli`'s actual insight — that an agent should be able to read the pipeline without an
+API — by exposing it as files or as an MCP tool over our own store, which FB-200 already built the
+pattern for.
+
+That is a decision for John, because it closes a direction he asked for by name.
