@@ -232,6 +232,12 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
       - name: Check tickets against what shipped
+        # FB-249: on a pull request, also count the commit the PR will BECOME, so it sees the drift its
+        # own merge would cause rather than handing it to the next PR. Passed through `env`, never
+        # interpolated into `run`: a PR title is text anybody opening a PR controls, and putting it in
+        # a shell line is how a workflow gets injected.
+        env:
+          DRIFT_PENDING_SUBJECT: ${{ github.event.pull_request.title }}
         run: make ticket-drift
 
   provision:

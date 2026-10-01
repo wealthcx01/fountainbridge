@@ -74,6 +74,28 @@ function evidence() {
   const shipped = new Set();
   const commitFor = new Map();
 
+  // FB-249. The commit this pull request WILL become, counted before the history.
+  //
+  // This check reads commit subjects on main, and a squash-merged PR's commit does not exist until it
+  // merges. So a PR could never see the drift it was about to cause: #320 merged green with FB-234
+  // saying neither Done nor what was left, its own merge commit then named FB-234 in main's history,
+  // and main went red — with the failure landing on the next two unrelated PRs instead. It happened
+  // twice in one day (FB-233, FB-234).
+  //
+  // CI passes the PR's title, which is what the squash commit's subject will be, and this reads the
+  // files the PR changes. Counted first, so it is "newest" exactly as it will be after merge.
+  const pending = process.env.DRIFT_PENDING_SUBJECT?.trim();
+  if (pending) {
+    let paths = [];
+    try {
+      paths = git(['diff', '--name-only', `${BRANCH}...HEAD`]).split('\n').map((p) => p.trim()).filter(Boolean);
+    } catch { /* no merge base: the subject alone still names its ticket */ }
+    for (const id of ticketsShippedBy({ subject: pending, paths })) {
+      shipped.add(id);
+      commitFor.set(id, `(this pull request) ${pending}`);
+    }
+  }
+
   for (const record of log.split('\x00').slice(1)) {
     const [sha, subject, , files = ''] = record.split('\x1f');
     if (!sha) continue;
