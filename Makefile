@@ -11,6 +11,9 @@
 # someone happened to check; the first run of this found eighteen.
 #
 # provision-lint: shellcheck + syntax-check the provisioning scripts (FB-011) and the venture-box lane
+#   shellcheck's settings live in .shellcheckrc at the repo root, so they apply to a run by hand too
+#   (FB-246). The one that matters: uppercase variables that are never assigned are a failure, which
+#   is how provision-office.sh shipped a fatal undefined SCRIPT_DIR past this target.
 # scripts (FB-039/040/041) — the RPIV engine is only linted here, never executed (it touches the box).
 #
 # design-lint: enforce the studio design contract (FB-057, docs/studio-design-contract.md) — tokens
@@ -48,6 +51,12 @@ ticket-drift:
 	bun scripts/ticket-drift.mjs
 
 provision-lint:
+	# FB-246: the linter's own test. shellcheck MUST fail on this file; if it ever passes, the
+	# setting that catches undefined uppercase variables has stopped applying and every script here
+	# would silently lose the check. A configuration file is a claim — this checks the claim.
+	@if shellcheck scripts/lint-canary/undefined-uppercase.sh >/dev/null 2>&1; then \
+		echo "provision-lint: shellcheck PASSED the canary — check .shellcheckrc is being read"; exit 1; \
+	else echo "provision-lint: the undefined-variable check is live (canary fails, as it must)"; fi
 	bash -n scripts/provision-venture.sh
 	shellcheck scripts/provision-venture.sh
 	bash -n scripts/provision-office.sh

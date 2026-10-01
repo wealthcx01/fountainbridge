@@ -41,7 +41,24 @@ case ":${PATH:-}:" in
   *) PATH="$LANE_BUN_BIN:${PATH:-}"; export PATH ;;
 esac
 
-gh_api() { curl -sS -H "Authorization: Bearer ${TICKET_GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+# The token every GitHub call needs. Defaulted to empty rather than demanded at source time, because
+# this library is sourced by scripts that do no GitHub work (install-gbrain.sh), and checked where it
+# is actually used instead (FB-246).
+#
+# Checked at all because `set -u` on an unset variable aborts with "TICKET_GITHUB_TOKEN: unbound
+# variable" from whichever line happened to touch it first, and an empty one gets a 401 that reads
+# like a revoked token. Neither tells a person what to fix. This does.
+: "${TICKET_GITHUB_TOKEN:=}"
+
+need_github_token() {
+  [ -n "$TICKET_GITHUB_TOKEN" ] && return 0
+  flog "TICKET_GITHUB_TOKEN is not set. The lane cannot reach GitHub without it — put it in the"
+  flog "lane's environment file (/opt/foundry/lane/lane.env) and restart the timer."
+  return 1
+}
+
+gh_api() { need_github_token || return 1
+           curl -sS -H "Authorization: Bearer ${TICKET_GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
                  -H "X-GitHub-Api-Version: 2022-11-28" "$@"; }
 
 # The authenticated URL for the CURRENT department's repo.
@@ -52,7 +69,8 @@ gh_api() { curl -sS -H "Authorization: Bearer ${TICKET_GITHUB_TOKEN}" -H "Accept
 # with "could not read Username for 'https://github.com'", which is how this was found: the arca
 # clone predated the token-stripping and still had credentials baked in, so Build worked and the two
 # new departments did not.
-origin_url() { printf 'https://x-access-token:%s@github.com/%s.git' "$TICKET_GITHUB_TOKEN" "$REPO"; }
+origin_url() { need_github_token || return 1
+               printf 'https://x-access-token:%s@github.com/%s.git' "$TICKET_GITHUB_TOKEN" "$REPO"; }
 
 # Extract a value from JSON on stdin via a JS accessor, e.g. jval '.object.sha'. Empty on miss.
 jval() { node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(String(eval('JSON.parse(d)'+process.argv[1])??''))}catch{process.stdout.write('')}})" "$1"; }
