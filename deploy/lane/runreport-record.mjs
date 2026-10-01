@@ -34,7 +34,7 @@ const OUTCOME_OF_STATUS = {
 /** Outcomes that owe the founder a reason rather than just a status word. */
 const OWES_A_REASON = new Set(['blocked', 'error']);
 
-export function buildRecord({ slug, status, summary, prUrl, started, repo, lane, trigger, now }) {
+export function buildRecord({ slug, status, summary, prUrl, started, repo, lane, trigger, now, skillsUsed }) {
   // `working` means in flight. The contract's invariant is that `ended_at` and `outcome` travel
   // together, so a run that has not finished states neither — half of that fact renders as
   // something untrue, which is the failure this whole surface exists to prevent.
@@ -54,6 +54,12 @@ export function buildRecord({ slug, status, summary, prUrl, started, repo, lane,
     summary_md: summary,
     tickets_touched: slug && slug !== 'heartbeat' ? [slug] : [],
     error_detail: outcome && OWES_A_REASON.has(outcome) ? summary || null : null,
+    // FB-231, bcap-contracts 0.4.0. Which skills this worker used, read off the transcripts it had
+    // already written — see skills-lib.mjs.
+    //
+    // An empty list is NOT a claim that none were used: it also means the transcript could not be
+    // read. The contract's own description says so, and the studio must not render it as a fact.
+    skills_used: Array.isArray(skillsUsed) ? skillsUsed.filter((s) => typeof s === 'string' && s) : [],
     pr_url: prUrl || null,
 
     // The lane's own vocabulary, kept so a report written today still reads on anything that has
@@ -70,11 +76,17 @@ export function buildRecord({ slug, status, summary, prUrl, started, repo, lane,
 
 // Only run when invoked directly, so the tests can import `buildRecord` without printing anything.
 if (process.argv[1] && process.argv[1].endsWith('runreport-record.mjs')) {
-  const [slug, status, summary, prUrl, started, repo, lane, trigger] = process.argv.slice(2);
+  const [slug, status, summary, prUrl, started, repo, lane, trigger, skills] = process.argv.slice(2);
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  // Space-separated, because this is called from shell and a JSON array in argv is a quoting fight
+  // nobody wins. Skill names have no spaces in them.
+  const skillsUsed = (skills || '').split(/\s+/).filter(Boolean);
   process.stdout.write(
     JSON.stringify(
-      buildRecord({ slug, status, summary, prUrl, started, repo, lane, trigger: trigger || 'scheduled', now }),
+      buildRecord({
+        slug, status, summary, prUrl, started, repo, lane,
+        trigger: trigger || 'scheduled', now, skillsUsed,
+      }),
       null,
       2,
     ),

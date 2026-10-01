@@ -7,7 +7,7 @@ const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
 
 const run = (over: Partial<RunReport>): RunReport => ({
   laneId: 'arca-build', startedAt: ago(10), endedAt: ago(5), trigger: 'scheduled',
-  outcome: 'progress', summaryMd: '', ticketsTouched: ['ARCA-44'], errorDetail: null,
+  outcome: 'progress', summaryMd: '', ticketsTouched: ['ARCA-44'], errorDetail: null, skillsUsed: [],
   prUrl: null, repo: 'arca', isHeartbeat: false, ...over,
 });
 

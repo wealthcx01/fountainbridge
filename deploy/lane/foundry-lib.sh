@@ -77,9 +77,18 @@ write_runreport() {
   # same seam as prp-check/proposal-check/handoff-check. It emits the bcap-contracts shape alongside
   # the lane's original vocabulary, so the studio (which has read both since FB-042) sees the
   # contract while every report already on the ref stays readable.
+  # FB-231: which skills this worker used, read from the transcripts it already wrote. The lane has
+  # recorded {session, ticket, stage} on every claude_lane call since the first half of this ticket,
+  # so both halves of the fact were already on disk and nothing joined them.
+  #
+  # Never fails the wake. `|| true` because a missing transcript is a missing fact, not a reason to
+  # lose the work -- the same rule note_session follows.
+  local skills=""
+  skills=$(node "$LANE_DIR/skills-used.mjs" "$slug" 2>/dev/null || true)
+
   local report
   report=$(node "$LANE_DIR/runreport-record.mjs" \
-    "$slug" "$status" "$summary" "$pr_url" "$started" "$REPO" "${LANE_ID:-arca}" "${LANE_TRIGGER:-scheduled}")
+    "$slug" "$status" "$summary" "$pr_url" "$started" "$REPO" "${LANE_ID:-arca}" "${LANE_TRIGGER:-scheduled}" "$skills")
   # The idle heartbeat overwrites ONE file (a liveness beacon), so frequent wakes don't flood the ref;
   # real ticket RunReports are timestamped history.
   local path

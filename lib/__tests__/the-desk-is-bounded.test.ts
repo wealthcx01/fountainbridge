@@ -46,7 +46,7 @@ function run(i: number, over: Partial<RunReport> = {}): RunReport {
     outcome,
     summaryMd: `did ${i}`,
     ticketsTouched: [`ARCA-${i}`],
-    errorDetail: outcome === 'blocked' ? 'waiting on a decision' : null,
+    errorDetail: outcome === 'blocked' ? 'waiting on a decision' : null, skillsUsed: [],
     prUrl: null,
     repo: 'arca',
     isHeartbeat: false,

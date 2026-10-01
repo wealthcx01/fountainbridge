@@ -145,6 +145,34 @@ function approvalText(e: ActiveGraphEvent): string {
   }
 }
 
+/**
+ * What the worker followed while it did the work, for a founder who has never heard the word "skill"
+ * (FB-231).
+ *
+ * John asked to see what each worker used. A skill is a written guide the worker follows, so the
+ * sentence says that, and the names are unhyphenated — `write-tests` is a filename, "write tests" is
+ * a thing a person does.
+ *
+ * **Says nothing at all when the list is empty**, and that is the important half. An empty list means
+ * no guides were used OR that the run predates the record OR that the worker's transcript could not
+ * be read, and those cannot be told apart (bcap-contracts 0.4.0 says so in the field itself). Every
+ * run report ARCA has written so far is in that state — nine thousand of them — so rendering empty
+ * as "it followed no guides" would state a fact about all of them that nobody ever measured.
+ */
+export function guidesClause(skills: readonly string[]): string {
+  const names = skills.filter((s) => s && s.trim()).map((s) => s.trim().replace(/-/g, ' '));
+  if (names.length === 0) return '';
+  // Capped for the same reason the brief caps its stuck tickets: a list of nine is not a sentence.
+  const CAP = 3;
+  const shown = names.slice(0, CAP);
+  const rest = names.length - shown.length;
+  const joined = shown.length > 1
+    ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}`
+    : shown[0];
+  const list = rest > 0 ? `${joined}, and ${rest} more` : joined;
+  return ` It followed its ${list} ${names.length === 1 ? 'guide' : 'guides'}.`;
+}
+
 /** What a lane run did, in the founder's language. `describeRun` is the desk's voice; this is terser. */
 function runText(r: RunReport): string {
   switch (r.outcome) {
@@ -213,7 +241,7 @@ export function buildTrail(input: TrailInputs): Trail {
     if (!when) continue;
     hops.push({
       at: when,
-      text: runText(r),
+      text: `${runText(r)}${guidesClause(r.skillsUsed)}`,
       source: 'run',
       verified: null,
       link: link(r.prUrl, 'the work itself', true),

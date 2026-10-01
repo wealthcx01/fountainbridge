@@ -49,6 +49,15 @@ export interface RunReport {
   ticketsTouched: string[];
   /** Why, for the outcomes that owe the founder a reason — `error` and `blocked`. */
   errorDetail: string | null;
+  /**
+   * Which skills this worker used, by name (FB-231; bcap-contracts 0.4.0 `skills_used`).
+   *
+   * **Empty is not a claim that none were used.** It also means the run predates the field, or that
+   * the worker's transcript could not be read. Every report ARCA has written so far is in that
+   * state, so a surface that renders empty as "this worker used no skills" would be stating a fact
+   * about nine thousand runs that nobody ever measured.
+   */
+  skillsUsed: string[];
   prUrl: string | null;
   /** Which repo's state ref this came from. Not part of the contract — provenance for the UI. */
   repo: string;
@@ -128,6 +137,9 @@ export function fromLaneRecord(raw: unknown, repo: string): RunReport | null {
     // The lane puts its reason in the summary; the contract has a field for it. Copying rather than
     // moving keeps the summary readable on its own.
     errorDetail: str(r.error_detail) ?? (outcome && OWES_A_REASON.has(outcome) ? summaryMd || null : null),
+    skillsUsed: Array.isArray(r.skills_used)
+      ? r.skills_used.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+      : [],
     prUrl: str(r.pr_url),
     repo,
     isHeartbeat,

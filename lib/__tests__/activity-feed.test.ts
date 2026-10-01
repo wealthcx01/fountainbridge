@@ -34,7 +34,7 @@ const run = (over: Partial<RunReport> = {}): RunReport => ({
   outcome: 'opened-pr',
   summaryMd: 'did a thing',
   ticketsTouched: ['ARCA-1'],
-  errorDetail: null,
+  errorDetail: null, skillsUsed: [],
   prUrl: 'https://github.com/wealthcx01/arca/pull/10',
   isHeartbeat: false,
   ...over,
