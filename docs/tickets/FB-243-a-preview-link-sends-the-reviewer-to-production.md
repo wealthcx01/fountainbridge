@@ -1,6 +1,6 @@
 # FB-243 — a preview link sends the reviewer to production, and nothing on screen says so
 
-**Status:** Shipped in part · **Phase:** 3 · **Found by:** FB-230's live check, 2026-10-01
+**Status:** Done · **Phase:** 3 · **Found by:** FB-230's live check, 2026-10-01
 
 ## Reproduce it in one command
 
@@ -56,14 +56,6 @@ the end of it is true.
   founders. That is a product decision, and it is the reason this ticket does not simply say "fix the
   variable".
 
-## Acceptance criteria
-
-- [ ] A preview link opens the preview, at both viewports, and nothing about it says production.
-- [ ] The fix is in the value a NEW preview inherits, not applied by hand per environment.
-- [ ] A check fails when a preview redirects off its own host.
-- [ ] It is written down what a founder — as opposed to a reviewer — can do with a preview link,
-      given that OAuth cannot allowlist per-pull-request domains.
-
 ## What needs a human
 
 **Changing `AUTH_URL` on production is a high-blast-radius infrastructure change** — it is the
@@ -106,3 +98,62 @@ answers 307 to its own `/login`, and `/login` answers 200.
 the environments that already exist keep what they were given. That is not a gap in the fix — it is
 what the fix is about, and it is why the proof below had to be a NEW pull request rather than the one
 that found the fault.
+
+
+### Proved on a real preview
+
+Two pull requests, one forked either side of the change:
+
+| preview | forked | lands on |
+| --- | --- | --- |
+| `pr-315` | before | `foundry-studio-production-4a73…/login` ✗ |
+| **`pr-316`** | after | **`foundry-studio-fountainbridge-pr-316…/login`** ✓ |
+
+`pr-316`'s own `AUTH_URL` resolves to its own domain. Rendered and looked at, at 1440×1000 and
+393×851: **1,000px and 851px, nothing scrolls sideways**, and the page is the studio's sign-in on the
+preview's own host.
+
+### The check, and the bug inside my first version of it
+
+`scripts/check-preview-link.mjs` follows the redirects and fails when the link does not open the
+preview. The judgement is in `scripts/preview-link-lib.mjs`, which is pure and tested.
+
+**The first version passed a dead preview.** Run against `pr-315` after its pull request merged and
+its environment was torn down, it printed `OK: stays on …pr-315… (404)` — a green answer to the wrong
+question, which is precisely the family of fault it was written to catch. "Serving" now means 2xx,
+and the three failures are told apart because they call for different actions:
+
+- **wrong host** — fix `AUTH_URL` on the environment it was forked from;
+- **not serving** — the preview is broken or gone;
+- **never settles** — a redirect loop.
+
+It is deliberately **not** a CI gate. It needs a live preview URL, which means a green build would
+depend on Railway having finished deploying — a gate that fails when a third party is slow. The logic
+is covered by unit tests in CI; the script is the instrument a person runs against a link before
+sending it to anyone.
+
+### What a founder can do with a preview link
+
+The fourth criterion, answered by looking at the screen rather than by reasoning about it.
+
+**The password door works.** The preview's sign-in offers *"Or with email and password"* — the
+FB-092 door — and it needs no OAuth redirect URI, so it works on a domain nobody pre-registered.
+`STUDIO_PASSWORD_LOGINS` is inherited from production along with everything else.
+
+**Google sign-in cannot work on a preview**, and no change here would fix it: OAuth redirect URIs are
+exact-match with no wildcards, so `…-pr-317…`, `…-pr-318…` and every one after would each need
+registering by hand before anyone could use them.
+
+So a preview is usable by a founder, through the password door, and the Google button on it will
+fail. That is worth knowing before a link is sent to one.
+
+## Acceptance criteria
+
+- [x] A preview link opens the preview, at both viewports, and nothing about it says production.
+      1,000px and 851px, no sideways scroll, on `…pr-316…`.
+- [x] The fix is in the value a NEW preview inherits, not applied by hand per environment. Proved by
+      forking a preview after the change and reading its resolved `AUTH_URL`.
+- [x] A check fails when a preview redirects off its own host — and when it answers an error, and
+      when it loops. `scripts/check-preview-link.mjs`, logic unit-tested.
+- [x] It is written down what a founder can do with a preview link: the password door works, Google
+      cannot.
