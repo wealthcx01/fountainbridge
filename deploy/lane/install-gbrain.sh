@@ -175,6 +175,7 @@ PATH=$BUN_INSTALL/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/b
 ENV
 fi
 # shellcheck disable=SC1090  # path is a runtime variable by design
+# shellcheck disable=SC2154  # set by `. "$BRAIN_ENV"` on the same line; a runtime source it cannot follow
 BRAIN_TOKEN="$(. "$BRAIN_ENV"; printf '%s' "$FOUNDRY_BRAIN_TOKEN")"
 
 # The composer needs the SAME token to reach the bridge. Add it to LibreChat's env if that stack is

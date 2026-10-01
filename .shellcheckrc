@@ -1,0 +1,23 @@
+# ShellCheck settings for this repository.
+#
+# enable=check-unassigned-uppercase — warn when an UPPERCASE variable is used but never assigned.
+#
+# ShellCheck's SC2154 ("referenced but not assigned") is on by default, but it deliberately exempts
+# ALL-CAPS names because they are usually environment variables. That exemption cost a real deploy:
+# `scripts/provision-office.sh` referenced `SCRIPT_DIR` and never defined it, which under `set -u` is
+# fatal — so the step that copies the office onto a venture's box had never once run to completion
+# (FB-245). `bash -n` cannot see it, and a default shellcheck run passes the file.
+#
+# Scripts here that genuinely take a variable from the environment say so with a default
+# (`${VAR:-...}`), which is better anyway: it is the difference between "this may be unset" and "I
+# forgot to set this".
+enable=check-unassigned-uppercase
+
+# external-sources / source-path — follow `. "$SCRIPT_DIR/foundry-lib.sh"`.
+#
+# Without these, every variable foundry-lib assigns reads as unassigned in the scripts that source
+# it, and the check above would be drowned in false reports about REPO, API and STATE_REF — which
+# foundry-lib does define, with defaults, at the top. A check that cries wolf is a check people turn
+# off, so it has to be able to see what it is talking about.
+external-sources=true
+source-path=SCRIPTDIR

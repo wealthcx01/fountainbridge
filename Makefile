@@ -11,6 +11,9 @@
 # someone happened to check; the first run of this found eighteen.
 #
 # provision-lint: shellcheck + syntax-check the provisioning scripts (FB-011) and the venture-box lane
+#   shellcheck's settings live in .shellcheckrc at the repo root, so they apply to a run by hand too
+#   (FB-246). The one that matters: uppercase variables that are never assigned are a failure, which
+#   is how provision-office.sh shipped a fatal undefined SCRIPT_DIR past this target.
 # scripts (FB-039/040/041) — the RPIV engine is only linted here, never executed (it touches the box).
 #
 # design-lint: enforce the studio design contract (FB-057, docs/studio-design-contract.md) — tokens
