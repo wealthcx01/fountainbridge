@@ -45,25 +45,64 @@ warn() { printf '\033[0;33m[office]\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[0;31m[office] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 DRY_RUN=0
+ROTATE_SECRET=0
 VENTURE=""
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
+    # Rotating is the exception now, not the default (FB-244). It still writes the studio's half at
+    # the end, because a rotated secret the studio does not have is an office nobody can watch.
+    --rotate-secret) ROTATE_SECRET=1 ;;
     -*) die "unknown option: $arg" ;;
     *) VENTURE="$arg" ;;
   esac
 done
-[ -n "$VENTURE" ] || die "usage: scripts/provision-office.sh <venture-id> [--dry-run]"
+[ -n "$VENTURE" ] || die "usage: scripts/provision-office.sh <venture-id> [--dry-run] [--rotate-secret]"
 
 HOST="chat.${VENTURE}.bruntsfield.capital"
 LANE_DIR="${LANE_DIR:-/opt/foundry/lane/${VENTURE}}"
 OFFICE_DIR="/opt/foundry/office"
+# Up here rather than beside its first use: the secret is read from this path before the gate is
+# installed, and a path defined later is an empty string at that point (FB-244).
+GATE_DIR="/opt/foundry/office-gate"
 
-# Generated rather than asked for, so nobody is tempted to reuse one between ventures. A secret that
-# could reach two boxes would be a hole in the isolation the architecture rests on.
-if [ -z "${OFFICE_SECRET:-}" ]; then
+# The secret, and why re-provisioning must NOT mint a new one (FB-244).
+#
+# This script's own header promises it is idempotent. It was not: with `OFFICE_SECRET` unset it
+# generated a fresh secret every run, wrote it to the box, and left the studio holding the old one.
+# The studio signs every watching ticket with its copy, so the gate would then refuse all of them and
+# the founder's office would break — until a person remembered to run the two manual commands at the
+# end of this file. An update to the gate's CODE needs none of that, and the common case now is
+# exactly that: shipping a fixed gate to an office that already exists.
+#
+# So: an existing secret is REUSED. One is generated only when the box has none, or when a rotation
+# is asked for outright. A secret is still never shared between ventures — that rule is unchanged,
+# and it is about two boxes, not about two runs against one box.
+read_secret_from_box() {
+  ssh -o BatchMode=yes -o ConnectTimeout=15 "root@${HOST}" \
+    "sed -n 's/^OFFICE_SECRET=//p' ${GATE_DIR}/gate.env 2>/dev/null" 2>/dev/null || true
+}
+
+SECRET_IS_NEW=0
+if [ -n "${OFFICE_SECRET:-}" ]; then
+  # Given outright. The caller said what they wanted; believe them.
+  SECRET_IS_NEW=1
+  log "using the office secret given in the environment"
+elif [ "${ROTATE_SECRET:-0}" -eq 1 ]; then
   OFFICE_SECRET="$(openssl rand -base64 24 | tr -d '/+=')"
-  log "generated a new office secret for ${VENTURE}"
+  SECRET_IS_NEW=1
+  log "rotating the office secret for ${VENTURE} — the studio's copy MUST be updated below"
+else
+  OFFICE_SECRET="$(read_secret_from_box)"
+  if [ -n "${OFFICE_SECRET:-}" ]; then
+    # Never logged, only its existence. The point of saying so is that a reader can tell this run
+    # did not change the thing that would have broken the office.
+    log "reusing the office secret already on ${HOST} — not rotated, so the studio needs no change"
+  else
+    OFFICE_SECRET="$(openssl rand -base64 24 | tr -d '/+=')"
+    SECRET_IS_NEW=1
+    log "no office secret on ${HOST} — generated one for ${VENTURE}"
+  fi
 fi
 
 remote() {
@@ -112,7 +151,6 @@ fi
 
 # 3. The gate — the ticket check and the read-only filter. Its code is in the repository
 #    (deploy/office/) so it is reviewed and tested like everything else, not typed into a box.
-GATE_DIR="/opt/foundry/office-gate"
 if [ "$DRY_RUN" -eq 1 ]; then
   log "would install the gate into ${GATE_DIR} and start foundry-office-gate on ${OFFICE_GATE_PORT}"
 else
@@ -195,6 +233,10 @@ if [ "$DRY_RUN" -eq 0 ]; then
   fi
 fi
 
+# Printed only when the secret actually changed. A run that reused the box's own secret needs
+# nothing done in the studio, and printing the steps anyway would train a reader to skip them on the
+# run where they matter.
+if [ "$SECRET_IS_NEW" -eq 1 ]; then
 cat <<MANUAL
 
 [MANUAL] The studio's own half. These change a running production service, so a person does them:
@@ -207,3 +249,10 @@ set the desk shows the drawn plate, which is the honest answer. The desk checks 
 from the founder's own browser before it draws anything, so a box that is not answering costs a
 founder the plate and nothing worse.
 MANUAL
+else
+cat <<KEPT
+
+The studio needs no change: this run reused the secret already on ${HOST}, so every watching ticket
+the studio has been signing still verifies. That is the point of not rotating on an update.
+KEPT
+fi
