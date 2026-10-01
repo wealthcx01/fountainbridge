@@ -63,3 +63,11 @@ docs/source/reference-pdfs/
 # FB-178: the generated ARCA-sized fixture (73 tickets, 1,773 run reports). Built on demand by
 # scripts/make-scale-fixture.mjs; a fixture larger than the application does not belong in history.
 e2e/__scale__/
+
+# FB-233: the launch video's output. D8 — heavy binaries live in object storage with a pointer in
+# git, and a re-cut would commit a new copy of a 157 KB binary every time. The pointer is
+# library/launch-video/README.md, which IS tracked, and the command that reproduces the file is in
+# it. Frames are intermediate and never kept.
+library/launch-video/*.mp4
+library/launch-video/*.png
+library/launch-video/frames/
