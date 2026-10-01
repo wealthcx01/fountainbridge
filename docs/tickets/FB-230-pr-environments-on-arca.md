@@ -329,3 +329,42 @@ The result is recorded below rather than predicted.
 - **Not John's:** anything about project or service configuration. Every scalar on both is identical.
 - **Possibly John's, and cheap:** whether the Railway plan still includes preview environments. The
   public API does not expose the subscription to a CLI token; the dashboard does.
+
+
+### The result: previews work, and my correction above was wrong
+
+**A preview environment appeared for this pull request within ninety seconds** —
+`fountainbridge-pr-315`, ephemeral, with a working URL at
+`foundry-studio-fountainbridge-pr-315.up.railway.app` published in the commit status
+**description** (the usable one of GitHub's three deploy systems).
+
+So preview environments work on foundry-studio **today**, not only in July. The sentence I wrote
+above — *"the last evidence of it working is 2026-07-31"* — was wrong, and it was wrong because a
+scan of the last 100 deployments found none tied to a pull request. That scan was the wrong
+instrument: a preview's deployments live in its own ephemeral environment and go with it when the
+environment is torn down.
+
+**The original support message was right and needs no correction.** Two projects, identical
+configuration, one creates preview environments and one does not. That is still exactly the question
+to ask.
+
+The reason this is recorded rather than quietly fixed: the experiment was run precisely because John
+said *"double check I am actually blocking before asking"*, and running it stopped a wrong message
+being sent. The method worked even though my hypothesis did not.
+
+### And it found something worse, which is now FB-243
+
+The preview URL **redirects to production**:
+
+    https://foundry-studio-fountainbridge-pr-315.up.railway.app/
+      → 307 https://foundry-studio-production-4a73.up.railway.app/login
+
+A reviewer opening that link sees production, not the pull request's work, and has nothing on screen
+to tell them. This lane's notes describe this exact trap from 2026-08-04 and give the fix; it is back
+because Railway forks each preview from production and inherits its variables, so a literal value in
+production becomes a literal value in every preview.
+
+It matters here because this ticket's own closing claim is that *"the moment Railway creates one
+environment, the link appears with no further work."* The link appears. **It is a lie.** Filed as
+FB-243 rather than fixed, because changing production's sign-in variable is a high-blast-radius
+infrastructure change (D7: dual approval).
