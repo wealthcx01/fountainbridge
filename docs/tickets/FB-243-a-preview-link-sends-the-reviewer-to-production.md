@@ -1,6 +1,6 @@
 # FB-243 — a preview link sends the reviewer to production, and nothing on screen says so
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-230's live check, 2026-10-01
+**Status:** Shipped in part · **Phase:** 3 · **Found by:** FB-230's live check, 2026-10-01
 
 ## Reproduce it in one command
 
@@ -70,3 +70,39 @@ the end of it is true.
 variable that decides where sign-in sends people. Under the D7 approval matrix that is dual-approve,
 so it is not done here. The reproduction, the cause and the fix are all above; the change is one
 variable.
+
+
+## Changed 2026-10-01, approved by John — *"yes change the AUTH_URL variable and prove it on a preview"*
+
+### The diagnosis, confirmed across all three environments
+
+| environment | its own domain | `AUTH_URL` before |
+| --- | --- | --- |
+| production | `…-production-4a73…` | `…-production-4a73…` ✓ |
+| **pr-315** | `…-pr-315…` | **`…-production-4a73…`** ✗ the inherited literal |
+| staging | `…-staging…` | `…-staging…` ✓ |
+
+Staging was already correct, which is the story this ticket tells: the fix was applied by hand to the
+environments that existed in August, and never to the value a new preview inherits.
+
+### What was changed, and why it was safe
+
+One variable on production:
+
+    AUTH_URL: "https://foundry-studio-production-4a73.up.railway.app"
+           →  "https://${{RAILWAY_PUBLIC_DOMAIN}}"
+
+**Checked before changing it** that `RAILWAY_PUBLIC_DOMAIN` on production is
+`foundry-studio-production-4a73.up.railway.app` — so the reference resolves to the byte-identical
+value and production's behaviour could not change. That check is the reason this was a safe change to
+a variable that decides where sign-in sends people, rather than a hopeful one.
+
+Verified after the redeploy: production resolves `AUTH_URL` to the same string as before, `/` still
+answers 307 to its own `/login`, and `/login` answers 200.
+
+### What is not fixed by it
+
+**`pr-315`'s own environment still carries the old literal.** A variable is copied at fork time, so
+the environments that already exist keep what they were given. That is not a gap in the fix — it is
+what the fix is about, and it is why the proof below had to be a NEW pull request rather than the one
+that found the fault.
