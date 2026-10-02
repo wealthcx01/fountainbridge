@@ -47,6 +47,7 @@ export function TicketsView({
   selectedId,
   opened = false,
   trail = null,
+  follow = null,
   refs,
   filedBranches = {},
   org,
@@ -90,6 +91,11 @@ export function TicketsView({
    * Null when there is nothing to show a history for — no selection, or a row with no ticket file.
    */
   trail?: ReactNode;
+  /**
+   * The selected ticket's one line saying where to see the result (FB-184), as a node for the same
+   * reason as `trail`: it opens the preview before it links to it, and that must not hold up the page.
+   */
+  follow?: ReactNode;
   /** Each repo's default ref, so the "written down" link points at the branch the file is on. */
   refs: Record<string, string>;
   /**
@@ -307,6 +313,7 @@ export function TicketsView({
               knownIds={new Set(rows.filter((r) => r.repo === selected.repo).map((r) => r.id))}
               onSelectId={(id) => go(filter, `${selected.repo}/${id}`)}
               trail={trail}
+              follow={follow}
               outcome={outcome?.id === rowKey(selected) ? outcome : null}
               next={next && rowKey(next) !== rowKey(selected) ? next : null}
               onDecided={(kind, message) => {
@@ -327,10 +334,11 @@ export function TicketsView({
 }
 
 function Detail({
-  row, ventureId, org, gitRef, position, knownIds, onSelectId, trail, outcome, next, onDecided, onNext,
+  row, ventureId, org, gitRef, position, knownIds, onSelectId, trail, follow, outcome, next, onDecided, onNext,
 }: {
   row: TicketRow;
   trail: ReactNode;
+  follow: ReactNode;
   ventureId: string;
   org: string;
   gitRef: string;
@@ -462,6 +470,10 @@ function Detail({
           )}
         </p>
       ) : null}
+
+      {/* FB-184: where to see the result, directly above "Your decision" (R-04). Before the decision
+          rather than after it, because "can I see it?" is what a founder asks before saying yes. */}
+      {follow}
 
       {outcome ? (
         <div data-testid="detail-outcome" style={{ marginTop: '1.25rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
