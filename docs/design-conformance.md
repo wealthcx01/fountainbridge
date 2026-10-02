@@ -750,3 +750,23 @@ ours is "your ads on Meta →" because it opens a page inside the studio. The de
 the separate pocket-studio prototype; on ours the page is reached from the phone in two presses, "See
 the whole desk" and then "your ads on Meta →" in the Scale column (seen in the picture). An earlier
 line here said the phone had no way in; that was wrong.
+
+## FB-141 — asking whether a phone may buzz, 2026-10-02
+
+Read on ARCA's real data, signed in as its founder, on a local build of this branch pointed at the
+same repositories production reads, in Chromium's full headless mode (the lighter headless shell
+reports every notification permission as "blocked", so it can never show the card).
+
+Tickets is **1,245px** at 1440×1000 and **1,600px** at 393×851 — unchanged on first load, because
+nothing is drawn until the founder has decided something. After a decision, a card sits over the foot
+of the screen and the page does not grow. A founder who pressed "Not now" sees one quiet line at the
+end of the "Needs you" list instead: **1,330px** and **1,743px**. The desk is unchanged
+(**1,909px** / **2,231px**) and shows nothing about notifications at all. Nothing scrolls sideways.
+
+The design has no picture of the asking — screen 11 says only that "a push arrives the moment they
+become the blocker". Its Tickets screen, rendered from `docs/design/foundry-desk/` and clicked
+through, is 1,090px at desktop. The hosted design artifact could not be opened from a headless
+browser here (it answered "Page not found" without a signed-in claude.ai session).
+
+Looked at as pictures. The first draft said "this phone" on a laptop; it now says "this device".
+On a phone the card covers the second and third rows of the list until it is answered.
