@@ -386,10 +386,14 @@ function Detail({
               <Mark />The studio cannot verify who approved this. Open it before anything else.
             </p>
           ) : null}
-          <p style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.75rem', maxWidth: 'var(--content-narrow)' }}>
-            This would go outside your company, so it is not decided here. It has its own page, which
-            shows exactly who it reaches and what it costs. Approving there signs the record your
-            venture checks before anything is sent.
+          {/* What is true depends on the send's state: "would go outside" is only true of a
+              proposal. A failed send was tried; an unverified one was carried out (FB-149 review). */}
+          <p data-testid="detail-send-what" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.75rem', maxWidth: 'var(--content-narrow)' }}>
+            {row.send.status === 'failed'
+              ? 'This was approved and tried, and it did not go. What happens next is decided on its own page, which shows who it was for and what went wrong.'
+              : row.send.status === 'unverified-action'
+                ? 'A record says this was approved and carried out, and the studio cannot tell who approved it. Its own page shows what went out and to whom. Check it, and say whether the approval was yours.'
+                : 'This would go outside your company, so it is not decided here. It has its own page, which shows exactly who it reaches and what it costs. Approving there signs the record your venture checks before anything is sent.'}
           </p>
           <p style={{ margin: 0 }}>
             <Link className="btn btn-primary" href={row.send.href} data-testid="detail-open-send">

@@ -1,6 +1,6 @@
 # FB-149 — "Needs you" counts one thing in the rail and another on the desk
 
-**Status:** Done · **Area:** Studio / attention · **Depends on:** FB-129
+**Status:** Shipped in part · **Area:** Studio / attention · **Depends on:** FB-129
 
 ## What happens
 
@@ -33,7 +33,9 @@ has nowhere to land.
 
 ## Acceptance criteria
 
-- [x] The badge, the desk's sentence, the banner and the destination page all state the same number.
+- [ ] The badge, the desk's sentence, the banner and the destination page all state the same number.
+      True for a founder. Not yet for an admin: their header leads to the cross-venture page,
+      which lists finished work only, so it can say 4 over a desk that says 10.
 - [x] The destination lists external actions awaiting the gate as well as finished work.
 - [x] A test asserts the badge and its destination's own count cannot differ.
       *(`lib/__tests__/needs-you.test.ts` runs the rail's own loader over the UI gate's fixtures and
@@ -84,3 +86,14 @@ heights are in `docs/design-conformance.md`.
 **Two smaller differences this also closed.** The desk's sentence counted only proposed sends, while
 the desk's own list showed failed and unverified ones too; and the ledger counted only proposed ones.
 Both now agree with the list.
+
+## Found in review (2026-10-02)
+
+- The desk's summary said "nothing has been sent" about every waiting send. Once failed and
+  unverified sends counted too, that was false: an unverified send was carried out. The summary, the
+  amber banner and the Tickets detail now say what is true for each state.
+- A test compared the shared count with the rail, which uses the same count, so it could never fail.
+  It now reads the desk and Tickets pages themselves; breaking either one turns it red.
+
+**Shipped in part:** an admin's "Needs you" header leads to the cross-venture page, which does not
+list sends yet, so for an admin the header and the desk can still differ.

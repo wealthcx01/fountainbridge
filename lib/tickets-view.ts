@@ -102,7 +102,9 @@ export interface SendPointer {
   ref: string | null;
   /** The send's own page — the one place its grant is signed. */
   href: string;
-  /** The meta words for its state, e.g. "external send · tried and did not go". */
+  /** The send's state, which decides what the detail panel can truthfully say about it. */
+  status: string;
+  /** The meta words for its state, e.g. "tried and did not go". */
   state: string;
   /** True when a grant exists the studio cannot verify. The loudest thing it can say. */
   unverified: boolean;

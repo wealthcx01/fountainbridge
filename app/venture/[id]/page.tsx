@@ -1,4 +1,4 @@
-import { sendsWaitingOnFounder } from '@/lib/needs-you';
+import { sendsAlreadyTried, sendsWaitingOnFounder } from '@/lib/needs-you';
 import { Suspense } from 'react';
 import { officeSocketUrl, officeWatchUrl } from '@/lib/office-embed';
 import { redirect } from 'next/navigation';
@@ -289,6 +289,7 @@ async function Desk({
   const brief: Brief = composeBrief({
     ventureName: venture.name,
     awaitingApproval: sendsWaitingOnFounder(approvals).length,
+    sendsAlreadyTried: sendsAlreadyTried(approvals),
     // The queue itself, not a count of it: the brief says how long the oldest has waited, and a
     // number cannot be asked that.
     openWork: attention.approvals.map((a) => ({ ticketId: a.linkedTicketId, ageMs: a.ageMs })),
@@ -331,6 +332,7 @@ async function Desk({
   const waiting = {
     openWork: attention.approvals.length,
     awaitingApproval: sendsWaitingOnFounder(approvals).length,
+    sendsAlreadyTried: sendsAlreadyTried(approvals),
   };
   const oldestMs = attention.approvals.length
     ? Math.max(...attention.approvals.map((a) => a.ageMs ?? 0))

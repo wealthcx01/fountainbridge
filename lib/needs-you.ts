@@ -36,6 +36,14 @@ export const SEND_STATES_WAITING_ON_FOUNDER: ReadonlySet<ActiveGraphApproval['st
   'unverified-action',
 ]);
 
+/**
+ * Waiting sends that are past proposing: tried and did not go, or carried out on an approval the
+ * studio cannot verify. A sentence about waiting sends may only say "nothing has been sent" when this
+ * is zero — for an unverified send it would be the opposite of the truth.
+ */
+export const sendsAlreadyTried = (approvals: readonly ActiveGraphApproval[]): number =>
+  sendsWaitingOnFounder(approvals).filter((a) => a.status !== 'proposed').length;
+
 /** The sends waiting on this founder, in the order the store gave them. */
 export const sendsWaitingOnFounder = (approvals: readonly ActiveGraphApproval[]): ActiveGraphApproval[] =>
   approvals.filter((a) => SEND_STATES_WAITING_ON_FOUNDER.has(a.status));
@@ -88,6 +96,7 @@ export function sendRow(a: ActiveGraphApproval, ventureId: string, surface: stri
       approvalId: a.id,
       ref: a.ticket ?? null,
       href: `/venture/${ventureId}/approvals/${a.repo}/${a.id}`,
+      status: a.status,
       state: SEND_STATE_WORDS[a.status] ?? 'waiting on you',
       unverified: a.grantProvenance === 'unattested' || a.status === 'unverified-action',
     },

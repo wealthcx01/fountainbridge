@@ -4,7 +4,13 @@ import { loadRailData } from '../rail';
 import { loadVentureAttention, type PrApproval } from '../attention';
 import { ventureApprovals } from '../venture-reads';
 import { countTickets, needsFounder, decisionOrder, type TicketRow } from '../tickets-view';
-import { headerNeedsYou, needsYouCount, sendRows, sendSurface, sendsWaitingOnFounder } from '../needs-you';
+import { headerNeedsYou, sendRows, sendSurface, sendsAlreadyTried, sendsWaitingOnFounder } from '../needs-you';
+import { composeBrief } from '../brief';
+import { blockerLine } from '../desk';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const ROOT = join(import.meta.dirname, '..', '..');
 import type { ActiveGraphApproval } from '../approvals';
 
 /**
@@ -114,10 +120,56 @@ describe('the badge and its destination cannot differ', () => {
     expect(rail.openWork).toBe(attention.length);
   });
 
-  it('the desk sentence and banner count is the same number', async () => {
-    // `deskSummary` and `blockerLine` both read `waitingOnFounder`, fed by `sendsWaitingOnFounder`.
-    const rail = await loadRailData(venture);
-    expect(needsYouCount(attention.length, approvals)).toBe(rail.needsYou);
+  it('the desk page and the Tickets page count sends through the shared rule', () => {
+    // Read from the pages themselves. The test this replaces compared needsYouCount with the rail,
+    // which computes its number with needsYouCount — it could not fail, and the review proved it by
+    // breaking both pages while it stayed green.
+    const desk = readFileSync(join(ROOT, 'app', 'venture', '[id]', 'page.tsx'), 'utf8');
+    const feeds = [...desk.matchAll(/awaitingApproval:\s*([^,\n]+)/g)].map((m) => m[1].trim());
+    expect(feeds.length, 'the desk no longer feeds awaitingApproval anywhere — has it moved?').toBeGreaterThanOrEqual(2);
+    for (const f of feeds) expect(f, 'the desk counts sends its own way').toBe('sendsWaitingOnFounder(approvals).length');
+    expect(desk.match(/sendsAlreadyTried:\s*sendsAlreadyTried\(approvals\)/g)?.length,
+      'the desk must tell its sentences how many sends were already tried').toBe(feeds.length);
+
+    const tickets = readFileSync(join(ROOT, 'app', 'venture', '[id]', 'tickets', 'page.tsx'), 'utf8');
+    expect(tickets, 'the Tickets page stopped listing sends').toMatch(/rows\.unshift\(\.\.\.sendRows\(/);
+  });
+});
+
+describe('nothing says a send has not gone when it may have (FB-149 review)', () => {
+  const base = {
+    ventureName: 'ARCA', openWork: [], runs: [], overBudget: [], degraded: false,
+    engine: { state: 'running' as const, text: 'Your team is working.', ageMinutes: 0 },
+    now: Date.parse('2026-09-01T12:00:00Z'),
+  };
+  const all = (b: { headline: string; lines: { text: string }[] }) => [b.headline, ...b.lines.map((l) => l.text)].join(' | ');
+
+  it('the fixtures hold a send that is past proposing, so the case is real', () => {
+    expect(sendsAlreadyTried(approvals)).toBeGreaterThan(0);
+  });
+
+  it('only proposals: the brief may say nothing has been sent', () => {
+    const text = all(composeBrief({ ...base, awaitingApproval: 2, sendsAlreadyTried: 0 }));
+    expect(text).toContain('nothing has been sent');
+  });
+
+  it('a send already tried or carried out: the brief never says nothing has been sent', () => {
+    const text = all(composeBrief({ ...base, awaitingApproval: 3, sendsAlreadyTried: 1 }));
+    expect(text).not.toContain('nothing has been sent');
+    expect(text).not.toContain('would go outside');
+    expect(text).toContain('1 of them has already been tried or carried out');
+  });
+
+  it('with work waiting too, the brief and the banner stop saying "would go outside"', () => {
+    const work = [{ ageMs: 120_000 }] as unknown as Parameters<typeof composeBrief>[0]['openWork'];
+    expect(all(composeBrief({ ...base, openWork: work, awaitingApproval: 2, sendsAlreadyTried: 1 }))).not.toContain('would go outside');
+    expect(blockerLine({ openWork: 1, awaitingApproval: 2, sendsAlreadyTried: 1, oldestMs: 120_000 })).not.toContain('would go outside');
+    expect(blockerLine({ openWork: 1, awaitingApproval: 2, sendsAlreadyTried: 0, oldestMs: 120_000 })).toContain('would go outside');
+  });
+
+  it('the desk feeds the real count, read from the same approvals', () => {
+    const tried = sendsWaitingOnFounder(approvals).filter((a) => a.status !== 'proposed').length;
+    expect(sendsAlreadyTried(approvals)).toBe(tried);
   });
 });
 

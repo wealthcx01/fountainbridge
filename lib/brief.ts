@@ -44,8 +44,10 @@ export interface BriefInput {
   ventureName: string;
   /** Finished work waiting to be read — the same list the attention queue renders. */
   openWork: WaitingWork[];
-  /** External actions proposed and waiting on a human. Nothing has been sent. */
+  /** External sends waiting on the founder (lib/needs-you.ts). */
   awaitingApproval: number;
+  /** How many of those were already tried or carried out. "Nothing has been sent" only when 0. */
+  sendsAlreadyTried?: number;
   /** Every run the studio could read. The brief aggregates; it does not print one line per report. */
   runs: RunReport[];
   engine: { state: EngineState; text: string; ageMinutes: number | null };
@@ -120,6 +122,7 @@ export function stuckTickets(runs: RunReport[]): string[] {
 function needsYou(input: BriefInput): BriefLine | null {
   const work = input.openWork.length;
   const sends = input.awaitingApproval;
+  const tried = Math.min(input.sendsAlreadyTried ?? 0, sends);
   if (work + sends === 0) return null;
 
   const oldestMs = input.openWork.reduce((max, w) => Math.max(max, w.ageMs), 0);
@@ -134,11 +137,18 @@ function needsYou(input: BriefInput): BriefLine | null {
     text =
       `${work + sends} things are waiting for your OK: ` +
       `${plural(work, 'piece of finished work', 'pieces of finished work')} to read, and ` +
-      `${plural(sends, 'action')} that would go outside the company${oldest}.`;
+      (tried > 0
+        ? `${plural(sends, 'decision')} about something leaving the company${oldest}.`
+        : `${plural(sends, 'action')} that would go outside the company${oldest}.`);
   } else if (work > 0) {
     text = `${plural(work, 'piece of finished work', 'pieces of finished work')} ${
       work === 1 ? 'is' : 'are'
     } waiting for your OK${oldest}.`;
+  } else if (tried > 0) {
+    // FB-149 counts failed and unverified sends here too. Saying "nothing has been sent" about a
+    // send that was carried out on an approval nobody can name is the reverse of the warning owed.
+    const which = tried === sends ? (sends === 1 ? 'It has' : 'All of them have') : `${tried} of them ${tried === 1 ? 'has' : 'have'}`;
+    text = `${plural(sends, 'decision')} about something leaving the company ${sends === 1 ? 'is' : 'are'} waiting for you. ${which} already been tried or carried out, so open ${tried === 1 ? 'it' : 'them'} first.`;
   } else {
     text = `${plural(sends, 'action')} ${sends === 1 ? 'is' : 'are'} waiting for your OK before ${
       sends === 1 ? 'it goes' : 'they go'
