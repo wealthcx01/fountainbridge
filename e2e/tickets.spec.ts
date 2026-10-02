@@ -136,6 +136,9 @@ test.describe('the loop is visible on the queue (FB-098)', () => {
   });
 
   test('a parked ticket names how many attempts it took', async ({ page }) => {
+    // Opened by clicking, like the tests beside it. This used to rely on ARCA-4 being the ticket the
+    // screen opened on; FB-149 lists waiting sends first, so the screen now opens on a send.
+    await page.getByTestId('tickets-row-ARCA-4').click();
     const line = page.getByTestId('ticket-progress-ARCA-4');
     await expect(line).toHaveAttribute('data-state', 'parked');
     await expect(line).toContainText('Tried 2 times and stopped');
