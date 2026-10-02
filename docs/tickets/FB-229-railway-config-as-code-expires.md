@@ -25,9 +25,12 @@ nothing on Railway, because Railway never reads `.railway/railway.ts` by itself.
   `railway.json` overrides them at every deploy. So if `railway.json` simply stopped being read on
   2026-12-01, the studio would lose its health check and restart policy without anyone changing
   anything. That is the outage this ticket exists to prevent.
-- **Production's variables may differ from staging's.** The `env` list names the variables that exist
-  on staging and on the production-forked preview of this PR. Before applying to production, plan
-  against it and stop if anything would be destroyed. `docs/deploy.md` has the steps.
+- **Production has twelve more variables than staging.** Planned against this PR's own preview, which
+  Railway copies from production, a staging-only list would have deleted twelve of them, the GitHub App
+  key and the approval secret among them. The `env` list now names all twenty, and the same plan
+  against the preview says **0 to destroy**. Production itself was not planned against. Before
+  applying there, plan against it and stop if anything would be destroyed. `docs/deploy.md` has the
+  steps, and a test fails if any of the twenty names is removed from the file.
 
 ## The fact
 

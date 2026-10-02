@@ -113,6 +113,21 @@ describe('.railway/railway.ts keeps the studio deploy settings (FB-229)', () => 
     }
   });
 
+  it('names every variable that exists on staging and production, so apply cannot delete one', () => {
+    // A variable missing from the file is deleted by `railway config apply`. These are the names
+    // that existed on staging and on a production-forked preview on 2026-10-02 (FB-229). Adding a
+    // name is fine; removing one from here needs the variable gone from Railway first.
+    const known = [
+      'AUTH_SECRET', 'AUTH_TRUST_HOST', 'AUTH_URL', 'COMPOSER_API_KEY_ARCA', 'DATABASE_URL',
+      'DEPLOY_BUMP', 'DOCUMENT_STORE', 'FOUNDRY_APPROVAL_SECRET', 'GITHUB_APP_ID',
+      'GITHUB_APP_INSTALLATION_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_ORG', 'GOOGLE_CLIENT_ID',
+      'GOOGLE_CLIENT_SECRET', 'NIXPACKS_NODE_VERSION', 'OFFICE_HOST_ARCA', 'OFFICE_SECRET_ARCA',
+      'STUDIO_ADMIN_EMAILS', 'STUDIO_APPROVAL_GITHUB_TOKEN', 'STUDIO_PASSWORD_LOGINS',
+    ];
+    const declared = Object.keys((studioService().env ?? {}) as Plain);
+    for (const name of known) expect(declared, `${name} would be deleted by apply`).toContain(name);
+  });
+
   it('agrees with railway.json for as long as railway.json still exists', () => {
     // railway.json is what Railway actually uses until `railway config apply` has been run. Two
     // files that disagree would mean the deploy changes the moment someone applies.

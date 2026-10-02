@@ -23,6 +23,9 @@ export default defineRailway(() => {
     // `apply` keeps them, and never holds a value. A name missing from this list is DELETED from the
     // environment by `apply`, which would sign everyone out or stop the studio starting. So always
     // run `railway config plan` first and stop if it says anything will be destroyed.
+    //
+    // The list is every variable on staging and on a preview forked from production, read on
+    // 2026-10-02. Staging has only the first eight of these.
     env: {
       AUTH_SECRET: preserve(),
       AUTH_TRUST_HOST: preserve(),
@@ -32,6 +35,18 @@ export default defineRailway(() => {
       GOOGLE_CLIENT_SECRET: preserve(),
       NIXPACKS_NODE_VERSION: preserve(),
       STUDIO_ADMIN_EMAILS: preserve(),
+      COMPOSER_API_KEY_ARCA: preserve(),
+      DATABASE_URL: preserve(),
+      DEPLOY_BUMP: preserve(),
+      DOCUMENT_STORE: preserve(),
+      FOUNDRY_APPROVAL_SECRET: preserve(),
+      GITHUB_APP_ID: preserve(),
+      GITHUB_APP_INSTALLATION_ID: preserve(),
+      GITHUB_APP_PRIVATE_KEY: preserve(),
+      OFFICE_HOST_ARCA: preserve(),
+      OFFICE_SECRET_ARCA: preserve(),
+      STUDIO_APPROVAL_GITHUB_TOKEN: preserve(),
+      STUDIO_PASSWORD_LOGINS: preserve(),
     },
     build: {
       builder: 'NIXPACKS',

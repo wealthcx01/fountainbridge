@@ -51,6 +51,9 @@ of that. Do not regenerate it with `migrate`.
 4. Repeat steps 1 to 3 with `-e production`.
 5. Only then delete `railway.json`, in its own pull request.
 
+**From then on:** any new variable set on Railway must also be added to the `env` list in
+`.railway/railway.ts` as `preserve()`. Otherwise the next `apply` deletes it.
+
 The `railway` command evaluates the file with the `railway` npm package, which this repo does not
 install. To run `plan`, install it somewhere outside the repo and link it in as
 `.railway/node_modules` for the duration (that folder is ignored by git). The CLI also checks its own
