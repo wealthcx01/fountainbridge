@@ -277,7 +277,13 @@ fi
 # --- budget gate -----------------------------------------------------------------------------------
 if [ "$(runs_today)" -ge "$DAILY_WAKE_BUDGET" ]; then
   flog "daily wake budget reached ($DAILY_WAKE_BUDGET) — parking"
-  write_runreport "$PICK_SLUG" "blocked" "Your team’s daily budget is used up — parked until tomorrow." || true
+  # FB-162: said once a day as a report, then on the heartbeat. Writing a dated report on every wake
+  # added up to 288 identical files a day to the venture's history; on ARCA, 9,308 of them.
+  if budget_spent_first_today "$STATE_DIR"; then
+    write_runreport "$PICK_SLUG" "blocked" "Your team’s daily budget is used up — parked until tomorrow." || true
+  else
+    write_runreport "heartbeat" "blocked" "Your team is awake, and today’s budget is used up — parked until tomorrow." || true
+  fi
   exit 0
 fi
 
