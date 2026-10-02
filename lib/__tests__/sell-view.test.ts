@@ -11,8 +11,8 @@ import { DRAFT_ONLY, type CrmContact, type CrmDeal, type PipelineRead } from '..
  * The non-negotiable here is that nothing on it sends (non-negotiable 4). That is proved by rendering
  * the Sell content with the UI gate's fixture and looking at every control it draws: there is no form
  * and no button, and every link goes to the composer with a request that ends "do not send anything".
- * The studio's prompt bar sits above this content on every venture page and is a form; it too only
- * opens the composer. `e2e/sell.spec.ts` checks the whole page, prompt bar included.
+ * The studio's top bar, on every page, holds one form: "Sign out", which ends the session and sends
+ * nothing. `e2e/sell.spec.ts` checks the whole page, top bar included.
  */
 const FIXTURE = JSON.parse(readFileSync(join(process.cwd(), 'e2e/fixtures/crm/arca.json'), 'utf8')) as {
   contacts: CrmContact[]; deals: CrmDeal[];

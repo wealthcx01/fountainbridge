@@ -67,9 +67,9 @@ It was read once, signed in as John, and nothing was changed, sent or saved in D
       on the screen was written for it; the layout is built from the desk's own pieces.
 - [x] Nothing can send. Proved by trying. The Sell content draws no form and no button. Every action
       is a link to the composer asking for a draft and ending "Do not send anything", and a test
-      renders it and checks every link it draws. The one form on the page is the studio's own prompt
-      bar, which sits on every venture page and only opens the composer; the browser test checks
-      that it is the only one.
+      renders it and checks every link it draws. The one form on the page is "Sign out" in the
+      studio's top bar, which every page has and which sends nothing; the browser test checks that
+      it is the only one.
 - [x] A founder can answer "who is waiting on me" from the Sell surface without opening anything else.
       "Who needs you now" is the first thing under the summary.
 

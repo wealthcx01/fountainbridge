@@ -34,12 +34,12 @@ test('pressing a draft action sends nothing: it opens the composer with a draft 
   const posts: string[] = [];
   page.on('request', (r) => { if (r.method() !== 'GET') posts.push(`${r.method()} ${r.url()}`); });
 
-  // The Sell content itself draws no form and no button. The one form on the page is the studio's
-  // prompt bar, shared by every venture page, which only opens the composer.
+  // The Sell content itself draws no form and no button. The one form on the page is "Sign out" in
+  // the studio's top bar, which every page has; it ends the session and sends nothing.
   await expect(page.getByTestId('sell-page')).toBeVisible();
   await expect(page.getByTestId('sell-page').locator('form, button, input')).toHaveCount(0);
   await expect(page.locator('form')).toHaveCount(1);
-  await expect(page.getByTestId('prompt-bar').locator('form')).toHaveCount(1);
+  await expect(page.locator('form.signout-form')).toHaveCount(1);
   await page.getByTestId('sell-action-draft').first().click();
   await page.waitForURL(/\/venture\/arca\/composer\?ask=/);
   const ask = new URL(page.url()).searchParams.get('ask') ?? '';

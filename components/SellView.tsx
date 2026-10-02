@@ -29,8 +29,7 @@ import {
  * anything". The composer files that as work; the team drafts; anything that would leave the company
  * comes back to the founder as an approval (non-negotiable 4). This content draws no form and no
  * button that posts anywhere — so there is nothing here that could send, however it is pressed. (The
- * studio's own prompt bar sits above it on every venture page. It is a form, and it only opens the
- * composer too.)
+ * studio's top bar, on every page, has one form: "Sign out". It ends the session and sends nothing.)
  */
 
 /** How many deals a stage shows before it says how many more. Keeps the board one screen tall. */
