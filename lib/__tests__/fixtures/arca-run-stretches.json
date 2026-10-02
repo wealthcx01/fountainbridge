@@ -5,7 +5,7 @@
   {"ticket":"ARCA-055-news-tab-shows-alerts-not-news","count":2,"newest":"20260827T221742Z","oldest":"20260827T220321Z"},
   {"ticket":"ARCA-069-auction-feed-ingestion","count":2,"newest":"20260827T220315Z","oldest":"20260827T214612Z"},
   {"ticket":"ARCA-068-auction-source-research","count":2,"newest":"20260827T214601Z","oldest":"20260827T213017Z"},
-  {"ticket":"ARCA-073-news-write-is-unauthenticated","count":1,"newest":"20260827T113600Z","oldest":"20260827T113600Z"},
+  {"ticket":"ARCA-073-news-tab-follow-up","count":1,"newest":"20260827T113600Z","oldest":"20260827T113600Z"},
   {"ticket":"ARCA-067-api-key-in-source","count":1,"newest":"20260826T154304Z","oldest":"20260826T154304Z"},
   {"ticket":"ARCA-064-card-price-last-updated","count":2,"newest":"20260826T154224Z","oldest":"20260826T151640Z"},
   {"ticket":"ARCA-063-refresh-market-wide-prices","count":7,"newest":"20260826T151636Z","oldest":"20260826T142253Z"},

@@ -12,7 +12,7 @@ import { buildFeed } from '@/lib/activity-feed';
 import { composeActivitySummary } from '@/lib/activity-summary';
 import { classifyActivity, dedupeActivity, isFounderVisible } from '@/lib/activity-kind';
 import { groupFailures } from '@/lib/read-failures';
-import { historyScope, readWasBounded } from '@/lib/history-scope';
+import { historyIsPartial, historyScope } from '@/lib/history-scope';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { Mark } from '@/components/Mark';
@@ -156,7 +156,7 @@ async function Record({
   // collapse can hide anything: each stretch is its own row. The page is showing less than the
   // whole record when either (a) it read fewer stretches than exist, or (b) it had more rows than
   // it shows and dropped the oldest. Either one, and it says so.
-  const bounded = truncated || readWasBounded(runs.reports.length, runs.stretches ?? runs.total);
+  const bounded = historyIsPartial(truncated, runs.reports.length, runs.stretches ?? runs.total);
   const scope = historyScope({
     ventureName: venture.name,
     shown: feed.length,

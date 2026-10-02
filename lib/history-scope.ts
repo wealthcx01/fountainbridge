@@ -150,3 +150,14 @@ export function historyScope(input: HistoryScope): string | null {
  * truncates nothing at the last step and hides 9,869 things.
  */
 export const readWasBounded = (shown: number, total: number): boolean => total > shown;
+
+/**
+ * Is the page showing less than the whole record? Either it read fewer stretches than exist, or it
+ * read them all and dropped the oldest rows to fit (`truncated`).
+ *
+ * ARCA is the second case: all 40 stretches are read (under the read budget) and 12 are shown. Leave
+ * out `truncated` and the page claims "Everything ARCA did since 26 August" about a history that
+ * starts on 31 July — the FB-242 fault, with every other check green.
+ */
+export const historyIsPartial = (truncated: boolean, read: number, total: number): boolean =>
+  truncated || readWasBounded(read, total);
