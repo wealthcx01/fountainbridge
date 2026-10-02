@@ -856,3 +856,8 @@ the full width less 16px each side on a phone — and the page behind does not m
 Looked at as pictures, at both sizes. On a phone the first draft put the hint beside the title and
 left the title one word wide ("build…"); the hint now goes underneath. The design has no palette; it
 is new, built from the same hairline, square, no-shadow rules as the rest of the studio.
+
+After review, 2026-10-02: a browser test (`e2e/palette.spec.ts`) now drives the palette with the
+keyboard only and saves `179-palette-desktop.png` to the UI gate's gallery. The hosted design
+artifact was not opened: it needs a signed-in claude.ai session, and this review had none. It has
+no palette to compare against in any case. The live side is still a local build, not production.

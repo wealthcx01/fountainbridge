@@ -5,7 +5,9 @@
 **Shipped in part:** the keyboard palette and the push's deep link are built and checked in a
 browser. Not yet done: a real notification on a real phone (that is FB-141's last step, and needs
 John's keys, database change and timer first), and driving the palette with a real screen reader
-(VoiceOver or NVDA) rather than checking its labels and roles in code.
+(VoiceOver or NVDA) rather than checking its labels and roles in code. And when several things
+are waiting, the push opens the "Needs you" list rather than one item — John has to agree that this
+meets "every notification opens the exact item", or say what it should open instead.
 
 ## The argument, and the half of it that applies to us
 
@@ -62,11 +64,17 @@ So the OS is his answer and cannot be ours. The *need* is identical and is unadd
       With several waiting it opens "Needs you", because picking one of them would be arbitrary. A
       real phone receiving it waits on FB-141's last steps (keys, database, timer).
 - [x] ⌘K reaches any venture, ticket, or the composer, from any screen, with the keyboard only.
-      Checked in a browser at 1440×1000 and 393×851 on ARCA's real data, keyboard only: Ctrl-K from
+      A browser test (`e2e/palette.spec.ts`) now does this with key presses only: Ctrl-K, type,
+      Enter opens the ticket; the arrows choose and Enter reaches the composer; Tab reaches the way
+      in first, stays inside the open box, and Escape puts the cursor back. Also checked in a browser at 1440×1000 and 393×851 on ARCA's real data, keyboard only: Ctrl-K from
       the Handbook, type "arca 61", arrow down, Enter → the Tickets screen opened on ARCA-61. ⌘K,
       "composer", Enter → the composer. Escape closes it and puts focus back.
-- [x] Every notification and external link deep-links to the exact item. The studio sends exactly
-      one kind of notification (FB-141), and it now opens the exact item when there is one. Every
+- [ ] Every notification and external link deep-links to the exact item. **Met when one thing is
+      waiting; not when several are, and John needs to agree to that reading.** With several
+      waiting, the push opens "Needs you" rather than one of them, because picking one would be
+      arbitrary and the push never says what the item is. That is a different promise from the one
+      written here. The studio sends exactly one kind of notification (FB-141), and it opens the
+      exact item when there is one. Every
       address the palette uses is the studio's own and is the same address a message or an email
       can carry — `/venture/arca/tickets?filter=all&t=arca%2FARCA-61` opens that ticket, keyed by
       repository as well as id, so two repositories that share an id cannot be confused. The studio
