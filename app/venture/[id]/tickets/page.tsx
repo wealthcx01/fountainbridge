@@ -23,7 +23,10 @@ const NO_RUNS_FOR_PROGRESS = {
 };
 import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
 import { GitHubClient } from '@/lib/github';
-import { trailSources } from '@/lib/trail-sources';
+import { trailSources, workForTicket } from '@/lib/trail-sources';
+import { checkedPreview } from '@/lib/preview-check';
+import { followLine, sendForTicket } from '@/lib/result-link';
+import { FollowIt } from '@/components/FollowIt';
 import { loadTrail } from '@/lib/trail-load';
 import { studioNow } from '@/lib/when';
 
@@ -248,6 +251,16 @@ export default async function TicketsPage({
           </Suspense>
         ) : null
       }
+      // FB-184: where to see the result. Streamed too, because a preview is opened before it is
+      // linked to, and that is a network round trip the ticket itself must not wait for. Nothing is
+      // drawn while it is checked: a line that changed its mind would be worse than one that arrives.
+      follow={
+        selected?.item ? (
+          <Suspense fallback={null}>
+            <FollowFor venture={venture} row={selected} attention={attention} filedByRepo={filedByRepo} approvals={approvalsRead.approvals} />
+          </Suspense>
+        ) : null
+      }
       refs={Object.fromEntries(refs)}
       filedBranches={Object.fromEntries(filedBranch)}
       org={process.env.GITHUB_ORG ?? 'wealthcx01'}
@@ -301,9 +314,7 @@ async function TrailFor({
     approvals,
     runs: runs.reports.filter((r) => !r.isHeartbeat && r.repo === row.repo && r.ticketsTouched.includes(row.id)),
     work: attention.approvals,
-    filedPrNumbers: Object.fromEntries(
-      [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => [`${repo} ${f.ticket.id}`, f.prNumber] as const)),
-    ),
+    filedPrNumbers: filedPrNumbers(filedByRepo),
   }));
 
   // More reports existed than were read — so runs for this ticket MAY have been missed.
@@ -323,6 +334,44 @@ async function TrailFor({
   return <TicketTrail trail={mightHaveMissedRuns ? { ...trail, degraded: true } : trail} />;
 }
 
+
+/** `repo ticketId` → the pull request a just-filed ticket's work is on (FB-120). */
+function filedPrNumbers(filedByRepo: Map<string, FiledTicket[]>): Record<string, number> {
+  return Object.fromEntries(
+    [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => [`${repo} ${f.ticket.id}`, f.prNumber] as const)),
+  );
+}
+
+/**
+ * The selected ticket's "Follow it to…" line (FB-184).
+ *
+ * Reads nothing new except the preview itself: the work, the sends and the departments are all
+ * already on this page. The preview is opened through the same `checkedPreview` the trail uses, so
+ * the line and the trail's "see it running" hop cannot disagree about whether it works.
+ */
+async function FollowFor({
+  venture,
+  row,
+  attention,
+  filedByRepo,
+  approvals,
+}: {
+  venture: VentureSummary;
+  row: TicketRow;
+  attention: Awaited<ReturnType<typeof loadVentureAttention>>;
+  filedByRepo: Map<string, FiledTicket[]>;
+  approvals: ActiveGraphApproval[];
+}) {
+  const department = (venture.departments ?? []).find((d) => d.repo === row.repo)?.id ?? null;
+  const work = workForTicket({ work: attention.approvals, filedPrNumbers: filedPrNumbers(filedByRepo) }, row.repo, row.id);
+  const send = sendForTicket(
+    approvals,
+    { id: row.id, repo: row.repo, department },
+    (repo, id) => `/venture/${venture.id}/approvals/${repo}/${id}`,
+  );
+  const preview = !send && work?.previewUrl ? await checkedPreview(work.previewUrl) : null;
+  return <FollowIt line={followLine({ department, hasWork: Boolean(work), preview, send })} />;
+}
 
 /**
  * What the founder sees while the history is still being read.
