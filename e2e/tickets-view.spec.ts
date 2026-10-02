@@ -418,6 +418,15 @@ test.describe('follow it to the result (FB-184)', () => {
       .toBe('detail-decision');
   });
 
+  test('a preview the studio opened is linked, and leaves the studio (FB-184)', async ({ page }) => {
+    // ARCA-5's work (#11) has a preview the rig's fixture says opens.
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-5');
+    const follow = page.getByTestId('detail-follow');
+    await expect(follow).toContainText('Follow it to the preview: running');
+    await expect(follow).toHaveAttribute('data-linked', 'true');
+    await expect(follow.locator('a')).toHaveAttribute('href', 'https://arca-pr-11.up.railway.app');
+  });
+
   test('a ticket with nothing to look at says so', async ({ page }) => {
     await page.goto('/venture/arca/tickets?t=arca%2FARCA-6');
     await expect(page.getByTestId('detail-follow')).toHaveText('Nothing to follow yet');

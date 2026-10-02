@@ -55,6 +55,18 @@ test.describe('reading and accepting a piece of work', () => {
     await expect(page.getByTestId('work-accept')).toBeVisible();
   });
 
+  test('a preview and the product are links only when the studio opened them (FB-184)', async ({ page }) => {
+    // The rig answers checks from e2e/fixtures/preview-checks.json: #11's preview opens, and so does
+    // Build's door. #10 reports no preview at all, so it offers none.
+    await page.goto('/venture/arca/work/arca/11');
+    await expect(page.getByTestId('work-preview')).toHaveAttribute('href', 'https://arca-pr-11.up.railway.app');
+    await expect(page.getByTestId('work-launch')).toHaveAttribute('href', 'https://arca-production-4e99.up.railway.app');
+    await expect(page.getByTestId('work-preview-why')).toHaveCount(0);
+    await page.goto('/venture/arca/work/arca/10');
+    await expect(page.getByTestId('work-preview')).toHaveCount(0);
+    await expect(page.getByTestId('work-launch')).toBeVisible();
+  });
+
   test('work whose checks are still running cannot, and says what to do', async ({ page }) => {
     await page.goto('/venture/arca/work/arca/11');
     await expect(page.getByTestId('work-accept')).toHaveCount(0);

@@ -22,6 +22,8 @@ import { ventureApprovals, ventureRuns, type Runs } from '@/lib/venture-reads';
 import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
 import { blockerLine, degradedGroups, deskSummary, type ReadFailure } from '@/lib/desk';
 import { loadEnvelopes } from '@/lib/budgets-load';
+import { checkedDoor } from '@/lib/preview-check';
+import type { PreviewCheck } from '@/lib/result-link';
 import { VentureBoard } from '@/components/VentureBoard';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { DeskWaiting } from '@/components/DeskWaiting';
@@ -143,6 +145,15 @@ async function Desk({
   // readings answer is WHICH of them the round is waiting on. FB-128 estimated this page's own work
   // at ~350 ms by subtracting one rail-bound number from another; it is ~4.8s, and guessing again
   // would be the fourth time in a row.
+  // FB-184: each surface's door is opened before the desk draws it as a link. Started here so it
+  // runs alongside the reads below rather than after them; awaited where the board is drawn.
+  // Remembered for five minutes per address, so this is not one request per page view.
+  const doorsRead: Promise<Record<string, PreviewCheck>> = Promise.all(
+    venture.departments
+      .filter((d) => d.provisioned && d.launch)
+      .map(async (d) => [d.id, await checkedDoor(d.launch!.url)] as const),
+  ).then((pairs) => Object.fromEntries(pairs));
+
   const [data, health, approvalsRead, runsRead] = await Promise.all([
     timed('desk: your backlog', () => loadVentureTickets(venture, { refresh: refreshing }), venture.id),
     timed('desk: repository health', () => loadVentureHealth(venture, { refresh: refreshing }), venture.id),
@@ -436,6 +447,7 @@ async function Desk({
       wiringWarning={wiringWarning}
       lanes={lanes}
       departments={venture.departments}
+      doors={await doorsRead}
       approvals={approvals}
       lastSendAgeMs={ageMs(lastSend(approvals)?.at, now.getTime())}
       budgets={budgets}

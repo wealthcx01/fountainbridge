@@ -25,6 +25,7 @@ import { PromptBar } from './PromptBar';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
 import { META_ADS_CONNECTOR } from '@/lib/meta-ads';
+import { whyNoLink, type PreviewCheck } from '@/lib/result-link';
 import { sendSurface, sendsWaitingOnFounder } from '@/lib/needs-you';
 import { EngineActivity } from './EngineActivity';
 import { WhileWorking } from './WhileWorking';
@@ -104,6 +105,7 @@ export function VentureBoard({
   venture,
   lanes,
   departments = [],
+  doors = {},
   approvals = [],
   lastSendAgeMs = null,
   budgets = [],
@@ -139,6 +141,11 @@ export function VentureBoard({
   };
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
+  /**
+   * What opening each surface's door found, by department id (FB-184). A door is drawn as a link
+   * only when its check says it opens; a department with a `launch` and no entry here gets no link.
+   */
+  doors?: Record<string, PreviewCheck>;
   approvals?: ActiveGraphApproval[];
   /** How long ago the last send went out, worked out on the server (FB-241). */
   lastSendAgeMs?: number | null;
@@ -637,7 +644,8 @@ export function VentureBoard({
                       {surfaceOutcome({
                         departmentId: d.id,
                         ticketCount: lanes.find((l) => l.repo === d.repo)?.total ?? 0,
-                        hasLaunch: Boolean(d.launch),
+                        // FB-184: "running" only when the door was opened and it worked.
+                        hasLaunch: Boolean(d.launch) && doors[d.id]?.state === 'opens',
                         provisioned: d.provisioned,
                         // FB-142: from the sends this venture has already gated. No new read.
                         lastSend: d.id === 'sell' ? lastSend(approvals) : null,
@@ -707,15 +715,21 @@ export function VentureBoard({
                       replacing the board with it is the "no way back" problem FB-065 named.
                       A surface with nothing running gets no link, rather than a paragraph
                       apologising for the absence of one. */}
-                  {d.provisioned && d.launch ? (
+                  {/* FB-184: opened by the studio before it is offered. A door that does not open
+                      says so, quietly, rather than being a link that lands on an error page. */}
+                  {d.provisioned && d.launch && doors[d.id]?.state === 'opens' ? (
                     <a
-                      href={d.launch.url}
+                      href={doors[d.id]!.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       data-testid={`dept-${d.id}-launch`}
                     >
                       {d.launch.label ?? 'Open'} ↗
                     </a>
+                  ) : d.provisioned && d.launch && doors[d.id] && whyNoLink(doors[d.id]) ? (
+                    <span className="muted" data-testid={`dept-${d.id}-launch-why`}>
+                      {d.launch.label ?? 'Open'}: {whyNoLink(doors[d.id])}.
+                    </span>
                   ) : null}
                   {/* The design's "Open your outbox ↗". The studio does not read the mailbox — see
                       lib/sends.ts on why that scope is not taken — so this is the one place a founder

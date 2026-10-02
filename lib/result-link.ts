@@ -126,3 +126,21 @@ export function sendForTicket(
   const newest = [...mine].sort((a, b) => (b.committedAt ?? '').localeCompare(a.committedAt ?? ''))[0];
   return { href: hrefFor(newest.repo, newest.id), status: newest.status };
 }
+
+/**
+ * Why a checked address is not drawn as a link, in words — or `null` when it opens (FB-184).
+ *
+ * The other places a founder is offered "see it" — the work page, the cross-venture queue and a
+ * surface's door on the desk — use this, so they say the same thing the "Follow it to…" line says
+ * and draw a link on exactly the same condition: the address was opened and it worked.
+ */
+export function whyNoLink(check: PreviewCheck): string | null {
+  switch (check.state) {
+    case 'opens':
+      return null;
+    case 'does-not-open':
+      return `it did not open when the studio checked, because ${check.reason}`;
+    case 'not-checked':
+      return 'it has not been checked yet, so there is no link';
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { whyNoLink, type PreviewCheck } from '@/lib/result-link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { WorkItem } from '@/lib/work';
@@ -228,6 +229,8 @@ export function WorkDetail({
   work,
   launch = null,
   waitingMs = null,
+  previewCheck = null,
+  launchCheck = null,
 }: {
   ventureId: string;
   work: WorkItem;
@@ -238,6 +241,10 @@ export function WorkDetail({
    * browser, where the test clock does not exist, so it is handed the age and never the timestamp.
    */
   waitingMs?: number | null;
+  /** What opening `work.previewUrl` found (FB-184). Linked only when it opens. */
+  previewCheck?: PreviewCheck | null;
+  /** What opening `launch.url` found (FB-184). Linked only when it opens. */
+  launchCheck?: PreviewCheck | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -303,21 +310,33 @@ export function WorkDetail({
           for themselves, and the page had no way to do it. The preview is this work specifically;
           the launch link is the product as it stands, and they are labelled as the different things
           they are rather than merged into one hopeful button. */}
-      {work.previewUrl || launch ? (
+      {/* FB-184: each door is a link only when the studio opened it and it worked. Otherwise the
+          same place says why there is no link, in the words the ticket's "Follow it to…" line uses. */}
+      {previewCheck || (launch && launchCheck) ? (
         <section data-testid="work-see-it" style={{ marginBottom: '1.5rem' }}>
           <p className="eyebrow" style={{ marginBottom: '0.4rem' }}>See it</p>
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            {work.previewUrl ? (
-              <a className="btn" href={work.previewUrl} target="_blank" rel="noreferrer" data-testid="work-preview">
+            {previewCheck && previewCheck.state === 'opens' ? (
+              <a className="btn" href={previewCheck.url} target="_blank" rel="noreferrer" data-testid="work-preview">
                 See this change running ↗
               </a>
             ) : null}
-            {launch ? (
-              <a className="btn" href={launch.url} target="_blank" rel="noreferrer" data-testid="work-launch">
+            {launch && launchCheck?.state === 'opens' ? (
+              <a className="btn" href={launchCheck.url} target="_blank" rel="noreferrer" data-testid="work-launch">
                 {launch.label ?? 'Open your product'} ↗
               </a>
             ) : null}
           </div>
+          {previewCheck && whyNoLink(previewCheck) ? (
+            <p className="muted" data-testid="work-preview-why" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
+              The preview of this change: {whyNoLink(previewCheck)}.
+            </p>
+          ) : null}
+          {launch && launchCheck && whyNoLink(launchCheck) ? (
+            <p className="muted" data-testid="work-launch-why" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
+              {launch.label ?? 'Your product'}: {whyNoLink(launchCheck)}.
+            </p>
+          ) : null}
         </section>
       ) : null}
 

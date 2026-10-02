@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { verdictFor, type Hop, type Verdict } from '../scripts/preview-link-lib.mjs';
 import type { PreviewCheck } from './result-link';
 
@@ -79,9 +80,37 @@ async function follow(from: string, fetcher: Fetcher): Promise<Hop[]> {
   return hops;
 }
 
-/** Judge one address. Never throws: a failure to reach it is an answer, not an error. */
-export async function checkPreview(url: string, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<PreviewCheck> {
-  if (!isPreviewAddress(url)) return { url, state: 'does-not-open', reason: NOT_A_PREVIEW };
+/**
+ * A surface's door, from the venture's manifest (FB-093's `launch:`): an https address on the
+ * default port, on a named host. Not limited to preview hosts, because a venture's product can live
+ * on its own domain. The manifest is reviewed config in this repository, not something anyone with a
+ * commit status can write, so the wider rule is safe here and only here. Still never an IP address,
+ * never `localhost`, never a host with no dot: the studio's server must not be pointed inward.
+ */
+export function isDoorAddress(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    return u.protocol === 'https:' && u.port === '' && !u.username && !u.password
+      && host.includes('.') && !host.startsWith('[') && !/^[\d.]+$/.test(host)
+      && host !== 'localhost' && !host.endsWith('.localhost') && !host.endsWith('.internal');
+  } catch {
+    return false;
+  }
+}
+
+/** Judge one preview address. Never throws: a failure to reach it is an answer, not an error. */
+export function checkPreview(url: string, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<PreviewCheck> {
+  return checkAddress(url, isPreviewAddress, fetcher);
+}
+
+/** Judge a surface's door from the manifest, by the same verdict as a preview (FB-184). */
+export function checkDoor(url: string, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<PreviewCheck> {
+  return checkAddress(url, isDoorAddress, fetcher);
+}
+
+async function checkAddress(url: string, allowed: (url: string) => boolean, fetcher: Fetcher): Promise<PreviewCheck> {
+  if (!allowed(url)) return { url, state: 'does-not-open', reason: NOT_A_PREVIEW };
   const host = new URL(url).host;
   let hops: Hop[] = [];
   try {
@@ -96,7 +125,41 @@ export async function checkPreview(url: string, fetcher: Fetcher = fetch as unkn
 const remembered = new Map<string, { at: number; check: Promise<PreviewCheck> }>();
 
 /**
- * `checkPreview`, remembered for a few minutes, and skipped in the test rig.
+ * What the test rig says a check found, when it says anything (FB-184).
+ *
+ * The rig never opens an address (FB-217). Without this, every link it drew was "not checked", so
+ * the UI gate could only ever see the no-link half and a link that should appear could vanish
+ * unnoticed. `PREVIEW_CHECK_FIXTURE` names a JSON file of address → answer; an address it does not
+ * list stays "not checked", which is still the honest answer for it.
+ */
+function rigAnswer(url: string, env: Record<string, string | undefined>): PreviewCheck {
+  const file = env.PREVIEW_CHECK_FIXTURE;
+  if (file) {
+    try {
+      const all = JSON.parse(readFileSync(file, 'utf8')) as Record<string, { state: string; reason?: string }>;
+      const a = all[url];
+      if (a?.state === 'opens') return { url, state: 'opens' };
+      if (a?.state === 'does-not-open') return { url, state: 'does-not-open', reason: a.reason ?? WHY.unreachable };
+    } catch {
+      // A broken fixture file is a rig fault; "not checked" draws no link, which is the safe side.
+    }
+  }
+  return { url, state: 'not-checked' };
+}
+
+const inRig = (env: Record<string, string | undefined>) => env.E2E_TEST_LOGIN === '1' && Boolean(env.PRS_FIXTURE_DIR);
+
+function remember(key: string, now: number, run: () => Promise<PreviewCheck>): Promise<PreviewCheck> {
+  const hit = remembered.get(key);
+  if (hit && now - hit.at < REMEMBER_MS) return hit.check;
+  const check = run();
+  remembered.set(key, { at: now, check });
+  if (remembered.size > REMEMBER_AT_MOST) remembered.delete(remembered.keys().next().value as string);
+  return check;
+}
+
+/**
+ * `checkPreview`, remembered for a few minutes, and answered from a fixture in the test rig.
  *
  * Remembers the promise rather than the answer, so two parts of one page asking at once share one
  * check.
@@ -106,11 +169,16 @@ export function checkedPreview(
   env: Record<string, string | undefined> = process.env,
   now: number = Date.now(),
 ): Promise<PreviewCheck> {
-  if (env.E2E_TEST_LOGIN === '1' && env.PRS_FIXTURE_DIR) return Promise.resolve({ url, state: 'not-checked' });
-  const hit = remembered.get(url);
-  if (hit && now - hit.at < REMEMBER_MS) return hit.check;
-  const check = checkPreview(url);
-  remembered.set(url, { at: now, check });
-  if (remembered.size > REMEMBER_AT_MOST) remembered.delete(remembered.keys().next().value as string);
-  return check;
+  if (inRig(env)) return Promise.resolve(rigAnswer(url, env));
+  return remember(url, now, () => checkPreview(url));
+}
+
+/** `checkDoor`, remembered the same way. A surface's door is opened before it is drawn as a link. */
+export function checkedDoor(
+  url: string,
+  env: Record<string, string | undefined> = process.env,
+  now: number = Date.now(),
+): Promise<PreviewCheck> {
+  if (inRig(env)) return Promise.resolve(rigAnswer(url, env));
+  return remember(`door ${url}`, now, () => checkDoor(url));
 }
