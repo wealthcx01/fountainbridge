@@ -1,3 +1,4 @@
+import { studioNow } from '@/lib/when';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
@@ -148,6 +149,7 @@ async function Memory({ venture }: { venture: VentureSummary }) {
       errors={errors}
       routines={routineResult.routines}
       routineErrors={routineResult.errors}
+      nowMs={studioNow()}
       provenanceMissing={provenanceMissing}
       usedNote={usedNote}
       // FB-181: the surface a founder owns, so three real files sharing one title read as three

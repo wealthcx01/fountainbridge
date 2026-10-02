@@ -48,6 +48,7 @@ export function KnowledgeView({
   errors,
   routines,
   routineErrors = [],
+  nowMs,
   provenanceMissing = false,
   usedNote = null,
   surfaces,
@@ -62,6 +63,11 @@ export function KnowledgeView({
   errors: string[];
   routines: Routine[];
   routineErrors?: string[];
+  /**
+   * "Now", from the server (FB-241). Whether a routine has cooled down is decided against it, because
+   * this renders in the browser, where the test clock does not exist.
+   */
+  nowMs: number;
   provenanceMissing?: boolean;
   /**
    * Repository → the surface that owns it, e.g. `arca-ops` → `Scale — Growth & Ops` (FB-181).
@@ -201,7 +207,7 @@ export function KnowledgeView({
 
       <hr className="hr" />
 
-      <Routines ventureId={ventureId} routines={routines} errors={routineErrors} />
+      <Routines ventureId={ventureId} routines={routines} errors={routineErrors} nowMs={nowMs} />
 
       {open ? <Reader doc={open} onClose={() => setOpen(null)} /> : null}
     </section>
@@ -384,8 +390,8 @@ function Add({ ventureId, keepsOriginals }: { ventureId: string; keepsOriginals:
  * screen answers "what does my venture do on its own", and the screen behind the link is where it is
  * changed. It is also the only route to that screen — the rail has no row for it.
  */
-function Routines({ ventureId, routines, errors }: { ventureId: string; routines: Routine[]; errors: string[] }) {
-  const now = new Date();
+function Routines({ ventureId, routines, errors, nowMs }: { ventureId: string; routines: Routine[]; errors: string[]; nowMs: number }) {
+  const now = new Date(nowMs);
   return (
     <div data-testid="memory-routines">
       <h2 style={{ fontSize: 'var(--fs-h3)', margin: '0 0 0.35rem' }}>What happens without you asking</h2>

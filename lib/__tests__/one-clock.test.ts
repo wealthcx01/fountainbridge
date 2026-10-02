@@ -3,7 +3,9 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { studioNow } from '../when';
 import { defaultNow } from '../health';
-import { engineState, engineStateAt, type RunReport } from '../runreports';
+import { ageRuns, engineState, engineStateAt, type RunReport } from '../runreports';
+import { agoMs, howLongMs } from '../when';
+import { buildOffice } from '../office';
 
 /**
  * The studio tells the time one way (FB-240).
@@ -102,6 +104,101 @@ describe('the studio has one clock', () => {
   });
 });
 
+/**
+ * A screen that runs in the browser is handed an age, never a timestamp (FB-241).
+ *
+ * The check above guards the server. This guards the other half. `E2E_NOW` is not a `NEXT_PUBLIC_`
+ * variable, so in the browser `studioNow()` silently falls back to the real clock — and the gate's
+ * desk printed "Your team checked in 10 minutes ago" four lines above "Working on ARCA-6 now · 70
+ * days ago", about the same machine. The sentence was worked out on the server; the row underneath
+ * it in the browser.
+ *
+ * "Runs in the browser" means a file marked `'use client'`, or one such a file imports — those
+ * render in the browser too, which is exactly how `EngineActivity` got there without saying so.
+ */
+const CLIENT_CLOCK_HELPERS = ['ago', 'howLong', 'relativeDay', 'studioNow', 'defaultNow', 'ageMs', 'stampAgeMs'];
+
+function clientModules(): string[] {
+  const all = [...filesUnder('app'), ...filesUnder('components')];
+  const byPath = new Map(all.map((f) => [f, readFileSync(f, 'utf8')]));
+  const resolve = (from: string, spec: string): string | null => {
+    const base = spec.startsWith('@/') ? join(ROOT, spec.slice(2))
+      : spec.startsWith('.') ? join(from, '..', spec)
+        : null;
+    if (!base) return null;
+    for (const p of [`${base}.tsx`, `${base}.ts`, join(base, 'index.tsx'), join(base, 'index.ts')]) {
+      if (byPath.has(p)) return p;
+    }
+    return null;
+  };
+  const queue = all.filter((f) => /^\s*['"]use client['"]/.test(byPath.get(f) ?? ''));
+  const seen = new Set(queue);
+  while (queue.length) {
+    const file = queue.pop()!;
+    for (const m of (byPath.get(file) ?? '').matchAll(/from\s+['"]([^'"]+)['"]/g)) {
+      const dep = resolve(file, m[1]);
+      if (dep && !seen.has(dep)) { seen.add(dep); queue.push(dep); }
+    }
+  }
+  return [...seen];
+}
+
+/** What a browser-side file does with the clock that it must not. */
+function clientClockOffences(file: string, source: string): string[] {
+  const out: string[] = [];
+  for (const m of source.matchAll(/import\s*{([^}]*)}\s*from\s*['"]@\/lib\/(?:when|health)['"]/g)) {
+    const names = m[1].split(',').map((n) => n.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0]).filter(Boolean);
+    for (const n of names.filter((x) => CLIENT_CLOCK_HELPERS.includes(x))) {
+      out.push(`${file}  imports ${n}() — reads "now" in the browser; pass an age from the server instead`);
+    }
+  }
+  source.split('\n').forEach((line, i) => {
+    const t = line.trimStart();
+    if (t.startsWith('//') || t.startsWith('*') || line.includes('one-clock: written')) return;
+    for (const m of line.matchAll(/Date\.now\(\)|new Date\(\)/g)) {
+      const after = line.slice((m.index ?? 0) + m[0].length);
+      if (m[0] === 'new Date()' && after.startsWith('.toISOString()')) continue;
+      out.push(`${file}:${i + 1}  ${line.trim().slice(0, 90)}`);
+    }
+  });
+  return out;
+}
+
+describe('a screen in the browser is handed an age, never a timestamp (FB-241)', () => {
+  const CLIENT = clientModules();
+
+  it('finds the browser-side files, including the ones that never say so', () => {
+    // A guard on the guard. EngineActivity has no 'use client' of its own; it renders in the browser
+    // because VentureBoard imports it. If the walk missed it, this file would miss the bug it is for.
+    const names = CLIENT.map(rel);
+    expect(names).toContain('components/VentureBoard.tsx');
+    expect(names).toContain('components/EngineActivity.tsx');
+    expect(names).toContain('components/OfficeLedger.tsx');
+    expect(names).toContain('components/WaitingQueue.tsx');
+    expect(names).not.toContain('app/venture/[id]/page.tsx');
+  });
+
+  it('catches the shapes it is looking for', () => {
+    // So a green result below means "none found", not "could not see one".
+    expect(clientClockOffences('x.tsx', "import { ago } from '@/lib/when';")).toHaveLength(1);
+    expect(clientClockOffences('x.tsx', "import { howLongMs, type Foo, howLong as h } from '@/lib/when';")).toHaveLength(1);
+    expect(clientClockOffences('x.tsx', "import { agoMs, howLongMs, onDate } from '@/lib/when';")).toEqual([]);
+    expect(clientClockOffences('x.tsx', '  const now = new Date();')).toHaveLength(1);
+    expect(clientClockOffences('x.tsx', '  const now = new Date(nowMs);')).toEqual([]);
+    expect(clientClockOffences('x.tsx', '  recordedAt: new Date().toISOString(),')).toEqual([]);
+  });
+
+  it('no browser-side file works out an age for itself', () => {
+    const offences = CLIENT.flatMap((f) => clientClockOffences(rel(f), readFileSync(f, 'utf8')));
+    expect(
+      offences,
+      'a component that renders in the browser is reading "now" for itself. Work the age out on the '
+      + 'server (`ageMs` in lib/when.ts) and pass the number down; render it with `howLongMs` or '
+      + '`agoMs`. See FB-241 and the note on `howLongMs`.',
+    ).toEqual([]);
+  });
+});
+
 describe('the rail and the desk agree about the same heartbeat', () => {
   const HEARTBEAT = '2026-07-21T23:50:00Z';
 
@@ -133,5 +230,38 @@ describe('the rail and the desk agree about the same heartbeat', () => {
     expect(railWithItsOwnClock.text).not.toBe(desk.text);
     expect(railWithItsOwnClock.state).toBe('stalled');
     expect(desk.state).toBe('running');
+  });
+});
+
+describe('the desk’s sentence and the rows under it agree (FB-241)', () => {
+  // The gate's fixture, in miniature: a heartbeat ten minutes before the pinned "now", and a run that
+  // was in flight at the same moment. Before FB-241 the sentence said "10 minutes" and the row,
+  // working its age out in the browser against the real clock, said "70 days".
+  const AT = '2026-07-21T23:50:00Z';
+  const report = (over: Partial<RunReport>): RunReport => ({
+    laneId: 'arca', startedAt: AT, endedAt: AT, trigger: 'scheduled', outcome: 'no-useful-work',
+    summaryMd: 'Working on ARCA-6.', ticketsTouched: ['ARCA-6'], errorDetail: null, skillsUsed: [],
+    prUrl: null, repo: 'arca', isHeartbeat: false, ...over,
+  });
+
+  afterEach(() => { delete process.env.E2E_NOW; });
+
+  it('a run row says the same age as the check-in sentence above it', () => {
+    process.env.E2E_NOW = '2026-07-22T00:00:00Z';
+    const sentence = engineState([report({ isHeartbeat: true })]).text;
+    const [row] = ageRuns([report({})], studioNow());
+    expect(sentence).toContain('checked in 10 minutes ago');
+    expect(agoMs(row.ageMs)).toBe('10 minutes ago');
+  });
+
+  it('the office ledger says how long against the same instant', () => {
+    process.env.E2E_NOW = '2026-07-22T00:00:00Z';
+    const office = buildOffice({
+      departments: [{ id: 'build', name: 'Build', repo: 'arca', provisioned: true }],
+      runs: [report({ endedAt: null, outcome: null })],
+      waiting: [],
+      engine: { state: 'running', text: 'Your team checked in 10 minutes ago.' },
+    });
+    expect(howLongMs(office.desks[0].sinceMs ?? NaN)).toBe('10 minutes');
   });
 });

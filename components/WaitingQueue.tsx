@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { howLong } from '@/lib/when';
+import { howLongMs } from '@/lib/when';
 import { deskQueue } from '@/lib/desk';
 import type { PrApproval } from '@/lib/attention';
 import type { ActiveGraphApproval } from '@/lib/approvals';
@@ -35,8 +35,11 @@ export interface WaitingItem {
   title: string;
   /** The surface, and for a send the fact that it leaves the company. Never a repository name. */
   meta: string;
-  /** When it started waiting. Null when the studio does not know, which is not "just now". */
-  since: string | null;
+  /**
+   * How long it has waited, worked out on the server (FB-241) — this row renders in the browser,
+   * where the test clock does not exist. Null when the studio does not know, which is not "just now".
+   */
+  waitingMs: number | null;
   href: string;
   /**
    * The loudest thing the studio can say, and it must survive becoming a row (FB-183).
@@ -69,7 +72,8 @@ export const prWaitingItem = (a: PrApproval, ventureId: string, surface?: string
   // by (FB-099). The pull request's title otherwise — never a guess between.
   title: a.ticketTitle ?? a.title,
   meta: surface ?? 'Your venture',
-  since: a.createdAt,
+  // Aged by the desk page against the studio's one clock before it reaches here.
+  waitingMs: a.ageMs,
   href: `/venture/${ventureId}/work/${a.repo}/${a.number}`,
   external: false,
 });
@@ -112,7 +116,7 @@ export const externalWaitingItem = (a: ActiveGraphApproval, ventureId: string, s
   // A proposal carries no time of its own — it is a file a lane wrote, and `lib/approvals` says so
   // where it reads one. So the studio does not know how long this has waited, and the row says
   // "waiting on you" rather than inventing "a moment" for something that may have sat for weeks.
-  since: null,
+  waitingMs: null,
   href: `/venture/${ventureId}/approvals/${a.repo}/${a.id}`,
   external: true,
 });
@@ -168,7 +172,7 @@ export function WaitingQueue({ items, ventureId }: { items: WaitingItem[]; ventu
                 ) : null}
               </span>
               <span className="waiting-when">
-                {it.since && howLong(it.since) ? `waiting ${howLong(it.since)}` : 'waiting on you'} →
+                {it.waitingMs !== null && howLongMs(it.waitingMs) ? `waiting ${howLongMs(it.waitingMs)}` : 'waiting on you'} →
               </span>
             </Link>
           </li>

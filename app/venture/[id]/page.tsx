@@ -14,7 +14,8 @@ import { attachBudgetDisclosure, toSpends, type ActiveGraphApproval } from '@/li
 import { boardState, type VentureWiring } from '@/lib/firstrun';
 import { FirstRun, BoardUnreadable } from '@/components/FirstRun';
 import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
-import { engineState, type RunReport } from '@/lib/runreports';
+import { ageRuns, engineState, type RunReport } from '@/lib/runreports';
+import { ageMs, stampAgeMs } from '@/lib/when';
 import { buildOffice } from '@/lib/office';
 import { ventureApprovals, ventureRuns, type Runs } from '@/lib/venture-reads';
 import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
@@ -218,6 +219,12 @@ async function Desk({
   const now = new Date(defaultNow());
   const approvals = attachBudgetDisclosure(approvalsRead, envelopes, knownDepartments, now);
 
+  // FB-241: one clock for every time on the desk. The attention queue ages its pull requests when it
+  // reads them, against the real clock and possibly minutes ago from cache; the engine sentence uses
+  // `now` above. Under the pinned test clock those two said "10 minutes" and "79 days" about one
+  // venture. Re-aged here, against the same `now`, so every age on this page shares one instant.
+  const queue = attention.approvals.map((a) => ({ ...a, ageMs: Math.max(0, ageMs(a.createdAt, now.getTime()) ?? a.ageMs) }));
+
   // Both lists (FB-139): a run report is a check-in, and heartbeats are only written when a wake
   // finds nothing to work — so heartbeats alone read a busy machine as one that never started.
   const engine = engineState(runs.checkIns, now);
@@ -229,7 +236,8 @@ async function Desk({
   const office = buildOffice({
     departments: venture.departments,
     runs: runs.reports,
-    waiting: attention.approvals,
+    waiting: queue,
+    now: now.getTime(),
     engine,
   });
 
@@ -292,7 +300,7 @@ async function Desk({
     sendsAlreadyTried: sendsAlreadyTried(approvals),
     // The queue itself, not a count of it: the brief says how long the oldest has waited, and a
     // number cannot be asked that.
-    openWork: attention.approvals.map((a) => ({ ticketId: a.linkedTicketId, ageMs: a.ageMs })),
+    openWork: queue.map((a) => ({ ticketId: a.linkedTicketId, ageMs: a.ageMs })),
     runs: runs.reports,
     engine,
     ticketTitles,
@@ -335,7 +343,7 @@ async function Desk({
     sendsAlreadyTried: sendsAlreadyTried(approvals),
   };
   const oldestMs = attention.approvals.length
-    ? Math.max(...attention.approvals.map((a) => a.ageMs ?? 0))
+    ? Math.max(...queue.map((a) => a.ageMs ?? 0))
     : null;
   // Work the engine is actually on, not work that has been filed. A ticket sitting in `todo` is not
   // a team "on" anything, and saying so would be the most flattering possible reading of an idle
@@ -439,10 +447,10 @@ async function Desk({
       viewerIsFounder={
         !!venture.founderEmail && venture.founderEmail.toLowerCase() === email.toLowerCase()
       }
-      fetchedAt={data.fetchedAt}
+      fetchedAgeMs={stampAgeMs(data.fetchedAt)}
       org={org}
       brief={brief}
-      openWorkQueue={attention.approvals}
+      openWorkQueue={queue}
       summary={summarySentence}
       blocker={blocker}
       degraded={degraded}
@@ -451,7 +459,7 @@ async function Desk({
       // venture and nothing else — no host, no port, no secret of the box.
       officeSrc={officeSrc}
       officeSocket={officeSocket}
-      runs={runs.reports}
+      runs={ageRuns(runs.reports, now.getTime())}
       runsTotal={runs.total}
       engine={engine}
       office={office}

@@ -34,6 +34,7 @@
 
 import type { RunReport } from './runreports';
 import type { PrApproval } from './attention';
+import { ageMs, studioNow } from './when';
 
 /**
  * What one desk is doing.
@@ -52,8 +53,13 @@ export interface OfficeDesk {
   doing: string | null;
   /** The ticket it is on, when the report named one. */
   ticketId: string | null;
-  /** When it started, so the ledger can say how long. */
+  /** When it started. */
   since: string | null;
+  /**
+   * How long it has been going, worked out on the server (FB-241). The ledger renders in the
+   * browser, where the test clock does not exist, so it is handed the age rather than the time.
+   */
+  sinceMs: number | null;
   /** How many things this surface has waiting on the founder — the raised hand's reason. */
   waitingOnYou: number;
 }
@@ -74,6 +80,8 @@ export interface OfficeInput {
   waiting: readonly PrApproval[];
   /** `engineState`'s verdict on the machine. */
   engine: { state: 'running' | 'quiet' | 'stalled' | 'unknown'; text: string };
+  /** "Now", for how long each desk has been at it. The studio's one clock unless a test pins it. */
+  now?: number;
 }
 
 /**
@@ -107,6 +115,7 @@ function newestFor(runs: readonly RunReport[], repo: string | null): RunReport |
  * pretending to work.
  */
 export function buildOffice(input: OfficeInput): Office {
+  const now = input.now ?? studioNow();
   const live = input.engine.state === 'running' || input.engine.state === 'quiet';
 
   const desks: OfficeDesk[] = input.departments.map((d) => {
@@ -131,6 +140,7 @@ export function buildOffice(input: OfficeInput): Office {
       doing: state === 'working' ? firstLine(newest?.summaryMd) : null,
       ticketId: state === 'working' ? (newest?.ticketsTouched[0] ?? null) : null,
       since: state === 'working' ? (newest?.startedAt ?? null) : null,
+      sinceMs: state === 'working' ? ageMs(newest?.startedAt, now) : null,
       waitingOnYou,
     };
   });
