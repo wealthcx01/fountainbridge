@@ -18,6 +18,23 @@ test.describe('monthly budgets for temporary machines (FB-239)', () => {
     await expect(page.getByTestId('budget-propose-the-reset-amount')).toBeVisible();
   });
 
+  test('the page, drawn at desktop and phone size for the gallery, with its height', async ({ page }) => {
+    await testLogin(page, 'john.gallagher@wealthcx.com');
+    for (const [size, width, height] of [['desktop', 1440, 1000], ['phone', 393, 851]] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto('/admin/machine-budgets');
+      await expect(page.getByTestId('machine-budgets')).toBeVisible();
+      const m = await page.evaluate(() => ({
+        height: document.documentElement.scrollHeight,
+        sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }));
+      console.log(`[machine-budgets] ${size} ${width}x${height}: page height ${m.height}px, sideways ${m.sideways}px`);
+      // It must never scroll sideways on a phone (FB-153, FB-124).
+      expect(m.sideways).toBe(0);
+      await page.screenshot({ path: `e2e/__screenshots__/fb239-machine-budgets-${size}.png`, fullPage: true });
+    }
+  });
+
   test('a founder is told plainly that it is not for them', async ({ page }) => {
     await testLogin(page, 'arca.founder@bruntsfield.capital');
     await page.goto('/admin/machine-budgets');
