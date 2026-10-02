@@ -19,6 +19,7 @@
  */
 
 import type { PrCiStatus } from './attention';
+import { isPreviewAddress } from './preview-check';
 
 /** What kind of change this is, from the founder's point of view — not the file extension's. */
 export type ChangeKind = 'description' | 'writing' | 'knowledge' | 'code' | 'settings';
@@ -312,8 +313,10 @@ export function previewUrlFrom(
     const fromText = s.description?.match(APP_HOST)?.[1];
     if (fromText) return `https://${fromText}`;
     // A target_url that is the app rather than the provider's console (Vercel/Netlify's shape).
+    // Judged on the parsed hostname, not by searching the text: `http://169.254.169.254/?a.up.railway.app`
+    // contains a preview hostname and is not one (FB-184 review).
     const t = s.target_url;
-    if (t && !CONSOLE_HOSTS.test(t) && APP_HOST.test(t)) return t;
+    if (t && !CONSOLE_HOSTS.test(t) && isPreviewAddress(t)) return t;
   }
   return null;
 }

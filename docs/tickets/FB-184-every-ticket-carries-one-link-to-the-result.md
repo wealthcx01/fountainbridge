@@ -10,6 +10,7 @@
 > place, and that room becomes the record of why the code exists. Worth reading before designing the
 > link this ticket adds — the answer may be that the link points at a branch-shaped thing rather than a
 > pull request. We are not taking Buzz; we are taking the shape of its answer.
+
 **Shipped in part:** the line is on every ticket and the trail reads the same check. Still left: the `trace_url` field in bcap-contracts; the work page's and the attention queue's preview buttons, and the surface card's door, which still show a preview without opening it first; and the commit count in the Build line.
 
 ## What shipped, 2026-10-02
