@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { releasePlan } from '@/app/actions/release-plan';
 import { toneColor } from '@/lib/status';
+import { noteDecision } from '@/lib/decided';
 
 /**
  * The way out of the sensitive gate (FB-122).
@@ -55,7 +56,7 @@ export function ReleasePlanButton({
         disabled={pending}
         onClick={() => {
           startTransition(async () => {
-            setResult(await releasePlan(ventureId, repo, ticket));
+            setResult(noteDecision(await releasePlan(ventureId, repo, ticket)));
           });
         }}
       >

@@ -6,6 +6,7 @@ import { formatMoney } from '@/lib/budgets';
 import { toneColor } from '@/lib/status';
 import { approveExternalAction, refuseExternalAction } from '@/app/actions/approvals';
 import { Mark } from './Mark';
+import { noteDecision } from '@/lib/decided';
 
 // FB-046: the founder-grade approve card for an external action (E1). Plain-language summary + the
 // policy checks[] (a "policy engine clear / N failing" read) + Approve. The founder never touches
@@ -197,7 +198,7 @@ export function ApprovalCard({
                 //   proposalSha — the exact proposal these words were rendered from, so approving
                 //          something that changed underneath is refused rather than merely noticed
                 //          afterwards (FB-058).
-                setResult(await approveExternalAction(ventureId, approval.id, approval.repo, approval.proposalSha ?? undefined));
+                setResult(noteDecision(await approveExternalAction(ventureId, approval.id, approval.repo, approval.proposalSha ?? undefined)));
               })
             }
           >
@@ -258,9 +259,9 @@ export function ApprovalCard({
               disabled={pending || note.trim().length < 3}
               onClick={() =>
                 startTransition(async () => {
-                  setResult(await refuseExternalAction(
+                  setResult(noteDecision(await refuseExternalAction(
                     ventureId, approval.id, approval.repo, approval.proposalSha ?? undefined, note,
-                  ));
+                  )));
                 })
               }
             >

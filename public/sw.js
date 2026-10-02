@@ -16,7 +16,8 @@
  * ## Why it exists at all
  *
  * Installability. iOS will not add a site to the home screen as an app, and will not accept a push
- * subscription, without a registered service worker. That is the whole job today.
+ * subscription, without a registered service worker. Its only other job is to show the one push
+ * (at the bottom of this file) — and it caches nothing for that either.
  */
 
 const SHELL = 'foundry-shell-v1';
@@ -49,4 +50,48 @@ self.addEventListener('fetch', (event) => {
   if (!isShell) return;
 
   event.respondWith(caches.match(event.request).then((hit) => hit || fetch(event.request)));
+});
+
+/*
+ * The one push (FB-141): "a push the moment the founder becomes the blocker. Nothing else pushes."
+ *
+ * The server decides when; this only shows what it was sent. The words come from `pushMessage` and
+ * say which venture and how many, never what — a lock screen is read by whoever holds the phone.
+ * The tag means a second buzz for the same venture replaces the first instead of stacking.
+ */
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { /* an unreadable push still says something */ }
+  const title = typeof data.title === 'string' ? data.title : 'The studio needs you';
+  const url = typeof data.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//') ? data.url : '/';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: typeof data.body === 'string' ? data.body : 'Something is waiting on your decision.',
+    tag: typeof data.tag === 'string' ? data.tag : 'blocker',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { url },
+  }));
+});
+
+// Pressing it opens the queue, filtered to what waits on this founder — not the desk. An open studio
+// window is reused rather than a second one opened beside it.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const w of wins) {
+      if (new URL(w.url).origin === self.location.origin && 'navigate' in w) {
+        // `navigate` refuses a window this worker does not control (one opened before it
+        // installed). Then a new window is opened rather than the press doing nothing.
+        try {
+          await w.focus();
+          const landed = await w.navigate(url);
+          if (landed) return landed;
+        } catch { /* fall through to a new window */ }
+        break;
+      }
+    }
+    return self.clients.openWindow(url);
+  })());
 });

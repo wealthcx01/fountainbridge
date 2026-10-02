@@ -6,6 +6,8 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { loadRailData } from '@/lib/rail';
 import { Rail } from '@/components/Rail';
 import { VentureForbidden } from '@/components/VentureForbidden';
+import { PushSwitch } from '@/components/PushSwitch';
+import { pushPublicKey } from '@/lib/webpush';
 
 /**
  * The venture shell (FB-124).
@@ -94,6 +96,12 @@ export default async function VentureLayout({
       <div className="venture-pane">
         {asFounder ? <AsFounderStrip ventureName={venture.name} /> : null}
         {children}
+        {/* FB-141: asks once, after a decision, whether this phone may buzz. Draws nothing on first
+            load. The public half of the key only — it is public by design; the private half never
+            leaves the server. Suspense because it reads the URL's filter. */}
+        <Suspense fallback={null}>
+          <PushSwitch ventureId={venture.id} publicKey={pushPublicKey()} />
+        </Suspense>
       </div>
     </div>
   );
