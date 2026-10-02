@@ -1,4 +1,3 @@
-import { studioNow } from '@/lib/when';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
