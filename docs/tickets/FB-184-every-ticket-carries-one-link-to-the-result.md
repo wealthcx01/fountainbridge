@@ -1,6 +1,6 @@
 # FB-184 — every ticket carries one link to where you can see the result
 
-**Status:** Open · **Phase:** 3 · **Touches:** bcap-contracts · **Raised by:** Claude Design, 2026-09-02 ·
+**Status:** Shipped in part · **Phase:** 3 · **Touches:** bcap-contracts · **Raised by:** Claude Design, 2026-09-02 ·
 **Restated with exact copy, 2026-09-08 (R-04)**
 
 
@@ -10,6 +10,44 @@
 > place, and that room becomes the record of why the code exists. Worth reading before designing the
 > link this ticket adds — the answer may be that the link points at a branch-shaped thing rather than a
 > pull request. We are not taking Buzz; we are taking the shape of its answer.
+**Shipped in part:** the line is on every ticket and the trail reads the same check. Still left: the `trace_url` field in bcap-contracts; the work page's and the attention queue's preview buttons, and the surface card's door, which still show a preview without opening it first; and the commit count in the Build line.
+
+## What shipped, 2026-10-02
+
+**The line.** Every ticket now has one line, directly above "Your decision", in the design's weight
+and colour, saying where to see the result:
+
+- Build, preview opens: *"Follow it to the preview: running · see it ↗"*
+- Build, preview reported but it did not open: *"Follow it to the preview: it did not open when the
+  studio checked, because it is not answering"* (or "it opens a different site", "it keeps
+  redirecting", "it could not be reached"). No link.
+- Build, work but no preview: *"Follow it to the preview: none has been built for this work yet"*
+- Sell (any ticket with a send): *"Follow it to your outbox: sent · open it →"*, or "draft, not sent",
+  "tried, and it did not go", and so on. The link is the send's own page in the studio.
+- Scale: *"Follow it to the ad account: not connected yet"*. No link.
+- Nothing started: *"Nothing to follow yet"*
+
+**Every preview is opened before it is linked.** The studio follows the address, and links to it
+only if it lands on the same site with a working page. A sign-in page on the preview counts; a
+redirect to the live site does not, nor does a 404. This is the same judgement as
+`scripts/check-preview-link.mjs` (FB-243), from the same file, so the script and the studio cannot
+disagree. Each address is checked at most once every five minutes, and only for the ticket that is
+open. The UI gate never checks (it makes no live calls), so there every preview says "not checked
+yet" and has no link.
+
+**The trail reads the same check.** Its "A preview built and is running · see it running ↗" step now
+appears only when that same check says the preview opens.
+
+**Words changed from R-04.** The design says "Follow it to the VM: N commits · preview running".
+"VM" is jargon a founder should not need (CLAUDE.md #12), so it says "the preview". The commit count
+is left out, because the studio does not read it for open work yet.
+
+**Checked on real previews.** Through the studio's own code: ARCA's pull request 92 preview
+(`arca-arca-pr-92.up.railway.app`, merged and torn down) gives no link, "it is not answering". This
+studio's own pull request 335 preview opens (it redirects to its own sign-in page) and gets a link.
+ARCA's three open pull requests were all opened before FB-230 fixed preview builds, so none has a
+preview; their tickets correctly say "none has been built for this work yet".
+
 ## What was asked for
 
 > "That's the trail's terminal hop, made a first-class field. Every ticket carries one resolvable
@@ -67,8 +105,11 @@ rule the surface cards already follow.
 
 ## Acceptance criteria
 
-- [ ] A Build ticket whose work is deployed links to the running preview.
-- [ ] A Sell ticket whose send went out links to that send.
-- [ ] A Scale ticket says "not connected yet" and renders no link.
+- [x] A Build ticket whose work is deployed links to the running preview.
+      *(Only after the preview is opened and found working. Proven on a live Railway preview through
+      the studio's own check; no ARCA ticket has a live preview today to show it on screen.)*
+- [x] A Sell ticket whose send went out links to that send.
+      *(Unit-tested on ARCA's real shape: sends proposed from the Build repository, naming Sell.)*
+- [x] A Scale ticket says "not connected yet" and renders no link.
 - [ ] No `trace_url` is rendered as a link without being resolvable.
 - [ ] The trail, the ticket detail and the surface card all read the same field.

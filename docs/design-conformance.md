@@ -677,3 +677,16 @@ on the right — with twelve rows, most of them two lines because ARCA's sentenc
 design's. The design's phone view is a separate prototype ("the pocket studio"), so the phone reading
 was looked at on its own: one column, nothing cut off, no sideways scroll. Sends on this page now
 read "Sell — Go-to-market", not "Build — Product".
+
+## FB-184 — "Follow it to…" on a ticket, 2026-10-02
+
+Read on ARCA's real data as its founder, on a local build of this branch, beside the Claude Design
+artifact's Tickets screen (1,090px, rendered from the artifact's saved page). ARCA-069 open:
+**1,279px** at 1440×1000 and **1,968px** at 393×851; Tickets with no ticket opened: 1,209px and
+1,474px. On the UI gate's fixtures, ARCA-1: 1,322px and 1,747px, the same as before this change.
+
+Looked at as pictures. The new line sits where the design puts it, directly above "Your decision",
+in bold accent text. The design's line reads "Follow it to the VM: 3 commits · preview running ↗";
+ours says "the preview" instead of "the VM", leaves the commit count out, and on ARCA today says
+"none has been built for this work yet", because ARCA's three open pull requests predate working
+previews. The link half was checked on live previews rather than seen on ARCA's screen.
