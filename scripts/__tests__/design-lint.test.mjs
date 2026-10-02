@@ -149,6 +149,19 @@ describe('a token must exist before it is used (FB-150)', () => {
     expect([...more].sort()).toEqual(['--bar-width', '--font-inter']);
   });
 
+  it('does not count a token named only inside a comment as defined', () => {
+    // Found in review: a comment such as this one would have defined --color-rule for every file.
+    const text = [
+      '// the old --color-rule: was never defined',
+      '/* --color-surface: was the other one',
+      '   --color-ghost: too */',
+      '{/* --color-jsx: in a JSX comment */}',
+      ':root { --color-real: #fff; }',
+      "const u = 'https://example.com'; --after-url: 1px;",
+    ].join('\n');
+    expect([...definedProperties(text)].sort()).toEqual(['--after-url', '--color-real']);
+  });
+
   it('does not run when it is not told what is defined, so the other rules can be tested alone', () => {
     expect(lintText(`<p style={{ color: 'var(--color-rule)' }} />`, 'components/X.tsx')).toEqual([]);
   });

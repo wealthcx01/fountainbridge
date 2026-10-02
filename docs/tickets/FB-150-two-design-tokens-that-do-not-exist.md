@@ -61,3 +61,18 @@ Found by the `/review` pass on FB-128 (PR #163), which fixed the one instance it
 
 One limit: a name built while the page runs, like `var(--tone-${tone})` in `lib/status.ts`, cannot
 be checked from the text, so the rule skips it. That file's own test covers every tone it makes.
+
+After review: the rule no longer counts a token that is only named in a comment as defined. A comment
+such as `// the old --color-rule: was never defined` used to define it for every file. A unit test
+holds that.
+
+### Compared with the design, after review
+
+The composer and a piece of work were drawn on ARCA's real data, as its founder, beside the Claude
+Design artifact, at 1440×1000 and 393×851. The text box's border is back and looks like the
+design's box. One difference: the design draws that line darker, with `--color-border-strong`, while
+this ticket uses `--color-border`, as its scope says. Changing it is a look change, so it is a
+follow-up, not part of this ticket. The composer's draft and plan states could only be drawn on
+fixtures, because they need the conversation service that runs on the venture's box. The full
+reading is in `docs/design-conformance.md`.
+

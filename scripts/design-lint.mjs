@@ -114,10 +114,22 @@ const FONT_VARIABLE = /\bvariable\s*:\s*['"](--[A-Za-z0-9_-]+)['"]/g;
  */
 export function definedProperties(text) {
   const out = new Set();
+  const code = withoutComments(text);
   for (const re of [PROPERTY_DEFINITION, FONT_VARIABLE]) {
-    for (const m of text.matchAll(re)) out.add(m[1]);
+    for (const m of code.matchAll(re)) out.add(m[1]);
   }
   return out;
+}
+
+/**
+ * The text with its comments taken out. A comment that mentions a token (`the old --color-rule:
+ * was never defined`) does not define it, and counting it would hide a real use of that token in
+ * every other file. Block comments may span lines. A `//` straight after a `:` is a web address,
+ * not a comment.
+ * @param {string} text
+ */
+function withoutComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(?<!:)\/\/.*$/gm, '');
 }
 
 /** Strip the things that legitimately contain hex/px so they do not produce false positives. */
