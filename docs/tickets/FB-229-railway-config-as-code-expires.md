@@ -25,6 +25,9 @@ nothing on Railway, because Railway never reads `.railway/railway.ts` by itself.
   `railway.json` overrides them at every deploy. So if `railway.json` simply stopped being read on
   2026-12-01, the studio would lose its health check and restart policy without anyone changing
   anything. That is the outage this ticket exists to prevent.
+- **Applying the file is a deploy, and only John does it.** Staging first, production after, each
+  with a recorded approval (non-negotiable 4). `docs/deploy.md` and the file's own header say so, so
+  an agent following the runbook stops before `apply`.
 - **Production has twelve more variables than staging.** Planned against this PR's own preview, which
   Railway copies from production, a staging-only list would have deleted twelve of them, the GitHub App
   key and the approval secret among them. The `env` list now names all twenty, and the same plan
@@ -64,6 +67,10 @@ anyone watching the deploy.
 
 - `railway config migrate`, then read what it produced rather than trusting it. The output is
   `.railway/railway.ts` — TypeScript, so it is checked by the same typecheck the rest of the repo runs.
+  *(Not true as shipped, found in review: the repo's typecheck does not cover `.railway/`, because
+  the `railway` package it imports is not installed here. `lib/railway-config.test.ts` checks every
+  setting by its value, so the five settings are safe, but a misspelt extra field would not be
+  caught. `railway config plan` is what reads the file against Railway's own types.)*
 - Confirm every value survived: builder, start command, health-check path **and timeout**, restart policy
   and its retry count.
 - Deploy to **staging** and watch it, before production. The studio has a staging environment and this is

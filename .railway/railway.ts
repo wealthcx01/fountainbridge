@@ -8,6 +8,9 @@
 // Railway does NOT read this file when it deploys. It only takes effect when someone runs
 // `railway config apply` against an environment. Until that has been done for staging and production,
 // railway.json is still what Railway uses, and it must not be deleted. docs/deploy.md has the steps.
+//
+// Running `railway config apply` is a deploy. Only John runs it: staging first, production after,
+// each with a recorded approval. Nobody else applies this file, however clean the plan looks.
 import { defineRailway, github, preserve, project, service } from 'railway/iac';
 
 // The studio is the only service in this file. `partial` tells Railway to manage only what is
@@ -19,10 +22,12 @@ export default defineRailway(() => {
     // Where the code comes from. Leave this out and `railway config apply` disconnects the
     // service from GitHub.
     source: github('wealthcx01/fountainbridge', { branch: 'main' }),
-    // The studio's settings and keys. Every one is `preserve()`: this file names them so that
-    // `apply` keeps them, and never holds a value. A name missing from this list is DELETED from the
-    // environment by `apply`, which would sign everyone out or stop the studio starting. So always
-    // run `railway config plan` first and stop if it says anything will be destroyed.
+    // The studio's settings and keys. Keep them all here under `env`; do not also add a
+    // `variables` list (Railway merges the two, and the test checks both). Every one is
+    // `preserve()`: this file names them so that `apply` keeps them, and never holds a value. A
+    // name missing from this list is DELETED from the environment by `apply`, which would sign
+    // everyone out or stop the studio starting. So always run `railway config plan` first and stop
+    // if it says anything will be destroyed.
     //
     // The list is every variable on staging and on a preview forked from production, read on
     // 2026-10-02. Staging has only the first eight of these.

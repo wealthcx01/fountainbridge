@@ -53,6 +53,16 @@ function loadIacFile(): { partial: unknown; project: { name: string; resources: 
   return { partial: mod.exports.partial, project: program() };
 }
 
+// Railway's service() takes variables under two keys, `env` and `variables`, and merges them. A value
+// written under either one is applied, so both are read here.
+function variableEntries(): [string, unknown][] {
+  const studio = studioService();
+  return [
+    ...Object.entries((studio.variables ?? {}) as Plain),
+    ...Object.entries((studio.env ?? {}) as Plain),
+  ];
+}
+
 function studioService(): Plain {
   const { project } = loadIacFile();
   const studio = project.resources.find((r) => r.name === 'foundry-studio');
@@ -106,9 +116,10 @@ describe('.railway/railway.ts keeps the studio deploy settings (FB-229)', () => 
 
   it('never holds a variable value: every variable is preserve()', () => {
     // A value in this file would be a secret in a public repository (non-negotiable 8).
-    const env = (studioService().env ?? {}) as Plain;
-    expect(Object.keys(env).length).toBeGreaterThan(0);
-    for (const [name, value] of Object.entries(env)) {
+    // Both `env` and `variables` are read: Railway applies a value written under either.
+    const entries = variableEntries();
+    expect(entries.length).toBeGreaterThan(0);
+    for (const [name, value] of entries) {
       expect(value, `${name} must be preserve(), not a value`).toEqual({ type: 'preserve' });
     }
   });
@@ -124,7 +135,7 @@ describe('.railway/railway.ts keeps the studio deploy settings (FB-229)', () => 
       'GOOGLE_CLIENT_SECRET', 'NIXPACKS_NODE_VERSION', 'OFFICE_HOST_ARCA', 'OFFICE_SECRET_ARCA',
       'STUDIO_ADMIN_EMAILS', 'STUDIO_APPROVAL_GITHUB_TOKEN', 'STUDIO_PASSWORD_LOGINS',
     ];
-    const declared = Object.keys((studioService().env ?? {}) as Plain);
+    const declared = variableEntries().map(([name]) => name);
     for (const name of known) expect(declared, `${name} would be deleted by apply`).toContain(name);
   });
 

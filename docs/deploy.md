@@ -38,6 +38,16 @@ it": applied to staging, that draft would have deleted all eight variables (the 
 them) and disconnected the service from GitHub. The file in the repo was written by hand to avoid all
 of that. Do not regenerate it with `migrate`.
 
+**Who applies it: John, and only John.** Running `railway config apply` is a deploy. It changes how
+Railway builds, starts and restarts the studio, so it is an external action under non-negotiable 4,
+not a code change. A lane agent, a review pass, or anyone else following this page must stop here and
+ask John. Do not run `apply` because a plan came back clean, because CI is green, or because this
+pull request merged. John applies to **staging first**, watches that deploy go green, and only then
+applies to **production**. The approval for each environment is recorded before that environment is
+applied.
+
+Anyone may run steps 1 and 2 (`link` and `plan`): they only read. Step 3 onwards is John's.
+
 **Steps, in order. Staging first, then production, never in the same sitting as another deploy change.**
 
 1. `railway link -p foundry-studio -e staging -s foundry-studio` (this only changes which environment
@@ -46,9 +56,11 @@ of that. Do not regenerate it with `migrate`.
    should show are the five settings moving in. If it lists any variable to delete, add that name to
    the `env` list in `.railway/railway.ts` as `preserve()` and plan again. Do not apply a plan that
    destroys anything.
-3. `railway config apply`. Then watch the next staging deploy: it must go green, and the deploy's
+3. **John only, with the approval recorded:** `railway config apply`. Then watch the next staging deploy: it must go green, and the deploy's
    settings in the Railway console must show the health check at `/api/health`.
-4. Repeat steps 1 to 3 with `-e production`.
+4. Only after staging has deployed green from the new file: John repeats steps 1 to 3 with
+   `-e production`, again with its own recorded approval. Plan against production itself first; a
+   clean plan on staging or on a preview does not count.
 5. Only then delete `railway.json`, in its own pull request.
 
 **From then on:** any new variable set on Railway must also be added to the `env` list in
