@@ -9,6 +9,9 @@ secrets/
 
 # Node / Next.js (arrives FB-005)
 node_modules/
+# The Railway SDK, linked in only while running `railway config plan` (FB-229, docs/deploy.md).
+# No trailing slash: it is usually a symlink, and `node_modules/` matches only real folders.
+.railway/node_modules
 .next/
 out/
 build/
