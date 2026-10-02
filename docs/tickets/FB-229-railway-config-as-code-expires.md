@@ -1,7 +1,33 @@
 # FB-229 — `railway.json` stops working on 2026-12-01
 
-**Status:** filed · **Phase:** 3 · **Found by:** the Railway CLI warning while reading the account for
-FB-228, 2026-09-29 · One ticket = one branch = one PR.
+**Status:** Shipped in part — the new file is written and tested; Railway has not been switched to it ·
+**Phase:** 3 · **Found by:** the Railway CLI warning while reading the account for FB-228, 2026-09-29 ·
+**Branch:** `fb-229-railway-iac` · One ticket = one branch = one PR.
+
+**Shipped in part:** `railway config apply` still has to be run on staging and then production, each
+deploy watched, and `railway.json` deleted afterwards in its own pull request. Merging this changes
+nothing on Railway, because Railway never reads `.railway/railway.ts` by itself.
+
+## What was found doing it (2026-10-02)
+
+- **Railway does not read the new file when it deploys.** It takes effect only when a person runs
+  `railway config apply` against an environment. So "merge, then watch staging deploy from it" is not
+  possible: a merge leaves `railway.json` in charge until someone applies.
+- **The migration tool's draft was wrong in two ways.** It dropped the builder (left as a comment) and
+  the restart policy (gone entirely). And it left out the GitHub source and the variables, which
+  Railway reads as "delete them": `railway config plan` against staging showed it would delete all
+  eight variables, the sign-in keys among them, and disconnect the service from GitHub.
+- **The file in this PR was written by hand** and planned against staging (read only, nothing
+  applied): **0 to add, 2 to change, 0 to destroy**, and the only changes are the five settings
+  moving in from `railway.json`.
+- **The settings stored in Railway itself are not the ones in `railway.json`.** Staging's own service
+  settings say builder Railpack with no start command, no health check and no restart policy;
+  `railway.json` overrides them at every deploy. So if `railway.json` simply stopped being read on
+  2026-12-01, the studio would lose its health check and restart policy without anyone changing
+  anything. That is the outage this ticket exists to prevent.
+- **Production's variables may differ from staging's.** The `env` list names the variables that exist
+  on staging and on the production-forked preview of this PR. Before applying to production, plan
+  against it and stop if anything would be destroyed. `docs/deploy.md` has the steps.
 
 ## The fact
 
@@ -52,13 +78,16 @@ anyone watching the deploy.
 
 ## Acceptance criteria
 
-- [ ] `.railway/railway.ts` exists and every value from `railway.json` is present in it, checked
-      field by field rather than assumed from the migration's output.
+- [x] `.railway/railway.ts` exists and every value from `railway.json` is present in it, checked
+      field by field rather than assumed from the migration's output. (`lib/railway-config.test.ts`
+      checks each one by name and fails if either file drifts from the other.)
 - [ ] A staging deploy succeeds from the new configuration, and the health check is confirmed to be
-      running at `/api/health` rather than assumed.
-- [ ] `railway.json` is deleted, and only after that.
-- [ ] No deploy setting changed in the same PR.
+      running at `/api/health` rather than assumed. (Not done: it needs `railway config apply` on
+      staging, which changes Railway settings and is John's call. The plan against staging is clean.)
+- [ ] `railway.json` is deleted, and only after that. (Correctly not done: nothing has applied yet.)
+- [x] No deploy setting changed in the same PR.
 - [ ] Done before 2026-12-01, and not in the same week as anything else that touches deployment.
+      (The apply is what has to happen before 2026-12-01.)
 
 ## Verification
 
