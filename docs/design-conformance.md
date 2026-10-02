@@ -884,3 +884,18 @@ fixture data: the composer is **1,000px** at 1440×1000 and **1,169px** at 393×
 nothing scrolls sideways. A browser test (`e2e/voice.spec.ts`) now draws the record button in the UI
 gate, using the test transcriber. The hosted design artifact was not opened: it needs a signed-in
 claude.ai session, and this review had none. Its composer has no record button to compare against.
+
+## FB-150 — the text boxes get their border back, 2026-10-02
+
+Read on a local build with the UI gate's fixture data, not production, before and after the change,
+at 1440×1000 and 393×851. Before: the composer's text box had no border and no background of its
+own — an unmarked strip on the page. After: it has the studio's 1px border and its raised paper
+background, like the cards beside it. The same fix gives a border back to the folded-away ticket
+draft, the lines of the plan panel, and the full record on a piece of work.
+
+Heights after (before in brackets): composer, empty, **1,000px** (1,000) at desktop and **1,284px**
+(1,282) on a phone; composer with the draft open **1,295px** (1,291) and **2,391px** (2,387); composer
+with a plan **1,227px** (1,225) and **2,546px** (2,539); a piece of work with its record open
+**2,136px** (2,134) and **4,179px** (4,177). Each grows by its new borders and nothing else. The
+hosted design artifact was not opened for this reading: the change restores what the components
+already asked for and changes no layout, and the ticket rules a different look out of scope.
