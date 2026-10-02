@@ -1,8 +1,13 @@
 /**
  * Generic markdown-content loader (FB-016). Reads a `content/<dir>/*.md` folder — frontmatter
- * (slug/title/order/summary) + body — into ordered sections. Used by the Foundry story pages and
+ * (section/title/order/summary) + body — into ordered sections. Used by the Foundry story pages and
  * (via lib/playbook) the playbook. Server-only. Tolerant of a partial/malformed file: it's skipped,
  * never fatal.
+ *
+ * Each file names itself with `section:`, not `slug:`. gbrain treats a `slug:` line as the page's
+ * name in the brain and refuses a file whose `slug:` disagrees with its path, and one refused file
+ * stops the whole brain update (FB-250). The value still becomes `slug` below, which is what pages
+ * use for links and test ids.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -36,10 +41,10 @@ export function loadContentSections(dir: string): ContentSection[] {
   for (const file of files) {
     try {
       const { data, body } = parseFrontmatter(readFileSync(join(dir, file), 'utf8'));
-      if (typeof data.slug !== 'string' || !data.slug) continue;
+      if (typeof data.section !== 'string' || !data.section) continue;
       sections.push({
-        slug: data.slug,
-        title: typeof data.title === 'string' ? data.title : data.slug,
+        slug: data.section,
+        title: typeof data.title === 'string' ? data.title : data.section,
         order: typeof data.order === 'number' ? data.order : 999,
         summary: typeof data.summary === 'string' ? data.summary : '',
         body: body.trim(),

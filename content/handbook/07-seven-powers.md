@@ -1,5 +1,5 @@
 ---
-slug: seven-powers
+section: seven-powers
 chapter: 7
 title: The 7 Powers
 order: 7

@@ -1,5 +1,5 @@
 ---
-slug: tickets
+section: tickets
 title: Tickets, branches, PRs
 order: 2
 summary: The unit of work — and why an agent never merges its own change.

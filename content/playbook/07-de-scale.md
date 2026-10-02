@@ -1,5 +1,5 @@
 ---
-slug: de-scale
+section: de-scale
 title: DE · How do you scale your business?
 order: 7
 summary: Step 24 — a product plan that expands from a won beachhead, not before it.

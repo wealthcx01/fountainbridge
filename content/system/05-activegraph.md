@@ -1,5 +1,5 @@
 ---
-slug: activegraph
+section: activegraph
 title: ActiveGraph
 order: 5
 summary: The gate every external action stops at — nothing leaves the building without a recorded yes.

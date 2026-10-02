@@ -1,5 +1,5 @@
 ---
-slug: using-your-studio
+section: using-your-studio
 chapter: 9
 title: Using Your Studio
 order: 9

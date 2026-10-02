@@ -1,5 +1,5 @@
 ---
-slug: approval-matrix
+section: approval-matrix
 title: The approval matrix
 order: 6
 summary: Who has to say yes to what — routed to you through the attention queue.

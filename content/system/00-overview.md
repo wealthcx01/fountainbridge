@@ -1,5 +1,5 @@
 ---
-slug: overview
+section: overview
 title: How a Foundry venture gets built
 order: 0
 summary: The machinery behind the studio — and the human gates on top of it.

@@ -1,5 +1,5 @@
 ---
-slug: what-foundry-is
+section: what-foundry-is
 title: What Foundry is
 order: 1
 summary: The co-creation model in plain terms.

@@ -1,5 +1,5 @@
 ---
-slug: why
+section: why
 title: Why founders choose it
 order: 2
 summary: The value, as a founder feels it.

@@ -1,5 +1,5 @@
 ---
-slug: seven-powers
+section: seven-powers
 title: The seven powers, in depth
 order: 9
 summary: Helmer's 7 Powers — each as Benefit × Barrier, when it's buildable, and how a venture earns it.

@@ -1,5 +1,5 @@
 ---
-slug: de-acquire
+section: de-acquire
 title: DE · How does your customer acquire your product?
 order: 4
 summary: Steps 12–14 — the decision unit, the real buying process, and the market beyond.

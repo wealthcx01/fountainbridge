@@ -1,5 +1,5 @@
 ---
-slug: bruntsfield-playbook
+section: bruntsfield-playbook
 chapter: 8
 title: The Bruntsfield Playbook
 order: 8

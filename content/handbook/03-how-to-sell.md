@@ -1,5 +1,5 @@
 ---
-slug: how-to-sell
+section: how-to-sell
 chapter: 3
 title: How to Sell
 order: 3

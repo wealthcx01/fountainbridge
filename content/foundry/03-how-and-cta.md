@@ -1,5 +1,5 @@
 ---
-slug: how-and-cta
+section: how-and-cta
 title: How it runs
 order: 3
 summary: A one-line teaser into the mechanics, and the way in.

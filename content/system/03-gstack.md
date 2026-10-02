@@ -1,5 +1,5 @@
 ---
-slug: gstack
+section: gstack
 title: gstack
 order: 3
 summary: The shared skill and workflow pack the lanes run on — plan, review, ship.
