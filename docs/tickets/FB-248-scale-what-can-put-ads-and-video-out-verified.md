@@ -1,7 +1,9 @@
 # FB-248 — Scale: what can put ads, copy and video out to social networks, verified
 
-**Status:** Ruled — Meta first · **Phase:** 4 · **Raised by:** John, 2026-10-01 ·
+**Status:** Shipped in part — Meta reporting built, not connected · **Phase:** 4 · **Raised by:** John, 2026-10-01 ·
 **Extends:** `docs/research-gtm.md` (ratified) · One ticket = one branch = one PR.
+
+**Shipped in part:** the read-only Meta reporting page is built and tested against Meta's own data shape, but it is not connected to anything — ARCA has no Meta ad account yet. Still to do: connect a real account and check its data against the shape built here, and the gated path for starting a campaign (after FB-171).
 
 ## The question
 
@@ -157,3 +159,62 @@ the plumbing can be built now; **spend waits for a product.**
 **Worth checking first:** FB-171 found that the approval gate is named after ActiveGraph while
 ActiveGraph is not what is running. Meta is the first integration that can spend money, so the gate it
 sits behind should be verified as real before it is trusted with a budget.
+
+
+## What was built (FB-248, read-only slice, 2026-10-02)
+
+**What happened.** The first half of the ruling — read first — is built. ARCA's Scale surface now
+says "Meta ads · not connected yet" on the desk, with a link to a new page, **Your ads on Meta**
+(`/venture/arca/ads`). The page says what is running, what it cost and what it brought back.
+
+**What it means.** There is no Meta ad account for ARCA, so the page cannot show ARCA's ads. It says
+so first, in the attention colour: *"Not connected. ARCA has no Meta ad account yet, so nothing on this
+page is ARCA's."* Below that is an example inside a dashed frame headed *"Example · made-up figures,
+not ARCA's"*, so a founder can see what connecting it would give them. Nothing on the page can start,
+change or pay for an ad.
+
+**How it is built.**
+
+- `ventures/arca.yaml` — Scale now declares `connectors: [meta-ads]`. That records John's ruling as
+  ARCA's setup. It connects nothing.
+- `lib/meta-ads.ts` — reads Meta's reporting into what a founder reads. The input is Meta's Marketing
+  API shape, which its connector reports from: spend as a decimal string, budgets in pence as strings,
+  results inside an `actions` list, every list paged. The rules it keeps:
+  money is read as text into whole pence, never through a floating-point number; a lead is counted
+  once (Meta reports `lead` and also its parts, and adding them would double it); results of
+  different kinds are never added together; a spend it cannot read is named and left out of the total,
+  never counted as nothing; and if Meta had more to report than was read, the page says the totals
+  are only part of the account.
+- `lib/meta-ads-example.json` — the example: six campaigns plus one deleted after it spent, covering
+  running, paused, ended, waiting for Meta's review, and flagged by Meta.
+- **There is no "connected" state in the code yet.** Adding one before a real account has ever been
+  read would be a state nobody has seen.
+
+**Not built, on purpose.** Any write or spend path. That waits for FB-171 to confirm the approval gate
+is real.
+
+### Acceptance criteria for this slice
+
+- [x] A reporting read model over Meta's own reporting shape: what is running, what it cost, what it returned.
+- [x] A Scale-surface view of it, reached from the desk's Scale column.
+- [x] The screen says plainly, first, that it is not connected and that nothing on it is the venture's.
+- [x] No write or spend path anywhere.
+- [ ] Connected to a real Meta ad account and checked against what the connector actually returns. **Needs John** (see below).
+- [ ] Campaign proposals behind the gate. Waits for FB-171.
+
+### What John needs to do to connect it
+
+1. Create a **Meta Business portfolio** (business.facebook.com) for ARCA, owned by a Bruntsfield
+   account, not a personal one.
+2. In it, create an **ad account** for ARCA, set to **GBP** and **Europe/London**, and add a payment
+   method. (Nothing spends without a campaign; the payment method is needed for the account to exist.)
+3. Create or connect a **Facebook Page** for ARCA. Meta will not run ads without one; an Instagram
+   account is optional.
+4. Decide **who signs in to Meta's connector.** It uses Meta Business sign-in (OAuth), and the studio
+   should hold only a **read** grant (the `ads_read` permission) on ARCA's ad account. The permission
+   to change ads (`ads_management`) must never be given to the studio or to the team; it belongs to
+   the gated executor, later.
+5. Tell us the **ad account id** (it looks like `act_` followed by numbers). It is not a secret, and
+   it goes in ARCA's setup. The sign-in grant itself is a secret and lives on the studio's deployment,
+   never in this repository.
+6. Still open from the ruling: **the largest daily budget a founder may approve alone.**

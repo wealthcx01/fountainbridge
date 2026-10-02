@@ -24,6 +24,7 @@ import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue
 import { PromptBar } from './PromptBar';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
+import { META_ADS_CONNECTOR } from '@/lib/meta-ads';
 import { sendSurface, sendsWaitingOnFounder } from '@/lib/needs-you';
 import { EngineActivity } from './EngineActivity';
 import { WhileWorking } from './WhileWorking';
@@ -635,6 +636,7 @@ export function VentureBoard({
                         provisioned: d.provisioned,
                         // FB-142: from the sends this venture has already gated. No new read.
                         lastSend: d.id === 'sell' ? lastSend(approvals) : null,
+                        connectors: d.connectors,
                       })}
                       {/* Policy belongs in the handbook; this one is not policy, it is a caution
                           that nothing can leave the company while the gate is unsettled. */}
@@ -717,6 +719,15 @@ export function VentureBoard({
                     <a href={outbox} target="_blank" rel="noopener noreferrer" data-testid="sell-outbox">
                       Open your outbox ↗
                     </a>
+                  ) : null}
+                  {/* FB-248: the surface's ads, read-only. Only where the venture's setup declares
+                      Meta for this surface — venture-as-config, never keyed on the id `scale`. It
+                      opens even before the surface is set up: the page's first line says plainly that
+                      nothing is connected, which is the answer a founder pressing it needs. */}
+                  {d.connectors.includes(META_ADS_CONNECTOR) ? (
+                    <Link href={`/venture/${venture.id}/ads`} data-testid={`dept-${d.id}-ads`}>
+                      your ads on Meta →
+                    </Link>
                   ) : null}
                   {/* FB-213: to THIS surface's queue. All three of these linked `/tickets` with no
                       filter, so Build, Sell and Scale landed on the same screen and a founder

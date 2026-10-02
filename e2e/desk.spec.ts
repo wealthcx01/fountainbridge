@@ -227,10 +227,25 @@ test.describe('the desk', () => {
   });
 
   test('Scale says it is not connected, and counts what waits on it', async ({ page }) => {
+    // FB-248: ARCA declares Meta for Scale, so the platform is no longer "tbd" — but no ad account
+    // is linked, so "not connected" is still the truth and is still said.
     const scale = page.getByTestId('dept-scale-outcome');
-    await expect(scale).toContainText('Not connected · platform tbd');
+    await expect(scale).toContainText('Meta ads · not connected yet');
     // No invented number: whatever it says is a count of real tickets.
     await expect(scale).toContainText(/(\d+ tickets? waiting on it|No tickets yet)/);
+  });
+
+  test('Scale opens the ads page, which says it is not connected before it shows anything', async ({ page }) => {
+    // FB-248. The page shows a made-up example so a founder can see what connecting would give
+    // them. The one unforgivable version of it is sample money read as theirs, so the "not
+    // connected" line and the example's own label are both asserted, and nothing on it can spend.
+    await page.getByTestId('dept-scale-ads').click();
+    await page.waitForURL(/\/venture\/arca\/ads$/);
+    await expect(page.getByTestId('ads-not-connected')).toContainText('Not connected');
+    await expect(page.getByTestId('ads-example')).toContainText('made-up figures');
+    await expect(page.getByTestId('ads-total-spend')).toHaveText('£1,149.89');
+    await expect(page.getByTestId('ads-read-only')).toContainText('It only reads');
+    await expect(page.getByTestId('ads-example').locator('button, form, input')).toHaveCount(0);
   });
 
   test('Sell says what went out, and never a number it does not have', async ({ page }) => {

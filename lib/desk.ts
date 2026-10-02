@@ -21,6 +21,7 @@
 
 import { formatMoney, periodLabel, type Period } from './budgets';
 import { sellOutcome, type Send } from './sends';
+import { META_ADS_CONNECTOR } from './meta-ads';
 
 /** Finished work waiting to be read, plus external actions proposed and waiting on a human. */
 export interface WaitingInput {
@@ -252,6 +253,12 @@ export interface SurfaceOutcomeInput {
    * never sent anything says so rather than reading as a surface that reports nothing.
    */
   lastSend?: Send | null;
+  /**
+   * Connectors the surface declares (FB-248). Declaring `meta-ads` settles the platform question
+   * for that venture, so its line stops saying "platform tbd" — and says "not connected" instead,
+   * because no ad account is linked yet and the studio cannot read one.
+   */
+  connectors?: string[];
 }
 
 /**
@@ -273,6 +280,7 @@ export function surfaceOutcome(input: SurfaceOutcomeInput): string {
 
   if (input.hasLaunch) return `${tickets} · preview of the app running from the venture machine.`;
   if (!input.provisioned) return `Not set up yet. ${tickets} waiting on it.`;
+  if (input.connectors?.includes(META_ADS_CONNECTOR)) return `Meta ads · not connected yet. ${tickets} waiting on it.`;
   if (input.departmentId === 'scale') return `Not connected · platform tbd. ${tickets} waiting on it.`;
 
   // FB-142: Sell is no longer silent. The studio holds every send it gated, so it can say what went

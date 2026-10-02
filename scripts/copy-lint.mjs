@@ -248,6 +248,7 @@ export const COPY_MODULES = [
   'lib/composer.ts',
   'lib/firstrun.ts',
   'lib/glossary.ts',
+  'lib/meta-ads.ts', // FB-248: the ads page's statuses and caveats are written here
   'lib/provenance.ts',
   'lib/read-failures.ts',
   'lib/runreports.ts',

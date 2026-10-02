@@ -1,6 +1,6 @@
 # Decision memo — what Scale connects to
 
-**Status:** Open. Needs John. · **Blocks:** G3, and the Scale surface on the desk.
+**Status:** Decided by John, 2026-10-01: **Meta first** (FB-248). Declared per venture as the `meta-ads` connector; ARCA declares it. · **Blocks:** G3, and the Scale surface on the desk.
 **Written:** 2026-08-27, from the desk redesign's gap paper (`docs/design/foundry-desk/Backend Gaps.dc.html`).
 
 No ticket exists for this and none should until it is decided. The design already tells the truth

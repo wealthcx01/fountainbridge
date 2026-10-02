@@ -1438,3 +1438,62 @@ body:has(.rail) .main {
 .box-scan > li:first-child { border-top: 0; }
 .box-scan-findings { margin: 0.25rem 0 0 1rem; padding: 0; list-style: none; font-size: var(--fs-meta-lg); }
 .box-scan-findings code { overflow-wrap: anywhere; word-break: break-word; }
+
+/* FB-248 — Scale: the venture's ads on Meta, read-only.
+   The example sits inside a dashed frame: a solid card reads as the founder's own figures, and these
+   are made up. The frame is the second of two signals; the words above it are the first. */
+.ads-example {
+  margin-top: 1.25rem;
+  border: 1px dashed var(--color-border-strong);
+  padding: 1rem 1.25rem 0.5rem;
+}
+.ads-example-label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  margin: 0 0 0.9rem;
+}
+.ads-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+.ads-figure p { margin: 0; }
+.ads-figure-label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+.ads-figure-value { font-family: var(--font-serif); font-size: var(--fs-section); margin-top: 0.2rem !important; }
+.ads-figure-value-text { font-size: var(--fs-body); line-height: 1.4; padding-top: 0.25rem; }
+.ads-figure-note { font-size: var(--fs-meta-lg); margin-top: 0.15rem !important; }
+.ads-notes { list-style: none; padding: 0; margin: 0.9rem 0 0; font-size: var(--fs-body-sm); }
+.ads-notes li { margin-bottom: 0.35rem; }
+.ads-list-head { font-size: var(--fs-subhead); margin: 1.25rem 0 0.25rem; }
+.ads-list { list-style: none; padding: 0; margin: 0; }
+.ads-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 1rem;
+  align-items: baseline;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.ads-row:last-child { border-bottom: 0; }
+.ads-row-name { font-weight: 600; font-size: var(--fs-body-sm); min-width: 0; }
+.ads-row-status { font-size: var(--fs-meta-lg); white-space: nowrap; }
+.ads-row-facts { grid-column: 1 / -1; font-size: var(--fs-meta-lg); }
+@media (max-width: 40rem) {
+  .ads-figures { grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
+  .ads-row { grid-template-columns: minmax(0, 1fr); }
+  .ads-row-status { white-space: normal; }
+  .ads-example { padding: 0.9rem 0.9rem 0.4rem; }
+}
