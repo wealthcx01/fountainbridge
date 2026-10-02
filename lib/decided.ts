@@ -5,7 +5,8 @@ import { DECIDED_EVENT, PUSH_KEYS } from './push-offer';
  *
  * The studio asks for permission to buzz a phone only after a founder has decided something — see
  * `lib/push-offer.ts`. Every place a founder approves or refuses passes its result through here:
- * accepting or sending back work, approving or refusing a send. Only a decision that went through
+ * accepting or sending back work, approving or refusing a send, deciding a routine, letting a held
+ * plan go ahead, and filing a plan. Only a decision that went through
  * counts; a refused click is not a decision.
  *
  * Returns the result unchanged, so a call site reads `noteDecision(await acceptWork(...))`.

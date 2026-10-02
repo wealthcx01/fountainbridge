@@ -121,9 +121,11 @@ The studio now has a database (FB-170), so subscriptions live there, in their ow
       send anything other than "you are the blocker". A test fails if `sendWebPush` is ever called
       from any other file.
 - [x] Permission is requested after a first decision, not on first load. Every approve, refuse,
-      accept, send-back and routine decision passes through `noteDecision`; only after one of those
-      does a small card ask. A test fails if a decision button skips it. Checked in a browser: no
-      card on first load, the card after a decision.
+      accept, send-back and routine decision passes through `noteDecision`, and so do letting a
+      held plan go ahead and filing a plan; only after one of those does a small card ask. A test
+      fails if a decision button skips it. A browser test (`e2e/pocket-push.spec.ts`, on a phone
+      size) checks no card on first load, the card after a decision, "Not now" sticking after a
+      reload, and that pressing "Turn on" where the phone cannot be kept says so in words.
 - [x] Opting out is one press and survives a restart. "Not now" and "Turn it off" are remembered
       on the device and the server forgets the phone. The studio never asks again on that device.
       The Tickets screen's "Needs you" list — where every buzz lands — keeps one quiet line to turn

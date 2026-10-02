@@ -73,7 +73,7 @@ describe('turning it off sticks', () => {
 describe('every decision counts as one', () => {
   // The offer only appears after `noteDecision`. A new approve or refuse button that forgets to call
   // it would silently mean the studio never asks a founder who only ever uses that button.
-  const DECISIONS = /await (acceptWork|sendBackWork|approveExternalAction|refuseExternalAction|decideRoutine)\(/g;
+  const DECISIONS = /await (acceptWork|sendBackWork|approveExternalAction|refuseExternalAction|decideRoutine|releasePlan|filePlan)\(/g;
 
   it('every call to a decision action in a screen goes through noteDecision', () => {
     const offenders: string[] = [];
@@ -89,9 +89,9 @@ describe('every decision counts as one', () => {
       }
     }
     expect(offenders).toEqual([]);
-    // Eight in four screens plus the routines screen today. A scan that found nothing would pass
-    // for the wrong reason.
-    expect(seen).toBeGreaterThanOrEqual(9);
+    // Nine on the work, send and routine screens, plus releasing a held plan and filing a plan:
+    // eleven today. A scan that found nothing would pass for the wrong reason.
+    expect(seen).toBeGreaterThanOrEqual(11);
   });
 });
 
@@ -102,5 +102,15 @@ describe('the key the studio offers', () => {
     expect(pushPublicKey(keys)).toBe('BPub');
     expect(pushPublicKey({ ...keys, DATABASE_URL: '' })).toBeNull(); // nowhere to keep the phone
     expect(pushPublicKey({ ...keys, VAPID_PRIVATE_KEY: undefined })).toBeNull(); // nothing to sign with
+  });
+
+  it('the browser-test rig may offer it without a database, and only the rig', () => {
+    const rig = { ...keys, DATABASE_URL: '', E2E_TEST_LOGIN: '1', PUSH_FIXTURE: '1' };
+    expect(pushPublicKey(rig)).toBe('BPub');
+    // The fixture switch alone is not enough: a production studio never has E2E_TEST_LOGIN.
+    expect(pushPublicKey({ ...rig, E2E_TEST_LOGIN: undefined })).toBeNull();
+    expect(pushPublicKey({ ...rig, PUSH_FIXTURE: undefined })).toBeNull();
+    // And the rig still needs the keys.
+    expect(pushPublicKey({ ...rig, VAPID_PUBLIC_KEY: undefined })).toBeNull();
   });
 });

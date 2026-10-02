@@ -770,3 +770,10 @@ browser here (it answered "Page not found" without a signed-in claude.ai session
 
 Looked at as pictures. The first draft said "this phone" on a laptop; it now says "this device".
 On a phone the card covers the second and third rows of the list until it is answered.
+
+After review, 2026-10-02: a browser test now draws the card on a phone (`e2e/pocket-push.spec.ts`)
+and saves `141-push-offer-phone.png` to the UI gate's gallery. Looked at again: the card still
+covers the list summary and the first rows below it on a 393px phone until it is answered. That is
+left as it is, as a design decision for John — the design has no picture of the asking to compare
+against. The hosted design artifact was not opened this time either: it needs a signed-in claude.ai
+session, and this review had none. The live side is still a local build, not production.

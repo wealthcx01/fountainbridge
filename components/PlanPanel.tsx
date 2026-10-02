@@ -8,6 +8,7 @@ import {
 } from '@/lib/plan-draft';
 import { toneColor } from '@/lib/status';
 import { Mark } from './Mark';
+import { noteDecision } from '@/lib/decided';
 
 /**
  * A plan, before it is work (FB-127, gap G5).
@@ -131,7 +132,7 @@ export function PlanPanel({ plan: proposed }: { plan: PlanDraft }) {
             setFiling(true);
             setError(null);
             try {
-              const r = await filePlan(plan.venture_id, plan.repo, plan, keptTickets(plan).length);
+              const r = noteDecision(await filePlan(plan.venture_id, plan.repo, plan, keptTickets(plan).length));
               if (r.ok) setFiled({ url: r.url, message: r.message });
               else setError(r.message);
             } catch {

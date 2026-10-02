@@ -143,7 +143,12 @@ export function vapidFromEnv(env: Record<string, string | undefined> = process.e
  * untrue (CLAUDE.md #10).
  */
 export function pushPublicKey(env: Record<string, string | undefined> = process.env): string | null {
-  if (!env.DATABASE_URL?.trim()) return null;
+  // The UI gate's rig has no database, so without this the browser test could never see the card.
+  // Gated on E2E_TEST_LOGIN as well as PUSH_FIXTURE, like every other fixture switch: production
+  // never has E2E_TEST_LOGIN, so there the database rule above always holds. On the rig, pressing
+  // "Turn on" still fails honestly, because there is nowhere to keep the phone.
+  const rig = env.E2E_TEST_LOGIN === '1' && env.PUSH_FIXTURE === '1';
+  if (!env.DATABASE_URL?.trim() && !rig) return null;
   return vapidFromEnv(env)?.publicKey ?? null;
 }
 

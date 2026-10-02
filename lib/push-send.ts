@@ -7,8 +7,9 @@ import { sendWebPush, type Poster, type VapidKeys } from './webpush';
  *
  * "Nothing else pushes" is a rule that erodes one well-meant addition at a time, so it is held two
  * ways. This function takes a COUNT, not a message: there is no parameter through which a caller
- * could send anything other than "you are the blocker". And `lib/__tests__/push-send.test.ts` fails
- * if `sendWebPush` is ever called from any other file.
+ * could send anything other than "you are the blocker". And the test "sendWebPush is called from
+ * exactly one file", in `lib/__tests__/push-store.test.ts`, fails if `sendWebPush` is ever called
+ * from any other file.
  */
 export interface QueueCheck {
   /** What was waiting last time, or null for a first look. */

@@ -82,6 +82,13 @@ export default defineConfig({
       // arca's last activity is 2026-07-21 → active; thereset-platform's is 2026-01-10 → stale.
       E2E_NOW: '2026-07-22T00:00:00Z',
       STUDIO_ADMIN_EMAILS: 'john.gallagher@wealthcx.com',
+      // FB-141: lets the notification card be drawn on a rig that has no database, so the browser
+      // test can see it. The public key is a throwaway point with no private half anywhere; the
+      // "private key" is a placeholder that could sign nothing. Pressing "Turn on" here fails, as it
+      // should, because there is nowhere to keep the phone.
+      PUSH_FIXTURE: '1',
+      VAPID_PUBLIC_KEY: 'BJgmT8afelTGKjHrRNGo0VPeq-GUZd3SFeqroUB_RTUuAqOIbhOvwphnEFlsaMyP6BoIpS65obJhfKKFhfOmRVc',
+      VAPID_PRIVATE_KEY: 'e2e-placeholder-not-a-key',
       // FB-092: the email+password door, driven end to end by password-login.spec.ts. The hash is
       // for 'e2e-founder-password-not-for-production' — minted with scripts/mint-password-login.mjs
       // and safe to commit precisely because it is a hash of a test-only password.

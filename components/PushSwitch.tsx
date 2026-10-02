@@ -122,7 +122,13 @@ export function PushSwitch({ ventureId, publicKey }: { ventureId: string; public
         await refresh();
         return;
       }
-      const reg = await navigator.serviceWorker.ready;
+      // `ready` never settles in a browser that refused to register the service worker (a private
+      // window, some company policies). Without a limit the button would say "Asking your browser…"
+      // for ever; with one, the founder is told nothing was turned on.
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('no service worker')), 10_000)),
+      ]);
       const sub = (await reg.pushManager.getSubscription())
         ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) }));
       const r = await subscribeToPush(ventureId, sub.toJSON());
