@@ -41,6 +41,8 @@ export const FAULTABLE = [
   // FB-206: the credential scan record each venture box writes, read only by the admin ledger.
   'boxscan',
   'pipeline',
+  // FB-169: whether the team can find every document, read by the Memory screen.
+  'braincorpus',
 ] as const;
 
 export type FaultableRead = (typeof FAULTABLE)[number];

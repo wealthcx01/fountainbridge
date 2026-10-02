@@ -983,3 +983,43 @@ short lines and nothing is cut off. Not compared with the Claude Design artifact
 cross-venture page (its rail reaches Tickets, What happened, Memory, Handbook and the pocket studio),
 so there is nothing to put beside it. The live side is a local build on real data, not production —
 this session cannot sign in to production as an admin.
+
+## FB-169 — the Memory screen says which documents the team cannot find, 2026-10-02
+
+One sentence was added under the Memory table. Read two ways, on a local build of this branch,
+signed in as ARCA's founder, landing on `/venture/arca/knowledge` both times:
+
+- **ARCA's real data** (a GitHub access key read from this machine, so it reads what production
+  reads). The box does not write the new record yet, so the sentence says "Nothing checks yet
+  whether your team can find every document here…". **1,187px** at 1440×1000 and **2,239px** at
+  393×851. No sideways scroll.
+- **The UI gate's fixture**, which has a record saying one of four documents cannot be found. The
+  sentence is in the warning colour and names it: "Your team cannot find 1 document of your 4 …
+  It is: Set naming decision." **1,060px** at 1440×1000 and **1,878px** at 393×851. No sideways
+  scroll.
+
+The sentence adds two lines on a desktop and four on a phone. The real-data heights are above the
+scorecard's 1,096 / 1,988 because ARCA now has five documents with longer titles, not because of
+this sentence.
+
+Compared with the design: a saved copy of the Claude Design artifact, opened in a browser, signed in
+with "Continue with Google" and clicked to Memory. It is **1,000px** at 1440×1000 and **2,103px** at
+393×851. Looked at as pictures, side by side. The design has no such sentence; its table answers a
+related question per row ("Not cited yet"). The new sentence sits where the screen's other notes
+already sit, under the table and above "What happens without you asking", in the same small type.
+The saved copy is from 2026-10-02 01:16; the hosted artifact itself was not reopened.
+
+**After review, 2026-10-02.** The sentence can now add one more clause: how many documents in the
+table the check does not count (another surface's documents, or a folder's own README). Rendered on
+a local build of the branch, signed in as ARCA's founder, landing on `/venture/arca/knowledge`:
+
+- **The UI gate's fixture, unchanged:** **1,060px** at 1440×1000 and **1,878px** at 393×851, the
+  same as before review. The new clause does not appear, because every listed document is checked.
+- **The fixture plus one folder README** (`context/sell/README.md`), to see the new clause: **1,175px**
+  and **2,090px**. Most of the extra height is the README's own row and the "could not be read just
+  now" note it brings. The clause adds one line on a desktop and two on a phone. No sideways scroll.
+  The wording was then shortened to "One more document listed above is not part of this check…"; that
+  final wording was checked by the unit tests, not re-rendered.
+
+ARCA's real data was not re-rendered: with no record from the box yet, it shows the "Nothing checks
+yet" sentence, which this change does not touch. The design was not reopened for this pass.

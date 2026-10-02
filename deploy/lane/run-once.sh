@@ -247,6 +247,20 @@ for entry in $(departments); do
   brain_refresh_if_available
   scan_department && break
 done
+
+# --- tell the studio what the brain can see (FB-169) -------------------------------------------------
+# gbrain-refresh.sh writes how many of the venture's documents its brain cannot see to
+# state/brain-corpus.json. That unit holds no token, so the lane carries the record to the state ref,
+# where the Memory screen reads it. The brain indexes the venture's PRIMARY repo, so that is where it
+# goes. Only when the answer changed, or once a day (brain-corpus-record.mjs) — not every wake.
+# Never fatal: a founder's ticket matters more than this line on the Memory screen.
+if [ -f "$STATE_DIR/brain-corpus.json" ]; then
+  REPO="$PRIMARY_REPO" STATE_REF="$STATE_REF" API="$API" TICKET_GITHUB_TOKEN="$TICKET_GITHUB_TOKEN" \
+    node "$SCRIPT_DIR/brain-corpus-record.mjs" publish \
+    "$STATE_DIR/brain-corpus.json" "$STATE_DIR/brain-corpus.published" \
+    || flog "could not tell the studio what the brain can see — the Memory screen keeps the last answer"
+fi
+
 # Everything below runs against the department the pick came from — not whichever one the loop
 # happened to end on. With no pick at all, fall back to the venture's primary repo so the heartbeat
 # is written where the studio reads it.
