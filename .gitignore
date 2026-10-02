@@ -71,3 +71,7 @@ e2e/__scale__/
 library/launch-video/*.mp4
 library/launch-video/*.png
 library/launch-video/frames/
+
+# FB-171: the local ActiveGraph used by `make activegraph-test`, and its Python caches.
+.ag-venv/
+__pycache__/
