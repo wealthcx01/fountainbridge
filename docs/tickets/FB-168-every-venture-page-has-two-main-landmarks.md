@@ -1,6 +1,6 @@
 # FB-168 — every venture page has two `<main>` landmarks
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-156, on production
+**Status:** Done · **Phase:** 3 · **Found by:** FB-156, on production
 
 ## What is wrong
 
@@ -31,5 +31,27 @@ failed on the selector, not on the thing it was checking.
 
 ## Acceptance criteria
 
-- [ ] Exactly one `<main>` on every route in the UI gate, desktop and phone.
-- [ ] Adding a second one turns the gate red.
+- [x] Exactly one `<main>` on every route in the UI gate, desktop and phone.
+- [x] Adding a second one turns the gate red.
+
+## What shipped
+
+The second `<main>` was already gone: FB-203 turned the venture layout's inner one into a plain
+`<div>`, because it was the same fault seen from the desk's side. What was missing was the check
+that keeps it gone.
+
+`e2e/landmarks.spec.ts` now opens every page the studio has, at 1440×1000 and at 393×851, and
+counts the main regions on each one. That is 29 signed-in pages, the page that refuses an account
+with no venture (opened signed in as such an account), and the sign-in page. It fails on two, and on
+none. It also checks the browser landed on the page it was sent to, so a redirect cannot pass as a
+count. Putting a `<main>` back into `app/venture/[id]/layout.tsx` turned it red on every venture page
+at both sizes, naming each one.
+
+The list of pages lives in `e2e/landmark-pages.ts`. A unit test,
+`app/__tests__/landmark-pages.test.ts`, reads every `page.tsx` under `app/` and fails, naming the
+page, if the list does not open it. So a page added later cannot be left out of the count by
+forgetting the list. Taking `/venture/arca/ads` out of the list turned that test red.
+
+After review: the first version missed three pages the UI gate already visits —
+`/venture/arca/routines`, `/venture/arca/ads` and `/not-authorized` — and also never opened a
+"How it works" chapter (`/how-it-works/lanes`). All four are now in the list.
