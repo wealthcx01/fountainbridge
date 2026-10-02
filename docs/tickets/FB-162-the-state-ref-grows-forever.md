@@ -1,6 +1,6 @@
 # FB-162 — A venture's state ref grows forever
 
-**Status:** Todo · **Area:** Venture box / housekeeping · **Depends on:** FB-161
+**Status:** Done · **Area:** Venture box / housekeeping · **Depends on:** FB-161
 
 ## What is true
 
@@ -36,9 +36,32 @@ Not disk — these are tiny. Three things:
 
 - The studio's listing — FB-161.
 
+## What was actually growing (found 2026-10-02)
+
+By 2 October ARCA's ref held **10,213** reports, and **10,038 were one ticket, ARCA-061**: 730
+re-plans of a plan John had already approved (fixed by FB-251), then **9,308** copies of "Daily lane
+budget reached", one per wake once the re-planning had used up the day's allowance. Real work was
+about 175 reports in two months. So the pile was not ordinary history growing; it was one loop.
+
+## What this change does
+
+- A spent daily budget is written as a report **once a day**. Later wakes that day update the single
+  heartbeat file instead, so the team still reads as alive and nothing new is added.
+- With FB-251, neither loop can fill the history again. At ARCA's real pace of work, a year is a few
+  thousand reports, far below the listing limit (the trees API reads 100,000 entries).
+
+## The cleanup on ARCA (2026-10-02)
+
+Done once FB-251 was live on ARCA and the lane had moved on to building ARCA-061. 10,036 copies were
+removed in one commit on `foundry-state` (c99a8a3). Kept: the first plan, the first and last
+"budget reached" notices, and one report in their place that says how many were removed, between
+which dates, and why. Git history still holds every file. The ref went from 10,215 reports to 182.
+
+Sharding by month is not needed for this; it stays an option if real work ever approaches the limit.
+
 ## Acceptance criteria
 
-- [ ] A venture running for a year does not approach any listing cap.
-- [ ] The newest wake is findable in one read, whatever the shape.
-- [ ] Nothing a founder can currently see on "What happened" disappears without being said.
-- [ ] Proven on the ARCA box, whose ref is the one that found this.
+- [x] A venture running for a year does not approach any listing cap.
+- [x] The newest wake is findable in one read, whatever the shape. (The heartbeat file.)
+- [x] Nothing a founder can currently see on "What happened" disappears without being said. (The cleanup note says what went.)
+- [x] Proven on the ARCA box, whose ref is the one that found this.
