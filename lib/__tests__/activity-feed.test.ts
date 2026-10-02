@@ -76,6 +76,24 @@ describe('a founder can see their own decisions', () => {
     expect(feed[0].meta).not.toMatch(/\barca\b/);
   });
 
+  it('labels a decision by the department its proposal names, not the repository it came from', () => {
+    // ARCA's real shape: sends are proposed from `arca` (the Build repository) and name `sell`. By
+    // repository, every Sell send on this page read "Build — Product".
+    const feed = buildFeed(input({
+      approvals: [approval({ repo: 'arca', department: 'sell' })],
+      surfaces: { arca: 'Build — Product', 'arca-marketing': 'Sell — Go-to-market' },
+      departments: { build: 'Build — Product', sell: 'Sell — Go-to-market' },
+    }));
+    expect(feed[0].meta).toBe('Sell — Go-to-market');
+    // And a proposal that names no department falls back to its repository.
+    const plain = buildFeed(input({
+      approvals: [approval({ repo: 'arca', department: null })],
+      surfaces: { arca: 'Build — Product' },
+      departments: { sell: 'Sell — Go-to-market' },
+    }));
+    expect(plain[0].meta).toBe('Build — Product');
+  });
+
   it('shows a refusal, named, and in the colour the rest of the studio uses for one', () => {
     // `approvalTone` is the shared vocabulary (`lib/status.ts`): a founder learns a colour once and
     // it holds on every screen. This file had its own table, so the same approval was one colour on

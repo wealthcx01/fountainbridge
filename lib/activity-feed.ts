@@ -56,6 +56,12 @@ export interface FeedItem {
    */
   attestation?: { verified: boolean; text: string };
   /**
+   * The stretch of reports on one ticket this row is the newest of, when the run was chosen that
+   * way (`ventureStory`, FB-180). Counted off the listing, so it is a count of reports, never a
+   * claim that they all said the same thing.
+   */
+  stretch?: { count: number; since: string | null };
+  /**
    * How many identical records this row stands for (FB-180).
    *
    * 1 for almost everything. A lane at its daily budget re-parks every five minutes and each wake
@@ -96,6 +102,12 @@ export interface FeedInput {
   surfaces?: Record<string, string>;
   /** The venture's name, for a repository no department claims. */
   ventureName?: string;
+  /**
+   * Department id → its name, e.g. `sell` → `Sell — Go-to-market`. A decision row is labelled by
+   * the department its proposal names: sends are proposed from the main repository, so labelling by
+   * repository called ARCA's investor email "Build — Product".
+   */
+  departments?: Record<string, string>;
 }
 
 /**
@@ -267,6 +279,7 @@ export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boo
       source: 'run',
       href: r.prUrl ?? undefined,
       repeats: r.repeats,
+      ...(r.stretch ? { stretch: r.stretch } : {}),
     });
   }
 
@@ -279,7 +292,8 @@ export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boo
       items.push({
         at,
         text: d.text,
-        meta: surfaceOf(a.repo),
+        // FB-180: a send names its own department; the repository it was proposed from is the fallback.
+        meta: (a.department && input.departments?.[a.department]) || surfaceOf(a.repo),
         tone: d.tone,
         source: 'decision',
         pinned: d.pinned,

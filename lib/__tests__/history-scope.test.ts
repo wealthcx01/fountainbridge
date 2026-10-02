@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { historyScope, readWasBounded } from '../history-scope';
+import { historyIsPartial, historyScope, readWasBounded } from '../history-scope';
 
 /**
  * A screen may not claim a completeness it does not have (FB-242).
@@ -168,5 +168,25 @@ describe('a ticket is named the way a person would say it', () => {
     })!;
     expect(said).toContain('ARCA-061 — saved card lists not persisting');
     expect(said, 'the raw filename slug reached the screen').not.toContain('061-saved-card');
+  });
+});
+
+describe('the page says when it shows part of the record (FB-180 review)', () => {
+  it('at ARCA\'s shape — every stretch read, the oldest rows dropped — it is partial', () => {
+    // ARCA on 2026-10-02: 40 stretches of work, all read (under the read budget), 12 shown.
+    expect(historyIsPartial(true, 40, 40)).toBe(true);
+  });
+
+  it('when fewer stretches were read than exist, it is partial', () => {
+    expect(historyIsPartial(false, 60, 1_500)).toBe(true);
+  });
+
+  it('when everything was read and everything is shown, it is whole', () => {
+    expect(historyIsPartial(false, 9, 9)).toBe(false);
+  });
+
+  it('the What happened page decides with this function, passing whether it dropped rows', () => {
+    const page = readFileSync(join(import.meta.dirname, '..', '..', 'app', 'venture', '[id]', 'activity', 'page.tsx'), 'utf8');
+    expect(page).toMatch(/const bounded = historyIsPartial\(truncated,/);
   });
 });

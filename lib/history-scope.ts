@@ -69,7 +69,19 @@ export interface HistoryScope {
    * steady progress. Null when no ticket dominates, and then nothing is said about it.
    */
   busiest?: { ticket: string; count: number } | null;
+  /**
+   * True when a run of reports about one ticket is shown as one row rather than one row per report
+   * (FB-180). Then "the 12 most recent" is twelve pieces of the story, not twelve reports, and the
+   * sentence says so.
+   */
+  byStretch?: boolean;
 }
+
+/**
+ * Said whenever the rows are stretches. Not "each line is a stretch": decisions and product changes
+ * share the list and are one line each, so that would be untrue of some of the lines on screen.
+ */
+const STRETCH_LINE = 'When your team works on one ticket many times in a row, that is one line, with how many reports it wrote.';
 
 const plural = (n: number, one: string) => `${n.toLocaleString('en-GB')} ${n === 1 ? one : `${one}s`}`;
 
@@ -103,10 +115,11 @@ export function historyScope(input: HistoryScope): string | null {
   const reaches = oldestShown ? onDate(oldestShown) : null;
 
   // The read got everything. Only here may a date be called the start of the history.
+  const stretchLine = input.byStretch ? ` ${STRETCH_LINE}` : '';
   if (!bounded) {
-    return reaches
+    return (reaches
       ? `Everything ${ventureName} did since ${reaches}, newest first.`
-      : `Everything ${ventureName} did, newest first.`;
+      : `Everything ${ventureName} did, newest first.`) + stretchLine;
   }
 
   // Bounded. Lead with what EXISTS, because that is the fact the old sentence destroyed, and a
@@ -125,7 +138,7 @@ export function historyScope(input: HistoryScope): string | null {
   const showing = reaches
     ? `This page shows ${howMany}, back to ${reaches}.`
     : `This page shows ${howMany}.`;
-  return `${recorded}${mostly} ${showing}`;
+  return `${recorded}${mostly}${stretchLine} ${showing}`;
 }
 
 /**
@@ -137,3 +150,14 @@ export function historyScope(input: HistoryScope): string | null {
  * truncates nothing at the last step and hides 9,869 things.
  */
 export const readWasBounded = (shown: number, total: number): boolean => total > shown;
+
+/**
+ * Is the page showing less than the whole record? Either it read fewer stretches than exist, or it
+ * read them all and dropped the oldest rows to fit (`truncated`).
+ *
+ * ARCA is the second case: all 40 stretches are read (under the read budget) and 12 are shown. Leave
+ * out `truncated` and the page claims "Everything ARCA did since 26 August" about a history that
+ * starts on 31 July — the FB-242 fault, with every other check green.
+ */
+export const historyIsPartial = (truncated: boolean, read: number, total: number): boolean =>
+  truncated || readWasBounded(read, total);

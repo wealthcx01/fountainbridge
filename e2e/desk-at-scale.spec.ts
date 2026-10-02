@@ -146,6 +146,20 @@ test.describe('the desk over a real backlog (FB-178)', () => {
     await expect(page.getByTestId('activity-capped')).toContainText('still in your venture’s records');
   });
 
+  test('“What happened” shows a run of reports on one ticket as one line, with its size (FB-180)', async ({ page }) => {
+    // The scale fixture parks on ARCA-61 four times in a row in every twenty reports. Read one row
+    // per report, that is four rows; read one row per stretch, it is one row that says "4 reports".
+    // Seen on this fixture on 2026-10-02: "Stopped on ARCA-61 … parked until tomorrow. · 4 reports on
+    // this ticket in a row". The committed fixture has no stretch that long, so only this gate sees it.
+    await page.goto('/venture/arca/activity');
+    const stretch = page.getByTestId('activity-stretch');
+    expect(await stretch.count(), 'no row says how many reports its stretch of work holds').toBeGreaterThan(0);
+    await expect(stretch.first()).toHaveText(/\d+ reports on this ticket in a row/);
+    await expect(page.getByTestId('activity-scope')).toContainText('that is one line');
+    const rows = await page.getByTestId('activity-item').allInnerTexts();
+    for (let i = 1; i < rows.length; i += 1) expect(rows[i]).not.toBe(rows[i - 1]);
+  });
+
   test('the repeated park is one row that says how many times', async ({ page }) => {
     // FB-178's fourth criterion. The fixture parks on ARCA-61 nineteen times in twenty, the way
     // production did, so if the merge stopped working the panel fills with one sentence.

@@ -40,7 +40,7 @@ designed to". Every gap below was found by the number and then confirmed by read
 | The desk | ~1,900px | **1,689px** | **2,175px** | **re-measured 2026-09-30 on real data as the founder — under the design.** rows not cards (FB-183), one block (FB-186), full width (FB-188), FB-203 items 1–13, bounded FB-178 |
 | Tickets | 1,090px | **1,325px** | **1,600px** | fixed FB-185, widened FB-188, FB-208 (was 6,864 / 8,008) |
 | a ticket | — | **1,202px** | **1,945px** | fixed FB-185, widened FB-188 (was 6,864 / 8,859) |
-| What happened | ~1,000px | **1,264px** | **2,836px** | fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
+| What happened | ~1,000px | **1,236px** | **2,547px** | **re-measured 2026-10-02 on real data as the founder, beside the design.** one line per stretch of work (FB-180 finish); fixed FB-180, widened FB-188 (was 3,556 / 6,536) |
 | Memory | ~1,000px | **1,096px** | **1,988px** | fixed FB-181, widened FB-188 (was 1,570 / 2,881) |
 | Composer | ~1,000px | **1,096px** | 1,142px | **matches** |
 | Handbook | 1,000px | **1,096px** | **1,581px** | **explained and fixed, FB-190** — see below |
@@ -661,3 +661,19 @@ on an approval nobody can name. The Tickets detail for that send says so in word
 still only proposals keep "This would go outside your company". Not compared side by side with the
 Claude Design artifact in this pass — the change is words inside existing rows and panels, and the
 heights above show the layout did not move.
+
+## FB-180 finished — What happened, as a story, 2026-10-02
+
+Read on ARCA's real data, signed in as its founder, on a local build of this branch. Before (FB-242's
+reading): **one row**, because the newest sixty reports were all one ticket parked again every five
+minutes. After: twelve lines, one per stretch of work on one ticket, reaching back to 26 August, at
+**1,236px** (1440×1000) and **2,547px** (393×851). On the UI gate's fixtures: 1,000px and 1,929px.
+On the 1,773-report scale fixture: 1,137px at 1440×1000.
+
+Compared side by side with the Claude Design artifact's "What happened" (rendered from the artifact's
+saved page, since the public link needs a claude.ai sign-in): the design is **1,000px** with six
+one-line rows. Ours has the same shape — a dated column, a coloured mark, a sentence, the department
+on the right — with twelve rows, most of them two lines because ARCA's sentences are longer than the
+design's. The design's phone view is a separate prototype ("the pocket studio"), so the phone reading
+was looked at on its own: one column, nothing cut off, no sideways scroll. Sends on this page now
+read "Sell — Go-to-market", not "Build — Product".

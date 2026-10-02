@@ -5,14 +5,14 @@ import { auth } from '@/auth';
 import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureHealth } from '@/lib/health';
-import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
+import { ventureApprovals, ventureStory } from '@/lib/venture-reads';
 import { type ActiveGraphApproval } from '@/lib/approvals';
 import { GitHubClient } from '@/lib/github';
 import { buildFeed } from '@/lib/activity-feed';
 import { composeActivitySummary } from '@/lib/activity-summary';
 import { classifyActivity, dedupeActivity, isFounderVisible } from '@/lib/activity-kind';
 import { groupFailures } from '@/lib/read-failures';
-import { historyScope, readWasBounded } from '@/lib/history-scope';
+import { historyIsPartial, historyScope } from '@/lib/history-scope';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { Mark } from '@/components/Mark';
@@ -112,10 +112,10 @@ async function Record({
   const unreadable: string[] = [];
   const [health, runs, approvals] = await Promise.all([
     loadVentureHealth(venture, { refresh: refreshing }),
-    // Shared with the rail around this page (FB-157), which reads both of these too.
-    ventureRuns(venture).catch(() => {
+    // One line per stretch of work on one ticket (FB-180), not the newest reports the desk reads.
+    ventureStory(venture).catch(() => {
       unreadable.push('what your team has been doing');
-      return { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null };
+      return { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null, stretches: null };
     }),
     ventureApprovals(venture).catch((): ActiveGraphApproval[] => {
       unreadable.push('the decisions you have made');
@@ -133,8 +133,9 @@ async function Record({
   // FB-180: the meta column names the surface a founder owns, not the repository git happens to
   // keep it in. Built here because the manifest is the only place that knows the mapping.
   const surfaces = Object.fromEntries((venture.departments ?? []).map((d) => [d.repo, d.name]));
-  const { items: feed } = buildFeed({
+  const { items: feed, truncated } = buildFeed({
     activity, runs: runs.reports, approvals, limit: FEED_LIMIT, surfaces, ventureName: venture.name,
+    departments: Object.fromEntries((venture.departments ?? []).map((d) => [d.id, d.name])),
   });
   // Composed from the SAME list the rows come from. `lib/activity-summary.ts` states that invariant
   // in its own header — "there is no second pass that could drift" — and composing it from the
@@ -147,13 +148,15 @@ async function Record({
 
   // FB-242. What the screen may honestly claim about a record it has only partly read.
   //
-  // `buildFeed` also returns a `truncated` flag. It is deliberately NOT used here: it answers "did
-  // the last step drop anything", which is a question about the final list and not about the record.
-  // On ARCA it answered NO while 9,869 reports were missing — twenty were read, they collapsed to
-  // one row because they were all the same park, and one item built with one item kept is not a
-  // truncation. The read was bounded long before that, and only `runs.total` knows it.
-  // Reports read against reports that exist — the same kind of number on both sides.
-  const bounded = readWasBounded(runs.reports.length, runs.total);
+  // Before FB-180 the rows were the newest reports, and `truncated` alone could not be trusted: on
+  // ARCA twenty reports were read, they collapsed to one row because they were all the same park,
+  // and one row built with one row kept "dropped nothing" while 9,869 reports were unseen.
+  //
+  // FB-180 changed what a row is. The runs are now one per stretch of work (`ventureStory`), so no
+  // collapse can hide anything: each stretch is its own row. The page is showing less than the
+  // whole record when either (a) it read fewer stretches than exist, or (b) it had more rows than
+  // it shows and dropped the oldest. Either one, and it says so.
+  const bounded = historyIsPartial(truncated, runs.reports.length, runs.stretches ?? runs.total);
   const scope = historyScope({
     ventureName: venture.name,
     shown: feed.length,
@@ -162,6 +165,7 @@ async function Record({
     oldestShown: feed.length ? feed[feed.length - 1].at : null,
     busiest: runs.busiest,
     bounded,
+    byStretch: typeof runs.stretches === 'number',
   });
 
   return (
@@ -235,8 +239,11 @@ async function Record({
  * for a week. FB-178 settled this argument on the desk: a screen a founder reads beats a screen a
  * founder scrolls, and "everything, in order" is a shape that only ever grows.
  *
- * Twenty is a fortnight of a working venture with room to spare, and the line under the list says
- * plainly that it is the twenty most recent and that the rest is still in the venture's records.
- * Nothing is lost and nothing is implied to be complete that is not.
+ * The line under the list says plainly how many it shows and that the rest is still in the
+ * venture's records. Nothing is lost and nothing is implied to be complete that is not.
+ *
+ * Twelve since FB-180. Rows became one per stretch of work, so the page reached five weeks back on
+ * ARCA instead of one day — and twenty of those measured 1,807px against the ticket's 1,500. Twelve
+ * on ARCA is back to 26 August: the last month of the venture, on about one and a half screens.
  */
-const FEED_LIMIT = 20;
+const FEED_LIMIT = 12;

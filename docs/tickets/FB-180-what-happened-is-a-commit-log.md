@@ -1,6 +1,6 @@
 # FB-180 — "What happened" is a commit log, not an account of what happened
 
-**Status:** Shipped in part · **Phase:** 3 · **Found by:** the FB-175 screen audit, 2026-09-02
+**Status:** Done · **Phase:** 3 · **Found by:** the FB-175 screen audit, 2026-09-02
 
 ## Both sides, rendered at 1440×1000 and read
 
@@ -34,11 +34,42 @@ Ours:
                   lane) (#80) ↗                                                  arca · changed
 ```
 
-**Shipped in part:** all six faults are fixed and every acceptance criterion is met. The last scope
-line — folding in the desk's "Decided — what happened next" — is deliberately not done. PR #215
-reversed that instruction: that section is the only place a founder can see whether a completed
-approval's signature was genuine, and moving it here would make a forged grant on a past send
-invisible. It lands in FB-183, which gives an external approval its own page.
+**Earlier slice.** The six faults below were fixed, but the folding-in of the desk's "Decided" rows
+was held back by PR #215, because that section was the only place a founder could see whether a
+past approval's signature was genuine. FB-207 then moved it here with the signature clause intact,
+and FB-183 gave each send its own page, so that scope line is done.
+
+## Finished, 2026-10-02: the page now tells the story, not the last hour
+
+**What was still wrong, seen on ARCA's real data.** Every box below could be ticked and the page was
+still not an account of what happened. FB-242 measured it showing **one row**. ARCA has written
+over 10,000 reports since 31 July, and the studio opened the newest sixty. Those were all one
+ticket, ARCA-061, parked again every five minutes because the daily budget was used up. Sixty copies
+of one sentence became one row ("20 times"), and five weeks of finished work sat behind it, out of
+reach.
+
+**What changed.** A report's ticket and time are in its file name, so the studio can see the shape
+of the whole history without opening any report. It now groups the history into **stretches**: an
+unbroken run of reports about one ticket. ARCA's history is 40 stretches, and the 9,737-report park
+is just one of them. "What happened" opens the newest report of each stretch, still opening at most
+sixty files, and shows one line per stretch. A stretch of three or more says how big it was:
+*"9,737 reports on this ticket in a row, since 27 August 2026"*. It does not say they all said the
+same thing, because only the newest one was read. The desk is unchanged. It still reads the newest
+reports, which is right for "what is happening now".
+
+The page shows twelve lines, down from twenty. On ARCA that reaches back to 26 August. The sentence
+above the list says how many reports exist, what most of them are about, and that a run of work on
+one ticket is one line. The line under the list says older entries are still in the venture's
+records.
+
+**Also fixed.** A decided send was labelled by the repository it was proposed from, so on this page
+every ARCA send read "Build — Product". It is now labelled by the department it names, for example
+"Sell — Go-to-market". A proposal that names no department still falls back to its repository.
+
+**Measured, 2026-10-02, on a local build of this branch.** ARCA's real data, signed in as its
+founder: **1,236px** at 1440×1000 and **2,547px** at 393×851. The UI gate's small fixtures: 1,000px
+and 1,929px. The 1,773-report scale fixture: 1,137px at 1440×1000. The design's screen is 1,000px
+with six rows; ours shows twelve longer rows, about one and a quarter screens.
 
 ## Six distinct faults
 
@@ -81,8 +112,15 @@ data, not source. A rule that only inspects the repo's own words cannot see a sl
 
 ## Acceptance criteria
 
-- [ ] No two consecutive rows say the same thing; a repeat is one row with a count.
-- [ ] No row contains a slug, a branch name, a PR number or the word "lane".
-- [ ] The meta column names the surface and department, never the repository.
-- [ ] The page is under 1,500px on ARCA's production data at 1440×1000.
-- [ ] A test fails if a row's text matches `/-[0-9]{3}-|\(#\d+\)|Foundry lane/`.
+- [x] No two consecutive rows say the same thing; a repeat is one row with a count.
+      *(One row per stretch, with its size. `lib/__tests__/run-stretches.test.ts` over ARCA's real
+      shape, `e2e/venture-activity.spec.ts` on the rendered page, and `e2e/desk-at-scale.spec.ts` on
+      the 1,773-report fixture.)*
+- [x] No row contains a slug, a branch name, a PR number or the word "lane".
+      *(Read on ARCA's real data, 2026-10-02: twelve rows, none.)*
+- [x] The meta column names the surface and department, never the repository.
+      *(A send is now labelled by its own department, not by the repository it was proposed from.)*
+- [x] The page is under 1,500px on ARCA's production data at 1440×1000.
+      *(1,236px on 2026-10-02.)*
+- [x] A test fails if a row's text matches `/-[0-9]{3}-|\(#\d+\)|Foundry lane/`.
+      *(`lib/__tests__/activity-feed.test.ts` and `e2e/venture-activity.spec.ts`.)*
