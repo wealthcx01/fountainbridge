@@ -1,4 +1,4 @@
-import { shouldNotify, pushMessage, pushDestination } from './push';
+import { shouldNotify, pushMessage, pushDestination, type SoleItem } from './push';
 import { forgetPhone, observeQueue, phones, type Querier } from './push-store';
 import { sendWebPush, type Poster, type VapidKeys } from './webpush';
 
@@ -7,9 +7,10 @@ import { sendWebPush, type Poster, type VapidKeys } from './webpush';
  *
  * "Nothing else pushes" is a rule that erodes one well-meant addition at a time, so it is held two
  * ways. This function takes a COUNT, not a message: there is no parameter through which a caller
- * could send anything other than "you are the blocker". And the test "sendWebPush is called from
- * exactly one file", in `lib/__tests__/push-store.test.ts`, fails if `sendWebPush` is ever called
- * from any other file.
+ * could send anything other than "you are the blocker". (`sole` is an address, not words: when
+ * exactly one thing waits, the push opens it rather than the list — FB-179.) And the test
+ * "sendWebPush is called from exactly one file", in `lib/__tests__/push-store.test.ts`, fails if
+ * `sendWebPush` is ever called from any other file.
  */
 export interface QueueCheck {
   /** What was waiting last time, or null for a first look. */
@@ -38,7 +39,7 @@ export async function checkQueue(
   venture: { id: string; name: string },
   waiting: number | null,
   keys: VapidKeys,
-  opts: { post?: Poster } = {},
+  opts: { post?: Poster; sole?: SoleItem | null } = {},
 ): Promise<QueueCheck> {
   if (waiting === null) return { before: null, now: null, sent: 0, removed: 0, failed: 0 };
 
@@ -46,7 +47,7 @@ export async function checkQueue(
   const out: QueueCheck = { before, now: waiting, sent: 0, removed: 0, failed: 0 };
   if (!shouldNotify({ before, now: waiting })) return out;
 
-  const message = { ...pushMessage(venture.name, waiting), url: pushDestination(venture.id), tag: `blocker-${venture.id}` };
+  const message = pushPayload(venture, waiting, opts.sole ?? null);
   for (const phone of await phones(q)) {
     const r = await sendWebPush(phone, message, keys, { post: opts.post });
     if (r === 'sent') out.sent += 1;
@@ -54,4 +55,19 @@ export async function checkQueue(
     else out.failed += 1;
   }
   return out;
+}
+
+/**
+ * Exactly what a phone is sent: the words, where pressing it goes, and a tag so a second buzz for the
+ * same venture replaces the first rather than stacking.
+ *
+ * The single item is used only when exactly one thing is waiting. With more, "the one item" would be
+ * an arbitrary pick, and the honest destination is the list.
+ */
+export function pushPayload(venture: { id: string; name: string }, waiting: number, sole: SoleItem | null) {
+  return {
+    ...pushMessage(venture.name, waiting),
+    url: pushDestination(venture.id, waiting === 1 ? sole : null),
+    tag: `blocker-${venture.id}`,
+  };
 }

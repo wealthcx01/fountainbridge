@@ -13,6 +13,7 @@ import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { timed } from '@/lib/timing';
 import { THEME_COLOR } from '@/lib/brand';
 import { RegisterServiceWorker } from '@/components/RegisterServiceWorker';
+import { CommandPalette } from '@/components/CommandPalette';
 
 /**
  * The studio's typefaces, served from this repository (FB-223).
@@ -188,6 +189,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
       <body>
+        {/* FB-179: "Go to anything" — ⌘K / Ctrl-K, and the first thing Tab reaches. Signed in only:
+            there is nothing to go to from the sign-in page. */}
+        {email ? <CommandPalette /> : null}
         <header className="topbar">
           <Link href="/" className="wordmark" aria-label="Foundry Studio home">
             <span className="wordmark-name">Bruntsfield</span>

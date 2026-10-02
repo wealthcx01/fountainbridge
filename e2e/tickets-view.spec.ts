@@ -411,8 +411,11 @@ test.describe('follow it to the result (FB-184)', () => {
     await expect(follow).toHaveAttribute('data-linked', 'false');
     await expect(follow.locator('a')).toHaveCount(0);
     // Directly above "Your decision": the next thing after the line is the decision panel.
-    const next = await follow.evaluate((el) => el.nextElementSibling?.getAttribute('data-testid') ?? '');
-    expect(next).toBe('detail-decision');
+    // Polled, not read once: the decision panel streams in after the line, and a single read can run
+    // before it arrives (it failed that way on #340 and #346). Something else in between still fails,
+    // and says what it was.
+    await expect.poll(() => follow.evaluate((el) => el.nextElementSibling?.getAttribute('data-testid') ?? '(nothing yet)'))
+      .toBe('detail-decision');
   });
 
   test('a ticket with nothing to look at says so', async ({ page }) => {

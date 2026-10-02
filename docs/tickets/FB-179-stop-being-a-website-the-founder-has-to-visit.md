@@ -1,6 +1,14 @@
 # FB-179 — stop being a website the founder has to visit
 
-**Status:** Open · **Phase:** 3 · **Raised by:** John, 2026-09-02, from the Omarchy/OpsLayer post
+**Status:** Shipped in part · **Phase:** 3 · **Raised by:** John, 2026-09-02, from the Omarchy/OpsLayer post
+
+**Shipped in part:** the keyboard palette and the push's deep link are built and checked in a
+browser. Not yet done: a real notification on a real phone (that is FB-141's last step, and needs
+John's keys, database change and timer first), and driving the palette with a real screen reader
+(VoiceOver or NVDA) rather than checking its labels and roles in code. (John agreed on 2026-10-02
+that when several things are waiting, the push opening the "Needs you" list meets the deep-link
+criterion, and that the notification card covering the top of that list until it is answered is
+fine.)
 
 ## The argument, and the half of it that applies to us
 
@@ -52,6 +60,52 @@ So the OS is his answer and cannot be ours. The *need* is identical and is unadd
 ## Acceptance criteria
 
 - [ ] A real approval on a real device raises a real notification, and pressing it opens that item.
-- [ ] ⌘K reaches any venture, ticket, or the composer, from any screen, with the keyboard only.
-- [ ] Every notification and external link deep-links to the exact item.
-- [ ] The palette is reachable and operable by a screen reader.
+      **The opening is built; the real device is not done.** When exactly one thing is waiting, the
+      push now opens that thing — the work's own page, or the send's own page — instead of the list.
+      With several waiting it opens "Needs you", because picking one of them would be arbitrary. A
+      real phone receiving it waits on FB-141's last steps (keys, database, timer).
+- [x] ⌘K reaches any venture, ticket, or the composer, from any screen, with the keyboard only.
+      A browser test (`e2e/palette.spec.ts`) now does this with key presses only: Ctrl-K, type,
+      Enter opens the ticket; the arrows choose and Enter reaches the composer; Tab reaches the way
+      in first, stays inside the open box, and Escape puts the cursor back. Also checked in a browser at 1440×1000 and 393×851 on ARCA's real data, keyboard only: Ctrl-K from
+      the Handbook, type "arca 61", arrow down, Enter → the Tickets screen opened on ARCA-61. ⌘K,
+      "composer", Enter → the composer. Escape closes it and puts focus back.
+- [x] Every notification and external link deep-links to the exact item. **John agreed this reading
+      on 2026-10-02: one thing waiting opens that item; several open "Needs you".** With several
+      waiting, the push opens "Needs you" rather than one of them, because picking one would be
+      arbitrary and the push never says what the item is. That is a different promise from the one
+      written here. The studio sends exactly one kind of notification (FB-141), and it opens the
+      exact item when there is one. Every
+      address the palette uses is the studio's own and is the same address a message or an email
+      can carry — `/venture/arca/tickets?filter=all&t=arca%2FARCA-61` opens that ticket, keyed by
+      repository as well as id, so two repositories that share an id cannot be confused. The studio
+      sends no emails or Slack messages of its own today, so there are no other links to check.
+- [ ] The palette is reachable and operable by a screen reader. **Built, not yet proven with one.**
+      It is a labelled modal dialog with a combobox over a listbox, the active option announced
+      through `aria-activedescendant`, and a polite live region that says how many matches there
+      are. A "Go to anything" button is the first thing Tab reaches on every page, out of sight until
+      it has focus, like a skip link. All of that was checked in a browser; none of it has been
+      listened to through VoiceOver or NVDA, and that is the only test that counts here.
+
+## What shipped
+
+- **"Go to anything"** (`components/CommandPalette.tsx`, rules in `lib/palette.ts`). ⌘K on a Mac,
+  Ctrl-K elsewhere. Lists, in order: what is waiting on you, the venture's screens, its tickets, and
+  your other ventures with their composers. Typing narrows it — every word must appear, in any order,
+  so "arca 61" finds ARCA-61. Thirty rows at most: it is for jumping, not browsing.
+- **It only ever goes somewhere.** It never approves, refuses or sends. "Approve the thing that is
+  waiting" means it takes you to that thing's own page, because FB-183 made that the one place a
+  decision is signed, and a second place to approve would be a second place to get it wrong.
+- **Isolation is on the server.** The list is read by a server action that checks the venture
+  against the session first. Naming another founder's venture reads nothing from it.
+- **It says what it could not read.** If the tickets could not be read, every screen is still listed
+  and a sentence says the tickets are missing — never a shorter list shown as though it were whole.
+- **Waiting work goes to the right place.** On ARCA, finished work on a branch named `ARCA-061-…`
+  belongs to a ticket filed as `ARCA-61`. An address naming `ARCA-061` would have opened the Tickets
+  screen on a different ticket, so waiting work goes to its ticket only when that ticket is really on
+  the board, and to its own work page otherwise. Found by pressing it, not by reading the code.
+- **The push opens the exact item** when one thing is waiting (see the first criterion).
+
+Not in this ticket, and worth a ticket of its own: the studio does not recognise that branch
+`ARCA-061-…` is ticket `ARCA-61`, so on ARCA that piece of finished work is listed as untied to any
+ticket.

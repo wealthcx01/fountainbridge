@@ -845,3 +845,19 @@ same as before, no sideways scroll. Looked at as pictures: the summary now reads
 deals", and Ben's row still quotes his own message, not the note logged after it. The page for
 another venture (`/venture/the-reset/sell`, as ARCA's founder) shows the "No access" notice:
 **1,000px** and **851px**. Still not compared to a design, for the reason above.
+
+## FB-179 — "Go to anything", 2026-10-02
+
+Read on ARCA's real data, signed in as its founder, local build of this branch. The palette draws
+nothing until it is opened, so no screen changed height: the Handbook is **1,000px** at 1440×1000 and
+**1,581px** at 393×851 with it closed. Open, it is a box over the screen — 40rem wide on a desktop,
+the full width less 16px each side on a phone — and the page behind does not move.
+
+Looked at as pictures, at both sizes. On a phone the first draft put the hint beside the title and
+left the title one word wide ("build…"); the hint now goes underneath. The design has no palette; it
+is new, built from the same hairline, square, no-shadow rules as the rest of the studio.
+
+After review, 2026-10-02: a browser test (`e2e/palette.spec.ts`) now drives the palette with the
+keyboard only and saves `179-palette-desktop.png` to the UI gate's gallery. The hosted design
+artifact was not opened: it needs a signed-in claude.ai session, and this review had none. It has
+no palette to compare against in any case. The live side is still a local build, not production.

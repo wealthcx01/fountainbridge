@@ -2,7 +2,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { loadVentures } from '@/lib/ventures';
 import { loadVentureAttention } from '@/lib/attention';
 import { ventureApprovals } from '@/lib/venture-reads';
-import { needsYouCount } from '@/lib/needs-you';
+import { needsYouCount, sendsWaitingOnFounder } from '@/lib/needs-you';
+import type { SoleItem } from '@/lib/push';
 import { withVenture } from '@/lib/db';
 import { checkQueue } from '@/lib/push-send';
 import { vapidFromEnv } from '@/lib/webpush';
@@ -45,8 +46,8 @@ export async function POST(req: Request): Promise<Response> {
   const results: Record<string, unknown> = {};
   for (const venture of loadVentures()) {
     try {
-      const waiting = await waitingNow(venture);
-      const r = await withVenture(venture.id, (q) => checkQueue(q, venture, waiting, keys));
+      const { waiting, sole } = await waitingNow(venture);
+      const r = await withVenture(venture.id, (q) => checkQueue(q, venture, waiting, keys, { sole }));
       results[venture.id] = r;
     } catch (e) {
       console.error('[push] check failed', { venture: venture.id, message: (e as Error).message });
@@ -58,20 +59,33 @@ export async function POST(req: Request): Promise<Response> {
 
 /**
  * The badge's number for one venture, read fresh — or `null` when any part of it could not be read.
+ * When exactly one thing is waiting, also which one, so the push can open it (FB-179).
  *
  * `refresh`: the cached queue can be two minutes old, and a timer asking every few minutes would
  * otherwise read its own stale answer half the time. A queue the studio could not fully read is not a
  * number; see `checkQueue` for why it must never be treated as zero.
  */
-async function waitingNow(venture: Parameters<typeof loadVentureAttention>[0]): Promise<number | null> {
+async function waitingNow(
+  venture: Parameters<typeof loadVentureAttention>[0],
+): Promise<{ waiting: number | null; sole: SoleItem | null }> {
   try {
     const [attention, approvals] = await Promise.all([
       loadVentureAttention(venture, { refresh: true }),
       ventureApprovals(venture),
     ]);
-    if (attention.errors.length > 0) return null;
-    return needsYouCount(attention.approvals.length, approvals);
+    if (attention.errors.length > 0) return { waiting: null, sole: null };
+    const waiting = needsYouCount(attention.approvals.length, approvals);
+    if (waiting !== 1) return { waiting, sole: null };
+    const [pr] = attention.approvals;
+    const [send] = sendsWaitingOnFounder(approvals);
+    const sole: SoleItem | null = pr
+      // Its own work page, not its ticket: this read has no ticket list to check the id against, and
+      // an id the Tickets screen does not know would open it on a different ticket. The work page is
+      // where it is decided, and its address cannot be wrong.
+      ? { kind: 'work', repo: pr.repo, number: pr.number, title: pr.title, ticketId: null }
+      : send ? { kind: 'send', repo: send.repo, id: send.id } : null;
+    return { waiting, sole };
   } catch {
-    return null;
+    return { waiting: null, sole: null };
   }
 }
