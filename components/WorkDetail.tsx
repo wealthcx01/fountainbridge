@@ -153,7 +153,7 @@ function TheRecord({ body }: { body: string }) {
           data-testid="work-record"
           style={{
             fontSize: 'var(--fs-meta-lg)', overflowX: 'auto',
-            background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
+            background: 'var(--color-paper-raised)', border: '1px solid var(--color-border)',
             padding: '0.7rem', margin: '0.5rem 0 0',
           }}
         >

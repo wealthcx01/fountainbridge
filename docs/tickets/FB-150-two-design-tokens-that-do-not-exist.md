@@ -1,6 +1,6 @@
 # FB-150 — Two design tokens that do not exist, used on four screens
 
-**Status:** Todo · **Area:** Studio / design system · **Depends on:** —
+**Status:** Done · **Area:** Studio / design system · **Depends on:** —
 
 ## What happens
 
@@ -40,7 +40,39 @@ Found by the `/review` pass on FB-128 (PR #163), which fixed the one instance it
 
 ## Acceptance criteria
 
-- [ ] No component references a custom property that `app/globals.css` does not define.
-- [ ] `design-lint` fails when one does, with the property named.
-- [ ] A text input in the composer has a visible border, asserted by a computed-style check rather
+- [x] No component references a custom property that `app/globals.css` does not define.
+- [x] `design-lint` fails when one does, with the property named.
+- [x] A text input in the composer has a visible border, asserted by a computed-style check rather
       than by `toBeVisible()`.
+
+## What shipped
+
+- The three components now use `--color-border` and `--color-paper-raised`. The composer's text
+  box, its folded-away ticket draft, the plan panel's lines and a piece of work's full record all
+  have their border back.
+- `design-lint` has a new rule, `undefined-token`. It collects every custom property the studio
+  defines — in `app/globals.css`, set inline on an element, or handed over by next/font in
+  `app/layout.tsx` — and fails on any `var(--name)` that is none of those, naming it:
+  `components/Composer.tsx:328  undefined-token  --color-rule is used here but defined nowhere`.
+  Run against the old components it found exactly the seven uses this ticket describes.
+- `e2e/composer.spec.ts` reads the border and background the browser actually drew on the text box
+  and compares them with what the two tokens resolve to. On the old code it fails with "the box has
+  no border" (the browser reported `none`).
+
+One limit: a name built while the page runs, like `var(--tone-${tone})` in `lib/status.ts`, cannot
+be checked from the text, so the rule skips it. That file's own test covers every tone it makes.
+
+After review: the rule no longer counts a token that is only named in a comment as defined. A comment
+such as `// the old --color-rule: was never defined` used to define it for every file. A unit test
+holds that.
+
+### Compared with the design, after review
+
+The composer and a piece of work were drawn on ARCA's real data, as its founder, beside the Claude
+Design artifact, at 1440×1000 and 393×851. The text box's border is back and looks like the
+design's box. One difference: the design draws that line darker, with `--color-border-strong`, while
+this ticket uses `--color-border`, as its scope says. Changing it is a look change, so it is a
+follow-up, not part of this ticket. The composer's draft and plan states could only be drawn on
+fixtures, because they need the conversation service that runs on the venture's box. The full
+reading is in `docs/design-conformance.md`.
+

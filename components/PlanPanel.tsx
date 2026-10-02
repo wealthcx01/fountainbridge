@@ -101,7 +101,7 @@ export function PlanPanel({
               data-struck={struck ? 'true' : 'false'}
               style={{
                 display: 'flex', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between',
-                padding: '0.6rem 0', borderTop: '1px solid var(--color-rule)',
+                padding: '0.6rem 0', borderTop: '1px solid var(--color-border)',
               }}
             >
               <div style={{ minWidth: 0 }}>

@@ -884,3 +884,43 @@ fixture data: the composer is **1,000px** at 1440×1000 and **1,169px** at 393×
 nothing scrolls sideways. A browser test (`e2e/voice.spec.ts`) now draws the record button in the UI
 gate, using the test transcriber. The hosted design artifact was not opened: it needs a signed-in
 claude.ai session, and this review had none. Its composer has no record button to compare against.
+
+## FB-150 — the text boxes get their border back, 2026-10-02
+
+Read on a local build with the UI gate's fixture data, not production, before and after the change,
+at 1440×1000 and 393×851. Before: the composer's text box had no border and no background of its
+own — an unmarked strip on the page. After: it has the studio's 1px border and its raised paper
+background, like the cards beside it. The same fix gives a border back to the folded-away ticket
+draft, the lines of the plan panel, and the full record on a piece of work.
+
+Heights after (before in brackets): composer, empty, **1,000px** (1,000) at desktop and **1,284px**
+(1,282) on a phone; composer with the draft open **1,295px** (1,291) and **2,391px** (2,387); composer
+with a plan **1,227px** (1,225) and **2,546px** (2,539); a piece of work with its record open
+**2,136px** (2,134) and **4,179px** (4,177). Each grows by its new borders and nothing else. The
+hosted design artifact was not opened for this reading: the change restores what the components
+already asked for and changes no layout, and the ticket rules a different look out of scope.
+
+**Taken again after review, 2026-10-02, on real data beside the design.** Read on ARCA's real data,
+signed in as its founder, on a local build of this branch pointed at the real GitHub data (the
+method at the top of this file), beside the Claude Design artifact rendered from its saved page and
+clicked through ("Continue with Google", then the desk and "The pocket studio"). Looked at as
+pictures at 1440×1000 and 393×851.
+
+- Composer, empty: **1,000px** at desktop and **1,195px** on a phone. No sideways scroll. The text
+  box has a 1px border and the raised paper background (the browser drew `solid 1px #dddbd6` on
+  `#fdfcfa`).
+- A piece of work (ARCA pull request 93) with its full record open: **3,550px** and **7,218px**. No
+  sideways scroll. The record has its border and background. It is long because that record is long:
+  the founder asked to see all of it, and before that it is folded away.
+- The composer with a ticket draft open, and with a plan proposed, could not be drawn on real data.
+  Those states need the composer's conversation service, which runs on the venture's box and not on
+  a local build. They were drawn on fixtures only (the heights above).
+
+What the comparison found: the design draws its "Tell the studio what you want" box with the same
+shape — a 1px solid line around a pale box — but with the **darker** line, `#b9b6ae`, which is our
+`--color-border-strong`. Ours now uses `--color-border` (`#dddbd6`), as the ticket asked. So the box
+is back, but its line is lighter than the design's. The ticket rules a different look out of scope,
+so this is left as a follow-up, not changed here. Two things seen that this change did not cause:
+the design's composer puts Send inside the box, where ours puts it underneath; and on a phone the
+full-page capture draws the top bar part-way down the composer, which is how a full-page screenshot
+shows a bar that stays at the top while you scroll.
