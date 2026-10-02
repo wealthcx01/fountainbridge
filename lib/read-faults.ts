@@ -40,6 +40,7 @@ export const FAULTABLE = [
   'trail',
   // FB-206: the credential scan record each venture box writes, read only by the admin ledger.
   'boxscan',
+  'pipeline',
 ] as const;
 
 export type FaultableRead = (typeof FAULTABLE)[number];
