@@ -37,6 +37,8 @@ export const RULES = {
     'a stylesheet rule keyed on data-testid — style on the class; a test id must never be load-bearing layout',
   'state-glyph':
     'a ⚠ or ● marking a state — use <Mark tone> (components/Mark.tsx); an emoji is a different typeface at a size nobody chose and it does not take the tone colour',
+  'undefined-token':
+    'a var(--name) that nothing defines — the browser drops the whole line, so a border is not drawn and a background is see-through; use a token app/globals.css defines',
 };
 
 // --- rule implementations -------------------------------------------------------------------
@@ -85,6 +87,39 @@ const STATUS_COLOUR = /var\(\s*--color-(ok|warn|error)\b/;
  */
 const TESTID_SELECTOR = /\[data-testid[~^$*|]?=/;
 
+/**
+ * A token used but never defined (FB-150).
+ *
+ * `var(--color-rule)` and `var(--color-surface)` sat in three components for months. Neither was
+ * defined anywhere. A browser treats a `var()` that points at nothing as if the whole line were
+ * missing: `border: 1px solid var(--color-rule)` drew no border, and every text box in the
+ * composer was an unmarked strip on the page's own background. The raw-colour rule was satisfied,
+ * because it saw a token, and nothing checked that the token existed.
+ *
+ * A name built while the page runs (`var(--tone-${tone})`) cannot be checked from the text, so a
+ * name followed straight by `${` is left alone. `lib/status.ts` is the one place that does it, and
+ * its own test pins every tone it can produce.
+ */
+const VAR_USE = /var\(\s*(--[A-Za-z0-9_-]+)(?![A-Za-z0-9_-]|\$\{)/g;
+/** `--name:` in a stylesheet, or `'--name':` set inline on an element. */
+const PROPERTY_DEFINITION = /(?:^|[\s{;'"])(--[A-Za-z0-9_-]+)['"]?\s*:/gm;
+/** next/font hands a typeface over as a custom property: `variable: '--font-inter'`. */
+const FONT_VARIABLE = /\bvariable\s*:\s*['"](--[A-Za-z0-9_-]+)['"]/g;
+
+/**
+ * Every custom property one file defines. Pure, so the driver can collect them across the whole
+ * surface and a test can check a single file's text.
+ * @param {string} text
+ * @returns {Set<string>}
+ */
+export function definedProperties(text) {
+  const out = new Set();
+  for (const re of [PROPERTY_DEFINITION, FONT_VARIABLE]) {
+    for (const m of text.matchAll(re)) out.add(m[1]);
+  }
+  return out;
+}
+
 /** Strip the things that legitimately contain hex/px so they do not produce false positives. */
 function stripNoise(line) {
   return line
@@ -129,8 +164,10 @@ function deadControls(text) {
  * Lint one file's contents.
  * @param {string} text
  * @param {string} relPath repo-relative, so the token-source exemption can be applied
+ * @param {Set<string>} [defined] every custom property the studio defines. When given, a var() of
+ *   anything else is a violation. Left out, that one rule does not run.
  */
-export function lintText(text, relPath) {
+export function lintText(text, relPath, defined) {
   const violations = [];
   const declaresValues = (p) => relPath === p || relPath === p.split(sep).join('/');
   const isTokenSource = declaresValues(TOKEN_SOURCE) || declaresValues(OS_COLOUR_SOURCE);
@@ -161,6 +198,13 @@ export function lintText(text, relPath) {
     // Only in stylesheets: a `data-testid` in JSX is the test id itself, which is the point of it.
     if (isStyleSheet && TESTID_SELECTOR.test(s)) {
       violations.push({ line, rule: 'testid-selector', snippet: s.trim().slice(0, 80) });
+    }
+    if (defined) {
+      for (const m of s.matchAll(VAR_USE)) {
+        if (!defined.has(m[1])) {
+          violations.push({ line, rule: 'undefined-token', snippet: `${m[1]} is used here but defined nowhere` });
+        }
+      }
     }
   });
 
@@ -198,10 +242,16 @@ function main() {
     }
   });
 
+  // Definitions are collected across every file first: a token is defined once, in
+  // app/globals.css, and used everywhere else. next/font's typefaces are defined in app/layout.tsx.
+  const texts = new Map(files.map((f) => [f, readFileSync(f, 'utf8')]));
+  const defined = new Set();
+  for (const text of texts.values()) for (const name of definedProperties(text)) defined.add(name);
+
   let total = 0;
   for (const file of files.sort()) {
     const rel = relative(root, file).split(sep).join('/');
-    const found = lintText(readFileSync(file, 'utf8'), rel);
+    const found = lintText(texts.get(file), rel, defined);
     for (const v of found) {
       console.error(`${rel}:${v.line}  ${v.rule}  ${v.snippet}`);
       total++;

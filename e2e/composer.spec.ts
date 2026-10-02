@@ -56,6 +56,40 @@ test.describe('describing what you want', () => {
     await expect(page.getByTestId('composer-empty')).toContainText('Describe what you want');
   });
 
+  test('the box you type in has a border you can see, in the studio’s own colours (FB-150)', async ({ page }) => {
+    // For months this box was drawn with two colour names that did not exist. A browser drops a
+    // line that names a missing colour, so the box had no border and no background of its own: an
+    // unmarked strip on the page. `toBeVisible()` passed the whole time, because a box with no
+    // border is still visible. So this reads what the browser actually drew.
+    await page.goto('/venture/arca/composer');
+    const input = page.getByTestId('composer-input');
+    await expect(input).toBeVisible();
+    const drawn = await input.evaluate((el) => {
+      // What the two tokens resolve to on this page, read the same way, so the comparison is
+      // colour to colour rather than a hex string against an rgb() one.
+      const probe = document.createElement('div');
+      probe.style.color = 'var(--color-border)';
+      probe.style.backgroundColor = 'var(--color-paper-raised)';
+      document.body.appendChild(probe);
+      const tokens = getComputedStyle(probe);
+      const want = { border: tokens.color, background: tokens.backgroundColor };
+      probe.remove();
+      const s = getComputedStyle(el);
+      return {
+        style: s.borderTopStyle,
+        width: s.borderTopWidth,
+        border: s.borderTopColor,
+        background: s.backgroundColor,
+        want,
+      };
+    });
+    expect(drawn.style, 'the box has no border').toBe('solid');
+    expect(drawn.width).toBe('1px');
+    expect(drawn.border, 'the border is not the studio’s border colour').toBe(drawn.want.border);
+    expect(drawn.background, 'the box has no background of its own').not.toBe('rgba(0, 0, 0, 0)');
+    expect(drawn.background).toBe(drawn.want.background);
+  });
+
   test('the reply streams in, and what it DID is shown as an action', async ({ page }) => {
     await page.goto('/venture/arca/composer');
     await page.getByTestId('composer-input').fill('What do we know about the price feed?');

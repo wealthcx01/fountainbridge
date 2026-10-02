@@ -325,8 +325,8 @@ export function Composer({
           disabled={sending}
           style={{
             width: '100%', padding: '0.7rem', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
-            border: '1px solid var(--color-rule)',
-            background: 'var(--color-surface)', color: 'var(--color-ink)', resize: 'vertical',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-paper-raised)', color: 'var(--color-ink)', resize: 'vertical',
           }}
         />
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -442,7 +442,7 @@ function Reply({ text, mine }: { text: string; mine: boolean }) {
                   data-testid="composer-draft-body"
                   style={{
                     fontSize: 'var(--fs-meta-lg)', whiteSpace: 'pre-wrap', overflowX: 'auto',
-                    background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
+                    background: 'var(--color-paper-raised)', border: '1px solid var(--color-border)',
                     padding: '0.7rem', margin: '0.5rem 0 0',
                   }}
                 >

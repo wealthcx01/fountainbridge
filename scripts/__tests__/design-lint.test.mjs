@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { lintText, RULES } from '../design-lint.mjs';
+import { readFileSync } from 'node:fs';
+import { definedProperties, lintText, RULES } from '../design-lint.mjs';
 
 // A linter that cries wolf gets disabled, and a linter that misses the drift is decoration. These
 // tests pin both edges: what it must catch, and what it must stay quiet about.
@@ -109,5 +110,54 @@ describe('a stylesheet must not key on a test id (FB-158)', () => {
       const found = lintText(`${sel} { display: none; }\n`, 'app/globals.css');
       expect(found.map((v) => v.rule), sel).toContain('testid-selector');
     }
+  });
+});
+
+describe('a token must exist before it is used (FB-150)', () => {
+  // `--color-rule` and `--color-surface` were used in three components and defined nowhere. A
+  // browser drops a line that names a missing token, so the composer's text box had no border and
+  // no background, and every check was green because each one saw a token and stopped there.
+  const defined = definedProperties(':root {\n  --color-border: #dddbd6;\n  --color-paper-raised: #fdfcfa;\n}\n');
+  const found = (text) => lintText(text, 'components/X.tsx', defined).filter((v) => v.rule === 'undefined-token');
+
+  it('flags a token nothing defines, and names it', () => {
+    const out = found(`<textarea style={{ border: '1px solid var(--color-rule)' }} />`);
+    expect(out).toHaveLength(1);
+    expect(out[0].snippet).toContain('--color-rule');
+  });
+
+  it('flags each missing token on a line, not just the first', () => {
+    const out = found(`<pre style={{ background: 'var(--color-surface)', border: '1px solid var(--color-rule)' }} />`);
+    expect(out.map((v) => v.snippet.split(' ')[0])).toEqual(['--color-surface', '--color-rule']);
+  });
+
+  it('accepts the tokens that are defined', () => {
+    expect(found(`<textarea style={{ border: '1px solid var(--color-border)', background: 'var(--color-paper-raised)' }} />`)).toEqual([]);
+  });
+
+  it('matches the whole name, so a defined token does not vouch for a longer or shorter one', () => {
+    expect(found(`<p style={{ color: 'var(--color-border-strong)' }} />`)).toHaveLength(1);
+    expect(found(`<p style={{ color: 'var(--color-bord)' }} />`)).toHaveLength(1);
+  });
+
+  it('leaves a name built while the page runs alone, since the text cannot say what it will be', () => {
+    expect(found('return `var(--tone-${tone})`;')).toEqual([]);
+  });
+
+  it('counts an inline definition and a next/font typeface as defined', () => {
+    const more = definedProperties(`<div style={{ '--bar-width': '40%' }} />\nconst f = Inter({ variable: '--font-inter' });`);
+    expect([...more].sort()).toEqual(['--bar-width', '--font-inter']);
+  });
+
+  it('does not run when it is not told what is defined, so the other rules can be tested alone', () => {
+    expect(lintText(`<p style={{ color: 'var(--color-rule)' }} />`, 'components/X.tsx')).toEqual([]);
+  });
+
+  it('reads the real token file: the tokens the fix uses are there, and the two missing ones are not', () => {
+    const real = definedProperties(readFileSync('app/globals.css', 'utf8'));
+    expect(real.has('--color-border')).toBe(true);
+    expect(real.has('--color-paper-raised')).toBe(true);
+    expect(real.has('--color-rule')).toBe(false);
+    expect(real.has('--color-surface')).toBe(false);
   });
 });
