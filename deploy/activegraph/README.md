@@ -23,9 +23,14 @@ it acts.
 3. Then `foundry_graph.py gate` answers: has a person agreed to exactly this proposal? The executor
    combines that answer with its own check of the grant file, according to `ACTIVEGRAPH_GATE`.
 
-Git stays the record. The graph is built from it, by one writer (the executor), so it can be deleted
-and rebuilt from git at any time with `migrate`. That single writer is also why SQLite is safe here:
-the two-writer problem the ticket raised does not arise.
+Git stays the record. The graph is built from it, only by the executor, so it can be deleted and
+rebuilt from git at any time with `migrate`.
+
+A venture has **one graph file**, shared by all of its executors (one per repo, all on the same
+timer). Every `foundry_graph.py` command takes a lock on that file first (`<store>.lock`, beside it)
+and holds it until it finishes, so only one process reads or writes the graph at a time. A process
+that cannot get the lock within 30 seconds (`FOUNDRY_GRAPH_LOCK_WAIT`) gives up and sends nothing,
+and the executor tries again on its next pass. One writer at a time is why SQLite is safe here.
 
 ## What keeps the gate safe
 
@@ -35,8 +40,14 @@ the two-writer problem the ticket raised does not arise.
 - **A refused send stays refused (FB-183).** A refusal is final; a grant after it is refused, and the
   gate says no.
 - **The store is not trusted on its own.** At decision time the gate re-checks every signature it
-  relies on from the graph's own log. A grant written into the file by hand, or a state changed by
-  hand, does not open it; an unsigned event anywhere in that approval's log closes it.
+  relies on from the graph's own log, and checks that each one belongs to the approval it is filed
+  under. A grant written into the file by hand, a real grant copied over from another approval, or a
+  state changed by hand does not open it.
+- **A damaged graph file makes the executor wait, not refuse.** The file is only a copy of git. If
+  someone has written to it by hand, the gate says no *for now*: nothing is sent, and the executor's
+  log says to delete the file. The next pass rebuilds the approval from git, and the founder's real
+  decision reads again. A final "no" is kept for decisions that really are in the signed record, such
+  as a founder's refusal.
 - **It fails closed.** No secret, no answer, an unreadable answer, or the wrong ActiveGraph version:
   nothing is sent, and the executor tries again on its next pass.
 
@@ -55,7 +66,7 @@ value on the studio (Railway) so its message to a founder stays true when the re
 
 ## Run it locally
 
-    make activegraph-test       # builds .ag-venv with activegraph==1.10.0, runs the gate's 28 tests
+    make activegraph-test       # builds .ag-venv with activegraph==1.10.0, runs the gate's 33 tests
     FB171_REQUIRE_ACTIVEGRAPH=1 npx vitest run deploy/executor/__tests__/executor-activegraph.e2e.test.mjs
 
 The second runs the real executor process against a real ActiveGraph store, with GitHub stood in for
@@ -81,8 +92,9 @@ the gate's copy goes beside the executor. Today the executor is not deployed any
     sudo cp -r deploy/executor deploy/activegraph /opt/foundry-executor/
     sudo chmod 700 /var/lib/foundry-activegraph
 
-**3. Write `/etc/foundry/executor-arca-marketing.env`, mode 600, owned by root.** One file per repo
-that holds approvals; for ARCA that is the Sell repo:
+**3. Write `/etc/foundry/executor-arca-marketing.env`, mode 600, owned by root.** One env file per
+repo that holds approvals; for ARCA that is the Sell repo. Every repo of one venture uses the **same**
+`ACTIVEGRAPH_STORE`: the history is one per venture, and the lock makes the executors take turns.
 
     REPO=wealthcx01/arca-marketing
     EXECUTOR_GITHUB_TOKEN=<the executor's own token: Contents write on REPO and on ACTIVEGRAPH_REPO>

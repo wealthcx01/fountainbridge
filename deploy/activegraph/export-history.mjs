@@ -12,9 +12,11 @@
 // 31 August (FB-161).
 //
 // Env: GITHUB_TOKEN (read access to the studio repo), ACTIVEGRAPH_REPO (default
-// wealthcx01/fountainbridge), ACTIVEGRAPH_REF (default foundry-activegraph), GITHUB_API_URL.
+// wealthcx01/fountainbridge), ACTIVEGRAPH_REF (default foundry-activegraph), EXECUTOR_GITHUB_API_URL
+// (tests only; GitHub or this machine, nothing else, so the token cannot be sent elsewhere).
 
 import { fileURLToPath } from 'node:url';
+import { githubApiBase } from '../executor/executor-lib.mjs';
 
 /** The event files for one venture in a recursive tree listing, in a stable order. */
 export function historyPaths(tree, venture) {
@@ -30,7 +32,11 @@ async function main() {
     console.error('usage: export-history.mjs <venture-id>');
     process.exit(2);
   }
-  const api = process.env.GITHUB_API_URL || 'https://api.github.com';
+  const api = githubApiBase(process.env.EXECUTOR_GITHUB_API_URL);
+  if (!api) {
+    console.error('EXECUTOR_GITHUB_API_URL points somewhere other than GitHub or this machine; stopping so the token stays put.');
+    process.exit(2);
+  }
   const repo = process.env.ACTIVEGRAPH_REPO || 'wealthcx01/fountainbridge';
   const ref = process.env.ACTIVEGRAPH_REF || 'foundry-activegraph';
   const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };

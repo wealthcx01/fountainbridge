@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createServer } from 'node:http';
-import { execFile } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -74,12 +74,31 @@ function event(seq, type, kind, who, at, data) {
   return { ...e, attestation: signEvent(createHmac, SECRET, e) };
 }
 
-function runExecutor(port, store, mode) {
+/** Build the graph file from these events, then slip an unsigned event into it, as a hand edit would. */
+function damageStore(store, events) {
+  const script = [
+    'import json, sys',
+    `sys.path.insert(0, ${JSON.stringify(join(ROOT, 'deploy/activegraph'))})`,
+    'import foundry_graph as fg',
+    'from activegraph import Event',
+    `g = fg.FoundryGraph("arca", ${JSON.stringify(SECRET)}, ${JSON.stringify(store)})`,
+    'g.ingest([json.loads(l) for l in sys.stdin if l.strip()])',
+    'key = g.graph.objects("approval")[0].data["key"]',
+    'junk = {"v": 1, "seq": 3, "venture": "arca", "repo": "arca-marketing", "id": "send-001", "type": "action.failed",',
+    '        "at": "2026-09-03T09:40:00Z", "actor": {"kind": "executor", "id": "foundry-executor"}}',
+    'g.graph.emit(Event(id=g.graph.ids.event(), type="action.failed", payload={"approval": key, "foundry_event": junk},',
+    '                   actor="executor:foundry-executor", timestamp="2026-09-03T09:40:00Z"))',
+  ].join('\n');
+  const r = spawnSync(PYTHON, ['-c', script], { input: events.map((e) => JSON.stringify(e)).join('\n'), encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`could not damage the store: ${r.stderr}`);
+}
+
+function runExecutor(port, store, mode, api = `http://127.0.0.1:${port}`) {
   return new Promise((ok) => {
     execFile('node', [join(ROOT, 'deploy/executor/executor.mjs')], {
       env: {
         PATH: process.env.PATH,
-        GITHUB_API_URL: `http://127.0.0.1:${port}`,
+        EXECUTOR_GITHUB_API_URL: api,
         REPO, EXECUTOR_GITHUB_TOKEN: 'fake', FOUNDRY_APPROVAL_SECRET: SECRET, APPROVER_IDENTITIES: FOUNDER,
         ACTIVEGRAPH_REPO: AG_REPO, VENTURE_ID: 'arca',
         ACTIVEGRAPH_GATE: mode, ACTIVEGRAPH_STORE: store, ACTIVEGRAPH_PYTHON: PYTHON,
@@ -140,12 +159,53 @@ describe.skipIf(!HAVE)('the executor asks real ActiveGraph before anything goes 
     expect(log).toMatch(/refused by founder@bruntsfield.capital/);
   });
 
-  it('refuses a grant the lane wrote, whatever ActiveGraph says', async () => {
+  it('refuses a grant file the lane wrote, even when ActiveGraph holds a real approval', async () => {
+    // ActiveGraph can only ever add a "no". Here it says yes (the founder really approved), and the
+    // grant file is a lane's forgery: nothing goes out, in either mode that asks ActiveGraph.
     put(`${REPO}:approvals/send-001/grant.json`, { id: 'send-001', approver: FOUNDER, proposal_sha: SHA, attestation: 'f'.repeat(64) });
     record(event(1, 'approval.proposed', 'agent', 'foundry-lane', '2026-09-03T09:22:46.843Z', { proposal_sha: SHA }));
     record(event(2, 'approval.granted', 'human', FOUNDER, '2026-09-03T09:23:10.000Z', { proposal_sha: SHA }));
-    const { log } = await runExecutor(server.address().port, store, 'enforce');
-    expect(outcome(), log).toBe('rejected');
+
+    const shadow = await runExecutor(server.address().port, store, 'shadow');
+    expect(outcome(), shadow.log).toBe('rejected');
+    // Proof that ActiveGraph was asked and said yes, and that its yes did not carry the send.
+    expect(shadow.log).toMatch(/the grant file says no; ActiveGraph says approved by founder@bruntsfield.capital/);
+
+    files.delete(`${REPO}:approvals/send-001/execution.json`);
+    rmSync(store, { force: true });
+    const enforce = await runExecutor(server.address().port, store, 'enforce');
+    expect(outcome(), enforce.log).toBe('rejected');
+    expect(enforce.log).toMatch(/attestation is missing or invalid/);
+    expect(existsSync(store), 'ActiveGraph was asked').toBe(true);
+  });
+
+  it('waits, rather than refusing for good, when the graph file has been written to by hand', async () => {
+    // The founder really approved this. Someone then wrote into the executor's graph file. The file
+    // is only a copy of git, so the executor must wait — not record the real approval as rejected,
+    // which it would never revisit. Deleting the file lets the next pass rebuild it and send.
+    studioGrant();
+    const proposedEv = event(1, 'approval.proposed', 'agent', 'foundry-lane', '2026-09-03T09:22:46.843Z', { proposal_sha: SHA });
+    const grantedEv = event(2, 'approval.granted', 'human', FOUNDER, '2026-09-03T09:23:10.000Z', { proposal_sha: SHA });
+    record(proposedEv);
+    record(grantedEv);
+    damageStore(store, [proposedEv, grantedEv]);
+
+    const first = await runExecutor(server.address().port, store, 'enforce');
+    expect(outcome(), first.log).toBe('nothing written');
+    expect(first.log).toMatch(/someone wrote to it directly/);
+    expect(first.log).toMatch(/trying again next pass/);
+
+    rmSync(store, { force: true });
+    const second = await runExecutor(server.address().port, store, 'enforce');
+    expect(outcome(), second.log).toBe('executed');
+  });
+
+  it('will not start if its GitHub address points anywhere but GitHub or this machine', async () => {
+    studioGrant();
+    const { code, log } = await runExecutor(server.address().port, store, 'off', 'https://example.com');
+    expect(code, log).toBe(2);
+    expect(log).toMatch(/FAIL-CLOSED: EXECUTOR_GITHUB_API_URL/);
+    expect(outcome()).toBe('nothing written');
   });
 
   it('with the gate off, behaves exactly as before FB-171', async () => {

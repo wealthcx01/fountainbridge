@@ -50,7 +50,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   expectedAttestation as sharedAttestation, decideExecution, eventsForExecution, signEvent,
-  graphGateMode, parseGraphVerdict, combineGates,
+  graphGateMode, parseGraphVerdict, combineGates, githubApiBase,
 } from './executor-lib.mjs';
 
 const REPO = process.env.REPO || 'wealthcx01/arca';
@@ -58,8 +58,8 @@ const REF = process.env.APPROVALS_REF || 'foundry-approvals';
 const TOKEN = process.env.EXECUTOR_GITHUB_TOKEN || '';   // NO fallback to the lane token.
 const SECRET = process.env.FOUNDRY_APPROVAL_SECRET || '';
 // Overridable only so the end-to-end test can stand a fake GitHub in front of the real executor
-// (FB-171). Whoever sets the environment already holds the signing secret, so this widens nothing.
-const API = process.env.GITHUB_API_URL || 'https://api.github.com';
+// (FB-171), and only to GitHub or this machine: see githubApiBase. Null means refuse to start.
+const API = githubApiBase(process.env.EXECUTOR_GITHUB_API_URL);
 const toSet = (v) => new Set((v || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 const AG_REPO = process.env.ACTIVEGRAPH_REPO || '';
 const AG_REF = process.env.ACTIVEGRAPH_REF || 'foundry-activegraph';
@@ -286,6 +286,7 @@ async function ghRepo(repo, path, init = {}) {
 
 async function main() {
   if (!TOKEN) { log('FAIL-CLOSED: EXECUTOR_GITHUB_TOKEN is not set (its own token, never the lane\'s)'); process.exit(2); }
+  if (!API) { log('FAIL-CLOSED: EXECUTOR_GITHUB_API_URL is set to somewhere other than GitHub or this machine, so the token would leave for it'); process.exit(2); }
   if (!SECRET) { log('FAIL-CLOSED: FOUNDRY_APPROVAL_SECRET is not set (shared studio↔executor; the lane must never hold it)'); process.exit(2); }
   if (APPROVER_IDS.size === 0) { log('FAIL-CLOSED: APPROVER_IDENTITIES is empty — no one is authorised to grant'); process.exit(2); }
   if (GRAPH_MODE !== 'off' && (!AG_REPO || !VENTURE_ID || !GRAPH_STORE)) {

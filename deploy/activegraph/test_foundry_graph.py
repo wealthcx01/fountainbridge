@@ -240,11 +240,68 @@ class SomeoneEditsTheStoreDirectly(Store):
         self.assertFalse(verdict["ok"], verdict)
         self.assertIn("wrote to it directly", verdict["reason"])
 
+    def test_a_damaged_graph_file_makes_the_executor_wait_and_a_rebuild_reads_the_real_grant(self) -> None:
+        # The founder really approved this. Then someone wrote into the graph file. The gate must say
+        # "not now", never a final no: a final no makes the executor record the real approval as
+        # rejected, for good. Once the file is deleted and rebuilt from git, the grant reads again.
+        g = self.graph()
+        g.ingest([proposed(), granted()])
+        approval = g.graph.objects("approval")[0]
+        junk = ev(3, "action.failed", "executor", "foundry-executor", "2026-09-03T09:40:00Z")
+        g.graph.emit(Event(id=g.graph.ids.event(), type="action.failed",
+                           payload={"approval": approval.data["key"], "foundry_event": junk},
+                           actor="executor:foundry-executor", timestamp="2026-09-03T09:40:00Z"))
+        verdict = self.graph().gate("arca-marketing", "send-001", SHA)
+        self.assertFalse(verdict["ok"], verdict)
+        self.assertTrue(verdict["retry"], "damage to a copy is a reason to wait, not a refusal")
+        self.assertIn("delete it", verdict["reason"])
+
+        os.remove(self.path)
+        rebuilt = self.graph()
+        rebuilt.ingest([proposed(), granted()])
+        self.assertTrue(rebuilt.gate("arca-marketing", "send-001", SHA)["ok"])
+
     def test_setting_the_state_by_hand_does_not_open_the_gate(self) -> None:
         g = self.graph()
         g.ingest([proposed()])
         approval = g.graph.objects("approval")[0]
         g.graph.patch_object(approval.id, {"state": "granted", "approver": "founder@bruntsfield.capital"})
+        verdict = self.graph().gate("arca-marketing", "send-001", SHA)
+        self.assertFalse(verdict["ok"], verdict)
+        self.assertIn("changed it by hand", verdict["reason"])
+        self.assertTrue(verdict["retry"])
+
+    def test_setting_a_refusal_by_hand_does_not_close_a_real_approval_for_good(self) -> None:
+        g = self.graph()
+        g.ingest([proposed(), granted()])
+        approval = g.graph.objects("approval")[0]
+        g.graph.patch_object(approval.id, {"state": "rejected"})
+        verdict = self.graph().gate("arca-marketing", "send-001", SHA)
+        self.assertFalse(verdict["ok"], verdict)
+        self.assertTrue(verdict["retry"], "only a refusal in the signed record is final")
+
+    def test_a_real_grant_copied_from_another_approval_does_not_open_this_one(self) -> None:
+        # send-002 was really approved. Its signed grant, copied into send-001's history in the file,
+        # is still send-002's grant.
+        g = self.graph()
+        other = granted(approval="send-002")
+        g.ingest([proposed(), proposed(approval="send-002"), other])
+        mine = next(o for o in g.graph.objects("approval") if o.data["approval_id"] == "send-001")
+        g.graph.emit(Event(id=g.graph.ids.event(), type="approval.granted",
+                           payload={"approval": mine.data["key"], "foundry_event": other},
+                           actor="human:founder@bruntsfield.capital", timestamp="2026-09-03T09:24:00Z"))
+        g.graph.patch_object(mine.id, {"state": "granted", "approver": "founder@bruntsfield.capital"})
+        verdict = self.graph().gate("arca-marketing", "send-001", SHA)
+        self.assertFalse(verdict["ok"], verdict)
+        self.assertTrue(verdict["retry"])
+
+    def test_a_signed_grant_from_an_agent_written_straight_into_the_store_does_not_open_the_gate(self) -> None:
+        # Ingest refuses this (test_only_a_person_can_grant...). This is the gate's own check, for
+        # when the secret has leaked and someone writes into the file directly, past ingest.
+        g = self.graph()
+        g.ingest([proposed()])
+        key = g.graph.objects("approval")[0].data["key"]
+        g._apply(granted(kind="agent", who="foundry-lane"), key)
         verdict = self.graph().gate("arca-marketing", "send-001", SHA)
         self.assertFalse(verdict["ok"], verdict)
         self.assertIn("no person's grant", verdict["reason"])
@@ -304,8 +361,8 @@ class ReplayForkAndMigrate(Store):
 class CommandLine(Store):
     """The contract the executor relies on: one JSON object out, and an exit code that fails closed."""
 
-    def run_cli(self, *args: str, stdin: str = "", secret: str | None = SECRET) -> tuple[int, dict]:
-        env = {**os.environ, "ACTIVEGRAPH_STORE": self.path, "VENTURE_ID": "arca"}
+    def run_cli(self, *args: str, stdin: str = "", secret: str | None = SECRET, **extra: str) -> tuple[int, dict]:
+        env = {**os.environ, "ACTIVEGRAPH_STORE": self.path, "VENTURE_ID": "arca", **extra}
         env.pop("FOUNDRY_APPROVAL_SECRET", None)
         if secret is not None:
             env["FOUNDRY_APPROVAL_SECRET"] = secret
@@ -320,6 +377,22 @@ class CommandLine(Store):
         code, out = self.run_cli("gate", "--repo", "wealthcx01/arca-marketing", "--id", "send-001", "--proposal-sha", SHA)
         self.assertEqual(code, 0)
         self.assertTrue(out["ok"])
+
+    def test_two_executors_take_turns_on_one_graph_file(self) -> None:
+        # Every executor of a venture shares its graph file. While one holds it, another must not
+        # load the run and append to it; it waits, then gives up and tries again next pass.
+        import fcntl
+        lines = "\n".join(json.dumps(e) for e in [proposed(), granted()])
+        with open(f"{self.path}.lock", "a") as held:
+            fcntl.flock(held.fileno(), fcntl.LOCK_EX)
+            code, out = self.run_cli("ingest", stdin=lines, FOUNDRY_GRAPH_LOCK_WAIT="0.3")
+            self.assertEqual(code, 6, out)
+            self.assertTrue(out["retry"])
+            self.assertIn("another executor", out["reason"])
+            self.assertFalse(os.path.exists(self.path), "nothing was written while another held the file")
+        # Once it is let go, the same command goes through.
+        code, out = self.run_cli("ingest", stdin=lines, FOUNDRY_GRAPH_LOCK_WAIT="0.3")
+        self.assertEqual((code, out["recorded"]), (0, 2))
 
     def test_a_closed_gate_exits_non_zero(self) -> None:
         self.run_cli("ingest", stdin=json.dumps(proposed()))

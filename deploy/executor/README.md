@@ -63,6 +63,10 @@ as `enforce`. It also needs `ACTIVEGRAPH_STORE` (the SQLite file), and reads `AC
 Run it: `node executor.mjs` (env: `REPO`, `EXECUTOR_GITHUB_TOKEN`, `FOUNDRY_APPROVAL_SECRET`,
 `APPROVER_IDENTITIES`).
 
+The executor sends its token only to `https://api.github.com`. `EXECUTOR_GITHUB_API_URL` exists so the
+end-to-end test can stand a fake GitHub on this machine; set to anything other than GitHub or
+`127.0.0.1`/`localhost`, the executor refuses to start.
+
 ## What lands next
 The studio endpoint that verifies the logged-in human + D7 role and **issues the attestation** on
 Approve is **FB-046** (it holds the secret; the lane never does). `performAction()` is a stub until real

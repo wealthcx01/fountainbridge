@@ -18,9 +18,11 @@ and replays them into an ActiveGraph run, one run per venture. So:
 - **Nothing about the studio's write path changes,** and the git log keeps working until the
   switch-over is proven on a real box (the ticket's own rule: the JSON path is retired only after
   the graph gates a real action).
-- **There is one writer to the graph** — this module, run by the executor. The studio and the lane
-  never write to it. That is what makes SQLite safe here: the two-writer problem the ticket worried
-  about does not arise, because nobody but the executor writes.
+- **There is one writer to the graph at a time.** Only this module, run by the executor, writes it;
+  the studio and the lane never do. A venture has one executor per repo, and they share the
+  venture's graph file, so every command first takes a lock on that file (`take_turn`) and holds it
+  until it is done. That is what makes SQLite safe here: two processes never load the run and append
+  to it at once.
 - **Migration and normal running are the same code.** Feeding the whole git log in once is the
   migration; feeding one approval's events in before each send is the steady state. Every event
   keeps the time it was recorded with on git.
@@ -366,10 +368,16 @@ class FoundryGraph:
             and verify_event(fe, self.secret)
         ]
         applied = [
-            (ev.payload or {}).get("foundry_event") for ev in self.graph.events
+            (ev.type, (ev.payload or {}).get("foundry_event")) for ev in self.graph.events
             if ev.type in RESULT and (ev.payload or {}).get("approval") == key
         ]
-        applied_ok = [fe for fe in applied if isinstance(fe, dict) and verify_event(fe, self.secret)]
+        # An event counts only if the studio signed it AND it is this approval's own event. A real,
+        # signed grant copied in from another approval is still a copy.
+        applied_ok = [
+            fe for (etype, fe) in applied
+            if isinstance(fe, dict) and verify_event(fe, self.secret)
+            and approval_key(str(fe.get("venture", "")), str(fe.get("repo", "")), str(fe.get("id", ""))) == key
+        ]
         obj = self._approval_object(key)
         state = obj.data.get("state") if obj else None
 
@@ -378,15 +386,24 @@ class FoundryGraph:
             return _no(key, state, f"it was refused by {who['actor']['id']}, and a refused send is closed", retry=False)
         if obj is None or not verified:
             return _no(key, state, "ActiveGraph has no signed record of this approval yet", retry=True)
+
+        # Damage to the graph file is a reason to wait, never a final no. The file is only a copy of
+        # the record in git: once it is deleted and rebuilt, the founder's real decision reads again.
+        # A final no here would make the executor record a real approval as rejected, for good.
         if len(applied) != len(applied_ok):
-            return _no(key, state, "the graph holds an approval event that does not verify — someone wrote to it directly", retry=False)
+            return _damaged(key, state, "the graph file holds an approval event that does not verify — someone wrote to it directly")
+        signed_state = RESULT[str(applied_ok[-1]["type"])] if applied_ok else None
+        if state != signed_state:
+            return _damaged(key, state, f"the graph file says this approval is {state}, but its signed events say "
+                                        f"{signed_state} — someone changed it by hand")
 
         grants = [fe for fe in applied_ok if fe.get("type") == "approval.granted"
                   and (fe.get("actor") or {}).get("kind") == "human"]
         if not grants:
             if state == "proposed":
                 return _no(key, state, "nobody has approved it yet", retry=True)
-            return _no(key, state, f"ActiveGraph shows it as {state}, with no person's grant", retry=False)
+            # Ingest refuses a grant from anyone but a person, so this can only be a direct write.
+            return _damaged(key, state, f"the graph file shows it as {state}, with no person's grant — someone wrote to it directly")
         grant = grants[-1]
         if state != "granted":
             # executing / executed / failed: the executor has already acted once.
@@ -459,6 +476,13 @@ def _no(key: str, state: Optional[str], reason: str, *, retry: bool) -> dict[str
     return {"ok": False, "approval": key, "state": state, "approver": None, "reason": reason, "retry": retry}
 
 
+def _damaged(key: str, state: Optional[str], what: str) -> dict[str, Any]:
+    """The graph file has been written to by hand. Wait, and say how to put it right."""
+    return _no(key, state, f"{what}. Nothing is sent. The graph file is only a copy of the record in git: "
+                           "delete it and the executor rebuilds this approval from git on its next pass "
+                           "(run migrate to rebuild the rest)", retry=True)
+
+
 # ---------------------------------------------------------------------------------------------
 # Command line. The executor calls `ingest` then `gate`; a person runs `migrate`, `replay-check`
 # and `what-if` by hand. Output is one JSON object on stdout; anything for a human goes to stderr.
@@ -519,6 +543,43 @@ def main(argv: Optional[list[str]] = None) -> int:
         out({"ok": False, "reason": "both --store and --venture are required", "retry": True})
         return 2
 
+    # One process at a time, for every command. Each executor of a venture (one per repo) shares
+    # this file, and they run on the same timer.
+    lock = take_turn(args.store)
+    if lock is None:
+        out({"ok": False, "reason": "another executor is using the graph file; trying again next pass", "retry": True})
+        return 6
+    try:
+        return _command(args, secret, out)
+    finally:
+        lock.close()  # closing the file lets the lock go
+
+
+def take_turn(store: str):
+    """Hold the graph file's lock, waiting up to FOUNDRY_GRAPH_LOCK_WAIT seconds (30 by default).
+
+    Returns the open lock file (close it to let go), or None if another process kept it all that
+    time. Two processes that each load the run and append to it would interleave its event log, so
+    nothing reads or writes the graph without this.
+    """
+    import fcntl
+    import time
+
+    wait = float(os.environ.get("FOUNDRY_GRAPH_LOCK_WAIT", "30"))
+    fh = open(f"{store}.lock", "a")
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fh
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                fh.close()
+                return None
+            time.sleep(0.1)
+
+
+def _command(args: argparse.Namespace, secret: str, out) -> int:
     fg = FoundryGraph(args.venture, secret, args.store)
     if args.cmd in ("ingest", "migrate"):
         given = _read_jsonl(sys.stdin)

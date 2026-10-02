@@ -107,6 +107,19 @@ export async function decideExecution({ id, proposal, verify, performAction, now
 // sends must fail closed, not open.
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Where the executor may send its GitHub token: GitHub itself, or this machine (the end-to-end test
+ * stands a fake GitHub on 127.0.0.1). Read from EXECUTOR_GITHUB_API_URL, a name no other tool sets,
+ * so a GITHUB_API_URL left on the host for something else cannot redirect the token. Anything else
+ * returns null, and the executor refuses to start.
+ */
+export function githubApiBase(value) {
+  const v = String(value ?? '').trim().replace(/\/+$/, '');
+  if (v === '' || v === 'https://api.github.com') return 'https://api.github.com';
+  if (/^http:\/\/(127\.0\.0\.1|localhost)(:\d{1,5})?$/.test(v)) return v;
+  return null;
+}
+
 /** Which gate mode is in force. Unset means off; anything unrecognised means enforce. */
 export function graphGateMode(value) {
   const v = String(value ?? '').trim().toLowerCase();

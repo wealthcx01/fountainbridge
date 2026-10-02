@@ -1,6 +1,28 @@
 import { describe, it, expect } from 'vitest';
 import { createHmac } from 'node:crypto';
-import { expectedAttestation, decideExecution, graphGateMode, combineGates, parseGraphVerdict } from '../executor-lib.mjs';
+import { expectedAttestation, decideExecution, graphGateMode, combineGates, parseGraphVerdict, githubApiBase } from '../executor-lib.mjs';
+
+describe('where the executor sends its GitHub token (FB-171 review)', () => {
+  it('sends it to GitHub when nothing is set', () => {
+    expect(githubApiBase(undefined)).toBe('https://api.github.com');
+    expect(githubApiBase('')).toBe('https://api.github.com');
+    expect(githubApiBase('https://api.github.com/')).toBe('https://api.github.com');
+  });
+
+  it('lets the end-to-end test point it at this machine', () => {
+    expect(githubApiBase('http://127.0.0.1:43123')).toBe('http://127.0.0.1:43123');
+    expect(githubApiBase('http://localhost:8080')).toBe('http://localhost:8080');
+  });
+
+  it('refuses anywhere else, so a stray setting cannot carry the token off', () => {
+    for (const elsewhere of [
+      'https://example.com', 'http://api.github.com', 'https://api.github.com.example.com',
+      'http://localhost.example.com', 'http://127.0.0.1@example.com', 'http://127.0.0.1:80/../x',
+    ]) {
+      expect(githubApiBase(elsewhere), elsewhere).toBeNull();
+    }
+  });
+});
 
 const NOW = '2026-07-31T12:00:00Z';
 const ok = { ok: true, approver: 'ross@b.capital' };

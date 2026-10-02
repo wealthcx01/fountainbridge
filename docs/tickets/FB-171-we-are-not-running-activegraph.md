@@ -24,10 +24,18 @@ the gate is exactly what it was: the studio-signed grant file.
 
 **How it is built, and one decision it takes.** Git stays the record, as this ticket's scope says.
 `foundry_graph.py` replays the signed git events into ActiveGraph, so the graph is a projection that
-can be thrown away and rebuilt. Only the executor writes to the graph, so there is one writer, not two
-— which is why the store is SQLite, not the Postgres this ticket first proposed. SQLite also gives
+can be thrown away and rebuilt. Only the executor writes to the graph. A venture runs one executor
+per repo and they share one graph file, so each takes a lock on the file before it reads or writes
+it, and they take turns. One writer at a time is why the store is SQLite, not the Postgres this
+ticket first proposed. SQLite also gives
 fork-and-diff, which ActiveGraph only supports on SQLite. Postgres stays possible later through
 ActiveGraph's own `migrate`.
+
+**Two things fixed after review, so the gate is safe to switch on later.** First, if someone writes
+into the executor's graph file by hand, the gate now says "not yet", not a final "no". Before, the
+executor would have recorded the founder's real approval as rejected, and never looked at it again.
+Now nothing is sent, the log says to delete the file, and the next pass rebuilds it from git. Second,
+the executors of one venture share one graph file, so each now takes a lock on it and they take turns.
 
 **One correction to the scope.** The scope says to stand ActiveGraph up "on a venture box". The gate
 cannot live there: checking a grant needs the studio's signing secret, and FB-071 rests on that secret
