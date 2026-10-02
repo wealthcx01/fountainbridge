@@ -924,3 +924,24 @@ so this is left as a follow-up, not changed here. Two things seen that this chan
 the design's composer puts Send inside the box, where ours puts it underneath; and on a phone the
 full-page capture draws the top bar part-way down the composer, which is how a full-page screenshot
 shows a bar that stays at the top while you scroll.
+
+## FB-241 — every time on the desk from one clock, 2026-10-02
+
+Read on a local build with the UI gate's fixtures and its pinned clock (`E2E_NOW`), signed in as
+John, before and after the change. Both were looked at as pictures.
+
+**Before:** the desk said *"Your team checked in 10 minutes ago"* above run rows reading *"72 days
+ago"*, an office ledger reading *"· 72 days"*, a waiting row reading *"waiting 79 days"* and a
+banner saying *"the oldest piece of work has waited 79 days"*. Five times, two clocks. The page was
+**2,324px** at 1440×1000 and **2,658px** at 393×851.
+
+**After:** the rows read *"10 minutes ago"*, *"1 hour ago"*, *"2 hours ago"*, *"5 hours ago"*; the
+ledger *"· 10 minutes"*; the waiting row and the banner both *"7 days"*. Every time on the page now
+agrees with the sentence above it. **2,342px** at 1440×1000 — 18px taller, because *"10 minutes
+ago"* wraps onto two lines in the run list's narrow first column where *"72 days ago"* fitted (filed
+as FB-262) — and **2,658px** at 393×851, unchanged. The phone desk does not show the run list; its
+two times, the banner and the waiting row, both say 7 days.
+
+Not compared with the design artifact (it needs a signed-in claude.ai session, which this run did
+not have), and not read on production: `E2E_NOW` is never set there, and on 2026-09-30 ARCA's real
+rows were already seen agreeing with the check-in sentence beside them.
