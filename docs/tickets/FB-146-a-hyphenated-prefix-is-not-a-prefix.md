@@ -53,9 +53,16 @@ It has not bitten yet only because `the-reset` has never filed through the compo
 - The same mistake was in two more places in the same file, both in `withTicketId`. A
   `# THE-RESET-NEW — Title` placeholder was not recognised, and a revision headed
   `# THE-RESET-012 — Title` was given a second id in front of its first. Both are fixed.
+- `withTicketId` counts a heading as already numbered only when it starts with this venture's own
+  prefix, read off the id it is given. Before that, any hyphenated word with a number in it counted,
+  so a heading such as `# Fix-step-2 — Onboarding` would have been left with no id.
 - `idOf`, which reads the id back out of a filename, moved from `stdio.mjs` into `ids.mjs` so it can
   be tested. `stdio.mjs` starts a server the moment it is loaded, so nothing in it can be.
 
 The re-filing path is proven by the two calls the filer makes, `existingTicketFile` then `idOf`, run
 on a `THE-RESET` backlog. The filer itself was not run against the-reset's real repository: that
 would file a real ticket, and the-reset has never filed through the composer.
+
+The same letters-only mistake is in two places outside `ticket-mcp/`, in the studio itself: the
+composer's side panel and the "What happened" sentence about the busiest ticket. They are outside
+this ticket's scope, so they are filed as FB-263.

@@ -292,6 +292,10 @@ describe('a venture whose prefix has a hyphen in it (FB-146)', () => {
     expect(nextTicketId('THE-RESET', theReset)).toBe('THE-RESET-013');
   });
 
+  // The next two passed before FB-146 as well: mustRenumber and isUnnumbered never read a prefix
+  // with the letters-only pattern. They are here so every rule has a THE-RESET case beside its ARCA
+  // one (the ticket's third criterion) and so a later change cannot break them for THE-RESET
+  // unseen. They are not evidence that FB-146's fix works; the tests above are.
   it('settles a shared number on a hyphenated prefix', () => {
     expect(mustRenumber('THE-RESET-013', 'zzz-ours', ['THE-RESET-013-aaa-theirs.md', 'THE-RESET-013-zzz-ours.md']))
       .toBe('the-reset-013-aaa-theirs.md');
@@ -308,6 +312,15 @@ describe('a venture whose prefix has a hyphen in it (FB-146)', () => {
     // Otherwise every revision stacks a second id in front of the first: `THE-RESET-013 — THE-RESET-012 — …`.
     const body = '# THE-RESET-012 — Onboarding\n\nbody';
     expect(withTicketId(body, 'THE-RESET-013')).toBe(body);
+  });
+
+  it('gives a real id to a heading that only looks numbered', () => {
+    // A hyphenated word with a digit in it is not a ticket number unless it is this venture's prefix.
+    // If any prefix shape counted, this heading would be left alone and the ticket would have no id.
+    expect(withTicketId('# Fix-step-2 — Onboarding\n\nbody', 'THE-RESET-013'))
+      .toBe('# THE-RESET-013 — Fix-step-2 — Onboarding\n\nbody');
+    expect(withTicketId('# Fix-step-2 — Onboarding\n\nbody', 'ARCA-44'))
+      .toBe('# ARCA-44 — Fix-step-2 — Onboarding\n\nbody');
   });
 
   it('knows an unnumbered ticket when it sees one', () => {

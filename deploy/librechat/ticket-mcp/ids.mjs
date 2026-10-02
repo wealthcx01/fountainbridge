@@ -180,7 +180,8 @@ export const ticketPath = (id, slug) => `docs/tickets/${id}-${slug}.md`;
  *
  * The model writes the title; the id is the filer's job, because only the filer can see the backlog.
  * Three shapes arrive here: the old `# ARCA-NEW — Title` placeholder, a bare `# Title`, and a
- * heading that already carries a real id (a revision) — which is left exactly as it is.
+ * heading that already carries a real id (a revision) — which is left exactly as it is. "A real
+ * id" means one with this venture's own prefix, read off `id`.
  */
 export function withTicketId(body, id) {
   const firstHeading = body.match(/^#\s+(.+)$/m);
@@ -192,7 +193,13 @@ export function withTicketId(body, id) {
 
   // Already numbered — a revision of a ticket that has an id. Leave it alone; renumbering a ticket
   // a founder has already been told the name of is worse than any tidiness it would buy.
-  if (new RegExp(`^${PREFIX_PATTERN}-\\d+[a-z]?\\s*[—–-]`).test(heading)) return body;
+  //
+  // Only THIS venture's prefix counts as a number, and the prefix is read off the id we were handed
+  // (`THE-RESET-013` → `THE-RESET`). Any hyphenated word would do otherwise, so a heading such as
+  // `# Fix-step-2 — Onboarding` would look already numbered and never get its real id.
+  const own = id.match(/^(.+)-\d+[a-z]?$/)?.[1];
+  const numbered = own ? escapeRe(own) : PREFIX_PATTERN;
+  if (new RegExp(`^${numbered}-\\d+[a-z]?\\s*[—–-]`, 'i').test(heading)) return body;
 
   return body.replace(firstHeading[0], `# ${id} — ${heading}`);
 }
