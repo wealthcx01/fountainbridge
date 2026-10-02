@@ -813,3 +813,27 @@ underlined "Strike" links; ours is a bordered card with buttons, and our "File a
 rail where the design puts it in the conversation, beside "Change something". Ours is 347px taller,
 mostly because each line also says where it came from. Closing that gap belongs to the plan panel,
 not to this PR. It is not filed as a ticket here, because other open PRs are taking new numbers today.
+
+## FB-235 — the Sell surface, a new screen, 2026-10-02
+
+**Not compared to a design, because there is none to compare it to.** The Claude Design artifact's
+rail reaches the desk, Tickets, What happened, Memory, the Handbook and the pocket studio; it has no
+Sell screen. So this screen has been looked at, but it has not been verified against a design, and
+nobody should read this line as saying it has. The shape comes from FB-235 (taken from the pipeline
+John runs); the layout borrows the desk's own pieces — the queue heading, the surface label, the
+hairline columns.
+
+**Not read on production either.** Production has no pipeline yet: `db/005_crm.sql` (FB-234) has not
+been run on the studio's database, and nothing has written a contact. So the reading is the UI
+gate's fixture — fourteen invented people and sixteen deals, built to hit every cap — on the
+studio's own build, signed in as ARCA's founder, landing on `/venture/arca/sell`.
+
+- Sell, with the fixture: **1,311px** at 1440×1000 and **2,814px** at 393×851. No sideways scroll.
+- Sell, with no database: **1,000px** and **1,014px** (one sentence saying it is not set up yet).
+- The desk, which gains one link ("your pipeline →") in the Sell column: **2,188px** at 1440×1000
+  (was 2,165px) and **2,368px** at 393×851 (unchanged).
+
+Looked at as pictures. On a desk the page is one screen and a third: five people who need the
+founder, each with a coloured edge for how warm they are, then six stage columns ending in Won. On a
+phone the board stacks, and it is the long part — every stage shows up to three deals, one under the
+other. If that proves too long in use, showing counts only on a phone is the next step.

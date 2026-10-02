@@ -715,6 +715,13 @@ export function VentureBoard({
                       lib/sends.ts on why that scope is not taken — so this is the one place a founder
                       can see the message itself. Absent without a workspace address, rather than a
                       link that lands on somebody's personal inbox. */}
+                  {/* FB-235: the pipeline — who this venture is selling to and who needs the
+                      founder now. Inside the studio, so the same tab. */}
+                  {d.id === 'sell' && d.provisioned ? (
+                    <Link href={`/venture/${venture.id}/sell`} data-testid="sell-pipeline-link">
+                      your pipeline →
+                    </Link>
+                  ) : null}
                   {d.id === 'sell' && outbox ? (
                     <a href={outbox} target="_blank" rel="noopener noreferrer" data-testid="sell-outbox">
                       Open your outbox ↗

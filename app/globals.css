@@ -1529,4 +1529,58 @@ body:has(.rail) .main {
 }
 @media (max-width: 720px) {
   .push-offer { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+
+/* ── The Sell surface (FB-235) ──────────────────────────────────────────────────────────────────
+   "Who needs you now" is a short list of rows with the person's temperature as a band down the left
+   edge: the colour is the at-a-glance read, and the word beside the status says the same thing for
+   anyone who does not see colour. The board is one column per stage on a desk and one stack on a
+   phone, with each stage capped so the page stays a single screen of reading. */
+.sell-lead { font-size: var(--fs-body); max-width: var(--content-narrow); margin: 0 0 1.5rem; }
+.sell-note { font-size: var(--fs-meta-lg); margin-top: 2.5rem; max-width: var(--content-narrow); }
+.sell-actions { list-style: none; margin: 0; padding: 0; }
+.sell-action {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.75rem 0 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 0.25rem solid var(--tone-idle);
+}
+.sell-action-body { flex: 1 1 auto; min-width: 0; }
+.sell-action-who { display: block; font-size: var(--fs-body-sm); font-weight: 600; }
+.sell-action-status {
+  display: block;
+  font-size: var(--fs-meta);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  margin-top: 0.1rem;
+}
+.sell-action-why { display: block; font-size: var(--fs-body-sm); color: var(--color-ink-soft); margin-top: 0.25rem; }
+.sell-action-do { flex: 0 0 auto; font-size: var(--fs-meta-lg); font-weight: 600; white-space: nowrap; }
+.sell-board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+}
+.sell-stage { border-left: 1px solid var(--color-border); padding: 0.25rem 0.75rem 0.5rem; min-width: 0; }
+.sell-stage:first-child { border-left: 0; padding-left: 0; }
+.sell-stage-count { color: var(--color-ink); margin-left: 0.25rem; }
+.sell-stage-empty, .sell-stage-more { font-size: var(--fs-meta); margin: 0.25rem 0 0; }
+.sell-deals { list-style: none; margin: 0; padding: 0; }
+.sell-deal { padding: 0.5rem 0; border-top: 1px solid var(--color-border); }
+.sell-deal-title { display: block; font-size: var(--fs-meta-lg); font-weight: 600; overflow-wrap: anywhere; }
+.sell-deal-meta { display: block; font-size: var(--fs-meta); color: var(--color-ink-muted); overflow-wrap: anywhere; }
+
+@media (max-width: 60rem) {
+  .sell-board { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 1.25rem; }
+  .sell-stage:nth-child(3n + 1) { border-left: 0; padding-left: 0; }
+}
+@media (max-width: 48rem) {
+  .sell-action { flex-wrap: wrap; }
+  .sell-action-do { flex: 1 1 100%; white-space: normal; }
+  /* On a phone a stage is a heading and its deals, one after another — six columns of one word each
+     would be unreadable. */
+  .sell-board { grid-template-columns: minmax(0, 1fr); row-gap: 1rem; }
+  .sell-stage { border-left: 0; padding-left: 0; padding-right: 0; }
 }

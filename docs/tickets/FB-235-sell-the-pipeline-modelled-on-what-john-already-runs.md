@@ -1,7 +1,9 @@
 # FB-235 — Sell: a pipeline shaped like the one John already runs
 
-**Status:** Shape written — awaiting John's review · **Phase:** 4 · **Raised by:** John, 2026-09-25 · **Depends on:** FB-234 ·
+**Status:** Shipped in part · **Phase:** 4 · **Raised by:** John, 2026-09-25 · **Depends on:** FB-234 ·
 One ticket = one branch = one PR.
+
+**Shipped in part:** the screen is built over FB-234's store; left are the bcap-contracts types, John's review of the shape, snooze and nudge, the mailbox reading, and real data in production.
 
 ## Why copy the shape of something that exists
 
@@ -55,11 +57,19 @@ It was read once, signed in as John, and nothing was changed, sent or saved in D
 ## Acceptance criteria
 
 - [ ] The shape is written down before any code, and reviewed by John, because he is the one who knows
-      whether it matches what he actually uses.
-- [ ] Every entity goes through bcap-contracts. No parallel type.
-- [ ] Not one line of copy or one layout is taken from Decile Hub, and the ticket says so.
-- [ ] Nothing can send. Proved by trying.
-- [ ] A founder can answer "who is waiting on me" from the Sell surface without opening anything else.
+      whether it matches what he actually uses. Written down, yes (above). Reviewed by John: not
+      recorded anywhere. He ruled on the store in FB-234 and pointed at this shape; the screen still
+      needs his eye.
+- [ ] Every entity goes through bcap-contracts. No parallel type. **Not met.** Contact, Company, Deal
+      and Activity are not in bcap-contracts yet, and adding them is that repository's change. Until
+      then `lib/crm.ts` mirrors the columns of `db/005_crm.sql` and nothing more.
+- [x] Not one line of copy or one layout is taken from Decile Hub, and the ticket says so. Every word
+      on the screen was written for it; the layout is built from the desk's own pieces.
+- [x] Nothing can send. Proved by trying. The page draws no form and no button. Every action is a
+      link to the composer asking for a draft and ending "Do not send anything", and a test renders
+      the page and checks every link it draws.
+- [x] A founder can answer "who is waiting on me" from the Sell surface without opening anything else.
+      "Who needs you now" is the first thing under the summary.
 
 ## Verification
 
@@ -179,3 +189,46 @@ CRM and a contact list.
 - **A free-floating chat.** The copilot is valuable because it reads *this* pipeline. A general
   assistant beside it would be a worse version of the Claude a founder already has.
 
+
+
+## Built, 2026-10-02
+
+**What a founder sees** at `/venture/<id>/sell`, reached from "your pipeline →" in the desk's Sell
+column. Three things, in the order a founder asks them:
+
+1. **A summary line with honest numbers.** How many people, how many open deals, how many won and
+   lost. A money total appears only when every open deal has a value in one currency. Otherwise the
+   line says what is missing ("6 of 14 open deals have no value yet, so there is no total"). The
+   weighted total needs a chance of closing on every open deal, and says so when one is missing.
+2. **Who needs you now.** At most five people, most urgent first. Each row has the person's
+   temperature as a coloured edge (and in words), a status, one sentence of why, and the action
+   inline. The order: they wrote and nobody answered; a follow-up is overdue; a follow-up is due today
+   or tomorrow; a warm or hot person has never been contacted. Hot before warm before cold, then the
+   longest wait first. Anyone snoozed is left off until the snooze ends. Below the list: "And N more".
+3. **Where every deal stands.** One column per stage — Added, Contacted, Meeting, Proposal sent,
+   Following up, **Won** — with a count and up to three deals each. Lost deals are counted under the
+   board, not shown on it.
+
+It also says plainly when it is **not set up** (no database), when it **could not be read**, and
+when it is **empty**. Those are three different sentences.
+
+**Nothing on it sends.** "Reply with AI" became **draft with AI**: the link opens the composer with
+the request already written, ending "Draft it for me to read first. Do not send anything." The
+composer files that as work, the team drafts, and anything that would leave the company comes back as
+an approval. The request is trimmed *before* that sentence is added, so a long message can never push
+"do not send" off the end — a test found that it could, and it was fixed.
+
+**What is left**
+
+- **The types through bcap-contracts** (non-negotiable 7). Contact, Company, Deal and Activity need
+  adding in that repository first.
+- **John's review of the shape.** The screen exists now, so it can be judged as a screen.
+- **Snooze and nudge.** The store holds a snooze date and the list honours it, but there is no button
+  to set one yet. A button that could not do anything would be a dead control, so none is drawn.
+- **Mail on the pipeline.** "Waiting for your reply" comes from what the Sell lane records. The
+  studio does not read anyone's mailbox (see `lib/sends.ts` on why that scope is not taken), so
+  nothing fills it automatically yet.
+- **A design to compare against.** The Claude Design artifact has no Sell screen. This one has been
+  looked at, at both sizes, but not compared to a design (recorded in `docs/design-conformance.md`).
+- **Real data.** Production has no pipeline until FB-234's `db/005_crm.sql` is run there and the lane
+  writes to it. Everything above was seen on invented fixture data.
