@@ -145,7 +145,15 @@ function decisionsFor(a: ActiveGraphApproval): Array<{ at: string | null; text: 
     case 'granted':
       return [{ at: a.grantedAt ?? a.committedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted'), attestation }];
     case 'rejected':
-      return [{ at: a.committedAt, text: verb(`sent back: ${a.summary}`), tone: approvalTone('rejected') }];
+      // FB-183: a founder's refusal is its own signed record, with its own time and its own name. A
+      // refused send has no grant and no execution, so `committedAt` and `approver` are both empty
+      // for it — and reading only those dropped every refusal from this page as "undated". A refused
+      // send is not waiting either, so it was then reachable from nowhere at all.
+      return [{
+        at: a.refusal?.at ?? a.committedAt,
+        text: `${a.refusal?.refusedBy ?? who} sent back: ${a.summary}`,
+        tone: approvalTone('rejected'),
+      }];
     case 'executing':
       return [
         ...(a.grantedAt ? [{ at: a.grantedAt, text: verb(`approved: ${a.summary}`), tone: approvalTone('granted'), attestation }] : []),

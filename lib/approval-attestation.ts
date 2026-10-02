@@ -88,6 +88,11 @@ export function canApprove(
  * grant over the same proposal would be byte-identical — so a refusal file could be renamed to
  * `grant.json` and would verify as an approval to send. The word in the string is what stops one
  * decision being replayed as the other.
+ *
+ * The date and the reason are signed too. Unsigned, anything that can write the file could change
+ * the founder's stated reason, or blank the date so the refusal drops out of "What happened", and
+ * the signature would still check out (FB-183 review). They go in as one JSON array, so a `|` in
+ * the reason cannot shift where one field ends and the next begins.
  */
 export function refusalAttestationFor(
   repo: string,
@@ -95,8 +100,10 @@ export function refusalAttestationFor(
   proposalSha: string,
   approver: string,
   secret: string,
+  refusedAt: string,
+  note: string,
 ): string {
   return createHmac('sha256', secret)
-    .update(`${repo}|${id}|${proposalSha}|refused|${approver.trim().toLowerCase()}`)
+    .update(`${repo}|${id}|${proposalSha}|refused|${JSON.stringify([approver.trim().toLowerCase(), refusedAt, note])}`)
     .digest('hex');
 }

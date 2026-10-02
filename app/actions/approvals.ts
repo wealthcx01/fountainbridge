@@ -22,7 +22,7 @@ import { GitHubClient } from '@/lib/github';
 import { APPROVALS_REF, approvalRepos, type ApprovalProposal } from '@/lib/approvals';
 import { fullRepoName } from '@/lib/venture-repos';
 import { approverRoleForDepartment, attestationFor, canApprove, refusalAttestationFor } from '@/lib/approval-attestation';
-import { verifyGrant } from '@/lib/provenance';
+import { verifyGrant, verifyRefusal } from '@/lib/provenance';
 import { appendEvent } from '@/lib/activegraph-log';
 
 export interface ApproveResult {
@@ -121,6 +121,24 @@ export async function approveExternalAction(
   }
   const alreadyDone = await reader.getFileContent(ghRepo, `approvals/${approvalId}/execution.json`, APPROVALS_REF);
   if (alreadyDone) return { ok: false, message: 'This approval has already been actioned — it cannot be approved again.' };
+
+  // A refused send is closed. Without this, a send refused in one tab could be approved from an
+  // older tab still showing the button — refusing does not change the proposal, so the "changed
+  // since the page loaded" check above passes — and the signed grant written below is exactly what
+  // the executor needs to send it. Only a refusal the studio can verify counts: an unsigned one
+  // could be written by a lane, and must not be able to block the founder's real decision.
+  const existingRefusal = await reader.getFileContent(ghRepo, `approvals/${approvalId}/refusal.json`, APPROVALS_REF);
+  if (existingRefusal) {
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(existingRefusal); } catch { parsed = null; }
+    const refused = verifyRefusal(ghRepo, approvalId, proposalR.sha, parsed, secret);
+    if (refused) {
+      return {
+        ok: false,
+        message: `This was refused by ${refused.refusedBy}, so it cannot be approved. Nothing was sent. If it should go after all, ask your team to propose it again.`,
+      };
+    }
+  }
 
   // D7: is this user the approver for the department's change class?
   const role = approverRoleForDepartment(venture, proposal.department ?? 'general');
@@ -283,7 +301,7 @@ export async function refuseExternalAction(
   }
 
   const refusedAt = new Date().toISOString();
-  const attestation = refusalAttestationFor(ghRepo, approvalId, proposalR.sha, email, secret);
+  const attestation = refusalAttestationFor(ghRepo, approvalId, proposalR.sha, email, secret, refusedAt, reason);
   const refusal = {
     id: approvalId, repo: ghRepo, decision: 'refused', refused_by: email,
     proposal_sha: proposalR.sha, attestation, refused_at: refusedAt, note: reason,
