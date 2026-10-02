@@ -83,20 +83,45 @@ names written with dashes (`context-sell-x`), but gbrain names pages with slashe
   where it already says when the brain is stale.
 - The department tagging now matches gbrain's real page names.
 
+## The Memory screen shows the count (second pull request, 2026-10-02)
+
+The count used to reach a founder only inside each run's report. Now it is on the Memory screen,
+in one sentence under the table of documents.
+
+- After every sync, the box writes the answer to `state/brain-corpus.json`. It writes it every
+  time, **including when nothing is missing**, so "none missing" is a measured answer and not just
+  the absence of a file.
+- The sync holds no GitHub access, on purpose. So the lane, which already writes to the venture's
+  `foundry-state` record every few minutes, copies the answer to `health/brain-corpus.json` there.
+  It copies only when the answer changes, or once a day, so the record does not gain a change on
+  every wake.
+- The Memory screen reads it and says one of five things:
+  - nothing checks yet, so the studio cannot say whether any are missing;
+  - the studio could not read the check;
+  - the last check did not finish;
+  - your team can find all N of your documents;
+  - your team cannot find N of your M documents, named, and that this is for Bruntsfield to fix.
+
+  An answer more than two days old also says it may be out of date.
+
+On ARCA today the screen says "Nothing checks yet", because the box does not have the new lane
+files. That is the honest answer until they are copied there.
+
 ## What is left
 
-- **Move ARCA's three files** from `context/build/` to `context/product/`. That is a change in the
-  ARCA repo, not this one.
+- **ARCA's three files are already moved.** Checked 2026-10-02: `context/product/` in the ARCA repo
+  holds `auction-aggregator-v1-scope.md`, `kraken-d-source-mismatch.md` and
+  `no-fake-demo-data-policy.md`, and `context/build/` no longer exists.
 - **Put the new lane files on the ARCA box** and run a full sync, then search for each of the five
-  documents. Box deploys wait for John's approval.
-- **Show the count on the Memory screen.** Today it reaches the founder in each run's report, not on
-  the screen.
+  documents. This also starts the Memory screen's count. Box deploys wait for John's approval.
 
-**Shipped in part:** ARCA's files still need moving to `context/product/`, the box still needs the
-new lane files and a full re-sync, and the Memory screen does not yet show the count.
+**Shipped in part:** the ARCA box still needs the new lane files and a full re-sync. Until then its
+brain has not been shown to find every document, and the Memory screen says the count is not yet
+checked.
 
 ## Acceptance criteria
 
 - [ ] All seven of ARCA's corpus documents are findable in the index by keyword.
 - [x] Something fails, loudly, when a tracked corpus file is not indexed after a sync.
-- [ ] The count is surfaced where a founder can see it, or the reason it cannot be is written down.
+- [x] The count is surfaced where a founder can see it, or the reason it cannot be is written down.
+  (On the Memory screen. On ARCA it reads "nothing checks yet" until the box has the new lane files.)
