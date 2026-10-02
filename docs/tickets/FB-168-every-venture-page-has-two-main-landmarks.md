@@ -1,6 +1,6 @@
 # FB-168 — every venture page has two `<main>` landmarks
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-156, on production
+**Status:** Done · **Phase:** 3 · **Found by:** FB-156, on production
 
 ## What is wrong
 
@@ -31,5 +31,17 @@ failed on the selector, not on the thing it was checking.
 
 ## Acceptance criteria
 
-- [ ] Exactly one `<main>` on every route in the UI gate, desktop and phone.
-- [ ] Adding a second one turns the gate red.
+- [x] Exactly one `<main>` on every route in the UI gate, desktop and phone.
+- [x] Adding a second one turns the gate red.
+
+## What shipped
+
+The second `<main>` was already gone: FB-203 turned the venture layout's inner one into a plain
+`<div>`, because it was the same fault seen from the desk's side. What was missing was the check
+that keeps it gone.
+
+`e2e/landmarks.spec.ts` now opens every page the UI gate's other tests open — 26 signed-in pages and
+the sign-in page — at 1440×1000 and at 393×851, and counts the main regions on each one. It fails
+on two, and on none. It also checks the browser landed on the page it was sent to, so a redirect
+cannot pass as a count. Putting a `<main>` back into `app/venture/[id]/layout.tsx` turned it red on
+all 14 venture pages at both sizes, naming each one.

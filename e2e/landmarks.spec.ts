@@ -70,7 +70,11 @@ for (const [size, width, height] of SIZES) {
     for (const path of SIGNED_IN) {
       await page.goto(path);
       const n = await mainCount(page);
-      if (n !== 1) wrong.push(`${path} has ${n}`);
+      // Where the browser landed, not where it was sent. A page that redirected somewhere else
+      // was never counted, and a count of the wrong page is not a pass (FB-151's lesson).
+      const landed = new URL(page.url()).pathname;
+      if (landed !== path.split('?')[0]) wrong.push(`${path} redirected to ${landed}`);
+      else if (n !== 1) wrong.push(`${path} has ${n}`);
     }
     // All the pages are opened before failing, so one red run names every page that is wrong.
     expect(wrong, `pages without exactly one <main> at ${size} size: ${wrong.join('; ')}`).toEqual([]);
