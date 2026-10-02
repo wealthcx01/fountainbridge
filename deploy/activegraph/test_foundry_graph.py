@@ -324,6 +324,24 @@ class CommandLine(Store):
         self.assertEqual(code, 3)
         self.assertFalse(out["ok"])
 
+    def test_migrating_with_the_wrong_secret_says_so_instead_of_succeeding(self) -> None:
+        # Run against the real ARCA history exactly as exported from git, real signatures and all.
+        # This repository does not hold the studio's secret, so every event must be refused — and
+        # the migration must say that is the wrong secret, not report an empty success.
+        history = (HERE / "fixtures" / "arca-history.jsonl").read_text()
+        code, out = self.run_cli("migrate", stdin=history, secret="not-the-studio-secret")
+        self.assertEqual(code, 5)
+        self.assertFalse(out["ok"])
+        self.assertIn("not one event verified", out["reason"])
+
+    def test_migrate_reports_every_approval_and_a_clean_replay(self) -> None:
+        lines = (HERE / "fixtures" / "arca-history.jsonl").read_text().splitlines()
+        history = "\n".join(json.dumps(signed(json.loads(l))) for l in lines if l.strip())
+        code, out = self.run_cli("migrate", stdin=history)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(out["approvals"]), 3)
+        self.assertTrue(out["replay"]["identical"])
+
     def test_no_secret_means_no_grant(self) -> None:
         code, out = self.run_cli("gate", "--repo", "arca-marketing", "--id", "send-001", "--proposal-sha", SHA, secret=None)
         self.assertEqual(code, 2)

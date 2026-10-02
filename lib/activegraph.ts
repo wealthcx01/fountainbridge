@@ -217,3 +217,40 @@ export function seqFromPath(path: string): number | null {
   const m = path.match(/\/(\d{4})-[a-z.]+\.json$/);
   return m ? Number(m[1]) : null;
 }
+
+/**
+ * What the `approval.proposed` event carries (FB-171).
+ *
+ * The proposal sha is the part that matters: it pins which version of the request a person decided
+ * on. The ticket, department and action type are carried too, so ActiveGraph can file the approval
+ * against the ticket it gates and the department that raised it. Only plain strings are taken: this
+ * goes into a signed canonical form, and a number or an object there would sign one way in
+ * TypeScript and another way in Python.
+ */
+export function proposedEventData(
+  proposalSha: string,
+  proposal: { summary?: unknown; ticket?: unknown; department?: unknown; action_type?: unknown },
+): Record<string, string> {
+  const out: Record<string, string> = { proposal_sha: proposalSha };
+  for (const key of ['summary', 'ticket', 'department', 'action_type'] as const) {
+    const v = proposal[key];
+    if (typeof v === 'string' && v.trim()) out[key] = v;
+  }
+  return out;
+}
+
+/**
+ * Whether the executor is set to require ActiveGraph's agreement before it acts (FB-171).
+ *
+ * Mirrors `graphGateMode` in deploy/executor/executor-lib.mjs: unset is off, anything unrecognised
+ * is enforce. The studio uses it only to tell a founder the truth when the record could not be
+ * written: under enforce, the action will NOT go out until it is.
+ */
+export function activeGraphGateMode(
+  value: string | undefined = process.env.ACTIVEGRAPH_GATE,
+): 'off' | 'shadow' | 'enforce' {
+  const v = (value ?? '').trim().toLowerCase();
+  if (v === '' || v === 'off') return 'off';
+  if (v === 'shadow') return 'shadow';
+  return 'enforce';
+}

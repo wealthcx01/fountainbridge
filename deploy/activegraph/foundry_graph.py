@@ -521,7 +521,14 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     fg = FoundryGraph(args.venture, secret, args.store)
     if args.cmd in ("ingest", "migrate"):
-        report = fg.ingest(_read_jsonl(sys.stdin))
+        given = _read_jsonl(sys.stdin)
+        report = fg.ingest(given)
+        if args.cmd == "migrate" and given and report["recorded"] + report["already"] == 0:
+            # Every single event refused is not a history full of forgeries; it is the wrong secret.
+            out({"ok": False, **report,
+                 "reason": "not one event verified. FOUNDRY_APPROVAL_SECRET is almost certainly not the studio's "
+                           "real secret, so nothing was migrated. Run this where the studio's secret is set."})
+            return 5
         if args.cmd == "migrate":
             report["replay"] = fg.replay_check()
             report["approvals"] = sorted(
