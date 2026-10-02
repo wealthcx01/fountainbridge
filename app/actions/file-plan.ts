@@ -37,6 +37,10 @@ import {
   planFilingOrder, planProblem, ticketPrefixFor, withDependsOn, type PlanDraft,
 } from '@/lib/plan-draft';
 import { ticketPath, withTicketId } from '@/deploy/librechat/ticket-mcp/ids.mjs';
+import {
+  FOUNDING_MAP_PATH, mapProblem, parseFoundingMap, renderFoundingMapFile, traceProblem, MAP_MARKER,
+  type FoundingMap,
+} from '@/lib/founding-map';
 
 export interface FiledTicket {
   slug: string;
@@ -123,6 +127,13 @@ export async function filePlan(
    * the one that drifts.
    */
   actor?: Actor,
+  /**
+   * The founding map this set came out of, when it came out of one (FB-236).
+   *
+   * Saved beside the tickets, on the same branch and in the same pull request, so a founder merges
+   * the map and its first tickets as one decision — and so there is still exactly one writer.
+   */
+  founding?: FoundingMap,
 ): Promise<FilePlanResult> {
   const access = await requireVentureRepo(ventureId, repo, actor);
   if (!access.ok) return { ok: false, message: access.error };
@@ -152,6 +163,20 @@ export async function filePlan(
   const problem = planProblem(plan);
   if (problem) return { ok: false, message: problem };
 
+  // A founding map arrives from the same browser as the plan, so it is round-tripped through the same
+  // parser the panel used, and held to the same rules: it reached the unknown unknowns, it belongs to
+  // this venture, and every ticket in the set points back at it.
+  let map: FoundingMap | null = null;
+  if (founding) {
+    map = parseFoundingMap(JSON.stringify({ [MAP_MARKER]: 1, ...founding }));
+    if (!map) return { ok: false, message: 'That founding map could not be read. Nothing was filed.' };
+    if (map.venture_id !== ventureId) {
+      return { ok: false, message: 'That founding map was drafted for somewhere else. Nothing was filed.' };
+    }
+    const unfinished = mapProblem(map) ?? traceProblem(plan);
+    if (unfinished) return { ok: false, message: unfinished };
+  }
+
   const ordered = planFilingOrder(plan);
   if (ordered.length !== confirmedCount) {
     return {
@@ -172,6 +197,17 @@ export async function filePlan(
   try {
     const info = await client.request<{ default_branch: string }>(`/repos/${full}`);
     const base = info.default_branch;
+
+    // A venture has one founding map. A second walk that wrote over the first would erase the reasoning
+    // its first tickets were filed from, so it is refused and said. Checked before any branch is cut,
+    // and on the default branch only, so a second press of this same set still updates its own map.
+    if (map && (await client.getFileWithSha(full, FOUNDING_MAP_PATH, base))) {
+      return {
+        ok: false,
+        message: 'This venture already has a founding map, and filing this would write over it. Nothing was filed. '
+          + 'Ask for the map to be updated as its own piece of work instead.',
+      };
+    }
 
     // Create the branch only if it is missing, so pressing twice updates the set rather than failing
     // at a founder who was not sure the first press landed.
@@ -247,6 +283,20 @@ export async function filePlan(
       filed.push({ slug: ticket.slug, id, title: ticket.title, path });
     }
 
+    // The map goes in last, because it lists the ids the tickets were just given. Written on the same
+    // branch so the founder merges the map and its tickets together, or neither.
+    if (map) {
+      const sources = new Map(ordered.map((t) => [t.slug, t.source]));
+      const content = renderFoundingMapFile(map, filed.map((f) => ({ id: f.id, title: f.title, source: sources.get(f.slug) ?? '' })));
+      const existing = await client.getFileWithSha(full, FOUNDING_MAP_PATH, branch);
+      await client.putFile(full, FOUNDING_MAP_PATH, {
+        content,
+        message: 'context: the founding map',
+        branch,
+        ...(existing ? { sha: existing.sha } : {}),
+      });
+    }
+
     const summary = filed.map((f) => `- \`${f.id}\` — ${f.title}`).join('\n');
     const prBody = [
       `Filed from the Foundry composer by ${access.email}, as one set, on one press.`,
@@ -255,6 +305,13 @@ export async function filePlan(
       '',
       summary,
       '',
+      ...(map
+        ? [
+          `It also saves the founding map these tickets came from, as \`${FOUNDING_MAP_PATH}\`. `
+            + 'Merging this saves both; closing it saves neither.',
+          '',
+        ]
+        : []),
       '---',
       '',
       'Each ticket cites the section of the document it came from. Nothing here is merged, and no lane',

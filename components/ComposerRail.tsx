@@ -31,7 +31,7 @@ export function ComposerRail({
   if (state.kind === 'plan') {
     // FB-127 already owns this state whole, including its own press. Wrapping it rather than
     // re-implementing it is what stops two "file" buttons behaving differently.
-    return <div data-testid="rail-plan"><PlanPanel plan={state.plan} /></div>;
+    return <div data-testid="rail-plan"><PlanPanel plan={state.plan} map={state.map} /></div>;
   }
 
   if (state.kind === 'filed') {

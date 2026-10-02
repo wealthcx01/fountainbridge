@@ -20,6 +20,7 @@
 
 import { parseReply, type ReplyBlock } from './composer';
 import { extractPlanDraft, type PlanDraft } from './plan-draft';
+import { extractFoundingMap, type FoundingMap } from './founding-map';
 
 /** A ticket taking shape, in the four parts the design shows. */
 export interface DraftSections {
@@ -37,8 +38,11 @@ export type RailState =
   | { kind: 'filed'; what: string; href: string | null }
   /** Arrived from a ticket (`?about=`): the conversation revises that ticket. */
   | { kind: 'discussing'; ticketId: string }
-  /** A document became a set (FB-127). */
-  | { kind: 'plan'; plan: PlanDraft }
+  /**
+   * A document became a set (FB-127) — or a founding walk handed over its map and the first tickets
+   * out of it (FB-236), in which case `map` is the map and is saved with them.
+   */
+  | { kind: 'plan'; plan: PlanDraft; map: FoundingMap | null }
   /** One ticket, taking shape. `revises` is set when the founder arrived from a ticket. */
   | { kind: 'draft'; draft: DraftSections; revises: string | null }
   /** Nothing on the table yet, which is most of the time and is not an error. */
@@ -76,7 +80,7 @@ export function railState(input: RailInput): RailState {
 
   const blocks = input.latestReply ? parseReply(input.latestReply) : [];
   const plan = extractPlanDraft(blocks);
-  if (plan) return { kind: 'plan', plan };
+  if (plan) return { kind: 'plan', plan, map: extractFoundingMap(blocks) };
 
   const draft = draftSections(blocks);
   if (draft) return { kind: 'draft', draft, revises: input.aboutTicketId };

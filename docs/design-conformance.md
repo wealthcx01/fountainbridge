@@ -777,3 +777,17 @@ covers the list summary and the first rows below it on a 393px phone until it is
 left as it is, as a design decision for John — the design has no picture of the asking to compare
 against. The hosted design artifact was not opened this time either: it needs a signed-in claude.ai
 session, and this review had none. The live side is still a local build, not production.
+
+### FB-236 the founding map in the composer's plan panel, 2026-10-02
+
+Built on the fixtures, signed in as John, on ARCA's composer, with the scripted founding hand-over
+(`e2e/fixtures/composer/founding.sse`). Composer page **1,347px** at 1440×1000 and **2,326px** at
+393×851 with the map folded; **2,139px** and **3,248px** with the map opened. No sideways scroll at
+either size. The map is folded by default for that reason: opened, it adds about 800px on desktop.
+
+Looked at as pictures. The panel heads *"Your first tickets, from the map"*, shows the founder's idea,
+one line to open the map (four parts, 12 points), then the five tickets — each naming the part of the
+map it came from — and one *"File all 5"* button. **Not compared with the Claude Design artifact:**
+a browser here cannot sign in to claude.ai, so the artifact returned "Page not found". The design has
+no founding-map state of its own; the panel is the FB-127 plan panel with one block added above its
+lines.

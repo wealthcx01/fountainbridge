@@ -57,9 +57,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // decisions with different controls, and a fixture that can only say one thing can only ever
     // exercise one of them. Chosen by what was asked, exactly as the real composer would choose.
     const asked = ((await req.json().catch(() => null)) as Body | null)?.messages?.at(-1)?.content ?? '';
-    const script = /break .{0,40}\binto tickets\b|\bas a plan\b/i.test(asked)
-      ? process.env.COMPOSER_FIXTURE.replace(/[^/]+$/, 'plan.sse')
-      : process.env.COMPOSER_FIXTURE;
+    // FB-236 adds a third: the founding walk's last stage, which hands over a map with its tickets.
+    const script = /\bhand over the map\b/i.test(asked)
+      ? process.env.COMPOSER_FIXTURE.replace(/[^/]+$/, 'founding.sse')
+      : /break .{0,40}\binto tickets\b|\bas a plan\b/i.test(asked)
+        ? process.env.COMPOSER_FIXTURE.replace(/[^/]+$/, 'plan.sse')
+        : process.env.COMPOSER_FIXTURE;
     return new Response(readFileSync(script, 'utf8'), {
       headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' },
     });
