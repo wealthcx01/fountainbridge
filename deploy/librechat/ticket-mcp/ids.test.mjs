@@ -10,6 +10,7 @@ import {
   withTicketId,
   ticketPath,
   isUnnumbered,
+  idOf,
 } from './ids.mjs';
 
 // ARCA's real backlog shapes, including the four the walkthrough met all called ARCA-NEW.
@@ -250,5 +251,67 @@ describe('what the studio should flag', () => {
     expect(isUnnumbered('arca-new')).toBe(true);
     expect(isUnnumbered('ARCA-44')).toBe(false);
     expect(isUnnumbered(null)).toBe(false);
+  });
+});
+
+// FB-146. The launch venture's prefix comes from its repo name, so it is `THE-RESET` — hyphenated.
+// Every ARCA case above passes whether or not a prefix may carry a hyphen, so each rule that reads a
+// prefix gets a THE-RESET case here, beside its ARCA one. These are the ones that prove something.
+describe('a venture whose prefix has a hyphen in it (FB-146)', () => {
+  const theReset = ['THE-RESET-011-landing-page.md', 'THE-RESET-012-onboarding.md', 'README.md'];
+
+  it('finds the ticket a slug already produced, prefix known or not', () => {
+    expect(existingTicketFile(['THE-RESET-012-onboarding.md'], 'onboarding')).toBe('THE-RESET-012-onboarding.md');
+    expect(existingTicketFile(theReset, 'onboarding', 'THE-RESET')).toBe('THE-RESET-012-onboarding.md');
+    // ARCA, beside it, for the same rule.
+    expect(existingTicketFile(['ARCA-012-onboarding.md'], 'onboarding', 'ARCA')).toBe('ARCA-012-onboarding.md');
+  });
+
+  it('does not read a number buried in another ticket’s slug as this one', () => {
+    // If a prefix word could start with a digit, `ARCA-012-step-2-onboarding` would parse as prefix
+    // `ARCA-012-step`, number 2, slug `onboarding` — and re-filing `onboarding` would overwrite it.
+    expect(existingTicketFile(['ARCA-012-step-2-onboarding.md'], 'onboarding')).toBeNull();
+    expect(existingTicketFile(['THE-RESET-012-step-2-onboarding.md'], 'onboarding')).toBeNull();
+  });
+
+  it('with the prefix known, does not take another venture’s ticket', () => {
+    expect(existingTicketFile(['ARCA-012-onboarding.md'], 'onboarding', 'THE-RESET')).toBeNull();
+  });
+
+  it('re-filing the same slug keeps the number it already has', () => {
+    // What the filer does on a revision: find the file on the branch, read its id back out.
+    const found = existingTicketFile(['THE-RESET-012-onboarding.md'], 'onboarding', 'THE-RESET');
+    expect(found && idOf(found, 'THE-RESET')).toBe('THE-RESET-012');
+    expect(idOf('ARCA-074-x.md', 'ARCA')).toBe('ARCA-074');
+    expect(idOf('ARCA-074-x.md', 'THE-RESET')).toBeNull();
+  });
+
+  it('reads numbers and width from a hyphenated backlog', () => {
+    expect(idNumber('THE-RESET-012-onboarding.md', 'THE-RESET')).toBe(12);
+    expect(idWidth('THE-RESET', theReset)).toBe(3);
+    expect(nextTicketId('THE-RESET', theReset)).toBe('THE-RESET-013');
+  });
+
+  it('settles a shared number on a hyphenated prefix', () => {
+    expect(mustRenumber('THE-RESET-013', 'zzz-ours', ['THE-RESET-013-aaa-theirs.md', 'THE-RESET-013-zzz-ours.md']))
+      .toBe('the-reset-013-aaa-theirs.md');
+    expect(mustRenumber('THE-RESET-013', 'aaa-ours', ['THE-RESET-013-aaa-ours.md', 'THE-RESET-013-zzz-theirs.md']))
+      .toBeNull();
+  });
+
+  it('replaces the placeholder the model was told to write', () => {
+    expect(withTicketId('# THE-RESET-NEW — Onboarding\n\nbody', 'THE-RESET-013'))
+      .toBe('# THE-RESET-013 — Onboarding\n\nbody');
+  });
+
+  it('leaves a revision that already has its number alone', () => {
+    // Otherwise every revision stacks a second id in front of the first: `THE-RESET-013 — THE-RESET-012 — …`.
+    const body = '# THE-RESET-012 — Onboarding\n\nbody';
+    expect(withTicketId(body, 'THE-RESET-013')).toBe(body);
+  });
+
+  it('knows an unnumbered ticket when it sees one', () => {
+    expect(isUnnumbered('THE-RESET-NEW')).toBe(true);
+    expect(isUnnumbered('THE-RESET-012')).toBe(false);
   });
 });

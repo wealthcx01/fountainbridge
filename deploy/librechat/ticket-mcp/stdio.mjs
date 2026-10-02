@@ -19,7 +19,7 @@
 // STDOUT carries ONLY protocol messages (newline-delimited JSON). All logging goes to STDERR.
 
 import readline from 'node:readline';
-import { existingTicketFile, mustRenumber, nextTicketId, ticketPath, withTicketId } from './ids.mjs';
+import { existingTicketFile, idOf, mustRenumber, nextTicketId, ticketPath, withTicketId } from './ids.mjs';
 
 // LibreChat interpolates ${VAR} in the yaml `env:` block from its own process.env, but when the
 // referenced var is empty/unset it passes the LITERAL "${VAR}" placeholder through (see
@@ -89,12 +89,6 @@ function friendlyError(e) {
 
 // slug guard so a model can't inject a path or a huge blob.
 const slugRe = /^[a-z0-9][a-z0-9-]{1,60}$/;
-
-/** The id a ticket filename carries, for this venture's prefix — `ARCA-074-x.md` → `ARCA-074`. */
-function idOf(filename, prefix) {
-  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return filename.match(new RegExp(`^(${escaped}-\\d+[a-z]?)(?:[-.]|$)`, 'i'))?.[1] ?? null;
-}
 
 /** The ticket filenames currently on a ref. Empty when the folder is missing or unreadable. */
 async function listTicketNames(ref) {
@@ -186,7 +180,7 @@ async function fileTicket({ slug, title, body }) {
   // once ids were padded (FB-118) that default was `THE-RESET-001`: the number the venture's own
   // first ticket already carries, stamped into the heading of a file named something else.
   const onBranch = await listTicketNames(branch);
-  const alreadyFiled = existingTicketFile(onBranch, slug);
+  const alreadyFiled = existingTicketFile(onBranch, slug, PREFIX);
   let id;
   let path;
   if (alreadyFiled) {

@@ -17,6 +17,22 @@
  * so nothing in it can be tested. The allocation is the part with the edge cases.
  */
 
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * What a ticket prefix looks like when we do not know which venture's it is (FB-146).
+ *
+ * A prefix comes from the repo name, so the launch venture's is `THE-RESET`: words joined by hyphens,
+ * and they may carry digits. The old pattern, `[A-Za-z]+`, stopped at the first hyphen, so
+ * `THE-RESET-012-onboarding.md` was not recognised as a numbered ticket at all.
+ *
+ * Each word must START with a letter. That is what keeps the number findable: the first word that
+ * starts with a digit is the ticket number, never part of the prefix. Without that rule,
+ * `ARCA-012-step-2-onboarding.md` could be read as prefix `ARCA-012-step`, number 2, slug
+ * `onboarding` — and re-filing `onboarding` would overwrite a different ticket.
+ */
+const PREFIX_PATTERN = '[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z][A-Za-z0-9]*)*';
+
 /** The digits a filename carries for this prefix, as written — `ARCA-007-x.md` → `"007"`. */
 function idDigits(filename, prefix) {
   const m = filename.match(new RegExp(`^${escapeRe(prefix)}-(\\d+)(?:[-.]|$)`, 'i'));
@@ -90,13 +106,6 @@ export function nextTicketId(prefix, filenames) {
 }
 
 /**
- * The ticket this branch already carries, if any.
- *
- * Re-filing the same slug UPDATES the ticket rather than filing a second one — the composer tells
- * founders to revise and re-file, so this is a common path, not an edge case. Without it, allocation
- * would hand out a fresh number on every revision and leave a trail of half-written duplicates.
- */
-/**
  * Whether WE are the one who has to give this number up (FB-117).
  *
  * Checked *after* the write, because a lost race leaves nothing to catch: every filing commits to its
@@ -137,15 +146,31 @@ export function mustRenumber(id, ourSlug, filenames) {
   return winner === mine ? null : winner;
 }
 
-export function existingTicketFile(filenames, slug) {
+/**
+ * The ticket this branch already carries, if any.
+ *
+ * Re-filing the same slug UPDATES the ticket rather than filing a second one — the composer tells
+ * founders to revise and re-file, so this is a common path, not an edge case. Without it, allocation
+ * would hand out a fresh number on every revision and leave a trail of half-written duplicates.
+ *
+ * Pass the venture's prefix when it is known (the filer always knows it); without one, any prefix
+ * shape is accepted, hyphenated ones included (FB-146).
+ */
+export function existingTicketFile(filenames, slug, prefix) {
+  // With the venture's prefix, match exactly that one. Without it, any prefix shape we accept.
+  const p = prefix ? escapeRe(prefix) : PREFIX_PATTERN;
+  const numbered = new RegExp(`^${p}-\\d+-${escapeRe(slug)}\\.md$`, 'i');
   return (
-    filenames.find((n) => new RegExp(`^[A-Za-z]+-\\d+-${escapeRe(slug)}\\.md$`, 'i').test(n)) ??
+    filenames.find((n) => numbered.test(n)) ??
     filenames.find((n) => n.toLowerCase() === `${slug}.md`) ??
     null
   );
 }
 
-const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** The id a ticket filename carries, for this venture's prefix — `THE-RESET-012-x.md` → `THE-RESET-012`. */
+export function idOf(filename, prefix) {
+  return filename.match(new RegExp(`^(${escapeRe(prefix)}-\\d+[a-z]?)(?:[-.]|$)`, 'i'))?.[1] ?? null;
+}
 
 /** Where a numbered ticket lives. Matches what the venture repos already do by hand. */
 export const ticketPath = (id, slug) => `docs/tickets/${id}-${slug}.md`;
@@ -162,12 +187,12 @@ export function withTicketId(body, id) {
   if (!firstHeading) return `# ${id} — Untitled\n\n${body}`;
 
   const heading = firstHeading[1].trim();
-  const placeholder = heading.match(/^[A-Za-z]+-NEW\s*[—–-]\s*(.+)$/);
+  const placeholder = heading.match(new RegExp(`^${PREFIX_PATTERN}-NEW\\s*[—–-]\\s*(.+)$`));
   if (placeholder) return body.replace(firstHeading[0], `# ${id} — ${placeholder[1].trim()}`);
 
   // Already numbered — a revision of a ticket that has an id. Leave it alone; renumbering a ticket
   // a founder has already been told the name of is worse than any tidiness it would buy.
-  if (/^[A-Za-z]+-\d+[a-z]?\s*[—–-]/.test(heading)) return body;
+  if (new RegExp(`^${PREFIX_PATTERN}-\\d+[a-z]?\\s*[—–-]`).test(heading)) return body;
 
   return body.replace(firstHeading[0], `# ${id} — ${heading}`);
 }
