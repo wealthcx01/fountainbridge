@@ -9,8 +9,10 @@ from Phase 2 on; the read-only studio needs none yet). Auth: **Google OAuth**.
 
 ## 1. Railway service
 
-`railway.json` (in the repo root) configures a NIXPACKS build, `npm run start`, and a healthcheck at
-`/api/health`. On Railway:
+`railway.json` (in the repo root) configures a NIXPACKS build, `npm run start`, a healthcheck at
+`/api/health` (100-second timeout), and a restart-on-failure policy with 3 retries. Railway stops
+reading `railway.json` on **2026-12-01**; `.railway/railway.ts` holds the same settings for after that
+(FB-229, below). On Railway:
 
 1. New Project → Deploy from the `wealthcx01/fountainbridge` GitHub repo (branch `main` after the
    stack merges).
@@ -18,6 +20,42 @@ from Phase 2 on; the read-only studio needs none yet). Auth: **Google OAuth**.
    (Next respects it). Healthcheck `/api/health` returns `{"status":"ok"}` and is public (excluded
    from the auth middleware).
 3. Add the environment variables below.
+
+### Moving from `railway.json` to `.railway/railway.ts` (FB-229)
+
+**What changed.** Railway is retiring `railway.json` ("config as code") on 2026-12-01 in favour of
+`.railway/railway.ts` ("infrastructure as code"). The new file is in the repo and carries the same
+five settings. `lib/railway-config.test.ts` fails the build if any of them is lost or changed, and
+also if the two files disagree while both exist.
+
+**The one thing to understand.** Railway reads `railway.json` every time it deploys. It never reads
+`.railway/railway.ts` on its own. The new file only does anything when a person runs
+`railway config apply`, once per environment. Merging it changes nothing on Railway.
+
+**What `railway config migrate` got wrong.** Its draft dropped the builder and the restart policy. It
+also left out the GitHub source and the variables, and Railway treats anything left out as "delete
+it": applied to staging, that draft would have deleted all eight variables (the sign-in keys among
+them) and disconnected the service from GitHub. The file in the repo was written by hand to avoid all
+of that. Do not regenerate it with `migrate`.
+
+**Steps, in order. Staging first, then production, never in the same sitting as another deploy change.**
+
+1. `railway link -p foundry-studio -e staging -s foundry-studio` (this only changes which environment
+   your own terminal points at).
+2. `railway config plan --verbose`. Read every line. It must say **0 to destroy**. The only changes it
+   should show are the five settings moving in. If it lists any variable to delete, add that name to
+   the `env` list in `.railway/railway.ts` as `preserve()` and plan again. Do not apply a plan that
+   destroys anything.
+3. `railway config apply`. Then watch the next staging deploy: it must go green, and the deploy's
+   settings in the Railway console must show the health check at `/api/health`.
+4. Repeat steps 1 to 3 with `-e production`.
+5. Only then delete `railway.json`, in its own pull request.
+
+The `railway` command evaluates the file with the `railway` npm package, which this repo does not
+install. To run `plan`, install it somewhere outside the repo and link it in as
+`.railway/node_modules` for the duration (that folder is ignored by git). The CLI also checks its own
+version by running `$_ --version`, so call `railway` directly, not through `timeout` or another
+wrapper, or it reports a false "CLI too old" error.
 
 ## 2. Environment variables (Railway → Variables)
 
