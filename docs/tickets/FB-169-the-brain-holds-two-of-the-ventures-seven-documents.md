@@ -104,6 +104,12 @@ in one sentence under the table of documents.
 
   An answer more than two days old also says it may be out of date.
 
+  When the machine cannot list what its index holds (for example, the wait for the index's lock
+  runs out), the answer is "the last check did not finish". It is never "every document is
+  missing". And when the table lists documents the check does not count — another surface's
+  documents, or a folder's own README — the sentence says how many, so its count and the table
+  never quietly disagree.
+
 On ARCA today the screen says "Nothing checks yet", because the box does not have the new lane
 files. That is the honest answer until they are copied there.
 
@@ -121,7 +127,8 @@ checked.
 
 ## Acceptance criteria
 
-- [ ] All seven of ARCA's corpus documents are findable in the index by keyword.
+- [ ] All five of ARCA's corpus documents are findable in the index by keyword. (The ticket first
+  said seven. Two of those are the folders' own README files, which the index skips on purpose.)
 - [x] Something fails, loudly, when a tracked corpus file is not indexed after a sync.
 - [x] The count is surfaced where a founder can see it, or the reason it cannot be is written down.
   (On the Memory screen. On ARCA it reads "nothing checks yet" until the box has the new lane files.)

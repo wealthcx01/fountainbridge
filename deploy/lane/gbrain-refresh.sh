@@ -77,6 +77,10 @@ GAP_FILE="$STATE_DIR/brain-corpus-gap"
 # failed — instead of reporting "done." The index is still stamped: it IS current, just incomplete.
 finish() {
   stamp_sync
+  if [ "$GAP_COUNT" = "?" ]; then
+    say "done, but it could not check whether the brain holds every document (see above)."
+    exit 3
+  fi
   if [ -s "$GAP_FILE" ]; then
     say "done, but the brain is missing $GAP_COUNT of the venture's documents (listed above)."
     exit 3
@@ -84,17 +88,28 @@ finish() {
   say "done."
   exit 0
 }
-LISTED="$(brain list --limit 5000 --source "$BRAIN_SOURCE" 2>/dev/null | cut -f1 || true)"
-GAP="$(git -C "$REPO_DIR" ls-files context library | LISTED="$LISTED" node --input-type=module -e "
-  import { readFileSync } from 'node:fs';
-  import { corpusGap } from '$(dirname "$0")/brain-lib.mjs';
-  const tracked = readFileSync(0, 'utf8').split('\\n');
-  const g = corpusGap(tracked, process.env.LISTED.split('\\n'));
-  console.log(g.missing.length + ' ' + g.corpus + (g.missing.length ? '\\n' + g.missing.join('\\n') : ''));
-" 2>/dev/null || echo "?")"
+# When gbrain cannot list what it holds (it failed, or the wait for its lock ran out), the answer is
+# "could not check" ("?"). Never compare against an empty list: that reads as "every document is
+# missing", and the Memory screen would warn the founder about all of them.
+if LISTING="$(brain list --limit 5000 --source "$BRAIN_SOURCE" 2>/dev/null)"; then
+  LISTED="$(printf '%s\n' "$LISTING" | cut -f1)"
+  GAP="$(git -C "$REPO_DIR" ls-files context library | LISTED="$LISTED" node --input-type=module -e "
+    import { readFileSync } from 'node:fs';
+    import { corpusGap } from '$(dirname "$0")/brain-lib.mjs';
+    const tracked = readFileSync(0, 'utf8').split('\\n');
+    const g = corpusGap(tracked, process.env.LISTED.split('\\n'));
+    console.log(g.missing.length + ' ' + g.corpus + (g.missing.length ? '\\n' + g.missing.join('\\n') : ''));
+  " 2>/dev/null || echo "?")"
+else
+  GAP="?"
+fi
 GAP_COUNT="${GAP%% *}"; GAP_COUNT="${GAP_COUNT%%$'\n'*}"
 if [ "$GAP_COUNT" = "0" ]; then
   rm -f "$GAP_FILE"
+elif [ "$GAP_COUNT" = "?" ]; then
+  # Still fails the run (exit 3 in finish), so the timer's unit shows it, but says what happened.
+  mkdir -p "$STATE_DIR"; printf '%s\n' "$GAP" > "$GAP_FILE"
+  say "COULD NOT CHECK whether the brain holds every document — gbrain would not list what it holds."
 else
   mkdir -p "$STATE_DIR"; printf '%s\n' "$GAP" > "$GAP_FILE"
   say "BRAIN IS INCOMPLETE — it does not hold these documents, so no search can find them:"

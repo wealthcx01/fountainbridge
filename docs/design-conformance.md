@@ -1008,3 +1008,18 @@ with "Continue with Google" and clicked to Memory. It is **1,000px** at 1440×10
 related question per row ("Not cited yet"). The new sentence sits where the screen's other notes
 already sit, under the table and above "What happens without you asking", in the same small type.
 The saved copy is from 2026-10-02 01:16; the hosted artifact itself was not reopened.
+
+**After review, 2026-10-02.** The sentence can now add one more clause: how many documents in the
+table the check does not count (another surface's documents, or a folder's own README). Rendered on
+a local build of the branch, signed in as ARCA's founder, landing on `/venture/arca/knowledge`:
+
+- **The UI gate's fixture, unchanged:** **1,060px** at 1440×1000 and **1,878px** at 393×851, the
+  same as before review. The new clause does not appear, because every listed document is checked.
+- **The fixture plus one folder README** (`context/sell/README.md`), to see the new clause: **1,175px**
+  and **2,090px**. Most of the extra height is the README's own row and the "could not be read just
+  now" note it brings. The clause adds one line on a desktop and two on a phone. No sideways scroll.
+  The wording was then shortened to "One more document listed above is not part of this check…"; that
+  final wording was checked by the unit tests, not re-rendered.
+
+ARCA's real data was not re-rendered: with no record from the box yet, it shows the "Nothing checks
+yet" sentence, which this change does not touch. The design was not reopened for this pass.

@@ -9,7 +9,7 @@ import { defaultKnowledgeSource, defaultProvenanceSource } from '@/lib/knowledge
 import { originOf, type KnowledgeRow } from '@/lib/knowledge';
 import { lastUse, readingsNote, type ReadingsRecord } from '@/lib/readings';
 import { defaultReadingsSource } from '@/lib/readings-load';
-import { corpusNote } from '@/lib/brain-corpus';
+import { corpusNote, uncheckedRows } from '@/lib/brain-corpus';
 import { loadCorpusRead } from '@/lib/brain-corpus-load';
 import { studioNow } from '@/lib/when';
 import { GitHubClient } from '@/lib/github';
@@ -135,7 +135,10 @@ async function Memory({ venture }: { venture: VentureSummary }) {
   // The names in the sentence are the names on the rows: the machine records paths, the table shows
   // titles. Only the venture's first surface is indexed, so only its rows are looked up.
   const titles = new Map(rows.filter((r) => r.repo === venture.repos[0]).map((r) => [r.doc.path, r.doc.title]));
-  const findNote = corpusNote(corpusRead, { ventureName: venture.name, nowMs: studioNow(), titles });
+  // Rows the check does not count: another surface's documents, or a file the machine skips. Said in
+  // the sentence, so its count and the table's rows cannot quietly disagree.
+  const unchecked = uncheckedRows(rows, venture.repos[0]);
+  const findNote = corpusNote(corpusRead, { ventureName: venture.name, nowMs: studioNow(), titles, unchecked });
   const usedNote = readingsNote(perRepo.filter((r) => r.rows.length > 0).map((r) => r.readings));
   // An unreadable corpus must never render as "you have given it nothing" — the difference between
   // those two is a founder's own work (FB-021, on the surface where it matters most).

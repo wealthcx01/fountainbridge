@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  CORPUS_RECORD_PATH, CORPUS_STALE_MS, NAMED_IN_NOTE, corpusNote, parseCorpusRecord, readCorpusText, type CorpusRead,
+  CORPUS_RECORD_PATH, CORPUS_STALE_MS, NAMED_IN_NOTE, checkedByMachine, corpusNote, parseCorpusRecord, readCorpusText,
+  uncheckedRows, type CorpusRead,
 } from '../brain-corpus';
+// @ts-expect-error — a plain .mjs module from the lane, no type declarations
+import { corpusGap } from '../../deploy/lane/brain-lib.mjs';
 import { loadCorpusRead } from '../brain-corpus-load';
 // @ts-expect-error — a plain .mjs module from the lane, no type declarations
 import { RECORD_PATH, toRecord, parseGap } from '../../deploy/lane/brain-corpus-record.mjs';
@@ -32,6 +35,26 @@ describe('the box and the studio agree on the record', () => {
       kind: 'record',
       record: { at: AT, corpus: 5, missingCount: 3, missing: ['context/build/a.md', 'context/build/b.md', 'context/build/c.md'] },
     });
+  });
+
+  it('counts the same documents the box counts', () => {
+    const paths = [
+      'context/README.md', 'context/sell/README.md', 'library/readme.mdx', 'context/product/policy.md',
+      'library/sell/deck.mdx', 'context/sell/price-list.pdf', 'docs/notes.md', 'context/general/Brand Notes.md',
+    ];
+    const box = corpusGap(paths, []).missing;
+    expect(paths.filter(checkedByMachine)).toEqual(box);
+    expect(box).toEqual(['context/product/policy.md', 'library/sell/deck.mdx', 'context/general/Brand Notes.md']);
+  });
+
+  it('counts the rows the check leaves out: a second surface, and what the box skips', () => {
+    const row = (repo: string, path: string) => ({ repo, doc: { path } });
+    expect(uncheckedRows([
+      row('arca', 'context/product/policy.md'), // checked
+      row('arca', 'context/sell/README.md'), // skipped by the box
+      row('arca-marketing', 'context/sell/brand.md'), // not indexed at all
+    ], 'arca')).toBe(2);
+    expect(uncheckedRows([row('arca', 'context/product/policy.md')], undefined)).toBe(1);
   });
 
   it('reads the box’s "could not check" as unknown, not as zero', () => {
@@ -106,6 +129,16 @@ describe('the sentence under the table', () => {
     const note = corpusNote(record({ corpus: 20, missingCount: missing.length, missing }), opts);
     expect(note.text).toContain(`d${NAMED_IN_NOTE - 1}, and 3 more.`);
     expect(note.text).not.toContain(`d${NAMED_IN_NOTE},`);
+  });
+
+  it('says how many listed documents the check does not cover, so its count and the table agree', () => {
+    // A venture whose second surface holds documents: the table lists them, the machine never indexes them.
+    const complete = corpusNote(record(), { ...opts, unchecked: 2 });
+    expect(complete.text).toContain('all 5 of your documents');
+    expect(complete.text).toContain('2 more documents listed above are not part of this check, and your team does not look them up.');
+    const gap = corpusNote(record({ missingCount: 1, missing: ['context/build/a.md'] }), { ...opts, unchecked: 1 });
+    expect(gap.text).toContain('One more document listed above is not part of this check, and your team does not look it up.');
+    expect(corpusNote(record(), opts).text).not.toContain('not part of this check');
   });
 
   it('says when the answer is old enough to doubt', () => {

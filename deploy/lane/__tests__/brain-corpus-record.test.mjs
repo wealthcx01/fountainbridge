@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFile } from 'node:child_process';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -124,7 +125,7 @@ describe('gbrain-refresh.sh writes the record on the box (run for real)', () => 
   afterEach(() => { rmSync(box, { recursive: true, force: true }); });
 
   /** A venture repo with these tracked files, and a `gbrain` that claims to hold these pages. */
-  function setUp(tracked, pages) {
+  function setUp(tracked, pages, { listFails = false } = {}) {
     const repo = join(box, 'arca');
     for (const f of tracked) {
       mkdirSync(join(repo, f, '..'), { recursive: true });
@@ -140,7 +141,9 @@ describe('gbrain-refresh.sh writes the record on the box (run for real)', () => 
       '#!/usr/bin/env bash',
       'case "$1" in',
       '  sync) echo "No syncable changes" ;;',
-      `  list) printf '%s\\t-\\n' ${pages.map((p) => `'${p}'`).join(' ')} ;;`,
+      listFails
+        ? '  list) echo "timed out waiting for the lock" >&2; exit 1 ;;'
+        : `  list) printf '%s\\t-\\n' ${pages.map((p) => `'${p}'`).join(' ')} ;;`,
       'esac',
       'exit 0',
     ].join('\n'));
@@ -167,5 +170,113 @@ describe('gbrain-refresh.sh writes the record on the box (run for real)', () => 
     expect(run.status).toBe(0);
     expect(record).toMatchObject({ corpus: 3, missingCount: 0, missing: [] });
     expect(Number.isFinite(Date.parse(record.at))).toBe(true);
+  });
+
+  it('records "could not check" when gbrain cannot list what it holds, never "every document is missing"', () => {
+    // The review's case: the wait for gbrain's lock runs out and `gbrain list` fails. The empty answer
+    // used to be compared against the repo, so every document read as missing on the Memory screen.
+    const { run, record } = setUp(CORPUS, [], { listFails: true });
+    expect(run.status).toBe(3); // still a failed run, so the timer's unit shows it
+    expect(record).toMatchObject({ kind: 'brain-corpus', corpus: null, missingCount: null, missing: [] });
+    expect(run.stderr).toMatch(/COULD NOT CHECK/);
+  });
+});
+
+/**
+ * The lane's step that carries the record to the studio, run as a wake runs it: the real block from
+ * run-once.sh, the real brain-corpus-record.mjs, and a stand-in for GitHub on a local port.
+ */
+describe('run-once.sh carries the record to the studio (run for real)', () => {
+  const RUN_ONCE = readFileSync(fileURLToPath(new URL('../run-once.sh', import.meta.url)), 'utf8');
+  const BLOCK = RUN_ONCE.slice(
+    RUN_ONCE.indexOf('# --- tell the studio what the brain can see'),
+    RUN_ONCE.indexOf('# Everything below runs against the department'),
+  );
+  const LANE = fileURLToPath(new URL('..', import.meta.url));
+  let box;
+  let server;
+  let puts;
+  let api;
+
+  beforeEach(async () => {
+    box = mkdtempSync(join(tmpdir(), 'fb169-lane-'));
+    puts = [];
+    server = createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => { body += c; });
+      req.on('end', () => {
+        if (req.method === 'PUT') {
+          puts.push({ url: req.url, body: JSON.parse(body) });
+          res.writeHead(201, { 'Content-Type': 'application/json' }).end('{"content":{}}');
+        } else {
+          res.writeHead(404, { 'Content-Type': 'application/json' }).end('{"message":"Not Found"}');
+        }
+      });
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    api = `http://127.0.0.1:${server.address().port}`;
+  });
+  afterEach(async () => {
+    await new Promise((r) => server.close(r));
+    rmSync(box, { recursive: true, force: true });
+  });
+
+  /** One lane wake: only the block under test, with the variables run-once.sh sets before it. */
+  function wake() {
+    const script = `
+      set -euo pipefail
+      STATE_DIR="$1"; SCRIPT_DIR="$2"; PRIMARY_REPO=wealthcx01/arca; STATE_REF=foundry-state; API="$3"
+      TICKET_GITHUB_TOKEN=t
+      flog() { echo "FLOG: $*" >&2; }
+      ${BLOCK}
+    `;
+    return new Promise((resolve) => {
+      execFile('bash', ['-c', script, '_', join(box, 'state'), LANE, api], (err, stdout, stderr) => resolve({ err, stdout, stderr }));
+    });
+  }
+
+  /** A record exactly where gbrain-refresh.sh writes it (the refresh tests above read that same path). */
+  function refreshWrote(missingCount, at) {
+    mkdirSync(join(box, 'state'), { recursive: true });
+    writeFileSync(join(box, 'state', 'brain-corpus.json'), JSON.stringify(
+      toRecord({ missingCount, corpus: 5, missing: missingCount ? ['context/product/a.md'] : [] }, { at }),
+    ));
+  }
+
+  it('sends the record once, then not again on later wakes while the answer is the same', async () => {
+    refreshWrote(1, new Date().toISOString());
+    const first = await wake();
+    expect(first.stderr).not.toMatch(/FLOG/);
+    expect(puts).toHaveLength(1);
+    expect(puts[0].url).toBe(`/repos/wealthcx01/arca/contents/${RECORD_PATH}`);
+    expect(puts[0].body.branch).toBe('foundry-state');
+    expect(JSON.parse(Buffer.from(puts[0].body.content, 'base64').toString('utf8')).missingCount).toBe(1);
+
+    // The refresh runs again five minutes later with the same answer. Nothing new is sent.
+    refreshWrote(1, new Date(Date.now() + 5 * 60 * 1000).toISOString());
+    await wake();
+    await wake();
+    expect(puts).toHaveLength(1);
+  });
+
+  it('sends again as soon as the answer changes', async () => {
+    refreshWrote(1, new Date().toISOString());
+    await wake();
+    refreshWrote(0, new Date(Date.now() + 5 * 60 * 1000).toISOString());
+    await wake();
+    expect(puts).toHaveLength(2);
+  });
+
+  it('sends nothing, and reports no fault, when there is no whole record to send', async () => {
+    // No record yet: the refresh has not finished a check on this box.
+    const none = await wake();
+    expect(none.err).toBeNull();
+    // Half a record (a write cut off part way): not something to tell the studio, and not a fault.
+    mkdirSync(join(box, 'state'), { recursive: true });
+    writeFileSync(join(box, 'state', 'brain-corpus.json'), '{"version":1,"kind":"brain-co');
+    const half = await wake();
+    expect(half.err).toBeNull();
+    expect(half.stderr).not.toMatch(/FLOG/);
+    expect(puts).toHaveLength(0);
   });
 });
