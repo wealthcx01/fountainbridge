@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
+import { loadContentSections } from '../content';
 import { join } from 'node:path';
 
 /**
@@ -78,12 +79,9 @@ describe('the prompt and the guides still agree', () => {
     // studio's own references are unreliable.
     const cited = [...PROMPT.matchAll(/\/playbook\/([a-z-]+)/g)].map((m) => m[1]);
     expect(cited.length).toBeGreaterThan(0);
-    const slugs = new Set(
-      readdirSync(join(ROOT, 'content/playbook'))
-        .filter((f) => f.endsWith('.md'))
-        .map((f) => readFileSync(join(ROOT, 'content/playbook', f), 'utf8').match(/^slug:\s*(\S+)/m)?.[1])
-        .filter(Boolean) as string[],
-    );
+    // Through the loader the pages themselves use, so this cannot disagree with them about the
+    // format (it once read `slug:` lines on its own, and broke when they became `section:`, FB-250).
+    const slugs = new Set(loadContentSections(join(ROOT, 'content/playbook')).map((s) => s.slug));
     for (const slug of new Set(cited)) expect(slugs, `cited /playbook/${slug}`).toContain(slug);
   });
 });
