@@ -1529,6 +1529,7 @@ body:has(.rail) .main {
 }
 @media (max-width: 720px) {
   .push-offer { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+}
 
 /* ── The Sell surface (FB-235) ──────────────────────────────────────────────────────────────────
    "Who needs you now" is a short list of rows with the person's temperature as a band down the left
