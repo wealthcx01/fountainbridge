@@ -1,6 +1,40 @@
 # FB-171 — we call it ActiveGraph, and we are not running ActiveGraph
 
-**Status:** Open · **Phase:** 3 · **Depends on:** FB-170 · **Raised by:** John, 2026-09-02
+**Status:** Shipped in part · **Phase:** 3 · **Depends on:** FB-170 · **Raised by:** John, 2026-09-02
+
+**Shipped in part:** the gate is built in real ActiveGraph and proven on this machine against the real
+library, but it is not on any box and it is switched off. Still to do: John approves the install and
+cut-over in `deploy/activegraph/README.md` (a separate host for the executor, migrate the history with
+the studio's secret, a week in shadow, then enforce), and a real external action has to exist to gate —
+`performAction` in the executor is still a stub.
+
+## What FB-171 built (2026-10-02)
+
+**What is now true.** Every approval can be recorded in ActiveGraph 1.10.0 — the version on the ARCA
+box — as `approval.proposed` → `approval.granted` (or `approval.rejected`) events, with the venture,
+ticket and department as objects and relations, and each event keeping the time git recorded. The
+executor can ask ActiveGraph "has a person agreed to exactly this?" before it acts. The real executor
+was run end to end against a real ActiveGraph store: it sends when both records agree, and refuses or
+waits when ActiveGraph has no grant, holds a refusal, or the grant file was written by a lane.
+
+**What is not true yet.** None of this runs anywhere. The executor itself is not deployed on any host,
+and its `performAction` does nothing yet, so today **no external action can go out at all**, gated or
+not. The new gate is `off` by default; switching it on is the cut-over John must approve. Until then
+the gate is exactly what it was: the studio-signed grant file.
+
+**How it is built, and one decision it takes.** Git stays the record, as this ticket's scope says.
+`foundry_graph.py` replays the signed git events into ActiveGraph, so the graph is a projection that
+can be thrown away and rebuilt. Only the executor writes to the graph, so there is one writer, not two
+— which is why the store is SQLite, not the Postgres this ticket first proposed. SQLite also gives
+fork-and-diff, which ActiveGraph only supports on SQLite. Postgres stays possible later through
+ActiveGraph's own `migrate`.
+
+**One correction to the scope.** The scope says to stand ActiveGraph up "on a venture box". The gate
+cannot live there: checking a grant needs the studio's signing secret, and FB-071 rests on that secret
+never being on a lane box. So the gate's ActiveGraph runs beside the executor, on its own host.
+
+**For FB-248.** Meta's write path can be built on this gate, but nothing it builds can send until the
+executor is deployed, `performAction` is wired for that action, and the gate has been turned on.
 
 ## What is actually true today
 
@@ -117,8 +151,16 @@ wrong choice for the reason already given: two writers.
 
 - [ ] `approval.proposed` → `approval.granted` for a real external action is recorded as ActiveGraph
       events and gates the action, with the JSON path retired only after it does.
+      *Built and proven end to end on this machine; not on a box, and no real external action exists
+      yet to gate.*
 - [ ] Every historical approval is in the graph, with its original time.
-- [ ] Replaying the event log reproduces the current graph exactly.
-- [ ] A fork of a real run can be diffed against the original.
-- [ ] The gate is never bypassed during the migration, and a test proves an ungated external action
-      is refused.
+      *`migrate` does it, proven on the real ARCA history re-signed with a test key. The real run needs
+      the studio's secret, so it is cut-over step 4.*
+- [x] Replaying the event log reproduces the current graph exactly. (`replay-check`; also run at the
+      end of every `migrate`.)
+- [x] A fork of a real run can be diffed against the original. (`what-if`, tested on the real ARCA
+      history: forked before the founder's decision, refused there, diffed: granted vs rejected.)
+- [x] The gate is never bypassed during the migration, and a test proves an ungated external action
+      is refused. (The gate is `off` until switched on and can only ever add a no; the end-to-end test
+      runs the real executor and shows a correctly signed grant file with nothing in ActiveGraph does
+      not go out.)

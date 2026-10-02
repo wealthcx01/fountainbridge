@@ -52,6 +52,14 @@ projection refuses `approval.granted` from any non-human actor precisely so that
 executor cannot manufacture consent. `eventsForExecution` has no path from an execution record to a
 grant, and there is a test that tries.
 
+### The second gate: real ActiveGraph (FB-171)
+With `ACTIVEGRAPH_GATE` set, the executor also asks real ActiveGraph whether a person approved exactly
+this proposal before it acts. `off` (the default) changes nothing; `shadow` asks and logs any
+disagreement but lets the grant file decide; `enforce` needs both to say yes. Any other value counts
+as `enforce`. It also needs `ACTIVEGRAPH_STORE` (the SQLite file), and reads `ACTIVEGRAPH_PYTHON`
+(default `/opt/activegraph/bin/python`). Setup and the cut-over steps are in
+[`deploy/activegraph/README.md`](../activegraph/README.md).
+
 Run it: `node executor.mjs` (env: `REPO`, `EXECUTOR_GITHUB_TOKEN`, `FOUNDRY_APPROVAL_SECRET`,
 `APPROVER_IDENTITIES`).
 

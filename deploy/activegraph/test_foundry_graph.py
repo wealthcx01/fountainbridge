@@ -296,6 +296,9 @@ class ReplayForkAndMigrate(Store):
         self.assertTrue(any("only a person" in r for r in reasons))
         self.assertTrue(any("cannot follow granted" in r for r in reasons))
         self.assertTrue(g.replay_check()["identical"])
+        # And the real approval can be forked before the founder's decision and diffed.
+        what_if = g.what_if_refused("arca-marketing", "fb187-approve-proof")
+        self.assertEqual((what_if["actual"], what_if["what_if"]), ("granted", "rejected"))
 
 
 class CommandLine(Store):
