@@ -177,7 +177,8 @@ answers "what is happening right now" with something a founder can look at.
 
 The office is a screen, so non-negotiable 11 applies in full when item 4 is built. This pull request
 adds one screen, the budget page, which is for Bruntsfield and not a founder. The design artifact has
-no budget screen to compare it with; it was rendered at 1440×1000 and 393×851 and looked at, and its
-heights are in `docs/design-conformance.md`. The real verification is watching one real ticket go through: an environment
+no budget screen to compare it with. The UI gate draws it at 1440×1000 (1,000px tall) and 393×851
+(994px tall) from fixture rows, and those pictures were looked at; it has not been drawn on real data.
+The line is in `docs/design-conformance.md`. The real verification is watching one real ticket go through: an environment
 appears on Railway, work happens, a link works, the environment goes. Anything less is a pipeline
 nobody has seen run.
