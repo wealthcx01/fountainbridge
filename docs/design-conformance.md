@@ -648,3 +648,16 @@ the phone header said 4 over that same desk.
 Two faults were found only by looking at the pictures, and both are fixed here: a send's row read
 "send · … · external send · …", and every send was labelled "Build — Product" because it was named by
 the repository it came from rather than the department it names (ARCA's investor email is Sell).
+
+### FB-149 and FB-183 after review, 2026-10-02
+
+Built from the FB-183 branch (which carries FB-149) on the fixtures, signed in as ARCA's founder.
+Desk **2,165px** at 1440×1000 and **2,368px** at 393×851 — the same as before the review fixes, so
+nothing grew. Tickets is **1,322px** at 1440×1000. All places still say **10**, phone header included.
+
+Looked at as pictures. The amber banner now reads *"6 decisions about something leaving the
+company"* rather than calling all six actions that "would go outside": one of them already went out,
+on an approval nobody can name. The Tickets detail for that send says so in words; the five that are
+still only proposals keep "This would go outside your company". Not compared side by side with the
+Claude Design artifact in this pass — the change is words inside existing rows and panels, and the
+heights above show the layout did not move.
