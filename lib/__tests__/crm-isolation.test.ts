@@ -20,6 +20,8 @@ const SCHEMA = ['001_read_model.sql', '005_crm.sql']
 const ARCA_CONTACT = '11111111-1111-4111-8111-111111111111';
 const RESET_CONTACT = '22222222-2222-4222-8222-222222222222';
 const RESET_DEAL = '33333333-3333-4333-8333-333333333333';
+const ARCA_COMPANY = 'aaaaaaaa-0000-4000-8000-000000000001';
+const RESET_COMPANY = 'bbbbbbbb-0000-4000-8000-000000000001';
 
 async function seeded() {
   const db = await PGlite.create();
@@ -29,11 +31,11 @@ async function seeded() {
   await db.exec(`
     insert into ventures (id, name) values ('arca','ARCA'), ('the-reset','The Reset');
     insert into crm_companies (venture_id, id, name) values
-      ('arca', 'aaaaaaaa-0000-4000-8000-000000000001', 'Example Card Shop'),
-      ('the-reset', 'bbbbbbbb-0000-4000-8000-000000000001', 'Sample Wellness Ltd');
+      ('arca', '${ARCA_COMPANY}', 'Example Card Shop'),
+      ('the-reset', '${RESET_COMPANY}', 'Sample Wellness Ltd');
     insert into crm_contacts (venture_id, id, name, email, company_id, temperature) values
-      ('arca', '${ARCA_CONTACT}', 'Ada Example', 'ada@example.test', 'aaaaaaaa-0000-4000-8000-000000000001', 'hot'),
-      ('the-reset', '${RESET_CONTACT}', 'Ben Placeholder', 'ben@example.test', 'bbbbbbbb-0000-4000-8000-000000000001', 'warm');
+      ('arca', '${ARCA_CONTACT}', 'Ada Example', 'ada@example.test', '${ARCA_COMPANY}', 'hot'),
+      ('the-reset', '${RESET_CONTACT}', 'Ben Placeholder', 'ben@example.test', '${RESET_COMPANY}', 'warm');
     insert into crm_deals (venture_id, id, title, contact_id, stage, value_minor, currency) values
       ('arca', '44444444-4444-4444-8444-444444444444', 'Shop pilot', '${ARCA_CONTACT}', 'proposal', 250000, 'GBP'),
       ('the-reset', '${RESET_DEAL}', 'Clinic licence', '${RESET_CONTACT}', 'meeting', 900000, 'GBP');
@@ -85,11 +87,6 @@ describe('a venture reads only its own pipeline, at the database', () => {
     }
   });
 
-  it('cannot even count the other venture’s pipeline', async () => {
-    const read = await as(db, 'arca', readPipeline);
-    expect(read.totals.contacts).toBe(1);
-  });
-
   it('a connection that names no venture sees nothing at all', async () => {
     const read = await as(db, null, readPipeline);
     expect(read.contacts).toEqual([]);
@@ -102,18 +99,67 @@ describe('a venture cannot write into another venture’s pipeline', () => {
   let db: PGlite;
   beforeEach(async () => { db = await seeded(); });
 
-  it('cannot add a person to the other venture', async () => {
-    await expect(as(db, 'arca', (q) => q.query(
-      `insert into crm_contacts (venture_id, name) values ('the-reset', 'Slipped In')`,
-    ))).rejects.toThrow(/row-level security/);
-  });
+  // One insert per table, each naming the-reset while connected as ARCA. Every one must be refused by
+  // that table's own write rule. A table missing from this list is a table whose rule nobody checks.
+  const crossVentureInserts: Array<[string, string]> = [
+    ['crm_companies', `insert into crm_companies (venture_id, name) values ('the-reset', 'Slipped In Ltd')`],
+    ['crm_contacts', `insert into crm_contacts (venture_id, name) values ('the-reset', 'Slipped In')`],
+    ['crm_deals', `insert into crm_deals (venture_id, title) values ('the-reset', 'Slipped In')`],
+    ['crm_activities', `insert into crm_activities (venture_id, contact_id, kind, summary, occurred_at)
+      values ('the-reset', '${RESET_CONTACT}', 'note', 'Slipped in', now())`],
+  ];
+  for (const [table, sql] of crossVentureInserts) {
+    it(`cannot add a row to the other venture’s ${table}`, async () => {
+      await expect(as(db, 'arca', (q) => q.query(sql))).rejects.toThrow(/row-level security/);
+    });
+  }
 
-  it('cannot attach its deal to the other venture’s person', async () => {
-    // The right venture on the row, the wrong venture's person on the link. The policy alone would
-    // allow this — the row IS arca's — so it is the paired foreign key that has to refuse it.
-    await expect(as(db, 'arca', (q) => q.query(
-      `insert into crm_deals (venture_id, title, contact_id) values ('arca', 'Poached', '${RESET_CONTACT}')`,
-    ))).rejects.toThrow(/foreign key/);
+  // Moving its OWN row across is the same crossing by another door: the update is allowed to find
+  // the row, so only the write rule can stop the new venture being written onto it.
+  const crossVentureMoves: Array<[string, string]> = [
+    ['crm_companies', `update crm_companies set venture_id = 'the-reset' where id = '${ARCA_COMPANY}'`],
+    ['crm_contacts', `update crm_contacts set venture_id = 'the-reset' where id = '${ARCA_CONTACT}'`],
+    ['crm_deals', `update crm_deals set venture_id = 'the-reset' where id = '44444444-4444-4444-8444-444444444444'`],
+    ['crm_activities', `update crm_activities set venture_id = 'the-reset'`],
+  ];
+  for (const [table, sql] of crossVentureMoves) {
+    it(`cannot move its own ${table} row into the other venture`, async () => {
+      await expect(as(db, 'arca', (q) => q.query(sql))).rejects.toThrow(/row-level security/);
+    });
+  }
+
+  // The right venture on the row, the wrong venture's row on the link. The write rule alone would
+  // allow each of these — the row IS arca's — so it is the paired foreign key that has to refuse it.
+  // One case per link in the schema.
+  const crossVentureLinks: Array<[string, string]> = [
+    ['a person to the other venture’s company',
+      `insert into crm_contacts (venture_id, name, company_id) values ('arca', 'Poached', '${RESET_COMPANY}')`],
+    ['a deal to the other venture’s person',
+      `insert into crm_deals (venture_id, title, contact_id) values ('arca', 'Poached', '${RESET_CONTACT}')`],
+    ['a deal to the other venture’s company',
+      `insert into crm_deals (venture_id, title, company_id) values ('arca', 'Poached', '${RESET_COMPANY}')`],
+    ['an activity to the other venture’s person',
+      `insert into crm_activities (venture_id, contact_id, kind, summary, occurred_at)
+        values ('arca', '${RESET_CONTACT}', 'note', 'Poached', now())`],
+    ['an activity to the other venture’s deal',
+      `insert into crm_activities (venture_id, contact_id, deal_id, kind, summary, occurred_at)
+        values ('arca', '${ARCA_CONTACT}', '${RESET_DEAL}', 'note', 'Poached', now())`],
+  ];
+  for (const [what, sql] of crossVentureLinks) {
+    it(`cannot attach ${what}`, async () => {
+      await expect(as(db, 'arca', (q) => q.query(sql))).rejects.toThrow(/foreign key/);
+    });
+  }
+
+  it('can still write into its own pipeline, links and all', async () => {
+    // Without this, every refusal above would pass against a database that refused everything.
+    const ok = await as(db, 'arca', async (q) => {
+      await q.query(`insert into crm_contacts (venture_id, name, company_id) values ('arca', 'New Person', '${ARCA_COMPANY}')`);
+      await q.query(`insert into crm_activities (venture_id, contact_id, deal_id, kind, summary, occurred_at)
+        values ('arca', '${ARCA_CONTACT}', '44444444-4444-4444-8444-444444444444', 'note', 'Called back', now())`);
+      return readPipeline(q);
+    });
+    expect(ok.totals.contacts).toBe(2);
   });
 
   it('cannot change or delete the other venture’s rows', async () => {
