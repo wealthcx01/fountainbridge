@@ -27,7 +27,8 @@ mkdir -p "$STATE_DIR"
 
 STAGE=setup
 SKILLS=""
-# shellcheck disable=SC2329  # invoked by the EXIT trap below
+# Invoked by the EXIT trap below. Older shellcheck (CI) calls that SC2317, newer SC2329.
+# shellcheck disable=SC2317,SC2329
 finish() {
   local code=$?
   # A JSON line the persistent machine can read back. Written on every exit, so a run that breaks
