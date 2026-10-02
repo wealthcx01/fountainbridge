@@ -57,6 +57,11 @@ export const config = {
     //
     // FB-141: `api/push/check` is excluded for the same reason. A timer calls it, with a secret in a
     // header and no session; the route checks that secret before it does anything. Anchored.
-    '/((?!api/auth/|api/mcp$|api/health$|api/push/check$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
+    //
+    // FB-239: `api/machines` and everything under it are excluded for the same reason. A venture's
+    // lane, a ticket machine and the clean-up timer call them, none with a session. Each route checks
+    // its own key first — the venture's lane key, the run's token, or the reap key — and answers 401
+    // otherwise (`lib/machine-service.ts`). Anchored to the whole segment.
+    '/((?!api/auth/|api/mcp$|api/health$|api/push/check$|api/machines$|api/machines/|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
   ],
 };
