@@ -4,8 +4,9 @@ import { testLogin } from './helpers';
 /**
  * FB-141 — asking a phone whether it may buzz, in a real browser.
  *
- * Runs in the `mobile` project (Pixel 5, because the file name says "pocket"). The rules are unit
- * tested in `lib/__tests__/push-offer.test.ts`; this checks that the screen actually follows them.
+ * Runs in the `mobile` project (Pixel 5): the config sends any file ending `pocket.spec.ts` there.
+ * The rules are unit tested in `lib/__tests__/push-offer.test.ts`; this checks that the screen
+ * actually follows them.
  *
  * The rig has no database, so `PUSH_FIXTURE` (playwright.config.ts) lets the card be drawn anyway.
  * The browser is granted notification permission, and runs as the full Chromium rather than the
