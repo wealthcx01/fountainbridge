@@ -1,6 +1,6 @@
 # FB-162 — A venture's state ref grows forever
 
-**Status:** Shipped in part · **Area:** Venture box / housekeeping · **Depends on:** FB-161
+**Status:** Done · **Area:** Venture box / housekeeping · **Depends on:** FB-161
 
 ## What is true
 
@@ -50,20 +50,18 @@ about 175 reports in two months. So the pile was not ordinary history growing; i
 - With FB-251, neither loop can fill the history again. At ARCA's real pace of work, a year is a few
   thousand reports, far below the listing limit (the trees API reads 100,000 entries).
 
-## What is left
+## The cleanup on ARCA (2026-10-02)
 
-- **Clean up ARCA's 10,038 duplicates.** Keep the first and last, and replace the rest with one
-  report saying how many identical re-plans and budget notices were removed, between which dates,
-  and why. Done after FB-251 is live on ARCA, so the loop has stopped first.
-- **Sharding by month** is not needed for this; it stays here in case real work ever approaches the
-  limit.
+Done once FB-251 was live on ARCA and the lane had moved on to building ARCA-061. 10,036 copies were
+removed in one commit on `foundry-state` (c99a8a3). Kept: the first plan, the first and last
+"budget reached" notices, and one report in their place that says how many were removed, between
+which dates, and why. Git history still holds every file. The ref went from 10,215 reports to 182.
 
-**Shipped in part:** ARCA's 10,038 duplicate reports still need to be cleaned up, with a record of
-what was removed.
+Sharding by month is not needed for this; it stays an option if real work ever approaches the limit.
 
 ## Acceptance criteria
 
 - [x] A venture running for a year does not approach any listing cap.
 - [x] The newest wake is findable in one read, whatever the shape. (The heartbeat file.)
-- [ ] Nothing a founder can currently see on "What happened" disappears without being said.
-- [ ] Proven on the ARCA box, whose ref is the one that found this.
+- [x] Nothing a founder can currently see on "What happened" disappears without being said. (The cleanup note says what went.)
+- [x] Proven on the ARCA box, whose ref is the one that found this.
