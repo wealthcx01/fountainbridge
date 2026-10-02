@@ -11,6 +11,8 @@ import { readThread, appendToThread } from '@/app/actions/threads';
 import { filePlan } from '@/app/actions/file-plan';
 import { handleMcp, readMcpTicket, type McpCaller } from '@/lib/mcp';
 import { studioNow } from '@/lib/when';
+import { loadPipeline } from '@/lib/crm-load';
+import { describePipeline } from '@/lib/crm';
 
 /**
  * The studio, spoken to as a set of tools (FB-200).
@@ -208,6 +210,12 @@ async function runTool(
       'This lists what exists; it does not answer the question. Read the ones that look right with '
       + 'read_ticket, and ask the founder rather than guessing.',
     ].join('\n');
+  }
+
+  if (name === 'sell_pipeline') {
+    // Scoped by the caller's ticket, through `withVenture` — the database's policies decide what
+    // comes back, and nothing a model sends can name another venture.
+    return describePipeline(venture.name, await loadPipeline(caller.ventureId));
   }
 
   if (name === 'file_ticket') {
