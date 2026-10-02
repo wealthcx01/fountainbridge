@@ -9,8 +9,10 @@ import { DRAFT_ONLY, type CrmContact, type CrmDeal, type PipelineRead } from '..
  * The Sell surface, rendered (FB-235).
  *
  * The non-negotiable here is that nothing on it sends (non-negotiable 4). That is proved by rendering
- * the page with the UI gate's fixture and looking at every control it draws: there is no form and no
- * button, and every link goes to the composer with a request that ends "do not send anything".
+ * the Sell content with the UI gate's fixture and looking at every control it draws: there is no form
+ * and no button, and every link goes to the composer with a request that ends "do not send anything".
+ * The studio's prompt bar sits above this content on every venture page and is a form; it too only
+ * opens the composer. `e2e/sell.spec.ts` checks the whole page, prompt bar included.
  */
 const FIXTURE = JSON.parse(readFileSync(join(process.cwd(), 'e2e/fixtures/crm/arca.json'), 'utf8')) as {
   contacts: CrmContact[]; deals: CrmDeal[];
@@ -55,7 +57,7 @@ describe('nothing on the Sell surface can send — tried, not assumed', () => {
   });
 
   it('a very long message from someone still keeps "do not send" in the request', () => {
-    const long = { ...FIXTURE.contacts[0], last: { ...FIXTURE.contacts[0].last!, summary: 'x'.repeat(900) } };
+    const long = { ...FIXTURE.contacts[0], waiting: { ...FIXTURE.contacts[0].waiting!, summary: 'x'.repeat(900) } };
     const html2 = render({ ...full, contacts: [long, ...FIXTURE.contacts.slice(1)] } as PipelineRead);
     const first = decode(/href="([^"]+)"/.exec(html2)![1]);
     const ask = new URL(first, 'https://studio.test').searchParams.get('ask') ?? '';
@@ -79,7 +81,7 @@ describe('what the founder reads', () => {
 
   it('says what is missing rather than printing a partial total', () => {
     const html = render(full);
-    expect(html).toMatch(/14 people, 14 open deals, 1 won, 1 lost\./);
+    expect(html).toMatch(/15 people, 14 open deals, 1 won, 1 lost\./);
     expect(html).toMatch(/6 of 14 open deals have no value yet, so there is no total\./);
     expect(html).not.toMatch(/add up to/);
   });

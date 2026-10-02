@@ -13,7 +13,11 @@
         "summary": "Asked whether the pilot can start before the August show",
         "at": "2026-07-21T09:00:00.000Z"
       },
-      "awaitingReply": 1
+      "awaitingReply": 1,
+      "waiting": {
+        "summary": "Asked whether the pilot can start before the August show",
+        "at": "2026-07-21T09:00:00.000Z"
+      }
     },
     {
       "id": "c0000000-0000-4000-8000-000000000002",
@@ -24,11 +28,15 @@
       "temperature": "warm",
       "snoozedUntil": null,
       "last": {
-        "kind": "email_in",
+        "kind": "note",
+        "summary": "Our own note: put the graded price sheet together first",
+        "at": "2026-07-20T09:00:00.000Z"
+      },
+      "awaitingReply": 2,
+      "waiting": {
         "summary": "Wants to know if graded cards are priced separately",
         "at": "2026-07-18T09:00:00.000Z"
-      },
-      "awaitingReply": 2
+      }
     },
     {
       "id": "c0000000-0000-4000-8000-000000000003",
@@ -43,7 +51,11 @@
         "summary": "Asked for the price list again",
         "at": "2026-07-13T09:00:00.000Z"
       },
-      "awaitingReply": 1
+      "awaitingReply": 1,
+      "waiting": {
+        "summary": "Asked for the price list again",
+        "at": "2026-07-13T09:00:00.000Z"
+      }
     },
     {
       "id": "c0000000-0000-4000-8000-000000000004",
@@ -58,7 +70,8 @@
         "summary": "Walked through the dashboard with their buying team",
         "at": "2026-07-16T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000005",
@@ -73,7 +86,8 @@
         "summary": "Sent the pilot terms for review",
         "at": "2026-07-10T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000006",
@@ -84,7 +98,8 @@
       "temperature": "warm",
       "snoozedUntil": null,
       "last": null,
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000007",
@@ -95,7 +110,8 @@
       "temperature": "hot",
       "snoozedUntil": null,
       "last": null,
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000008",
@@ -110,7 +126,8 @@
         "summary": "Said to come back after their stocktake",
         "at": "2026-07-02T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000009",
@@ -125,7 +142,8 @@
         "summary": "Followed up on the proposal",
         "at": "2026-07-19T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000010",
@@ -140,7 +158,8 @@
         "summary": "Met at the regional fair; interested later in the year",
         "at": "2026-06-22T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000011",
@@ -155,7 +174,8 @@
         "summary": "Signed the pilot agreement",
         "at": "2026-07-07T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000012",
@@ -170,7 +190,8 @@
         "summary": "First introduction sent",
         "at": "2026-07-04T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000013",
@@ -185,7 +206,8 @@
         "summary": "Not the right time; went with another tool",
         "at": "2026-06-27T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
     },
     {
       "id": "c0000000-0000-4000-8000-000000000014",
@@ -200,7 +222,20 @@
         "summary": "Sent the proposal with three price options",
         "at": "2026-07-20T09:00:00.000Z"
       },
-      "awaitingReply": 0
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000015",
+      "name": "Oli Standby",
+      "email": "oli@example.test",
+      "title": null,
+      "company": null,
+      "temperature": "cold",
+      "snoozedUntil": null,
+      "last": null,
+      "awaitingReply": 0,
+      "waiting": null
     }
   ],
   "deals": [

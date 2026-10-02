@@ -825,7 +825,7 @@ hairline columns.
 
 **Not read on production either.** Production has no pipeline yet: `db/005_crm.sql` (FB-234) has not
 been run on the studio's database, and nothing has written a contact. So the reading is the UI
-gate's fixture — fourteen invented people and sixteen deals, built to hit every cap — on the
+gate's fixture — fifteen invented people and sixteen deals, built to hit every cap — on the
 studio's own build, signed in as ARCA's founder, landing on `/venture/arca/sell`.
 
 - Sell, with the fixture: **1,311px** at 1440×1000 and **2,814px** at 393×851. No sideways scroll.
@@ -837,3 +837,11 @@ Looked at as pictures. On a desk the page is one screen and a third: five people
 founder, each with a coloured edge for how warm they are, then six stage columns ending in Won. On a
 phone the board stacks, and it is the long part — every stage shows up to three deals, one under the
 other. If that proves too long in use, showing counts only on a phone is the next step.
+
+Read again after review, 2026-10-02, on the same fixture (now fifteen people: one has no deal, so
+the people count and the open-deal count differ) and the same build setup, signed in as ARCA's
+founder, landing on `/venture/arca/sell`: **1,311px** at 1440×1000 and **2,814px** at 393×851, the
+same as before, no sideways scroll. Looked at as pictures: the summary now reads "15 people, 14 open
+deals", and Ben's row still quotes his own message, not the note logged after it. The page for
+another venture (`/venture/the-reset/sell`, as ARCA's founder) shows the "No access" notice:
+**1,000px** and **851px**. Still not compared to a design, for the reason above.

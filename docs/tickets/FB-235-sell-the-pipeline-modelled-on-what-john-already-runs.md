@@ -65,9 +65,11 @@ It was read once, signed in as John, and nothing was changed, sent or saved in D
       then `lib/crm.ts` mirrors the columns of `db/005_crm.sql` and nothing more.
 - [x] Not one line of copy or one layout is taken from Decile Hub, and the ticket says so. Every word
       on the screen was written for it; the layout is built from the desk's own pieces.
-- [x] Nothing can send. Proved by trying. The page draws no form and no button. Every action is a
-      link to the composer asking for a draft and ending "Do not send anything", and a test renders
-      the page and checks every link it draws.
+- [x] Nothing can send. Proved by trying. The Sell content draws no form and no button. Every action
+      is a link to the composer asking for a draft and ending "Do not send anything", and a test
+      renders it and checks every link it draws. The one form on the page is the studio's own prompt
+      bar, which sits on every venture page and only opens the composer; the browser test checks
+      that it is the only one.
 - [x] A founder can answer "who is waiting on me" from the Sell surface without opening anything else.
       "Who needs you now" is the first thing under the summary.
 
@@ -232,3 +234,9 @@ an approval. The request is trimmed *before* that sentence is added, so a long m
   looked at, at both sizes, but not compared to a design (recorded in `docs/design-conformance.md`).
 - **Real data.** Production has no pipeline until FB-234's `db/005_crm.sql` is run there and the lane
   writes to it. Everything above was seen on invented fixture data.
+- **A Sell entry in the menu.** The left-hand menu has no Sell item, so on this page it still
+  highlights "The desk". The page is reached from the desk's "your pipeline" link. Adding a menu
+  entry changes every venture page, so it is its own change.
+- **FB-234's last box.** FB-234 asks that a pipeline that cannot be read says so plainly. This screen
+  does that, in three different sentences. The box is ticked on FB-234 when that ticket is closed,
+  not from this branch.

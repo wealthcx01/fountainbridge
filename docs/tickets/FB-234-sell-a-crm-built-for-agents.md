@@ -141,10 +141,9 @@ fails. That test is writable once the store's location is decided, and not befor
       The read is built; the screen is FB-235.
 - [x] Nothing in it can send. Proved by trying. The pipeline tool is a read, and asking the studio
       for a send under five different names is refused without anything running.
-- [x] If the mount is unavailable, the surface says so plainly and the rest of the studio is unaffected.
-      There is no mount any more. The read tells "no database", "could not read" and "empty" apart,
-      and FB-235's screen says each one in its own sentence; a failed read is caught on that page
-      alone.
+- [ ] If the mount is unavailable, the surface says so plainly and the rest of the studio is unaffected.
+      There is no mount any more. The read does tell "no database", "could not read" and "empty"
+      apart; the screen that says them is FB-235.
 
 ## Verification
 

@@ -14,7 +14,7 @@ import {
 /**
  * Who needs the founder now, and what the pipeline adds up to (FB-235).
  *
- * Run against the UI gate's own fixture — fourteen invented people and sixteen deals, built to be
+ * Run against the UI gate's own fixture — fifteen invented people and sixteen deals, built to be
  * big enough to hit the caps: more people waiting than the list shows, a stage with more deals than
  * the board shows, a snoozed person, a won and a lost deal, and open deals with no value.
  */
@@ -49,7 +49,10 @@ describe('who needs you now', () => {
   it('gives one sentence of why, in words a founder reads', () => {
     const [ada, ben] = shown;
     expect(ada.reason).toBe('Wrote yesterday: “Asked whether the pilot can start before the August show”.');
-    expect(ben.reason).toMatch(/^Wrote 4 days ago: .*They have written 2 times without an answer\.$/);
+    // Ben's newest activity is the founder's own note, logged after he wrote. The list quotes Ben.
+    expect(ben.reason).toBe('Wrote 4 days ago: “Wants to know if graded cards are priced separately”. They have written 2 times without an answer.');
+    expect(ben.draft.ask).toMatch(/They wrote: “Wants to know if graded cards are priced separately”/);
+    expect(ben.draft.ask).not.toMatch(/Our own note/);
     expect(shown[3].reason).toBe('Send the rollout plan on “Buying-team rollout” was due 2 days ago.');
     expect(shown[4].reason).toBe('Chase the signed terms on “Pilot terms” is due today.');
   });
@@ -98,7 +101,8 @@ describe('who needs you now', () => {
 describe('what the pipeline adds up to', () => {
   it('counts what is true and refuses to total what is missing', () => {
     const n = pipelineNumbers(read);
-    expect(n).toMatchObject({ people: 14, open: 14, won: 1, lost: 1 });
+    // Fifteen people and fourteen open deals: Oli has no deal, so the two counts cannot be confused.
+    expect(n).toMatchObject({ people: 15, open: 14, won: 1, lost: 1 });
     expect(n.openValue).toBeNull();
     expect(n.openValueMissing).toBe('6 of 14 open deals have no value yet, so there is no total.');
     expect(n.expected).toBeNull();

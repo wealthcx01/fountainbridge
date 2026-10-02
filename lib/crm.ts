@@ -257,17 +257,19 @@ export function nextActions(
     const open = read.deals.filter((d) => d.contactId === c.id && OPEN_STAGES.includes(d.stage));
     const base = { contactId: c.id, name: c.name, company: c.company, temperature: c.temperature };
 
-    if (c.awaitingReply > 0 && c.last) {
+    // Quote their unanswered message itself, never `last`: the newest activity can be the founder's
+    // own note or email, logged after they wrote, and that is not what they said.
+    if (c.awaitingReply > 0 && c.waiting) {
       const more = c.awaitingReply > 1 ? ` They have written ${c.awaitingReply} times without an answer.` : '';
       candidates.push({
         ...base,
         status: 'awaiting-reply',
-        reason: `Wrote ${sinceWords(c.last.at, nowMs)}: “${c.last.summary}”.${more}`,
+        reason: `Wrote ${sinceWords(c.waiting.at, nowMs)}: “${c.waiting.summary}”.${more}`,
         draft: {
           label: 'Draft a reply with AI',
-          ask: draftAsk(`Draft a reply to ${c.name}${c.company ? ` at ${c.company}` : ''}. They wrote: “${c.last.summary}”.`),
+          ask: draftAsk(`Draft a reply to ${c.name}${c.company ? ` at ${c.company}` : ''}. They wrote: “${c.waiting.summary}”.`),
         },
-        waitedMs: nowMs - Date.parse(c.last.at),
+        waitedMs: nowMs - Date.parse(c.waiting.at),
       });
       continue;
     }

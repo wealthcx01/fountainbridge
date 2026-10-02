@@ -4,7 +4,7 @@ import { testLogin } from './helpers';
 /**
  * FB-235: the Sell surface. Who needs the founder now, where every deal stands, and nothing that sends.
  *
- * The fixture is `e2e/fixtures/crm/arca.json`: fourteen invented people and sixteen deals, big enough
+ * The fixture is `e2e/fixtures/crm/arca.json`: fifteen invented people and sixteen deals, big enough
  * that the list and the board both hit their caps.
  */
 const SHOTS = 'e2e/__screenshots__';
@@ -34,7 +34,12 @@ test('pressing a draft action sends nothing: it opens the composer with a draft 
   const posts: string[] = [];
   page.on('request', (r) => { if (r.method() !== 'GET') posts.push(`${r.method()} ${r.url()}`); });
 
-  await expect(page.locator('form')).toHaveCount(0);
+  // The Sell content itself draws no form and no button. The one form on the page is the studio's
+  // prompt bar, shared by every venture page, which only opens the composer.
+  await expect(page.getByTestId('sell-page')).toBeVisible();
+  await expect(page.getByTestId('sell-page').locator('form, button, input')).toHaveCount(0);
+  await expect(page.locator('form')).toHaveCount(1);
+  await expect(page.getByTestId('prompt-bar').locator('form')).toHaveCount(1);
   await page.getByTestId('sell-action-draft').first().click();
   await page.waitForURL(/\/venture\/arca\/composer\?ask=/);
   const ask = new URL(page.url()).searchParams.get('ask') ?? '';
@@ -52,9 +57,11 @@ test('the desk links to the pipeline from the Sell surface', async ({ page }) =>
   await expect(page.getByTestId('sell-next')).toBeVisible();
 });
 
-test('another venture’s founder cannot open ARCA’s pipeline', async ({ page }) => {
+test('a founder cannot open another venture’s pipeline', async ({ page }) => {
+  // Signed in as ARCA's founder, asking for the-reset's Sell page. The-reset has no fixture, so an
+  // empty page would look the same as a refusal; only the refusal notice proves the access check ran.
   await testLogin(page, FOUNDER);
   await page.goto('/venture/the-reset/sell');
-  await expect(page.getByTestId('sell-next')).toHaveCount(0);
-  await expect(page.getByText('Ada Example')).toHaveCount(0);
+  await expect(page.getByTestId('venture-forbidden')).toBeVisible();
+  await expect(page.getByTestId('sell-page')).toHaveCount(0);
 });

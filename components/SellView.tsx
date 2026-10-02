@@ -27,8 +27,10 @@ import {
  *
  * Every action is a link to the composer with a draft request already written, ending "do not send
  * anything". The composer files that as work; the team drafts; anything that would leave the company
- * comes back to the founder as an approval (non-negotiable 4). There is no form on this page and no
- * button that posts anywhere — so there is nothing here that could send, however it is pressed.
+ * comes back to the founder as an approval (non-negotiable 4). This content draws no form and no
+ * button that posts anywhere — so there is nothing here that could send, however it is pressed. (The
+ * studio's own prompt bar sits above it on every venture page. It is a form, and it only opens the
+ * composer too.)
  */
 
 /** How many deals a stage shows before it says how many more. Keeps the board one screen tall. */
@@ -48,7 +50,7 @@ export function SellView({
   nowMs: number;
 }) {
   return (
-    <>
+    <div data-testid="sell-page">
       <p className="eyebrow">
         <span className="eyebrow-id">Sell</span> — {ventureName}
       </p>
@@ -58,7 +60,7 @@ export function SellView({
         Nothing on this page sends a message. A draft goes to your composer first, and anything that
         would leave the company waits for you to approve it.
       </p>
-    </>
+    </div>
   );
 }
 
