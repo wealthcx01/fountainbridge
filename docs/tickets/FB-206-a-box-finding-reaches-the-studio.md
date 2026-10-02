@@ -1,9 +1,8 @@
 # FB-206 — a finding on the box reaches the studio, not only a log
 
-**Status:** Shipped in part — built and tested, not yet on a box · **Phase:** 3 · **Raised by:** FB-176, which built the scanner and stopped short of
+**Status:** Done · **Phase:** 3 · **Raised by:** FB-176, which built the scanner and stopped short of
 this · **Branch:** `fb-206-a-box-finding-reaches-the-studio`
 
-**Shipped in part:** the new scanner and its timer unit are not installed on any venture box yet, so a token planted on a REAL box has not yet been seen on the ledger. Everything else is built and tested against a copy of a box. To finish: copy `deploy/foundry/secret-scan.mjs` to `/opt/foundry/secret-scan.mjs` and `deploy/foundry/foundry-secret-scan.service` to `/etc/systemd/system/` on ARCA's box, run `systemctl daemon-reload && systemctl start foundry-secret-scan.service`, and check the ledger.
 
 ## What shipped
 
@@ -65,11 +64,22 @@ FB-176 would have been the half-done version of exactly the thing FB-176 is abou
 
 ## Acceptance criteria
 
-- [ ] A planted token on a box appears on the admin ledger, naming the file and what kind of thing it
+- [x] A planted token on a box appears on the admin ledger, naming the file and what kind of thing it
       is, and never the value. *(Proven on a copy of a box: the real script, run as the timer runs it,
-      sends a record with the file and kind and no value, and the ledger renders that record. Not yet
-      seen on a real box — see "Shipped in part" above.)*
+      sends a record with the file and kind and no value, and the ledger renders that record. Seen on
+      ARCA's real box on 2026-10-02 — see "Proven on ARCA" below.)*
 - [x] A clean scan is distinguishable from a scan that has not run, and the ledger says which.
 - [x] A founder signed into their own venture cannot see any of it.
 - [x] The studio's other screens do not pay a read for it.
 - [x] A box that has never run the scanner reads as "not reported", not as "clean".
+
+## Proven on ARCA (2026-10-02)
+
+John approved the deploy. The scanner and its unit were copied to ARCA's box (old versions backed up
+under `/opt/foundry/lane/state/backup-fb206-20261002T121857`). The first real scan was clean.
+
+Then a clearly fake GitHub token was planted in `/var/log/foundry/fb206-planted-test.txt` and the scan
+run. The record on ARCA's `foundry-state` ref named the file, line 2, and "a GitHub fine-grained
+token", with no value. The admin ledger, built from `main` and reading ARCA's real record, showed ARCA
+red with that file and line, at 1,263px (1440×1000) and 2,530px (393×851). The fake file was then
+deleted and the box scanned again: clean. The scan now runs daily on ARCA.
