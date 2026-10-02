@@ -198,6 +198,37 @@ describe('failing closed', () => {
     expect(putFile).not.toHaveBeenCalled();
   });
 
+  it('never approves a send that was refused — the old-tab case the review found', async () => {
+    // Refuse for real, then hand back the exact refusal that was written, as GitHub would.
+    await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', 'Not this week.');
+    const refusal = putFile.mock.calls.find((c) => String(c[1]).endsWith('approvals/send-1/refusal.json'))![2].content;
+    putFile.mockClear();
+    getFileContent.mockImplementation(async (_r: string, path: string) => (path.endsWith('refusal.json') ? refusal : null));
+
+    // The same proposal, unchanged, approved from a tab that still shows the button.
+    const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current');
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('refused by ross@bruntsfield.capital');
+    // Nothing signed: no grant means the executor can never send it.
+    expect(putFile.mock.calls.some((c) => String(c[1]).endsWith('grant.json')), 'a grant was written over a refusal').toBe(false);
+  });
+
+  it('a refusal nobody signed does not block the founder (a lane could write one)', async () => {
+    getFileContent.mockImplementation(async (_r: string, path: string) =>
+      path.endsWith('refusal.json') ? JSON.stringify({ refused_by: 'ross@bruntsfield.capital', proposal_sha: 'sha-current', attestation: 'forged', note: 'no' }) : null);
+    const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current');
+    expect(r.ok).toBe(true);
+  });
+
+  it('a refusal of an earlier version does not block approving the new one', async () => {
+    await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', 'Not this week.');
+    const refusal = putFile.mock.calls.find((c) => String(c[1]).endsWith('approvals/send-1/refusal.json'))![2].content;
+    getFileContent.mockImplementation(async (_r: string, path: string) => (path.endsWith('refusal.json') ? refusal : null));
+    getFileWithSha.mockResolvedValue({ text: JSON.stringify(PROPOSAL), sha: 'sha-rewritten' });
+    const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-rewritten');
+    expect(r.ok).toBe(true);
+  });
+
   it('refuses when the proposal no longer exists', async () => {
     getFileWithSha.mockResolvedValue(null);
     expect((await approveExternalAction('the-reset', 'send-1', 'thereset-marketing')).ok).toBe(false);

@@ -228,11 +228,11 @@ export function verifyRefusal(
   // not close a different one that replaced it.
   if (pinned !== proposalSha) return null;
   const canonical = by.toLowerCase();
-  if (!equal(attestation, refusalAttestationFor(repo, id, proposalSha, canonical, secret))) return null;
+  // The date and reason are inside the signature, read exactly as written: an edited or blanked
+  // one no longer verifies, and the send goes back to waiting — the safe direction.
+  const at = typeof r.refused_at === 'string' ? r.refused_at : '';
+  const rawNote = typeof r.note === 'string' ? r.note : '';
+  if (!equal(attestation, refusalAttestationFor(repo, id, proposalSha, canonical, secret, at, rawNote))) return null;
 
-  return {
-    refusedBy: canonical,
-    at: typeof r.refused_at === 'string' && r.refused_at.trim() ? r.refused_at.trim() : null,
-    note,
-  };
+  return { refusedBy: canonical, at: at.trim() || null, note };
 }

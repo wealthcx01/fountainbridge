@@ -17,10 +17,12 @@ const ID = 'september-note';
 const SHA = 'abc123';
 const WHO = 'arca.founder@bruntsfield.capital';
 
+const AT = '2026-09-03T02:20:56.399Z';
+const NOTE = 'Not this month.';
 const signed = (over: Record<string, unknown> = {}) => ({
   id: ID, repo: REPO, decision: 'refused', refused_by: WHO, proposal_sha: SHA,
-  attestation: refusalAttestationFor(REPO, ID, SHA, WHO, SECRET),
-  refused_at: '2026-09-03T02:20:56.399Z', note: 'Not this month.',
+  attestation: refusalAttestationFor(REPO, ID, SHA, WHO, SECRET, AT, NOTE),
+  refused_at: AT, note: NOTE,
   ...over,
 });
 
@@ -29,6 +31,18 @@ describe('verifyRefusal (FB-183)', () => {
     const r = verifyRefusal(REPO, ID, SHA, signed(), SECRET);
     expect(r?.refusedBy).toBe(WHO);
     expect(r?.note).toBe('Not this month.');
+  });
+
+  it('refuses one whose reason was edited after it was signed', () => {
+    // The founder's words are part of the record. Changing them must break the signature.
+    expect(verifyRefusal(REPO, ID, SHA, signed({ note: 'Fine, send it.' }), SECRET)).toBeNull();
+  });
+
+  it('refuses one whose date was changed or blanked after it was signed', () => {
+    // A blank date drops the refusal out of "What happened"; a moved one buries it.
+    expect(verifyRefusal(REPO, ID, SHA, signed({ refused_at: '' }), SECRET)).toBeNull();
+    expect(verifyRefusal(REPO, ID, SHA, signed({ refused_at: '2020-01-01T00:00:00.000Z' }), SECRET)).toBeNull();
+    expect(verifyRefusal(REPO, ID, SHA, signed({ refused_at: undefined }), SECRET)).toBeNull();
   });
 
   it('refuses one with no signature — a lane can write this file', () => {

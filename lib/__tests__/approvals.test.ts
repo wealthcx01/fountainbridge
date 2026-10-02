@@ -301,7 +301,8 @@ describe('a refused send, read back (FB-183)', () => {
     id: 'send', decision: 'refused', refused_by: 'founder@example.com',
     proposal_sha: 'sha-send-proposal', refused_at: '2026-09-03T00:00:00.000Z',
     note: 'Numbers are not final.',
-    attestation: refusalAttestationFor('wealthcx01/arca', 'send', 'sha-send-proposal', 'founder@example.com', SECRET),
+    attestation: refusalAttestationFor('wealthcx01/arca', 'send', 'sha-send-proposal', 'founder@example.com', SECRET,
+      '2026-09-03T00:00:00.000Z', 'Numbers are not final.'),
     ...over,
   });
 

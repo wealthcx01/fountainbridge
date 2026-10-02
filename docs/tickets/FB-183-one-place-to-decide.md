@@ -148,3 +148,18 @@ rule that it does not invent dates. None of ARCA's records is like that today.
       *(`lib/__tests__/every-send-is-reachable.test.ts`. It found that a refused send was reachable
       from nowhere, which is fixed. The one exception left is a decided send with no recorded time,
       described above.)*
+
+## Found in review (2026-10-02)
+
+- **A refused send could still be approved, and then it would go out.** Approving never checked
+  for a refusal. A founder who refused in one tab and approved from an older tab got a signed
+  approval, which is all the executor needs to send. Approving now stops at a refusal the studio can
+  verify, and says so: nothing is signed, so nothing can be sent. A test refuses a send for real,
+  feeds back the exact refusal written, and confirms no approval is signed.
+- **A refusal's date and reason were not signed.** Anything that can write the file could have
+  changed the founder's reason, or blanked the date so the refusal vanished from "What happened".
+  Both are now inside the signature; an edited one no longer counts, and the send returns to the
+  founder's queue. That also closes the one case where a decided send had no row.
+- Refusals signed before this change no longer verify. None exist: ARCA's repositories have no
+  approvals branch yet (checked 2026-10-02), and the test data holds no refusal. If one did, its
+  send would go back to waiting — the safe direction.
