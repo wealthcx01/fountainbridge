@@ -19,6 +19,7 @@ import {
   type TicketRow,
 } from '@/lib/tickets-view';
 import { Mark } from './Mark';
+import { noteDecision } from '@/lib/decided';
 
 /**
  * Tickets: master-detail, and deciding without leaving (FB-129).
@@ -549,7 +550,7 @@ function Detail({
                   disabled={pending || !note.trim()}
                   onClick={() => startTransition(async () => {
                     setError(null);
-                    const r = await sendBackWork(ventureId, row.waiting!.repo, row.waiting!.number, note);
+                    const r = noteDecision(await sendBackWork(ventureId, row.waiting!.repo, row.waiting!.number, note));
                     if (r.ok) onDecided('refused', r.message);
                     else setError(r.message);
                   })}
@@ -573,7 +574,7 @@ function Detail({
                   // The commit they were shown. `acceptWork` refuses if something has been pushed
                   // since this page rendered — a founder deciding from a list, without opening the
                   // work, must not merge a change that landed after they looked.
-                  const r = await acceptWork(ventureId, row.waiting!.repo, row.waiting!.number, row.waiting!.headSha ?? undefined);
+                  const r = noteDecision(await acceptWork(ventureId, row.waiting!.repo, row.waiting!.number, row.waiting!.headSha ?? undefined));
                   if (r.ok) onDecided('approved', r.message);
                   else setError(r.message);
                 })}

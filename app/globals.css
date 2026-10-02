@@ -1497,3 +1497,36 @@ body:has(.rail) .main {
   .ads-row-status { white-space: normal; }
   .ads-example { padding: 0.9rem 0.9rem 0.4rem; }
 }
+
+/*
+ * FB-141 — asking whether a phone may buzz. A card at the foot of the screen, shown once, after a
+ * decision; never on first load. Hairline and square like everything else (FB-124).
+ */
+.push-offer {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 40;
+  max-width: 24rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-paper-raised);
+  border: 1px solid var(--color-border-strong);
+}
+.push-offer p { margin: 0; }
+.push-offer-title { font-family: var(--font-serif); font-size: var(--fs-h4); }
+.push-offer-body { margin-top: 0.4rem !important; font-size: var(--fs-body-sm); color: var(--color-ink-soft); }
+.push-offer-actions { margin-top: 0.8rem !important; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.push-offer-error { display: block; margin-top: 0.6rem; font-size: var(--fs-body-sm); color: var(--tone-blocked); }
+.push-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 2rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  font-size: var(--fs-meta-lg);
+}
+@media (max-width: 720px) {
+  .push-offer { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+}

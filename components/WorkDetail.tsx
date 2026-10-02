@@ -12,6 +12,7 @@ import { showAngleBrackets } from '@/lib/markdown';
 import { howLong } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
 import { Mark } from './Mark';
+import { noteDecision } from '@/lib/decided';
 
 /**
  * A piece of work, as the founder reads and accepts it (FB-064, reordered by FB-107).
@@ -206,7 +207,7 @@ function SendBack({
           disabled={pending || !note.trim()}
           onClick={() =>
             startTransition(async () => {
-              const r = await sendBackWork(ventureId, work.repo, work.number, note);
+              const r = noteDecision(await sendBackWork(ventureId, work.repo, work.number, note));
               onDone(r);
               if (r.ok) setOpen(false);
             })
@@ -383,7 +384,7 @@ export function WorkDetail({
                 disabled={pending}
                 onClick={() =>
                   startTransition(async () => {
-                    setResult(await acceptWork(ventureId, work.repo, work.number, work.headSha));
+                    setResult(noteDecision(await acceptWork(ventureId, work.repo, work.number, work.headSha)));
                   })
                 }
               >
