@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { loadVentures, type VentureSummary } from '../ventures';
 import { loadRailData } from '../rail';
 import { loadVentureAttention, type PrApproval } from '../attention';
@@ -6,6 +6,7 @@ import { ventureApprovals } from '../venture-reads';
 import { countTickets, needsFounder, decisionOrder, type TicketRow } from '../tickets-view';
 import { headerNeedsYou, sendRows, sendSurface, sendsAlreadyTried, sendsWaitingOnFounder } from '../needs-you';
 import { composeBrief } from '../brief';
+import { loadAccessibleNeedsYou } from '../needs-you-load';
 import { blockerLine } from '../desk';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -228,5 +229,60 @@ describe('the header’s "Needs you", which is the only one on a phone', () => {
   it('keeps the cross-venture page for anyone who can see several ventures', () => {
     expect(headerNeedsYou({ isAdmin: true, ventureIds: ['arca'] })).toEqual({ href: '/attention', venture: null });
     expect(headerNeedsYou({ isAdmin: false, ventureIds: ['arca', 'the-reset'] }).venture).toBeNull();
+  });
+});
+
+/**
+ * The admin's half (FB-149's last criterion). An admin's header leads to `/attention`, which listed
+ * finished work only, so it could say 4 over ARCA's desk saying 10. These run the page's own loader
+ * against the UI gate's fixtures and compare it with each venture's rail — the number its desk and
+ * badge state.
+ */
+describe('the cross-venture page an admin is sent to', () => {
+  const ADMIN = 'john.gallagher@wealthcx.com';
+  let saved: string | undefined;
+  beforeAll(() => {
+    saved = process.env.STUDIO_ADMIN_EMAILS;
+    process.env.STUDIO_ADMIN_EMAILS = ADMIN;
+  });
+  afterAll(() => {
+    if (saved === undefined) delete process.env.STUDIO_ADMIN_EMAILS;
+    else process.env.STUDIO_ADMIN_EMAILS = saved;
+  });
+
+  it('states the sum of every venture’s own "Needs you" number', async () => {
+    const needs = await loadAccessibleNeedsYou(ADMIN);
+    const rails = await Promise.all(loadVentures().map((v) => loadRailData(v)));
+    const sum = rails.reduce((n, r) => n + r.needsYou, 0);
+    expect(needs.count).toBe(sum);
+    // The case the ticket names: more than finished work alone, because ARCA has waiting sends.
+    expect(needs.count).toBeGreaterThan(needs.work.length);
+  });
+
+  it('gives ARCA the number ARCA’s rail and desk give it', async () => {
+    const needs = await loadAccessibleNeedsYou(ADMIN);
+    expect(needs.perVenture.arca).toBe((await loadRailData(venture)).needsYou);
+  });
+
+  it('lists every send it counts, each pointing at its own page', async () => {
+    const needs = await loadAccessibleNeedsYou(ADMIN);
+    expect(needs.count).toBe(needs.work.length + needs.sends.length);
+    const arca = needs.sends.filter((s) => s.ventureId === 'arca');
+    expect(arca.map((s) => s.row.send.approvalId)).toEqual(sendsWaitingOnFounder(approvals).map((a) => a.id));
+    for (const s of arca) expect(s.row.send.href).toBe(`/venture/arca/approvals/${s.row.repo}/${s.row.send.approvalId}`);
+  });
+
+  it('says which venture’s sends it could not read, instead of counting them as none', async () => {
+    const needs = await loadAccessibleNeedsYou(ADMIN, {
+      approvalsFor: (v) => (v.id === 'arca' ? Promise.reject(new Error('rate limit')) : Promise.resolve([])),
+    });
+    expect(needs.sendsUnread).toEqual([venture.name]);
+    expect(needs.sends).toHaveLength(0);
+  });
+
+  it('shows a founder only their own venture', async () => {
+    const needs = await loadAccessibleNeedsYou('ross@bruntsfield.capital');
+    expect(Object.keys(needs.perVenture)).toEqual(['the-reset']);
+    expect(needs.sends.every((s) => s.ventureId === 'the-reset')).toBe(true);
   });
 });

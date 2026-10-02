@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
-import { loadAccessibleAttention, type PrApproval } from '@/lib/attention';
+import type { PrApproval } from '@/lib/attention';
+import { loadAccessibleNeedsYou, type WaitingSend } from '@/lib/needs-you-load';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { ticketsByRepo } from '@/lib/venture-tickets-index';
@@ -39,10 +40,19 @@ export default async function AttentionPage({
   // own branch-speak — "build: bulk-daily-price-feed-plan (Foundry lane)" — for the same items the
   // board listed under their human titles, and a founder had no way to connect the two lists.
 
-  const { approvals, ventureNames, errors } = await loadAccessibleAttention(session.user.email, {
+  // FB-149: the sends waiting on a founder as well as finished work, from the same rule each
+  // venture's desk uses. This page listed finished work only, so an admin's header — which leads
+  // here — said 4 while ARCA's desk said 10.
+  const needs = await loadAccessibleNeedsYou(session.user.email, {
     refresh: refresh === '1',
     ticketsFor: (venture) => ticketsByRepo(venture, { refresh: refresh === '1' }),
   });
+  const { work: approvals, sends, ventureNames, errors } = needs;
+  const couldNotRead = errors.length > 0 || needs.sendsUnread.length > 0;
+  const empty = approvals.length === 0 && sends.length === 0;
+  // Each venture's own number, as its desk states it. Only when more than one venture has
+  // something: one venture's number is the heading's number, and saying it twice is noise.
+  const busy = mine.filter((v) => (needs.perVenture[v.id] ?? 0) > 0);
 
   return (
     <section>
@@ -56,57 +66,97 @@ export default async function AttentionPage({
             "nothing needs you" — the most reassuring thing the studio can say, said on no evidence.
             An em dash and a word for the screen reader instead. */}
         <span className="tag" data-testid="attention-count">
-          {errors.length > 0 && approvals.length === 0 ? (
+          {couldNotRead && empty ? (
             <>
               <span aria-hidden="true">—</span>
               <span className="sr-only">not known</span>
             </>
           ) : (
-            approvals.length
+            needs.count
           )}
         </span>
       </div>
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>
-        Everything across your ventures waiting on your OK. {APPROVAL_REASSURANCE} Oldest first.{' '}
+        Everything across your ventures waiting on your OK: anything about to leave a company first,
+        then finished work. {APPROVAL_REASSURANCE}{' '}
         <Link href="/attention?refresh=1" className="mono" data-testid="attention-refresh">refresh</Link>
       </p>
+      {busy.length > 1 ? (
+        <p className="muted" data-testid="attention-per-venture" style={{ fontSize: 'var(--fs-meta)', marginTop: '-0.25rem' }}>
+          {busy.map((v, i) => (
+            <span key={v.id} data-testid={`attention-per-venture-${v.id}`}>
+              {i > 0 ? ' · ' : ''}
+              {v.name} {needs.perVenture[v.id]}
+            </span>
+          ))}
+        </p>
+      ) : null}
       <hr className="hr" />
 
       {/* FB-137: empty and degraded are different sentences, and this screen said BOTH — "Nothing is
           waiting for you", and under it "some of your work is not showing". The first is the
           reassurance a founder acts on; the second is the reason it might be wrong. Saying them
           together, in that order, is the confusion this ticket exists to end. */}
-      {approvals.length === 0 && errors.length > 0 ? (
+      {empty && couldNotRead ? (
         <p className="card" data-testid="attention-unreadable" style={{ fontSize: 'var(--fs-body-sm)' }}>
           <Mark />
           The studio could not read your ventures just now, so it cannot tell you what is waiting.
           It is not that nothing is — it is that it could not look. This clears on its own.
         </p>
-      ) : approvals.length === 0 ? (
+      ) : empty ? (
         <p className="card muted" data-testid="attention-empty">Nothing is waiting for you.</p>
       ) : (
         <>
-          {/* FB-100's item 5: every card carried the identical badge "This work has no automatic
-              checks" — fifteen copies of one fact about the repository, which is how a founder
-              learns to stop reading badges. When they all say the same thing, say it once; the
-              per-card badge comes back the moment items DIFFER, which is when it means something. */}
-          {sharedCheckState(approvals) ? (
-            <p className="muted" data-testid="attention-checks-shared" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '-0.25rem' }}>
-              {CHECK_LABEL[sharedCheckState(approvals) as string] ?? CHECK_LABEL.unknown} — the same for everything below.
-            </p>
+          {sends.length > 0 ? (
+            <>
+              {/* FB-149: first, because a send is a decision with a consequence outside the company.
+                  Each row points at the send's own page, the only place it is decided (FB-183). */}
+              <h2 className="eyebrow" style={{ margin: '0 0 0.5rem' }}>About to leave a company</h2>
+              <div className="stack" data-testid="attention-sends" style={{ gap: '0.75rem', marginBottom: '1.5rem' }}>
+                {sends.map((s) => (
+                  <SendRow key={s.row.id} send={s} ventureName={ventureNames[s.ventureId] ?? s.ventureId} />
+                ))}
+              </div>
+            </>
           ) : null}
-          <div className="stack" data-testid="attention-queue" style={{ gap: '0.75rem' }}>
-            {approvals.map((a) => (
-              <ApprovalRow
-                key={a.id}
-                approval={a}
-                ventureName={ventureNames[a.ventureId] ?? a.ventureId}
-                showChecks={!sharedCheckState(approvals)}
-              />
-            ))}
-          </div>
+          {approvals.length > 0 ? (
+            <>
+              {sends.length > 0 ? (
+                <h2 className="eyebrow" style={{ margin: '0 0 0.5rem' }}>Finished work, oldest first</h2>
+              ) : null}
+              {/* FB-100's item 5: every card carried the identical badge "This work has no automatic
+                  checks" — fifteen copies of one fact about the repository, which is how a founder
+                  learns to stop reading badges. When they all say the same thing, say it once; the
+                  per-card badge comes back the moment items DIFFER, which is when it means something. */}
+              {sharedCheckState(approvals) ? (
+                <p className="muted" data-testid="attention-checks-shared" style={{ fontSize: 'var(--fs-body-sm)', marginTop: '-0.25rem' }}>
+                  {CHECK_LABEL[sharedCheckState(approvals) as string] ?? CHECK_LABEL.unknown} — the same for all the finished work below.
+                </p>
+              ) : null}
+              <div className="stack" data-testid="attention-queue" style={{ gap: '0.75rem' }}>
+                {approvals.map((a) => (
+                  <ApprovalRow
+                    key={a.id}
+                    approval={a}
+                    ventureName={ventureNames[a.ventureId] ?? a.ventureId}
+                    showChecks={!sharedCheckState(approvals)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
         </>
       )}
+
+      {/* FB-149: sends that could not be read are said out loud. Listing none would be the claim
+          "nothing is about to leave", made without looking. */}
+      {needs.sendsUnread.length > 0 && !empty ? (
+        <p className="card" data-testid="attention-sends-unread" style={{ fontSize: 'var(--fs-meta-lg)', marginTop: '1.5rem', borderColor: toneColor('attention') }}>
+          The studio could not read what is waiting to leave {needs.sendsUnread.join(' and ')} just now,
+          so those sends are missing from this list and the number above may be too low.{' '}
+          <span className="muted">It clears on its own. Refresh in a minute.</span>
+        </p>
+      ) : null}
 
       {/* FB-076: BELOW the work, not above it. A founder came here to answer something; a degraded
           read is context for what they are seeing, not the headline. Grouped by cause, because the
@@ -165,6 +215,33 @@ function ApprovalRow({
             uses is the one that works. */}
         <span>· waiting {howLong(approval.createdAt) ?? 'a while'} for you</span>
         <Link href={here} data-testid={`approval-open-${approval.id}`}>· Read it and decide</Link>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * A send waiting on a founder (FB-149): its summary, its venture, and what state it is in.
+ *
+ * It links to the send's own page and carries no approve control. That page is the one place a
+ * send is decided (FB-183, held by `one-signing-surface.test.ts`).
+ */
+function SendRow({ send, ventureName }: { send: WaitingSend; ventureName: string }) {
+  const { row } = send;
+  return (
+    <article className="card card-link" data-testid={`attention-${row.id}`} data-status={row.send.status} style={{ padding: '0.85rem 1rem' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <Link href={row.send.href} style={{ fontWeight: 500 }} data-testid={`attention-primary-${row.id}`}>
+          {row.title}
+        </Link>
+        <span className="tag" style={{ color: toneColor('attention') }}>send</span>
+      </div>
+      <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+        <span>{ventureName}</span>
+        {row.surface ? <span>· {row.surface}</span> : null}
+        {row.send.ref ? <span>· {row.send.ref}</span> : null}
+        <span data-testid={`attention-state-${row.id}`}>· {row.send.state}</span>
+        <Link href={row.send.href}>· Open it and decide</Link>
       </div>
     </article>
   );
