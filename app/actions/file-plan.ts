@@ -121,7 +121,9 @@ export async function filePlan(
    *
    * Absent, this reads the session and behaves exactly as it always has. Present, it is the MCP
    * ticket's claim, and `requireVentureRepo` enforces `scopedTo` before anything else — so a ticket
-   * naming one venture cannot file into another, whatever the arguments say.
+   * naming one venture cannot file into another, whatever the arguments say. It must come from
+   * `toolActor`: this is a server action, anyone can call it with any arguments, and an actor typed
+   * into a request is refused (FB-257).
    *
    * Threaded through rather than given its own writer, because FB-200's whole point is that a ticket
    * filed by Claude is indistinguishable downstream from one typed on the desk. A second writer is
@@ -305,7 +307,9 @@ export async function filePlan(
 
     const summary = filed.map((f) => `- \`${f.id}\` — ${f.title}`).join('\n');
     const prBody = [
-      `Filed from the Foundry composer by ${access.email}, as one set, on one press.`,
+      actor
+        ? `Filed by Claude through the studio's tools (${access.email}), on the founder's behalf.`
+        : `Filed from the Foundry composer by ${access.email}, as one set, on one press.`,
       '',
       `**From:** ${plan.source_title}`,
       '',
@@ -340,14 +344,15 @@ export async function filePlan(
     const pr = await client.request<{ html_url: string }>(`/repos/${full}/pulls`, {
       method: 'POST',
       body: JSON.stringify({
-        title: `${plan.source_title}: ${filed.length} tickets`,
+        // One ticket reads as that ticket. "<source>: 1 tickets" told a founder nothing about it.
+        title: filed.length === 1 ? `${filed[0].id}: ${filed[0].title}` : `${plan.source_title}: ${filed.length} tickets`,
         head: branch,
         base,
         body: prBody,
       }),
     });
     movedOn(ventureId);
-    return { ok: true, message: `Filed ${filed.length} tickets as one set.`, url: pr.html_url, filed };
+    return { ok: true, message: filed.length === 1 ? `Filed ${filed[0].id}.` : `Filed ${filed.length} tickets as one set.`, url: pr.html_url, filed };
   } catch (e) {
     // Surfaced, never swallowed (CLAUDE.md #10). A founder whose plan half-filed must not be told it
     // filed — the branch is named so they and an admin can see exactly what did land.

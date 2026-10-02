@@ -29,11 +29,45 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from './authz';
  * An actor is **narrower** than a session, never wider: `scopedTo` pins it to one venture, so a
  * ticket minted for arca cannot be pointed at another venture even by an admin whose session could
  * have reached it.
+ *
+ * An actor is only believed if this module made it (`toolActor`, FB-257). Anything else that arrives
+ * in the actor's place came from a request, and is refused.
  */
 export interface Actor {
   email: string;
   /** The one venture this actor may touch. Set for a tool ticket; absent for a browser session. */
   scopedTo?: string;
+}
+
+/**
+ * Every actor this server made, and no other (FB-257).
+ *
+ * `filePlan`, `readThread` and `appendToThread` are server actions, and **a server action is a public
+ * endpoint**: anyone can call it with any arguments, signed in or not. Each takes an optional actor.
+ * Before this, an actor was just an object with an email in it, and the email was believed — so a
+ * request that sent `{ email: <a founder's address> }` (the addresses are in the public manifests)
+ * was treated as that founder, without signing in, and could file into their backlog or read their
+ * tickets' conversations.
+ *
+ * An actor now counts only if this module made it, in this process. Objects that arrive in a request
+ * are new objects, never in this set, so they are refused. A module-private set cannot be named from
+ * outside, so it cannot be forged by anything a request carries.
+ */
+const issued = new WeakSet<Actor>();
+
+/**
+ * The actor for a call through the studio's tools, scoped to the one venture its credential names.
+ *
+ * Only `app/api/mcp/route.ts` makes these, and only after the credential's signature has been
+ * checked. The studio signs that credential only for someone who has already passed the venture
+ * check, so the actor may act on that venture — and on nothing else.
+ */
+export function toolActor(ventureId: string): Actor {
+  // The email names the tool, not a person, so a founder reading their ticket's history can tell
+  // which of the two wrote there.
+  const actor: Actor = Object.freeze({ email: `studio-tools@${ventureId}`, scopedTo: ventureId });
+  issued.add(actor);
+  return actor;
 }
 export type VentureAccess =
   | { ok: true; venture: VentureSummary; email: string }
@@ -45,12 +79,22 @@ export type VentureAccess =
  * one more, so the rules exist once.
  */
 export async function requireVenture(ventureId: string, actor?: Actor): Promise<VentureAccess> {
-  // A ticket that names one venture may only ever be used on that venture. Checked before anything
-  // else, because it is the narrowest rule and the cheapest to be sure of.
-  if (actor?.scopedTo && actor.scopedTo !== ventureId) {
-    return { ok: false, error: 'That credential is for a different venture.' };
+  if (actor != null) {
+    // An actor this server did not make is something a request sent. Refused outright, never
+    // treated as a session — see `issued` above.
+    if (!issued.has(actor)) return { ok: false, error: 'That credential is not one this studio issued.' };
+    // A ticket that names one venture may only ever be used on that venture.
+    if (actor.scopedTo !== ventureId) {
+      return { ok: false, error: 'That credential is for a different venture.' };
+    }
+    // The credential was signed for someone who had already passed the check below, for this venture
+    // alone. Its tool email is not a founder's or an admin's, so running the check again would refuse
+    // every tool call — which is what it did, and why no tool that writes had ever worked.
+    const venture = loadVentures().find((v) => v.id === ventureId);
+    if (!venture) return { ok: false, error: 'You do not have access to this venture.' };
+    return { ok: true, venture, email: actor.email };
   }
-  const email = actor?.email ?? (await auth())?.user?.email;
+  const email = (await auth())?.user?.email;
   if (!email) return { ok: false, error: 'You need to sign in.' };
   const ventures = loadVentures();
   const access = authorizeVentures(email, ventures, parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS));
