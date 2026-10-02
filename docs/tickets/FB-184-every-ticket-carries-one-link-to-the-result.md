@@ -11,7 +11,34 @@
 > link this ticket adds — the answer may be that the link points at a branch-shaped thing rather than a
 > pull request. We are not taking Buzz; we are taking the shape of its answer.
 
-**Shipped in part:** the line is on every ticket and the trail reads the same check. Still left: the `trace_url` field in bcap-contracts; the work page's and the attention queue's preview buttons, and the surface card's door, which still show a preview without opening it first; and the commit count in the Build line.
+**Shipped in part:** the line is on every ticket, and every screen that offers a preview or a product link now opens it first. Still left: the `trace_url` field in bcap-contracts (another repository's change), and the commit count in the Build line.
+
+## Every other "see it" link is checked too, 2026-10-02 (second pass)
+
+**What was left.** Three places still drew a stored address as a link without opening it first: the
+work page's "See this change running" and "Open the terminal" buttons, the cross-venture queue's
+"see it running" tag, and each surface's door on the desk ("Open the terminal ↗" under Build).
+
+**What changed.** All three now use the same check as the ticket's "Follow it to…" line, and draw a
+link only when the address was opened and worked. When it did not open, the same place says why, in
+the same words: *"Open the terminal: it did not open when the studio checked, because it is not
+answering."* On the desk, Build's line also stops saying "preview of the app running" when its door
+did not open. The queue checks each preview in the background, so the list never waits for one.
+
+**A door can be on the venture's own domain.** A preview address comes from a commit status, which
+anyone who can push to a venture repository can write, so the studio only ever opens addresses on
+the four preview hosts. A surface's door comes from the venture's manifest in this repository, which
+is reviewed, so it may be on any named https host — but never an IP address, `localhost`, or an
+internal name. Those rules now live in `lib/preview-address.ts`.
+
+**The UI gate can now see both halves.** The rig still never opens an address. It answers from
+`e2e/fixtures/preview-checks.json`: one preview that opens, one that does not, and Build's door,
+which opens. So the gate checks that a working link is drawn and a broken one is withheld, rather
+than only ever seeing "not checked".
+
+**Seen on ARCA's real data** (local build, as an admin): the two open pieces of work that have a
+preview (ARCA-070 and ARCA-071) were opened by the studio, both work, and both show "see it running ↗".
+Build's door opens.
 
 ## What shipped, 2026-10-02
 
@@ -112,5 +139,11 @@ rule the surface cards already follow.
 - [x] A Sell ticket whose send went out links to that send.
       *(Unit-tested on ARCA's real shape: sends proposed from the Build repository, naming Sell.)*
 - [x] A Scale ticket says "not connected yet" and renders no link.
-- [ ] No `trace_url` is rendered as a link without being resolvable.
+- [x] No `trace_url` is rendered as a link without being resolvable.
+      *(Read as "no result link": the field itself is not in bcap-contracts yet. Every place that
+      offers a preview or a product link — the ticket line, the trail, the work page, the queue and
+      the desk's doors — opens it first. A test reads every screen and fails if one links a stored
+      preview or door address directly.)*
 - [ ] The trail, the ticket detail and the surface card all read the same field.
+      *(They read the same check and say the same words, but there is no single field yet: that
+      waits on `trace_url` in bcap-contracts.)*

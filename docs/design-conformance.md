@@ -1023,3 +1023,22 @@ a local build of the branch, signed in as ARCA's founder, landing on `/venture/a
 
 ARCA's real data was not re-rendered: with no record from the box yet, it shows the "Nothing checks
 yet" sentence, which this change does not touch. The design was not reopened for this pass.
+
+## FB-184 second pass — "see it" links are opened first, 2026-10-02
+
+Signed in as an admin, local build of this branch. On the UI gate's fixtures: the cross-venture
+queue is **1,000px** at 1440×1000 and **1,104px** at 393×851; the desk **2,324px** and **2,658px**;
+the work page for pull request 11 **1,000px** and **1,021px**; Tickets with ARCA-3 open **1,359px**
+and **1,822px**. On ARCA's real data: the queue **1,436px** and **2,299px**, the desk **1,984px** and
+**2,548px**. Nothing scrolls sideways.
+
+Looked at as pictures. On the fixtures the queue shows "see it running ↗" on ARCA-5 (its preview
+opens), a quiet "preview: it did not open when the studio checked, because it is not answering" on
+Deck export, and nothing on ARCA-1 (never checked). The work page shows both buttons when both open.
+With every check set to fail (a second fixture, for the pictures only), the work page and the
+desk's Build column say why in a muted line and draw no link, and the Build line drops "preview of
+the app running". On real data the two previews ARCA has were opened live and both show their tag.
+
+The heights match the same screens before this change. Not compared with the Claude Design
+artifact: the change is one tag or one line inside existing rows, and this session had no signed-in
+claude.ai session to open the artifact. The live side is a local build on real data, not production.
