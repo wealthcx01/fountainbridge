@@ -1693,3 +1693,29 @@ body:has(.rail) .main {
 .voice-where { margin: 0; font-size: var(--fs-meta-lg); }
 .voice-failed { margin: 0; font-size: var(--fs-body-sm); color: var(--tone-attention); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .voice-earlier { margin: 0; font-size: var(--fs-body-sm); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+/* FB-239: the monthly budgets for temporary machines (/admin/machine-budgets). One card per
+ * venture: the budget in force, any proposal waiting, and a box to propose a new amount. */
+.budget-list { display: grid; gap: 1rem; margin-top: 1.25rem; }
+.budget-name { margin: 0 0 0.35rem; font-size: var(--fs-body); }
+.budget-line { margin: 0 0 0.5rem; font-size: var(--fs-body-sm); }
+.budget-proposal {
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.6rem;
+  margin: 0.6rem 0;
+}
+.budget-form { display: grid; gap: 0.35rem; margin-top: 0.75rem; }
+.budget-label { font-size: var(--fs-meta); color: var(--color-ink-muted); }
+.budget-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.budget-input {
+  width: 8rem;
+  max-width: 100%;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-paper-raised);
+  padding: 0.4rem 0.6rem;
+  font-family: inherit;
+  font-size: var(--fs-body-sm);
+  color: var(--color-ink);
+}
+.budget-input:focus { outline: none; border-color: var(--color-accent); }

@@ -107,3 +107,30 @@ export function refusalAttestationFor(
     .update(`${repo}|${id}|${proposalSha}|refused|${JSON.stringify([approver.trim().toLowerCase(), refusedAt, note])}`)
     .digest('hex');
 }
+
+/**
+ * The signature over a monthly budget for temporary ticket machines (FB-239; John, 2026-10-02).
+ *
+ * John approves each venture's monthly machine budget on the studio's budget page, signed in with
+ * Google (`app/actions/machine-budget.ts`). The studio refuses to make a machine for a venture unless
+ * the newest budget on record names an approved proposal for the same amount, carries this
+ * signature, and was approved by the one address in `BUDGET_APPROVER_EMAIL`. A lane never holds
+ * `FOUNDRY_APPROVAL_SECRET`, so it cannot write a budget for itself, raise one, or move one from
+ * another venture: the venture id and the proposal id are inside the signed text.
+ *
+ * Its own formula, separated from the grant and the refusal by the literal `machine-budget`, so a
+ * budget can never be replayed as an approval to send, nor the other way round. The fields go in as
+ * one JSON array, for the refusal's reason: nothing in one field can shift where the next begins.
+ */
+export function machineBudgetAttestationFor(
+  ventureId: string,
+  proposalId: string,
+  monthlyCents: number,
+  approver: string,
+  approvedAt: string,
+  secret: string,
+): string {
+  return createHmac('sha256', secret)
+    .update(`machine-budget|${JSON.stringify([ventureId, proposalId, monthlyCents, approver.trim().toLowerCase(), approvedAt])}`)
+    .digest('hex');
+}

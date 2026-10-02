@@ -337,8 +337,21 @@ $(cat "$PICK")" >"$PLAN_OUT" 2>&1
 fi
 
 # --- run the RPIV lane: count the wake + the attempt, then hand the ticket to the supervisor --------
-echo "$PICK_SLUG $(date -u +%FT%TZ)" >> "$BUDGET_FILE"
-echo $(( $(attempts_of "$PICK_SLUG") + 1 )) > "$STATE_DIR/attempts-$PICK_SLUG"
+# Counted only when the ticket is really worked. FB-239: a temporary machine that was refused is
+# neither a wake nor an attempt — the ticket never ran — so on that path the count waits until the
+# studio says a machine exists. Counting it anyway parked tickets after three provider failures with
+# the untrue reason "couldn't get it past its own review/tests".
+#
+# One case in between: the studio TRIED to make a machine and the provider failed. That costs money
+# (Railway charges at least a minute), so it counts as a wake — the day's wake limit then bounds how
+# often a failing provider is asked — but not as an attempt, because the ticket still never ran.
+count_wake() {
+  echo "$PICK_SLUG $(date -u +%FT%TZ)" >> "$BUDGET_FILE"
+}
+count_wake_and_attempt() {
+  count_wake
+  echo $(( $(attempts_of "$PICK_SLUG") + 1 )) > "$STATE_DIR/attempts-$PICK_SLUG"
+}
 if [ "$REQUIRE_PROPOSAL" = 1 ]; then
   flog "working $PICK_SLUG in $PICK_DEPT (RPIV; the external action will be PROPOSED, never performed)"
 else
@@ -349,5 +362,50 @@ else
     flog "working $PICK_SLUG in ${PICK_DEPT:-build} (full-auto RPIV, low blast-radius)"
   fi
 fi
+# --- FB-239: the work on a machine of its own, when that is switched on -----------------------------
+# Off by default. With TICKET_MACHINES=on in the lane's environment, this box ASKS THE STUDIO for a
+# temporary machine for this ticket (ticket-machine.mjs; docs/ticket-machines.md). This box holds no
+# provider key and makes nothing itself (John, 2026-10-02). Everything above — the scan, the daily
+# wake budget, the sensitive-ticket stop, the lock — still happens here, so a machine is only ever
+# asked for a ticket this box would have worked itself.
+#
+# The supervisor on the machine writes its own run reports when it reaches its end. This box writes
+# one when it did not, so a founder sees why rather than nothing (CLAUDE.md #10).
+if [ "${TICKET_MACHINES:-off}" = "on" ]; then
+  flog "asking the studio for a temporary machine for $PICK_SLUG"
+  set +e
+  MACHINE_SAYS=$(LANE_DEPARTMENT="${PICK_DEPT:-build}" LANE_GATE="${PICK_GATE:-pr}" LANE_REQUIRE_PROPOSAL="$REQUIRE_PROPOSAL" \
+    node "$SCRIPT_DIR/ticket-machine.mjs" run "$PICK_SLUG" "${PICK#"$REPO_DIR"/}")
+  MACHINE_EXIT=$?
+  set -e
+  flog "temporary machine: ${MACHINE_SAYS:-no word from it}"
+  case "$MACHINE_EXIT" in
+    3|4)
+      # 4: the studio tried and the provider failed — a wake, see count_wake above.
+      if [ "$MACHINE_EXIT" = 4 ]; then count_wake; fi
+      # No machine was made: not a wake, not an attempt. Said once a day as a report on the ticket,
+      # then on the heartbeat, for FB-162's reason — a report on every five-minute wake buries the
+      # venture's history.
+      REFUSED_MARK="$STATE_DIR/machine-refused-$(date -u +%F)"
+      if [ ! -f "$REFUSED_MARK" ]; then
+        : > "$REFUSED_MARK"
+        write_runreport "$PICK_SLUG" "blocked" "${MACHINE_SAYS:-The studio did not make a machine for this ticket.}" || true
+      else
+        write_runreport "heartbeat" "blocked" "Your team is awake, and waiting for a temporary machine: ${MACHINE_SAYS:-the studio did not make one.}" || true
+      fi
+      ;;
+    0)
+      count_wake_and_attempt
+      ;;
+    *)
+      count_wake_and_attempt
+      write_runreport "$PICK_SLUG" "blocked" "${MACHINE_SAYS:-Your team could not run this ticket on its own machine.}" || true
+      ;;
+  esac
+  exit 0
+fi
+
+count_wake_and_attempt
+
 LANE_DEPARTMENT="${PICK_DEPT:-build}" LANE_GATE="${PICK_GATE:-pr}" LANE_REQUIRE_PROPOSAL="$REQUIRE_PROPOSAL" \
   "$SUP" "$PICK_SLUG" "$PICK"

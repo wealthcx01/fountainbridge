@@ -1,0 +1,27 @@
+[
+  {
+    "ventureId": "arca",
+    "name": "ARCA",
+    "inForce": { "monthlyCents": 4000, "approver": "john.gallagher@wealthcx.com" },
+    "spentMicroUsd": 3124000,
+    "open": [
+      {
+        "venture_id": "arca",
+        "proposal_id": "0123456789abcdef",
+        "monthly_cents": 6000,
+        "proposed_by": "ops@bruntsfield.capital",
+        "proposed_at": "2026-10-02T09:00:00Z",
+        "decision": null,
+        "decided_by": null,
+        "decided_at": null
+      }
+    ]
+  },
+  {
+    "ventureId": "the-reset",
+    "name": "THE RESET",
+    "inForce": null,
+    "spentMicroUsd": 0,
+    "open": []
+  }
+]

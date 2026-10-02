@@ -122,3 +122,15 @@ VENTURE_ID=arca VENTURE_NAME=ARCA ./founding-run.sh mission.txt
 The plan logic is separate from the model call (`founding-lib.mjs` + `founding-plan.mjs`) so the part
 that decides what lands in a founder's repo is unit-tested — including that every generated ticket
 parses through the studio's own parser with zero warnings.
+
+## Ticket machines — working a ticket somewhere else (FB-239)
+
+Off unless `TICKET_MACHINES=on` is in the lane's environment. When it is on, `run-once.sh` does not
+work the ticket on this box. It asks the studio for a temporary machine (`ticket-machine.mjs`), waits
+for it, and writes a run report if the run did not reach its end.
+
+This box holds **no provider key** and cannot make, list or remove a machine: only the studio can
+(John, 2026-10-02). It holds `TICKET_MACHINE_LANE_KEY` and `FOUNDRY_STUDIO_URL`, in
+`/etc/foundry/credentials`. On the machine, `worker-run.sh` and `worker-call.mjs` collect the work
+from the studio and report back. The clean-up runs in the studio, not here, so there is no timer to
+install on this box. The whole design, and how to switch it on, is `docs/ticket-machines.md`.

@@ -125,6 +125,9 @@ write_runreport() {
   local resp; resp=$(gh_api -X PUT "$API/repos/$REPO/contents/$path" -d "$body")
   if printf '%s' "$resp" | grep -q '"content"'; then
     flog "runreport → $STATE_REF:$path ($status)"
+    # FB-239: on a temporary ticket machine, worker-run.sh reads this to tell a supervisor that
+    # wrote down how the ticket ended from one that died first. Unset everywhere else.
+    if [ -n "${RUNREPORT_LOG:-}" ]; then printf '%s %s\n' "$slug" "$status" >> "$RUNREPORT_LOG" || true; fi
   else
     # Loud, and specific enough to act on: which report, which ref, and what GitHub actually said.
     flog "RUNREPORT WRITE FAILED — $STATE_REF:$path ($status) — $(printf '%s' "$resp" | jval '.message')"
