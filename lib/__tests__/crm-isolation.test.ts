@@ -41,6 +41,7 @@ async function seeded() {
       ('the-reset', '${RESET_DEAL}', 'Clinic licence', '${RESET_CONTACT}', 'meeting', 900000, 'GBP');
     insert into crm_activities (venture_id, contact_id, kind, summary, occurred_at, awaiting_reply) values
       ('arca', '${ARCA_CONTACT}', 'email_in', 'Asked when the pilot could start', '2026-09-30T09:00:00Z', true),
+      ('arca', '${ARCA_CONTACT}', 'note', 'Our own note: chase on Friday', '2026-10-01T09:00:00Z', false),
       ('the-reset', '${RESET_CONTACT}', 'email_in', 'Asked for the price list', '2026-09-29T09:00:00Z', true);
   `);
   await db.exec('set role foundry_studio');
@@ -67,7 +68,9 @@ describe('a venture reads only its own pipeline, at the database', () => {
     expect(read.contacts.map((c) => c.name)).toEqual(['Ada Example']);
     expect(read.contacts[0].company).toBe('Example Card Shop');
     expect(read.contacts[0].awaitingReply).toBe(1);
-    expect(read.contacts[0].last?.summary).toBe('Asked when the pilot could start');
+    // The newest thing is the founder's own note; what is waiting is still their message.
+    expect(read.contacts[0].last?.summary).toBe('Our own note: chase on Friday');
+    expect(read.contacts[0].waiting).toEqual({ summary: 'Asked when the pilot could start', at: '2026-09-30T09:00:00.000Z' });
     expect(read.deals.map((d) => d.title)).toEqual(['Shop pilot']);
     expect(read.deals[0].valueMinor).toBe(250000);
     expect(read.totals).toEqual({ contacts: 1, deals: 1 });

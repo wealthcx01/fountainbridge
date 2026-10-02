@@ -14,7 +14,8 @@ const contact = (over: Partial<CrmContact> = {}): CrmContact => ({
   id: 'c1', name: 'Ada Example', email: 'ada@example.test', title: 'Owner', company: 'Example Card Shop',
   temperature: 'hot', snoozedUntil: null,
   last: { kind: 'email_in', summary: 'Asked when the pilot could start', at: '2026-09-30T09:00:00.000Z' },
-  awaitingReply: 1, ...over,
+  awaitingReply: 1,
+  waiting: { summary: 'Asked when the pilot could start', at: '2026-09-30T09:00:00.000Z' }, ...over,
 });
 
 const deal = (over: Partial<CrmDeal> = {}): CrmDeal => ({
@@ -32,6 +33,16 @@ describe('what the Sell lane is told', () => {
     expect(text).toMatch(/- Shop pilot, with Ada Example, at Example Card Shop, worth 2,500 GBP, next: Send the pilot terms by 2026-10-03/);
     expect(text).toMatch(/Waiting for a reply from the founder:\n- Ada Example: Asked when the pilot could start/);
     expect(text).toMatch(/Nothing here can contact anyone/);
+  });
+
+  it('quotes what they wrote, not a note the founder logged after it', () => {
+    const text = describePipeline('ARCA', {
+      state: 'ok',
+      contacts: [contact({ last: { kind: 'note', summary: 'Our own note: chase on Friday', at: '2026-10-01T09:00:00.000Z' } })],
+      deals: [deal()], totals: { contacts: 1, deals: 1 },
+    });
+    expect(text).toMatch(/Waiting for a reply from the founder:\n- Ada Example: Asked when the pilot could start/);
+    expect(text).not.toMatch(/Our own note/);
   });
 
   it('says when the read was capped, rather than looking complete', () => {

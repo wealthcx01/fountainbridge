@@ -49,6 +49,12 @@ export interface CrmContact {
   last: { kind: ActivityKind; summary: string; at: string } | null;
   /** Messages from them that nobody has answered yet. */
   awaitingReply: number;
+  /**
+   * The newest of those unanswered messages, or null when none is waiting. Kept apart from `last`
+   * on purpose: `last` can be the founder's own note or email, logged after their message came in,
+   * and quoting that as "what they wrote" would put our words in their mouth.
+   */
+  waiting: { summary: string; at: string } | null;
 }
 
 export interface CrmDeal {
@@ -139,7 +145,7 @@ export function describePipeline(ventureName: string, read: PipelineRead): strin
   if (waiting.length) {
     lines.push('', 'Waiting for a reply from the founder:');
     for (const c of waiting) {
-      lines.push(`- ${c.name}${c.last ? `: ${c.last.summary}` : ''}`);
+      lines.push(`- ${c.name}${c.waiting ? `: ${c.waiting.summary}` : ''}`);
     }
   }
 

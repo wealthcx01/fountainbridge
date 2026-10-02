@@ -55,12 +55,13 @@ export async function readPipeline(db: Queryable): Promise<PipelineRead & { stat
     id: string; name: string; email: string | null; title: string | null; company: string | null;
     temperature: Temperature; snoozed_until: unknown;
     last_kind: ActivityKind | null; last_summary: string | null; last_at: unknown;
-    awaiting: number;
+    awaiting: number; waiting_summary: string | null; waiting_at: unknown;
   }>(
     `select c.id, c.name, c.email, c.title, co.name as company, c.temperature, c.snoozed_until,
             la.kind as last_kind, la.summary as last_summary, la.occurred_at as last_at,
             (select count(*) from crm_activities w
-              where w.venture_id = c.venture_id and w.contact_id = c.id and w.awaiting_reply)::int as awaiting
+              where w.venture_id = c.venture_id and w.contact_id = c.id and w.awaiting_reply)::int as awaiting,
+            wa.summary as waiting_summary, wa.occurred_at as waiting_at
        from crm_contacts c
        left join crm_companies co on co.venture_id = c.venture_id and co.id = c.company_id
        left join lateral (
@@ -68,6 +69,13 @@ export async function readPipeline(db: Queryable): Promise<PipelineRead & { stat
           where a.venture_id = c.venture_id and a.contact_id = c.id
           order by a.occurred_at desc limit 1
        ) la on true
+       -- Their newest unanswered message, apart from the newest activity of any kind: the founder may
+       -- have logged a note since, and that note is not what they wrote.
+       left join lateral (
+         select a.summary, a.occurred_at from crm_activities a
+          where a.venture_id = c.venture_id and a.contact_id = c.id and a.awaiting_reply
+          order by a.occurred_at desc limit 1
+       ) wa on true
       order by c.updated_at desc, c.id
       limit $1`,
     [PIPELINE_READ_CAP],
@@ -107,6 +115,9 @@ export async function readPipeline(db: Queryable): Promise<PipelineRead & { stat
         ? { kind: r.last_kind, summary: r.last_summary, at: iso(r.last_at) as string }
         : null,
       awaitingReply: Number(r.awaiting) || 0,
+      waiting: r.waiting_summary && iso(r.waiting_at)
+        ? { summary: r.waiting_summary, at: iso(r.waiting_at) as string }
+        : null,
     })),
     deals: deals.rows.map((r): CrmDeal => ({
       id: r.id,
@@ -145,7 +156,7 @@ function fixturePipeline(dir: string, ventureId: string): PipelineRead {
     return { state: 'ok', contacts: [], deals: [], totals: { contacts: 0, deals: 0 } };
   }
   const j = JSON.parse(raw) as { contacts?: CrmContact[]; deals?: CrmDeal[] };
-  const contacts = j.contacts ?? [];
+  const contacts = (j.contacts ?? []).map((c) => ({ ...c, waiting: c.waiting ?? null }));
   const deals = j.deals ?? [];
   return { state: 'ok', contacts, deals, totals: { contacts: contacts.length, deals: deals.length } };
 }
