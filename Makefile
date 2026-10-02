@@ -86,7 +86,7 @@ provision-lint:
 	bash -n deploy/foundry/git-credential-foundry
 	shellcheck deploy/foundry/git-credential-foundry
 	node --check deploy/foundry/secret-scan.mjs
-	# FB-239: the ticket-machine launcher runs on the venture box and makes paid machines.
-	for f in deploy/lane/ticket-machine.mjs deploy/lane/machine-*.mjs; do node --check "$$f"; done
+	# FB-239: the venture box's request for a ticket machine, and the machine's own calls to the studio.
+	for f in deploy/lane/ticket-machine.mjs deploy/lane/worker-call.mjs; do node --check "$$f"; done
 	for f in deploy/librechat/*.sh; do bash -n "$$f"; done
 	shellcheck deploy/librechat/*.sh
