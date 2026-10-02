@@ -861,3 +861,25 @@ After review, 2026-10-02: a browser test (`e2e/palette.spec.ts`) now drives the 
 keyboard only and saves `179-palette-desktop.png` to the UI gate's gallery. The hosted design
 artifact was not opened: it needs a signed-in claude.ai session, and this review had none. It has
 no palette to compare against in any case. The live side is still a local build, not production.
+
+## FB-173 — a voice note in the composer, 2026-10-02
+
+Read on ARCA's real data, signed in as its founder, local build, with Chromium's simulated
+microphone (it plays a tone, so the meter has something to show). The upload was answered inside
+the browser, so no recording went to any outside service during this reading.
+
+The composer is **1,000px** at 1440×1000 — the button and its one paragraph fit inside the first
+screen — and **1,193px** at 393×851, **1,224px** while recording. Looked at as pictures: the meter
+moves, the clock counts, the words land in the box after what was typed, and with the network cut
+the failure says the recording is saved on this device and offers it again after a reload. The first
+draft said the words appear "in the box below" from a paragraph that sits under the box; it now says
+"in the text box", and the paragraph is shorter. The design's composer has no record button; it is
+the one addition, under the existing two.
+
+After review, 2026-10-02: the failure after an expired sign-in now reads "You need to sign in
+again. The recording is saved on this device — sign in, come back here, and it will be offered
+again", with "Try again" and "Throw it away" under it. Looked at as pictures on a local build with
+fixture data: the composer is **1,000px** at 1440×1000 and **1,169px** at 393×851 in that state, and
+nothing scrolls sideways. A browser test (`e2e/voice.spec.ts`) now draws the record button in the UI
+gate, using the test transcriber. The hosted design artifact was not opened: it needs a signed-in
+claude.ai session, and this review had none. Its composer has no record button to compare against.

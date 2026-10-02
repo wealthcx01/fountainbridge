@@ -1673,3 +1673,23 @@ body:has(.rail) .main {
   .palette-label { white-space: normal; }
   .palette-backdrop { padding-top: 16px; }
 }
+
+/*
+ * FB-173 — a voice note in the composer. The meter is the founder's only proof the microphone hears
+ * them, so it is solid accent on a hairline track, wide enough to see from arm's length.
+ */
+.voice-note { display: flex; flex-direction: column; gap: 0.5rem; }
+.voice-row { margin: 0; }
+.voice-recording { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.voice-meter {
+  display: inline-block;
+  width: 10rem;
+  height: 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-paper);
+}
+.voice-meter > span { display: block; height: 100%; background: var(--color-accent); transition: width 60ms linear; }
+.voice-clock { font-family: var(--font-mono); font-size: var(--fs-body-sm); min-width: 3ch; }
+.voice-where { margin: 0; font-size: var(--fs-meta-lg); }
+.voice-failed { margin: 0; font-size: var(--fs-body-sm); color: var(--tone-attention); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.voice-earlier { margin: 0; font-size: var(--fs-body-sm); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }

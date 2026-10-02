@@ -91,6 +91,9 @@ export default defineConfig({
       PUSH_FIXTURE: '1',
       VAPID_PUBLIC_KEY: 'BJgmT8afelTGKjHrRNGo0VPeq-GUZd3SFeqroUB_RTUuAqOIbhOvwphnEFlsaMyP6BoIpS65obJhfKKFhfOmRVc',
       VAPID_PRIVATE_KEY: 'e2e-placeholder-not-a-key',
+      // FB-173: the test transcriber, so the record button is drawn and a voice note goes through
+      // without sending audio anywhere. It answers with a fixed sentence that says what it is.
+      TRANSCRIBER: 'test-double',
       // FB-092: the email+password door, driven end to end by password-login.spec.ts. The hash is
       // for 'e2e-founder-password-not-for-production' — minted with scripts/mint-password-login.mjs
       // and safe to commit precisely because it is a hash of a test-only password.
