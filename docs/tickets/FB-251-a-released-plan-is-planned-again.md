@@ -16,9 +16,11 @@ wake, the lane:
 3. ran a fresh Claude session of about four minutes to write the plan again;
 4. parked the ticket, waiting for a go it already had.
 
-So the founder's approval never became any work, the lane never reached the tickets behind it, and
-about ten thousand paid planning sessions ran for nothing. Every screen showed "waiting for your
-go", which was false: it had been given.
+Each plan counts against the lane's daily allowance of wakes. So every day the re-planning used up
+the whole allowance — **730 planning sessions** over the five weeks — and every wake after that
+picked ARCA-061 again, found the allowance spent, and wrote "Daily lane budget reached": **9,308**
+of those. The founder's approval never became any work, and no other ticket could be worked at all.
+Every screen showed "waiting for your go", which was false: it had been given.
 
 ## What changed
 

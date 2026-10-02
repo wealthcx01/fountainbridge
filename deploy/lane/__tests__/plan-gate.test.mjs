@@ -2,8 +2,8 @@
 // work it. Driven through the real foundry-lib.sh, the file run-once.sh sources.
 //
 // Before FB-162 a release cleared the hold and the gate sent the ticket straight back to planning,
-// because the ticket still mentioned sign-in. ARCA ran a four-minute plan every five minutes for five
-// weeks and the founder's go on ARCA-061 never became work.
+// because the ticket still mentioned sign-in. ARCA re-planned it until its daily allowance ran out,
+// every day for five weeks, and the founder's go on ARCA-061 never became work.
 
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';

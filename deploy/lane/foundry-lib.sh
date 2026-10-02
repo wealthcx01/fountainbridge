@@ -706,8 +706,8 @@ is_plan_first() { grep -qiE "$ENGINEERING_SENSITIVE|\boutreach\b|send.{0,6}email
 #
 # Once the founder has read the plan and given the go, the answer is no. Before FB-162 a release
 # cleared the hold and the next line sent the ticket straight back to planning, because the ticket
-# still mentioned sign-in. On ARCA that ran a fresh four-minute plan every five minutes for five
-# weeks, about ten thousand of them, and John's go on ARCA-061 never became any work. The work is
-# still gated on its pull request, like every other change.
+# still mentioned sign-in. On ARCA the re-planning used up the lane's daily allowance every day for
+# five weeks (730 plans), so John's go on ARCA-061 never became work and no other ticket was worked.
+# The work is still gated on its pull request, like every other change.
 plan_before_work() { [ -z "${2:-}" ] && is_plan_first "$1"; }
 
