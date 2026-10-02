@@ -28,7 +28,10 @@ export const DEFAULT_ID_WIDTH: number;
 export function mustRenumber(id: string, ourSlug: string, filenames: string[]): string | null;
 
 /** The ticket this branch already carries, if any — so a revision keeps its number. */
-export function existingTicketFile(filenames: string[], slug: string): string | null;
+export function existingTicketFile(filenames: string[], slug: string, prefix?: string): string | null;
+
+/** The id a filename carries for this prefix — `THE-RESET-012-x.md` → `THE-RESET-012`. Null when none. */
+export function idOf(filename: string, prefix: string): string | null;
 
 /** Where a numbered ticket lives. */
 export function ticketPath(id: string, slug: string): string;
