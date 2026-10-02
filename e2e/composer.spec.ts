@@ -68,7 +68,8 @@ test.describe('describing what you want', () => {
       // What the two tokens resolve to on this page, read the same way, so the comparison is
       // colour to colour rather than a hex string against an rgb() one.
       const probe = document.createElement('div');
-      probe.style.color = 'var(--color-border)';
+      // The design's darker line for the box a founder types in (John, 2026-10-02), not the hairline.
+      probe.style.color = 'var(--color-border-strong)';
       probe.style.backgroundColor = 'var(--color-paper-raised)';
       document.body.appendChild(probe);
       const tokens = getComputedStyle(probe);
@@ -85,7 +86,7 @@ test.describe('describing what you want', () => {
     });
     expect(drawn.style, 'the box has no border').toBe('solid');
     expect(drawn.width).toBe('1px');
-    expect(drawn.border, 'the border is not the studio’s border colour').toBe(drawn.want.border);
+    expect(drawn.border, 'the border is not the design’s darker line').toBe(drawn.want.border);
     expect(drawn.background, 'the box has no background of its own').not.toBe('rgba(0, 0, 0, 0)');
     expect(drawn.background).toBe(drawn.want.background);
   });

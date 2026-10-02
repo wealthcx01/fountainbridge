@@ -325,7 +325,9 @@ export function Composer({
           disabled={sending}
           style={{
             width: '100%', padding: '0.7rem', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
-            border: '1px solid var(--color-border)',
+            // The design draws this box's line darker than a hairline rule (#b9b6ae), because it is
+            // the one place on the page a founder types. John chose to match it (2026-10-02).
+            border: '1px solid var(--color-border-strong)',
             background: 'var(--color-paper-raised)', color: 'var(--color-ink)', resize: 'vertical',
           }}
         />
