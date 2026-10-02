@@ -1,0 +1,12 @@
+# Every ten minutes, so an abandoned ticket machine lives at most its lifetime plus grace plus ten
+# minutes. Persistent=true so a box that was off catches up as soon as it is back.
+[Unit]
+Description=Foundry — check for overdue temporary ticket machines every ten minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -349,5 +349,27 @@ else
     flog "working $PICK_SLUG in ${PICK_DEPT:-build} (full-auto RPIV, low blast-radius)"
   fi
 fi
+# --- FB-239: the work on a machine of its own, when that is switched on -----------------------------
+# Off by default. With TICKET_MACHINES=on in the lane's environment, the ticket is worked on a
+# temporary machine made for it and destroyed after (ticket-machine.mjs; docs/ticket-machines.md).
+# Everything above — the scan, the budget, the sensitive-ticket stop, the lock — still happens here,
+# so a machine is only ever made for a ticket this box would have worked itself.
+#
+# The supervisor on the machine writes its own run reports. This box writes one only when the machine
+# never got that far, so a founder sees why rather than nothing (CLAUDE.md #10).
+if [ "${TICKET_MACHINES:-off}" = "on" ]; then
+  flog "working $PICK_SLUG on its own temporary machine"
+  set +e
+  MACHINE_SAYS=$(LANE_DEPARTMENT="${PICK_DEPT:-build}" LANE_GATE="${PICK_GATE:-pr}" LANE_REQUIRE_PROPOSAL="$REQUIRE_PROPOSAL" \
+    node "$SCRIPT_DIR/ticket-machine.mjs" run "$PICK_SLUG" "${PICK#"$REPO_DIR"/}")
+  MACHINE_EXIT=$?
+  set -e
+  flog "temporary machine: ${MACHINE_SAYS:-no word from it}"
+  if [ "$MACHINE_EXIT" -ne 0 ]; then
+    write_runreport "$PICK_SLUG" "blocked" "${MACHINE_SAYS:-Your team could not run this ticket on its own machine.}" || true
+  fi
+  exit 0
+fi
+
 LANE_DEPARTMENT="${PICK_DEPT:-build}" LANE_GATE="${PICK_GATE:-pr}" LANE_REQUIRE_PROPOSAL="$REQUIRE_PROPOSAL" \
   "$SUP" "$PICK_SLUG" "$PICK"
