@@ -35,11 +35,32 @@ const WHY: Record<Exclude<Verdict['kind'], 'ok'>, string> = {
   unreachable: 'it could not be reached',
 };
 
+/**
+ * The hosts a preview can live on. Matched against the PARSED hostname, start to end — never by
+ * searching the address as text. A text search let `http://169.254.169.254/?a.up.railway.app`
+ * through, and the studio's own server would have opened an internal address of someone's choosing
+ * (FB-184 review). Anyone who can post a commit status on a venture repo chooses this address.
+ */
+const PREVIEW_HOST = /^[a-z0-9][a-z0-9-]*\.(?:up\.railway\.app|vercel\.app|netlify\.app|pages\.dev)$/i;
+
+/** An https address on a preview host, on the default port. The only kind the studio will open. */
+export function isPreviewAddress(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && u.port === '' && !u.username && !u.password && PREVIEW_HOST.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+const NOT_A_PREVIEW = 'it is not a preview address the studio can check';
+
 export type Fetcher = (url: string, init: { redirect: 'manual'; signal: AbortSignal }) => Promise<{ status: number; headers: { get(name: string): string | null } }>;
 
 /** Follow redirects by hand, so the place the link LANDS is what gets judged. */
 async function follow(from: string, fetcher: Fetcher): Promise<Hop[]> {
   const hops: Hop[] = [];
+  const home = new URL(from).host;
   let current = from;
   for (let i = 0; i < MAX_HOPS; i += 1) {
     const res = await fetcher(current, { redirect: 'manual', signal: AbortSignal.timeout(HOP_TIMEOUT_MS) });
@@ -47,20 +68,21 @@ async function follow(from: string, fetcher: Fetcher): Promise<Hop[]> {
     hops.push({ url: current, status: res.status, location: location ?? null });
     if (!location) return hops;
     current = new URL(location, current).toString();
+    // A redirect off the preview's own host is already the answer ("opens a different site"), and
+    // following it would let a preview send the studio's server anywhere. Record where it pointed,
+    // and stop without opening it.
+    if (new URL(current).host !== home) {
+      hops.push({ url: current, status: 0, location: null });
+      return hops;
+    }
   }
   return hops;
 }
 
 /** Judge one address. Never throws: a failure to reach it is an answer, not an error. */
 export async function checkPreview(url: string, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<PreviewCheck> {
-  let host: string;
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('not a web address');
-    host = parsed.host;
-  } catch {
-    return { url, state: 'does-not-open', reason: WHY.unreachable };
-  }
+  if (!isPreviewAddress(url)) return { url, state: 'does-not-open', reason: NOT_A_PREVIEW };
+  const host = new URL(url).host;
   let hops: Hop[] = [];
   try {
     hops = await follow(url, fetcher);

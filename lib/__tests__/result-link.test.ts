@@ -154,3 +154,75 @@ describe('a Scale ticket says the ad account is not connected, and links nowhere
     expect(line).toEqual({ text: 'Follow it to the ad account: not connected yet', link: null });
   });
 });
+
+describe('the studio only ever opens a real preview address (FB-184 review)', () => {
+  // The address comes from a GitHub commit status, which anyone who can post one on a venture repo
+  // chooses. The studio's own server opens it, so it must never be talked into opening anything else.
+  const TRICKS = [
+    'http://169.254.169.254/?a.up.railway.app',      // a preview hostname in the query, not the host
+    'https://169.254.169.254/latest/meta-data/#arca.up.railway.app',
+    'http://arca-pr-1.up.railway.app',               // not https
+    'https://arca-pr-1.up.railway.app:8080/',        // another port
+    'https://user:pw@arca-pr-1.up.railway.app/',     // credentials in the address
+    'https://arca-pr-1.up.railway.app.evil.example/', // a preview name as a prefix of another host
+    'https://localhost/',
+  ];
+
+  it.each(TRICKS)('never fetches %s', async (url) => {
+    const fetched: string[] = [];
+    const preview = await checkPreview(url, async (u) => { fetched.push(u); return { status: 200, headers: { get: () => null } }; });
+    expect(fetched).toEqual([]);
+    expect(preview.state).toBe('does-not-open');
+  });
+
+  it.each(TRICKS)('never takes %s from a commit status as a preview', async (url) => {
+    const { previewUrlFrom } = await import('../work');
+    expect(previewUrlFrom([{ state: 'success', description: 'Deployment ready', target_url: url }])).toBeNull();
+  });
+
+  it('a real preview address is still taken and opened', async () => {
+    const { previewUrlFrom } = await import('../work');
+    expect(previewUrlFrom([{ state: 'success', description: 'ready', target_url: 'https://arca-git-pr-9.vercel.app' }]))
+      .toBe('https://arca-git-pr-9.vercel.app');
+    expect((await checkPreview(PREVIEW, scripted({ [PREVIEW]: { status: 200 } }))).state).toBe('opens');
+  });
+
+  it('stops at a redirect off the preview, without opening where it points', async () => {
+    const fetched: string[] = [];
+    const answers: Record<string, { status: number; location?: string }> = {
+      [PREVIEW]: { status: 302, location: 'http://169.254.169.254/latest/meta-data/' },
+      'http://169.254.169.254/latest/meta-data/': { status: 200 },
+    };
+    const preview = await checkPreview(PREVIEW, async (u, init) => { fetched.push(u); return scripted(answers)(u, init); });
+    expect(fetched).toEqual([PREVIEW]);
+    expect(preview.state).toBe('does-not-open');
+    expect(followLine(build({ preview })).text).toContain('it opens a different site');
+  });
+
+  it('still follows a redirect that stays on the preview', async () => {
+    const fetched: string[] = [];
+    const answers: Record<string, { status: number; location?: string }> = {
+      [PREVIEW]: { status: 302, location: '/login' },
+      [`${PREVIEW}/login`]: { status: 200 },
+    };
+    const preview = await checkPreview(PREVIEW, async (u, init) => { fetched.push(u); return scripted(answers)(u, init); });
+    expect(fetched).toEqual([PREVIEW, `${PREVIEW}/login`]);
+    expect(preview.state).toBe('opens');
+  });
+});
+
+describe('a checked preview is remembered for five minutes, then checked again', () => {
+  // Not a preview address, so no network call is made: the answer is immediate either way.
+  const URL = 'https://not-a-preview.example.com/';
+  const env = {};
+
+  it('within five minutes, the same check is reused', () => {
+    const a = checkedPreview(URL, env, 1_000_000);
+    expect(checkedPreview(URL, env, 1_000_000 + 4 * 60_000)).toBe(a);
+  });
+
+  it('after five minutes, it is checked again — a preview torn down must lose its link', () => {
+    const a = checkedPreview(URL, env, 2_000_000);
+    expect(checkedPreview(URL, env, 2_000_000 + 5 * 60_000 + 1)).not.toBe(a);
+  });
+});
