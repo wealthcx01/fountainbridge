@@ -18,15 +18,18 @@ vi.mock('@/lib/ventures', () => ({ loadVentures: () => loadVentures() }));
 // Every place the studio could keep a recording, watched. The database: any connection or query is
 // recorded. Files: every write through node's file system is recorded (and still happens).
 const dbTouched = vi.fn();
+// What today's count reads as. The daily cap (John, 2026-10-02) reads it before sending anything.
+let usedToday: Array<{ seconds: number }> = [];
+const answer = (a: unknown[]) => (String(a[0]).includes('select seconds from voicestore.usage') ? { rows: usedToday } : { rows: [] });
 vi.mock('pg', () => {
   class Pool {
     constructor(..._args: unknown[]) { dbTouched('new Pool'); }
     on() { return this; }
     async connect() {
       dbTouched('connect');
-      return { query: async (...a: unknown[]) => { dbTouched('query', a); return { rows: [] }; }, release: () => undefined };
+      return { query: async (...a: unknown[]) => { dbTouched('query', a); return answer(a); }, release: () => undefined };
     }
-    async query(...a: unknown[]) { dbTouched('query', a); return { rows: [] }; }
+    async query(...a: unknown[]) { dbTouched('query', a); return answer(a); }
   }
   return { Pool, default: { Pool } };
 });
@@ -72,6 +75,10 @@ beforeEach(() => {
   delete process.env.STUDIO_ADMIN_EMAILS;
   delete process.env.TRANSCRIBER;
   process.env.OPENAI_API_KEY = 'sk-test';
+  process.env.DATABASE_URL = 'postgres://watched/nowhere';
+  delete process.env.VOICE_DAILY_MINUTES;
+  delete process.env.E2E_TEST_LOGIN;
+  usedToday = [];
   loadVentures.mockReturnValue([ARCA, RESET]);
   auth.mockResolvedValue({ user: { email: 'founder@bruntsfield.capital' } });
   post.mockResolvedValue(new Response(JSON.stringify({ text: 'Make the share link expire after a week.' }), { status: 200 }));
@@ -80,6 +87,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = realFetch;
   delete process.env.OPENAI_API_KEY;
+  delete process.env.DATABASE_URL;
 });
 
 describe('who may send a voice note', () => {
@@ -163,7 +171,17 @@ describe('the studio keeps nothing it was given', () => {
 
   const nothingKept = () => {
     expect(readdirSync(store, { recursive: true }), 'something was written to the document store').toEqual([]);
-    expect(dbTouched, 'the database was used').not.toHaveBeenCalled();
+    // The database holds today's count and nothing else: every statement is the cap's own (or the
+    // transaction around it), and no value passed to it is the recording or the words.
+    const queries = dbTouched.mock.calls.filter((c) => c[0] === 'query').map((c) => c[1] as unknown[]);
+    for (const [text, params] of queries) {
+      expect(String(text), 'the database was asked something other than the daily count')
+        .toMatch(/^(begin|commit|rollback|select set_config|select seconds from voicestore\.usage|insert into voicestore\.usage)/);
+      for (const p of (params as unknown[]) ?? []) {
+        expect(p instanceof Blob, 'a recording was passed to the database').toBe(false);
+        expect(typeof p === 'string' && p.includes('share link'), 'the words were passed to the database').toBe(false);
+      }
+    }
     expect(fileWrites, 'a file was written').not.toHaveBeenCalled();
     const where = post.mock.calls.map((c) => String(c[0]));
     expect(where.filter((u) => !u.startsWith('https://api.openai.com/')), 'the recording was sent somewhere else').toEqual([]);
@@ -186,5 +204,47 @@ describe('the studio keeps nothing it was given', () => {
     post.mockResolvedValue(new Response(JSON.stringify({ text: '' }), { status: 200 }));
     expect((await POST(req({ venture: 'arca', audio: iphone() }))).status).toBe(422);
     nothingKept();
+  });
+});
+
+describe('the daily cap (John, 2026-10-02)', () => {
+  it('counts what was billed, after the words come back', async () => {
+    post.mockResolvedValue(new Response(JSON.stringify({ text: 'Make the share link expire after a week.', duration: 42.2 }), { status: 200 }));
+    expect((await POST(req({ venture: 'arca', audio: iphone() }))).status).toBe(201);
+    const added = dbTouched.mock.calls.find((c) => c[0] === 'query' && String((c[1] as unknown[])[0]).includes('insert into voicestore.usage'));
+    expect(added, 'nothing was added to today\'s count').toBeDefined();
+    expect(((added![1] as unknown[])[1] as unknown[])[1]).toBe(43);
+  });
+
+  it('when today is used up, it refuses with a sentence and sends nothing', async () => {
+    usedToday = [{ seconds: 30 * 60 }];
+    const r = await POST(req({ venture: 'arca', audio: iphone() }));
+    expect(r.status).toBe(429);
+    const body = await r.json();
+    expect(body.kind).toBe('capped');
+    expect(body.error).toContain('30 minutes a day');
+    expect(body.error).toContain('You can still type');
+    expect(post, 'the recording was sent although the day was used up').not.toHaveBeenCalled();
+  });
+
+  it('one second short of the limit still goes through', async () => {
+    usedToday = [{ seconds: 30 * 60 - 1 }];
+    expect((await POST(req({ venture: 'arca', audio: iphone() }))).status).toBe(201);
+  });
+
+  it('the limit is a setting', async () => {
+    process.env.VOICE_DAILY_MINUTES = '5';
+    usedToday = [{ seconds: 5 * 60 }];
+    const r = await POST(req({ venture: 'arca', audio: iphone() }));
+    expect(r.status).toBe(429);
+    expect((await r.json()).error).toContain('5 minutes a day');
+  });
+
+  it('a studio with no database has no cap, so it has no voice notes', async () => {
+    delete process.env.DATABASE_URL;
+    const r = await POST(req({ venture: 'arca', audio: iphone() }));
+    expect(r.status).toBe(503);
+    expect((await r.json()).error, 'refused for some other reason than having nowhere to keep the count').toContain('no database');
+    expect(post, 'a recording was sent with no cap in place').not.toHaveBeenCalled();
   });
 });

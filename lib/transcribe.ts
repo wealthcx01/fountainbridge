@@ -26,11 +26,23 @@ import 'server-only';
  * - nothing here ever turns audio bytes into text itself.
  */
 
+/** What came back: the words, and how many seconds of audio the service billed for (the daily cap). */
+export interface Transcript {
+  text: string;
+  seconds: number;
+}
+
 export interface Transcriber {
   /** Shown nowhere; recorded in logs so a reading can say which provider produced it. */
   name: string;
-  transcribe(audio: Blob, filename: string): Promise<string>;
+  transcribe(audio: Blob, filename: string): Promise<Transcript>;
 }
+
+/**
+ * Charged when the service does not say how long the audio was. A full minute, so a missing number
+ * can only make the daily cap stricter, never let a note through uncounted.
+ */
+export const UNKNOWN_DURATION_SECONDS = 60;
 
 /** A failure a founder can be told about, in words. */
 export class TranscriptionError extends Error {
@@ -91,7 +103,7 @@ export function voiceNotesOn(env: Record<string, string | undefined> = process.e
 const testDouble: Transcriber = {
   name: 'test-double',
   async transcribe() {
-    return 'This is the test transcriber, not a real transcript.';
+    return { text: 'This is the test transcriber, not a real transcript.', seconds: 30 };
   },
 };
 
@@ -102,7 +114,8 @@ function openAiWhisper(apiKey: string, post: Fetch): Transcriber {
       const form = new FormData();
       form.append('file', audio, filename);
       form.append('model', 'whisper-1');
-      form.append('response_format', 'json');
+      // verbose_json, for the audio's duration: the daily cap counts what was billed.
+      form.append('response_format', 'verbose_json');
       let res: Awaited<ReturnType<Fetch>>;
       try {
         res = await post('https://api.openai.com/v1/audio/transcriptions', {
@@ -123,12 +136,13 @@ function openAiWhisper(apiKey: string, post: Fetch): Transcriber {
         }
         throw new TranscriptionError(`The transcription service answered with an error (${res.status}). Your recording is still on this device — try again in a minute.`, 'unavailable');
       }
-      const body = (await res.json().catch(() => null)) as { text?: unknown } | null;
+      const body = (await res.json().catch(() => null)) as { text?: unknown; duration?: unknown } | null;
       const text = typeof body?.text === 'string' ? body.text.trim() : '';
       if (!text) {
         throw new TranscriptionError('The recording came back with no words in it. Check the microphone is the right one and try again — the meter should move while you speak.', 'empty');
       }
-      return text;
+      const duration = Number(body?.duration);
+      return { text, seconds: Number.isFinite(duration) && duration > 0 ? duration : UNKNOWN_DURATION_SECONDS };
     },
   };
 }

@@ -40,12 +40,28 @@ describe('asking Whisper', () => {
   it('sends the recording to whisper-1 with the key, and returns the words', async () => {
     const post = answering(200, { text: '  Make the deck share link expire after a week.  ' });
     const t = buildTranscriber({ OPENAI_API_KEY: 'sk-test' }, { fetch: post })!;
-    expect(await t.transcribe(audio(), 'voice-note.webm')).toBe('Make the deck share link expire after a week.');
+    expect((await t.transcribe(audio(), 'voice-note.webm')).text).toBe('Make the deck share link expire after a week.');
     const [url, init] = post.mock.calls[0] as unknown as [string, { headers: Record<string, string>; body: FormData }];
     expect(url).toBe('https://api.openai.com/v1/audio/transcriptions');
     expect(init.headers.Authorization).toBe('Bearer sk-test');
     expect(init.body.get('model')).toBe('whisper-1');
     expect((init.body.get('file') as File).name).toBe('voice-note.webm');
+  });
+
+  it('reports the seconds the service billed, for the daily cap (John, 2026-10-02)', async () => {
+    const post = answering(200, { text: 'A note.', duration: 83.4 });
+    const t = buildTranscriber({ OPENAI_API_KEY: 'sk-test' }, { fetch: post })!;
+    expect((await t.transcribe(audio(), 'a.webm')).seconds).toBe(83.4);
+    // The duration only comes back when it is asked for.
+    const [, init] = post.mock.calls[0] as unknown as [string, { body: FormData }];
+    expect(init.body.get('response_format')).toBe('verbose_json');
+  });
+
+  it('charges a full minute when the service does not say how long it was', async () => {
+    for (const duration of [undefined, null, 0, -5, 'long']) {
+      const t = buildTranscriber({ OPENAI_API_KEY: 'sk-test' }, { fetch: answering(200, { text: 'A note.', duration }) })!;
+      expect((await t.transcribe(audio(), 'a.webm')).seconds, String(duration)).toBe(60);
+    }
   });
 
   it('never returns an empty transcript — it says the recording had no words', async () => {

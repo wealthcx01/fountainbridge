@@ -5,9 +5,8 @@
 **Shipped in part:** recording, transcription and the words landing in the composer are built and
 checked in a browser with a simulated microphone. Not yet done: a real recording on a real iPhone,
 which needs an `OPENAI_API_KEY` set on the studio first; and the record button on the desk's pocket
-prompt bar (it is on the composer, which the prompt bar opens in one press). And there is no limit
-on how much transcription one founder can use: each minute sent to OpenAI is paid for, and John has
-to decide whether that needs a budget, like the departments' budgets, before it is switched on.
+prompt bar (it is on the composer, which the prompt bar opens in one press). Switching it on also
+needs `db/006_voice_usage.sql` run on the studio's database, which holds the daily count.
 
 ## Why
 
@@ -99,6 +98,17 @@ Two consequences:
   and stores nothing. An upload that declares itself larger than a recording can be is refused
   before it is read.
 - **Off until it can work.** Without `OPENAI_API_KEY` the composer shows no record button at all.
+
+## John's rulings (2026-10-02)
+
+- **Sending a founder's recording to OpenAI needs no approval record.** It is the founder's own act,
+  and it reaches nobody outside the company. The control is a spending cap, below.
+- **A daily cap: 30 minutes of transcription per venture per day**, changeable with
+  `VOICE_DAILY_MINUTES`. The count is the seconds OpenAI says it billed, kept per venture per UTC day
+  in the studio's database (`db/006_voice_usage.sql`, row-locked per venture like every other
+  table). A note past the limit is refused before it is sent, with a sentence saying so and that
+  typing still works; the recording stays on the device. A studio with no database has no cap, so it
+  has no voice notes. Only a number is kept — never audio, never words.
 
 ## Why this does not wait for FB-174
 
