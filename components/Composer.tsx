@@ -13,6 +13,8 @@ import { ComposerRail } from './ComposerRail';
 import { toneColor } from '@/lib/status';
 import { PlanPanel } from './PlanPanel';
 import { Mark } from './Mark';
+import { VoiceNote } from './VoiceNote';
+import { appendTranscript } from '@/lib/voice-note';
 
 /**
  * The conversation, inside the studio (FB-065).
@@ -56,7 +58,10 @@ export function Composer({
   ventureName,
   seed = null,
   aboutTicketId = null,
+  voice = false,
 }: {
+  /** FB-173: this studio can turn a voice note into words. Off when it has no transcriber. */
+  voice?: boolean;
   ventureId: string;
   ventureName: string;
   /** FB-131: arrived from a ticket. The rail shows that ticket rather than a draft. */
@@ -340,6 +345,16 @@ export function Composer({
             Add a document
           </button>
         </div>
+
+        {/* FB-173: the words land in the box above, after anything typed. Nothing is filed by
+            speaking — Send, and then File, are still the only way words become work. */}
+        {voice ? (
+          <VoiceNote
+            ventureId={ventureId}
+            disabled={sending}
+            onWords={(text) => { setDraft((d) => appendTranscript(d, text)); inputRef.current?.focus(); }}
+          />
+        ) : null}
 
         {/* FB-075: away from Send, and it asks first. A founder deliberately writing at length
             should not be one mis-click from losing all of it. */}

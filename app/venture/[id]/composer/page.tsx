@@ -6,6 +6,7 @@ import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/aut
 import { composerEndpoint } from '@/lib/composer';
 import { Composer } from '@/components/Composer';
 import { VentureForbidden } from '@/components/VentureForbidden';
+import { voiceNotesOn } from '@/lib/transcribe';
 
 /**
  * The composer, inside the studio shell (FB-065).
@@ -56,6 +57,7 @@ export default async function ComposerPage({
           ventureName={venture.name}
           seed={ticketId ? `About ${ticketId}: ` : ask || null}
           aboutTicketId={ticketId}
+          voice={voiceNotesOn()}
         />
       ) : (
         <section data-testid="composer-pending">
