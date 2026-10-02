@@ -1,0 +1,451 @@
+{
+  "contacts": [
+    {
+      "id": "c0000000-0000-4000-8000-000000000001",
+      "name": "Ada Example",
+      "email": "ada@example.test",
+      "title": null,
+      "company": "Example Card Shop",
+      "temperature": "hot",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "email_in",
+        "summary": "Asked whether the pilot can start before the August show",
+        "at": "2026-07-21T09:00:00.000Z"
+      },
+      "awaitingReply": 1,
+      "waiting": {
+        "summary": "Asked whether the pilot can start before the August show",
+        "at": "2026-07-21T09:00:00.000Z"
+      }
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000002",
+      "name": "Ben Placeholder",
+      "email": "ben@example.test",
+      "title": null,
+      "company": "Sample Collectibles",
+      "temperature": "warm",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "note",
+        "summary": "Our own note: put the graded price sheet together first",
+        "at": "2026-07-20T09:00:00.000Z"
+      },
+      "awaitingReply": 2,
+      "waiting": {
+        "summary": "Wants to know if graded cards are priced separately",
+        "at": "2026-07-18T09:00:00.000Z"
+      }
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000003",
+      "name": "Cara Sample",
+      "email": "cara@example.test",
+      "title": null,
+      "company": "Placeholder Games",
+      "temperature": "cold",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "email_in",
+        "summary": "Asked for the price list again",
+        "at": "2026-07-13T09:00:00.000Z"
+      },
+      "awaitingReply": 1,
+      "waiting": {
+        "summary": "Asked for the price list again",
+        "at": "2026-07-13T09:00:00.000Z"
+      }
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000004",
+      "name": "Dev Testwell",
+      "email": "dev@example.test",
+      "title": null,
+      "company": "Mockford Trading",
+      "temperature": "hot",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "meeting",
+        "summary": "Walked through the dashboard with their buying team",
+        "at": "2026-07-16T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000005",
+      "name": "Eli Mockford",
+      "email": "eli@example.test",
+      "title": null,
+      "company": "Mockford Trading",
+      "temperature": "warm",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "email_out",
+        "summary": "Sent the pilot terms for review",
+        "at": "2026-07-10T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000006",
+      "name": "Fay Fixture",
+      "email": "fay@example.test",
+      "title": null,
+      "company": "Fixture & Sons Cards",
+      "temperature": "warm",
+      "snoozedUntil": null,
+      "last": null,
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000007",
+      "name": "Gus Dummy",
+      "email": "gus@example.test",
+      "title": null,
+      "company": "Dummy Street Games",
+      "temperature": "hot",
+      "snoozedUntil": null,
+      "last": null,
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000008",
+      "name": "Hana Specimen",
+      "email": "hana@example.test",
+      "title": null,
+      "company": "Specimen Collectables",
+      "temperature": "cold",
+      "snoozedUntil": "2026-08-05T00:00:00Z",
+      "last": {
+        "kind": "call",
+        "summary": "Said to come back after their stocktake",
+        "at": "2026-07-02T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000009",
+      "name": "Ivo Trial",
+      "email": "ivo@example.test",
+      "title": null,
+      "company": "Trial Run Hobbies",
+      "temperature": "warm",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "email_out",
+        "summary": "Followed up on the proposal",
+        "at": "2026-07-19T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000010",
+      "name": "Jo Prototype",
+      "email": "jo@example.test",
+      "title": null,
+      "company": "Prototype Cards Co",
+      "temperature": "cold",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "note",
+        "summary": "Met at the regional fair; interested later in the year",
+        "at": "2026-06-22T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000011",
+      "name": "Kit Standin",
+      "email": "kit@example.test",
+      "title": null,
+      "company": "Standin Games",
+      "temperature": "warm",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "meeting",
+        "summary": "Signed the pilot agreement",
+        "at": "2026-07-07T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000012",
+      "name": "Lou Draftly",
+      "email": "lou@example.test",
+      "title": null,
+      "company": "Draftly Collectibles",
+      "temperature": "cold",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "email_out",
+        "summary": "First introduction sent",
+        "at": "2026-07-04T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000013",
+      "name": "Mo Pretend",
+      "email": "mo@example.test",
+      "title": null,
+      "company": "Pretend Play Ltd",
+      "temperature": "warm",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "call",
+        "summary": "Not the right time; went with another tool",
+        "at": "2026-06-27T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000014",
+      "name": "Nia Sketch",
+      "email": "nia@example.test",
+      "title": null,
+      "company": "Sketchbook Cards",
+      "temperature": "hot",
+      "snoozedUntil": null,
+      "last": {
+        "kind": "email_out",
+        "summary": "Sent the proposal with three price options",
+        "at": "2026-07-20T09:00:00.000Z"
+      },
+      "awaitingReply": 0,
+      "waiting": null
+    },
+    {
+      "id": "c0000000-0000-4000-8000-000000000015",
+      "name": "Oli Standby",
+      "email": "oli@example.test",
+      "title": null,
+      "company": null,
+      "temperature": "cold",
+      "snoozedUntil": null,
+      "last": null,
+      "awaitingReply": 0,
+      "waiting": null
+    }
+  ],
+  "deals": [
+    {
+      "id": "d0000000-0000-4000-8000-000000000001",
+      "title": "Shop pilot, 3 months",
+      "contactId": "c0000000-0000-4000-8000-000000000001",
+      "company": "Example Card Shop",
+      "stage": "proposal",
+      "valueMinor": 240000,
+      "currency": "GBP",
+      "probability": 60,
+      "nextStep": "Confirm the start date",
+      "nextStepDue": "2026-07-24",
+      "stageChangedAt": "2026-07-19T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000002",
+      "title": "Graded pricing add-on",
+      "contactId": "c0000000-0000-4000-8000-000000000002",
+      "company": "Sample Collectibles",
+      "stage": "meeting",
+      "valueMinor": 90000,
+      "currency": "GBP",
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-07-17T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000003",
+      "title": "Price list request",
+      "contactId": "c0000000-0000-4000-8000-000000000003",
+      "company": "Placeholder Games",
+      "stage": "contacted",
+      "valueMinor": null,
+      "currency": null,
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-07-13T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000004",
+      "title": "Buying-team rollout",
+      "contactId": "c0000000-0000-4000-8000-000000000004",
+      "company": "Mockford Trading",
+      "stage": "meeting",
+      "valueMinor": 600000,
+      "currency": "GBP",
+      "probability": 40,
+      "nextStep": "Send the rollout plan",
+      "nextStepDue": "2026-07-20",
+      "stageChangedAt": "2026-07-16T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000005",
+      "title": "Pilot terms",
+      "contactId": "c0000000-0000-4000-8000-000000000005",
+      "company": "Mockford Trading",
+      "stage": "follow_up",
+      "valueMinor": 150000,
+      "currency": "GBP",
+      "probability": 50,
+      "nextStep": "Chase the signed terms",
+      "nextStepDue": "2026-07-22",
+      "stageChangedAt": "2026-07-10T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000006",
+      "title": "Fair stand follow-up",
+      "contactId": "c0000000-0000-4000-8000-000000000006",
+      "company": "Fixture & Sons Cards",
+      "stage": "added",
+      "valueMinor": null,
+      "currency": null,
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-07-20T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000007",
+      "title": "Weekend store trial",
+      "contactId": "c0000000-0000-4000-8000-000000000007",
+      "company": "Dummy Street Games",
+      "stage": "added",
+      "valueMinor": 45000,
+      "currency": "GBP",
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-07-21T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000008",
+      "title": "Stocktake season",
+      "contactId": "c0000000-0000-4000-8000-000000000008",
+      "company": "Specimen Collectables",
+      "stage": "contacted",
+      "valueMinor": null,
+      "currency": null,
+      "probability": null,
+      "nextStep": "Call after the stocktake",
+      "nextStepDue": "2026-07-23",
+      "stageChangedAt": "2026-07-02T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000009",
+      "title": "Proposal, two stores",
+      "contactId": "c0000000-0000-4000-8000-000000000009",
+      "company": "Trial Run Hobbies",
+      "stage": "proposal",
+      "valueMinor": 180000,
+      "currency": "GBP",
+      "probability": 50,
+      "nextStep": "Answer questions on support",
+      "nextStepDue": "2026-07-27",
+      "stageChangedAt": "2026-07-19T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000010",
+      "title": "Autumn catalogue",
+      "contactId": "c0000000-0000-4000-8000-000000000010",
+      "company": "Prototype Cards Co",
+      "stage": "added",
+      "valueMinor": null,
+      "currency": null,
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-06-22T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000011",
+      "title": "Pilot, one store",
+      "contactId": "c0000000-0000-4000-8000-000000000011",
+      "company": "Standin Games",
+      "stage": "won",
+      "valueMinor": 75000,
+      "currency": "GBP",
+      "probability": 100,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-07-07T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000012",
+      "title": "Intro call",
+      "contactId": "c0000000-0000-4000-8000-000000000012",
+      "company": "Draftly Collectibles",
+      "stage": "contacted",
+      "valueMinor": null,
+      "currency": null,
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-07-04T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000013",
+      "title": "Annual licence",
+      "contactId": "c0000000-0000-4000-8000-000000000013",
+      "company": "Pretend Play Ltd",
+      "stage": "lost",
+      "valueMinor": 300000,
+      "currency": "GBP",
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-06-27T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000014",
+      "title": "Three-option proposal",
+      "contactId": "c0000000-0000-4000-8000-000000000014",
+      "company": "Sketchbook Cards",
+      "stage": "proposal",
+      "valueMinor": 210000,
+      "currency": "GBP",
+      "probability": 70,
+      "nextStep": "Walk through the options",
+      "nextStepDue": "2026-07-26",
+      "stageChangedAt": "2026-07-20T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000015",
+      "title": "Second store",
+      "contactId": "c0000000-0000-4000-8000-000000000011",
+      "company": "Standin Games",
+      "stage": "follow_up",
+      "valueMinor": 75000,
+      "currency": "GBP",
+      "probability": 60,
+      "nextStep": "Ask about the second store",
+      "nextStepDue": "2026-07-25",
+      "stageChangedAt": "2026-07-15T09:00:00.000Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000016",
+      "title": "Event partnership",
+      "contactId": "c0000000-0000-4000-8000-000000000004",
+      "company": "Mockford Trading",
+      "stage": "added",
+      "valueMinor": null,
+      "currency": null,
+      "probability": null,
+      "nextStep": null,
+      "nextStepDue": null,
+      "stageChangedAt": "2026-07-18T09:00:00.000Z"
+    }
+  ]
+}

@@ -69,6 +69,8 @@ export default defineConfig({
       // gate would reach GitHub for it, which is both slow and a network dependency the UI gate is
       // built to avoid — and it would render the "could not be read" state on every run.
       ROUTINES_FIXTURE_DIR: 'e2e/fixtures/routines',
+      // FB-235: the Sell pipeline. Invented people only — this repository is public.
+      CRM_FIXTURE_DIR: 'e2e/fixtures/crm',
       // FB-065. A recorded stream off the real ARCA box, including the inconsistent tool-call
       // indices the engine actually sends — so the UI gate proves the surface against what the
       // engine does, not against what its format says it should do.
