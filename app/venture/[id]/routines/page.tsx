@@ -1,3 +1,4 @@
+import { studioNow } from '@/lib/when';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
@@ -62,7 +63,7 @@ export default async function RoutinesPage({ params }: { params: Promise<{ id: s
 
       <hr className="hr" />
 
-      <RoutinesView ventureId={venture.id} routines={routines} errors={errors} />
+      <RoutinesView ventureId={venture.id} routines={routines} errors={errors} nowMs={studioNow()} />
     </>
   );
 }

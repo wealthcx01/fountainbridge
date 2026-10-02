@@ -9,7 +9,7 @@ import { toneColor } from '@/lib/status';
 import { CHECK_LABEL } from '@/lib/glossary';
 import { readEvidence } from '@/lib/work-evidence';
 import { showAngleBrackets } from '@/lib/markdown';
-import { howLong } from '@/lib/when';
+import { howLongMs } from '@/lib/when';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
 import { Mark } from './Mark';
 import { noteDecision } from '@/lib/decided';
@@ -153,7 +153,7 @@ function TheRecord({ body }: { body: string }) {
           data-testid="work-record"
           style={{
             fontSize: 'var(--fs-meta-lg)', overflowX: 'auto',
-            background: 'var(--color-surface)', border: '1px solid var(--color-rule)',
+            background: 'var(--color-paper-raised)', border: '1px solid var(--color-border)',
             padding: '0.7rem', margin: '0.5rem 0 0',
           }}
         >
@@ -227,11 +227,17 @@ export function WorkDetail({
   ventureId,
   work,
   launch = null,
+  waitingMs = null,
 }: {
   ventureId: string;
   work: WorkItem;
   /** Where this surface's running product opens (FB-093's target), when the venture declares one. */
   launch?: { label: string | null; url: string } | null;
+  /**
+   * How long this has waited, worked out on the server (FB-241). This component renders in the
+   * browser, where the test clock does not exist, so it is handed the age and never the timestamp.
+   */
+  waitingMs?: number | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -239,7 +245,7 @@ export function WorkDetail({
   // Decided here from what was rendered, and decided AGAIN server-side against what is current —
   // this one gives the founder a reason, the server one makes a stale accept impossible.
   const verdict = acceptability(work, { seenHeadSha: work.headSha, configured: true });
-  const waiting = howLong(work.createdAt);
+  const waiting = waitingMs === null ? null : howLongMs(waitingMs);
   const done = result?.ok || work.merged;
   const checkTone = work.checks === 'failure' || work.checks === 'unavailable' ? 'blocked'
     : work.checks === 'success' ? 'ok' : 'working';

@@ -14,6 +14,7 @@ import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } f
 import { toneColor } from '@/lib/status';
 import { panelState } from '@/lib/read-failures';
 import { workHref, type LastUse } from '@/lib/readings';
+import type { CorpusNote } from '@/lib/brain-corpus';
 import { depositDocument } from '@/app/actions/knowledge';
 import { Mark } from './Mark';
 
@@ -48,8 +49,10 @@ export function KnowledgeView({
   errors,
   routines,
   routineErrors = [],
+  nowMs,
   provenanceMissing = false,
   usedNote = null,
+  findNote = null,
   surfaces,
   departmentNames,
   /** Whether this studio keeps the file itself, or only its text (FB-174). */
@@ -62,6 +65,11 @@ export function KnowledgeView({
   errors: string[];
   routines: Routine[];
   routineErrors?: string[];
+  /**
+   * "Now", from the server (FB-241). Whether a routine has cooled down is decided against it, because
+   * this renders in the browser, where the test clock does not exist.
+   */
+  nowMs: number;
   provenanceMissing?: boolean;
   /**
    * Repository → the surface that owns it, e.g. `arca-ops` → `Scale — Growth & Ops` (FB-181).
@@ -84,6 +92,13 @@ export function KnowledgeView({
    * — a note explaining a state the rows are not in is the badge/destination disagreement again.
    */
   usedNote?: string | null;
+  /**
+   * Whether the team can find every one of these documents when it looks up what the venture knows
+   * (FB-169). A document listed here is not necessarily one the team can find: the venture's index
+   * held two of ARCA's five for a month. Loud when some cannot be found, quiet otherwise — and it
+   * says "we do not know" rather than nothing when there is no check.
+   */
+  findNote?: CorpusNote | null;
 }) {
   const [open, setOpen] = useState<KnowledgeDoc | null>(null);
   const ordered = orderRows(rows);
@@ -184,6 +199,17 @@ export function KnowledgeView({
             </table>
           </div>
 
+          {findNote ? (
+            <p className={findNote.tone === 'attention' ? undefined : 'muted'} data-testid="memory-find-note"
+               data-tone={findNote.tone}
+               style={{
+                 fontSize: 'var(--fs-meta-lg)', maxWidth: 'var(--content-narrow)', marginTop: '0.5rem',
+                 ...(findNote.tone === 'attention' ? { color: toneColor('attention') } : {}),
+               }}>
+              {findNote.tone === 'attention' ? <Mark /> : null}{findNote.text}
+            </p>
+          ) : null}
+
           {usedNote ? (
             <p className="muted" data-testid="memory-used-note"
                style={{ fontSize: 'var(--fs-meta-lg)', maxWidth: 'var(--content-narrow)', marginTop: '0.5rem' }}>
@@ -201,7 +227,7 @@ export function KnowledgeView({
 
       <hr className="hr" />
 
-      <Routines ventureId={ventureId} routines={routines} errors={routineErrors} />
+      <Routines ventureId={ventureId} routines={routines} errors={routineErrors} nowMs={nowMs} />
 
       {open ? <Reader doc={open} onClose={() => setOpen(null)} /> : null}
     </section>
@@ -384,8 +410,8 @@ function Add({ ventureId, keepsOriginals }: { ventureId: string; keepsOriginals:
  * screen answers "what does my venture do on its own", and the screen behind the link is where it is
  * changed. It is also the only route to that screen — the rail has no row for it.
  */
-function Routines({ ventureId, routines, errors }: { ventureId: string; routines: Routine[]; errors: string[] }) {
-  const now = new Date();
+function Routines({ ventureId, routines, errors, nowMs }: { ventureId: string; routines: Routine[]; errors: string[]; nowMs: number }) {
+  const now = new Date(nowMs);
   return (
     <div data-testid="memory-routines">
       <h2 style={{ fontSize: 'var(--fs-h3)', margin: '0 0 0.35rem' }}>What happens without you asking</h2>

@@ -10,6 +10,8 @@ import { rowReason } from '@/lib/ledger';
 import { readThread, appendToThread } from '@/app/actions/threads';
 import { filePlan } from '@/app/actions/file-plan';
 import { handleMcp, readMcpTicket, type McpCaller } from '@/lib/mcp';
+import { toolActor } from '@/lib/venture-access';
+import { oneTicketPlan } from '@/lib/tool-ticket';
 import { studioNow } from '@/lib/when';
 import { loadPipeline } from '@/lib/crm-load';
 import { describePipeline } from '@/lib/crm';
@@ -105,7 +107,7 @@ async function runTool(
   if (name === 'read_ticket') {
     const repo = String(args.repo ?? '');
     const id = String(args.id ?? '');
-    const thread = await readThread(caller.ventureId, repo, id, { email: caller.email, scopedTo: caller.ventureId });
+    const thread = await readThread(caller.ventureId, repo, id, toolActor(caller.ventureId));
     if (!thread.ok) throw new Error(thread.message);
     const messages = thread.thread?.messages ?? [];
     return [
@@ -122,7 +124,7 @@ async function runTool(
     // The same function the ticket screen calls, with the same access check inside it.
     const done = await appendToThread(
       caller.ventureId, repo, id, 'composer', note,
-      { email: caller.email, scopedTo: caller.ventureId },
+      toolActor(caller.ventureId),
     );
     if (!done.ok) throw new Error(done.message);
     return `Added to ${repo} ${id}. It changes nothing on its own — the founder reads it on the ticket.`;
@@ -219,24 +221,26 @@ async function runTool(
   }
 
   if (name === 'file_ticket') {
-    const repo = String(args.repo ?? '');
-    const title = String(args.title ?? '').trim();
-    const body = String(args.body ?? '').trim();
-    if (!title || !body) throw new Error('a ticket needs a title and a body');
+    // A complete one-ticket plan, built and checked here (FB-257). The tool used to hand the filer a
+    // title and a body alone, the filer refused every one as unreadable, and nothing was ever filed.
+    // The venture is the credential's, never an argument; the repository is checked against the
+    // venture's own list inside `filePlan`.
+    const built = oneTicketPlan({
+      ventureId: caller.ventureId, repo: args.repo, title: args.title, body: args.body, now: studioNow(),
+    });
+    if (!built.ok) throw new Error(built.message);
+    const { plan } = built;
     // The same function the composer's confirm button calls, handed an actor instead of a session.
     // `confirmedCount` is 1 because this files exactly one ticket and the count exists to assert that
     // the label and the payload agree — see filePlan's own note on what it is and is not.
-    const done = await filePlan(
-      caller.ventureId, repo,
-      { tickets: [{ title, body }] } as never,
-      1,
-      { email: caller.email, scopedTo: caller.ventureId },
-    );
+    const done = await filePlan(caller.ventureId, plan.repo, plan, 1, toolActor(caller.ventureId));
     if (!done.ok) throw new Error(done.message);
+    const filed = done.filed?.[0];
     return [
-      `Filed into ${repo}: ${title}`,
-      'It starts no work by itself. The team picks it up, and every change it leads to still comes '
-      + 'back to the founder for a decision.',
+      `Filed into ${plan.repo}: ${filed ? `${filed.id} — ` : ''}${plan.tickets[0].title}`,
+      ...(done.url ? [`The pull request the founder merges to accept it: ${done.url}`] : []),
+      'It starts no work by itself. The team picks it up once the founder merges it, and every change '
+      + 'it leads to still comes back to the founder for a decision.',
     ].join('\n');
   }
 

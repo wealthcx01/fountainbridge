@@ -1,8 +1,8 @@
 import { emptyPanel } from '@/lib/firstrun';
-import type { RunReport } from '@/lib/runreports';
+import type { AgedRun, RunReport } from '@/lib/runreports';
 import Link from 'next/link';
 import { collapseRepeats, describeRun, repeatClause } from '@/lib/runreports';
-import { ago } from '@/lib/when';
+import { agoMs } from '@/lib/when';
 import { type Tone } from '@/lib/status';
 import { ReleasePlanButton } from './ReleasePlanButton';
 
@@ -71,7 +71,8 @@ export function EngineActivity({
   hasComposer = true,
   ventureId,
 }: {
-  reports: RunReport[];
+  /** Each run with its age worked out on the server (FB-241) — see `ageMs` in `lib/when.ts`. */
+  reports: AgedRun[];
   total: number;
   engine: { state: string; text: string };
   /** FB-066: a venture with no box has no composer to be told, so the empty state offers no action. */
@@ -128,7 +129,7 @@ export function EngineActivity({
         <ol data-testid="lane-activity-list" className="engine-runs">
           {shown.map((r, i) => {
             const tone = runTone(r);
-            const when = ago(r.endedAt ?? r.startedAt);
+            const when = agoMs(r.ageMs);
             return (
               <li
                 key={`${r.repo}/${r.startedAt}/${i}`}

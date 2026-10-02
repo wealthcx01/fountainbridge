@@ -27,7 +27,7 @@
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
 import { inFounderWords } from './glossary';
-import { studioNow } from './when';
+import { ageMs, studioNow } from './when';
 
 export const STATE_REF = 'foundry-state';
 
@@ -35,6 +35,20 @@ export const STATE_REF = 'foundry-state';
 export type RunOutcome = 'progress' | 'opened-pr' | 'no-useful-work' | 'blocked' | 'awaiting-approval' | 'error';
 
 export type RunTrigger = 'manual' | 'scheduled';
+
+/**
+ * A run report with its age already worked out, on the server, by the studio's one clock (FB-241).
+ *
+ * The desk's run rows render in the browser, where the test clock does not exist. Handing them a
+ * timestamp let them work out "how long ago" against a different clock from the sentence above
+ * them. An age has no clock left to disagree with. Null when the report's time cannot be read.
+ */
+export type AgedRun = RunReport & { ageMs: number | null };
+
+/** Age each run against one "now" — when it finished, or when it started if it has not. */
+export function ageRuns(reports: readonly RunReport[], now: number): AgedRun[] {
+  return reports.map((r) => ({ ...r, ageMs: ageMs(r.endedAt ?? r.startedAt, now) }));
+}
 
 /** A normalised RunReport — the bcap-contracts shape, plus where the studio read it from. */
 export interface RunReport {
@@ -718,8 +732,9 @@ export function repeatClause(repeats: number, read: number, total: number): stri
   return `the same thing ${count(repeats)} times`;
 }
 
-export function collapseRepeats(reports: readonly RunReport[]): Array<RunReport & { repeats: number }> {
-  const out: Array<RunReport & { repeats: number }> = [];
+// Generic so a run carrying extra fields (the desk's `ageMs`, FB-241) keeps them through the merge.
+export function collapseRepeats<R extends RunReport>(reports: readonly R[]): Array<R & { repeats: number }> {
+  const out: Array<R & { repeats: number }> = [];
   for (const r of reports) {
     const last = out[out.length - 1];
     // Same lane, same outcome, same words. `describeRun` is what the row actually prints, so this

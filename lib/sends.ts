@@ -45,7 +45,7 @@
  */
 
 import type { ActiveGraphApproval } from './approvals';
-import { howLong } from './when';
+import { howLongMs } from './when';
 
 /** One send the studio can speak about. */
 export interface Send {
@@ -94,14 +94,19 @@ export const lastSend = (approvals: readonly ActiveGraphApproval[]): Send | null
  *
  * Says what went and when — and says plainly that what happened next is not reported, rather than
  * printing a zero for it. `docs/decision-surface-outcomes.md`'s rule: sourced or silent.
+ *
+ * `sentAgeMs` is how long ago the send went out, worked out by the server (FB-241). This line is
+ * drawn in the browser, where the studio's clock is not the server's, so it must not work the age
+ * out for itself. Null when the time could not be read.
  */
-export function sellOutcome(send: Send | null, ticketCount: number): string {
+export function sellOutcome(send: Send | null, ticketCount: number, sentAgeMs: number | null): string {
   const tickets = ticketCount === 0 ? 'No tickets yet' : `${ticketCount} ticket${ticketCount === 1 ? '' : 's'}`;
   if (!send) {
     return `${tickets}. Nothing has been sent yet — the first send appears here once you approve one.`;
   }
 
-  const when = send.at ? (howLong(send.at) ? `${howLong(send.at)} ago` : 'recently') : 'at an unrecorded time';
+  const span = sentAgeMs === null ? null : howLongMs(sentAgeMs);
+  const when = send.at ? (span ? `${span} ago` : 'recently') : 'at an unrecorded time';
 
   if (send.outcome === 'failed') {
     return `Last send did not go out: ${send.summary} (${when}). Nothing left the building.`;

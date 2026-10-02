@@ -72,7 +72,39 @@ export function howLongMs(ms: number): string | null {
 
 /** When something happened — `3 days ago`. Null when the timestamp cannot be read. */
 export function ago(iso: string, now = studioNow()): string | null {
-  const span = howLong(iso, now);
+  return agoMs(ageMs(iso, now));
+}
+
+/**
+ * How old something is, in milliseconds — for the SERVER to hand to a screen that runs in the
+ * browser (FB-241).
+ *
+ * A component that runs in the browser cannot know "now" the way the server does: `E2E_NOW` does
+ * not exist there, so `ago()` in the browser silently used the real clock. The gate's desk said
+ * "checked in 10 minutes ago" four lines above "72 days ago", about the same machine. So the server
+ * works out the age, where the clock is known, and passes the number down. Null when the timestamp
+ * cannot be read.
+ */
+export function ageMs(iso: string | null | undefined, now = studioNow()): number | null {
+  if (!iso) return null;
+  const at = Date.parse(iso);
+  return Number.isFinite(at) ? now - at : null;
+}
+
+/**
+ * How old a reading is that the studio itself stamped with the real clock — a cache entry's
+ * `fetchedAt`. Aged by that same real clock, because the stamp is a fact about this machine and not
+ * about the venture's records; comparing it with the pinned test clock would mix two clocks in one
+ * subtraction, which is FB-129's bug. Never negative.
+ */
+export function stampAgeMs(stampedAt: number): number {
+  return Math.max(0, Date.now() - stampedAt);
+}
+
+/** `ago`, from an age the server already worked out — `3 days ago`, `just now`. Safe in the browser. */
+export function agoMs(ms: number | null | undefined): string | null {
+  if (ms === null || ms === undefined) return null;
+  const span = howLongMs(ms);
   return span === null ? null : span === 'a few seconds' ? 'just now' : `${span} ago`;
 }
 

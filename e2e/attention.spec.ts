@@ -11,7 +11,11 @@ test('attention queue lists open PRs oldest-first, with preview as the primary l
 
   // 4 open (10, 11, 13, 14), 1 merged excluded. FB-099 added 13 and 14 — the lane's own branch shape,
   // one that matches a ticket by slug and one that matches nothing at all.
-  await expect(page.getByTestId('attention-count')).toHaveText('4');
+  await expect(page.getByTestId('attention-queue').locator('[data-testid^="approval-arca#"]')).toHaveCount(4);
+  // FB-149: the count is finished work AND the sends waiting on a founder, and both are listed.
+  const sends = await page.getByTestId('attention-sends').locator('article').count();
+  expect(sends).toBeGreaterThan(0);
+  await expect(page.getByTestId('attention-count')).toHaveText(String(4 + sends));
   // FB-024: plain-language copy, no git jargon ("open PR"/"the workshop never merges").
   await expect(page.getByText('Nothing goes live until you approve it.')).toBeVisible();
   const queue = page.getByTestId('attention-queue');
@@ -40,8 +44,38 @@ test('attention queue lists open PRs oldest-first, with preview as the primary l
 
 test('nav shows the attention badge count', async ({ page }) => {
   await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.goto('/attention');
+  const listed = (await page.getByTestId('attention-count').textContent())?.trim();
   await page.goto('/');
-  await expect(page.getByTestId('nav-attention-badge')).toHaveText('4');
+  await expect(page.getByTestId('nav-attention-badge')).toHaveText(listed!);
+});
+
+/**
+ * FB-149's last criterion. An admin's header leads here, and this page listed finished work only —
+ * so on the UI gate's fixtures it said 4 while ARCA's desk said 10. ARCA is the only venture with
+ * fixture work and sends, so its desk's number is the whole page's number.
+ */
+test('an admin reads one number in the header, on this page and on the desk', async ({ page }) => {
+  await testLogin(page, 'john.gallagher@wealthcx.com');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/venture/arca');
+  const summary = (await page.getByTestId('desk-summary').textContent()) ?? '';
+  const onDesk = summary.match(/(\d+)\s+decisions?\s+waits?\s+on you/)?.[1];
+  expect(onDesk, `the desk's sentence states no count: "${summary}"`).toBeDefined();
+
+  // The phone, where the header is the only "Needs you" there is.
+  await page.setViewportSize({ width: 393, height: 851 });
+  await page.goto('/venture/arca');
+  await expect(page.getByTestId('nav-attention-badge')).toHaveText(onDesk!);
+  await page.getByTestId('topnav').getByRole('link', { name: /Needs you/ }).click();
+  await expect(page).toHaveURL(/\/attention$/);
+  await expect(page.getByTestId('attention-count')).toHaveText(onDesk!);
+
+  // A send is listed as one, and leads to its own page — never an approve button here (FB-183).
+  const send = page.getByTestId('attention-sends').locator('article').first();
+  await expect(send).toContainText('send');
+  await expect(send.locator('a').first()).toHaveAttribute('href', /^\/venture\/arca\/approvals\//);
+  await expect(page.getByTestId('attention-sends').getByRole('button')).toHaveCount(0);
 });
 
 test('open PR moves its ticket to "Needs your OK" (status inference)', async ({ page }) => {

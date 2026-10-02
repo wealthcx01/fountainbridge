@@ -9,7 +9,7 @@ import type { DepartmentSummary } from '@/lib/ventures';
 import type { ActiveGraphApproval } from '@/lib/approvals';
 import type { PrApproval } from '@/lib/attention';
 import { STATUS_LABEL } from '@/lib/glossary';
-import { ago } from '@/lib/when';
+import { agoMs } from '@/lib/when';
 import { emptyPanel } from '@/lib/firstrun';
 import { laneErrorTone, toneColor } from '@/lib/status';
 import { ticketProgress } from '@/lib/ticket-progress';
@@ -29,7 +29,7 @@ import { sendSurface, sendsWaitingOnFounder } from '@/lib/needs-you';
 import { EngineActivity } from './EngineActivity';
 import { WhileWorking } from './WhileWorking';
 import type { Brief } from '@/lib/brief';
-import type { RunReport } from '@/lib/runreports';
+import type { AgedRun } from '@/lib/runreports';
 import { Mark } from './Mark';
 
 // FB-048: the founder's three owned surfaces. Plain-language gate labels (FB-024) — the founder sees
@@ -105,6 +105,7 @@ export function VentureBoard({
   lanes,
   departments = [],
   approvals = [],
+  lastSendAgeMs = null,
   budgets = [],
   budgetsError = null,
   brief = null,
@@ -121,7 +122,7 @@ export function VentureBoard({
   orphanEnvelopes = [],
   staleRepos = [],
   totalWarnings,
-  fetchedAt,
+  fetchedAgeMs,
   org,
   openWork = {},
   openWorkQueue = [],
@@ -139,6 +140,8 @@ export function VentureBoard({
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
+  /** How long ago the last send went out, worked out on the server (FB-241). */
+  lastSendAgeMs?: number | null;
   budgets?: (BudgetDisclosure | null)[];
   /** Finished work waiting to be read, newest-waiting first — the desk's section 7 (FB-128). */
   openWorkQueue?: PrApproval[];
@@ -169,7 +172,8 @@ export function VentureBoard({
   /** The office's live socket on the venture's box, for the desk's own check (FB-198). */
   officeSocket?: string | null;
   /** What the agent lanes did, newest first (FB-042). */
-  runs?: RunReport[];
+  /** Each with its age worked out on the server (FB-241): this component renders in the browser. */
+  runs?: AgedRun[];
   runsTotal?: number;
   /** `ageMinutes` since FB-098: a card can only say "picked up 12 minutes ago; last checked in 2
    *  minutes ago" if the real check-in travels with the state. */
@@ -187,7 +191,8 @@ export function VentureBoard({
   orphanEnvelopes?: string[];
   staleRepos?: string[];
   totalWarnings: number;
-  fetchedAt: number;
+  /** How old the data on this page is, worked out on the server (FB-241). */
+  fetchedAgeMs: number;
   org: string;
   /**
    * The work waiting on each ticket, keyed `"<repo> <id>"` — the same key the status inference uses
@@ -306,7 +311,7 @@ export function VentureBoard({
               studio introducing someone to themselves. The manifest is right; this is presentation. */}
           {venture.founderName ? <>Founder: {viewerIsFounder ? 'you' : venture.founderName} · </> : null}
           {/* FB-068: "3:05:32 PM" was a clock reading, not an answer to "is this current?". */}
-          <span>updated {ago(new Date(fetchedAt).toISOString()) ?? 'just now'}</span> ·{' '}
+          <span>updated {agoMs(fetchedAgeMs) ?? 'just now'}</span> ·{' '}
           <Link href={`/venture/${venture.id}?refresh=1`} className="mono" data-testid="refresh">
             refresh
           </Link>
@@ -636,6 +641,7 @@ export function VentureBoard({
                         provisioned: d.provisioned,
                         // FB-142: from the sends this venture has already gated. No new read.
                         lastSend: d.id === 'sell' ? lastSend(approvals) : null,
+                        lastSendAgeMs,
                         connectors: d.connectors,
                       })}
                       {/* Policy belongs in the handbook; this one is not policy, it is a caution

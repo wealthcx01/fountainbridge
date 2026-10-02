@@ -884,3 +884,142 @@ fixture data: the composer is **1,000px** at 1440×1000 and **1,169px** at 393×
 nothing scrolls sideways. A browser test (`e2e/voice.spec.ts`) now draws the record button in the UI
 gate, using the test transcriber. The hosted design artifact was not opened: it needs a signed-in
 claude.ai session, and this review had none. Its composer has no record button to compare against.
+
+## FB-150 — the text boxes get their border back, 2026-10-02
+
+Read on a local build with the UI gate's fixture data, not production, before and after the change,
+at 1440×1000 and 393×851. Before: the composer's text box had no border and no background of its
+own — an unmarked strip on the page. After: it has the studio's 1px border and its raised paper
+background, like the cards beside it. The same fix gives a border back to the folded-away ticket
+draft, the lines of the plan panel, and the full record on a piece of work.
+
+Heights after (before in brackets): composer, empty, **1,000px** (1,000) at desktop and **1,284px**
+(1,282) on a phone; composer with the draft open **1,295px** (1,291) and **2,391px** (2,387); composer
+with a plan **1,227px** (1,225) and **2,546px** (2,539); a piece of work with its record open
+**2,136px** (2,134) and **4,179px** (4,177). Each grows by its new borders and nothing else. The
+hosted design artifact was not opened for this reading: the change restores what the components
+already asked for and changes no layout, and the ticket rules a different look out of scope.
+
+**Taken again after review, 2026-10-02, on real data beside the design.** Read on ARCA's real data,
+signed in as its founder, on a local build of this branch pointed at the real GitHub data (the
+method at the top of this file), beside the Claude Design artifact rendered from its saved page and
+clicked through ("Continue with Google", then the desk and "The pocket studio"). Looked at as
+pictures at 1440×1000 and 393×851.
+
+- Composer, empty: **1,000px** at desktop and **1,195px** on a phone. No sideways scroll. The text
+  box has a 1px border and the raised paper background (the browser drew `solid 1px #dddbd6` on
+  `#fdfcfa`).
+- A piece of work (ARCA pull request 93) with its full record open: **3,550px** and **7,218px**. No
+  sideways scroll. The record has its border and background. It is long because that record is long:
+  the founder asked to see all of it, and before that it is folded away.
+- The composer with a ticket draft open, and with a plan proposed, could not be drawn on real data.
+  Those states need the composer's conversation service, which runs on the venture's box and not on
+  a local build. They were drawn on fixtures only (the heights above).
+
+What the comparison found: the design draws its "Tell the studio what you want" box with the same
+shape — a 1px solid line around a pale box — but with the **darker** line, `#b9b6ae`, which is our
+`--color-border-strong`. Ours now uses `--color-border` (`#dddbd6`), as the ticket asked. So the box
+is back, but its line is lighter than the design's. The ticket rules a different look out of scope,
+so this is left as a follow-up, not changed here. Two things seen that this change did not cause:
+the design's composer puts Send inside the box, where ours puts it underneath; and on a phone the
+full-page capture draws the top bar part-way down the composer, which is how a full-page screenshot
+shows a bar that stays at the top while you scroll.
+
+## FB-241 — every time on the desk from one clock, 2026-10-02
+
+Read on a local build with the UI gate's fixtures and its pinned clock (`E2E_NOW`), signed in as
+John, before and after the change. Both were looked at as pictures.
+
+**Before:** the desk said *"Your team checked in 10 minutes ago"* above run rows reading *"72 days
+ago"*, an office ledger reading *"· 72 days"*, a waiting row reading *"waiting 79 days"* and a
+banner saying *"the oldest piece of work has waited 79 days"*. Five times, two clocks. The page was
+**2,324px** at 1440×1000 and **2,658px** at 393×851.
+
+**After:** the rows read *"10 minutes ago"*, *"1 hour ago"*, *"2 hours ago"*, *"5 hours ago"*; the
+ledger *"· 10 minutes"*; the waiting row and the banner both *"7 days"*. Every time on the page now
+agrees with the sentence above it. **2,342px** at 1440×1000 — 18px taller, because *"10 minutes
+ago"* wraps onto two lines in the run list's narrow first column where *"72 days ago"* fitted (filed
+as FB-262) — and **2,658px** at 393×851, unchanged. The phone desk does not show the run list; its
+two times, the banner and the waiting row, both say 7 days.
+
+Not compared with the design artifact (it needs a signed-in claude.ai session, which this run did
+not have), and not read on production: `E2E_NOW` is never set there, and on 2026-09-30 ARCA's real
+rows were already seen agreeing with the check-in sentence beside them.
+
+**After review, 2026-10-02.** The Sell line in "The company, by surface" was the one time left on
+the desk worked out in the browser. Under the gate's pinned clock it now says *"Last send went out 3
+days ago"*: the fixture's send went out on 18 July and the pinned "now" is 22 July. Before, the
+browser used the real clock and would have said about 76 days. Read on a local build with the gate's
+fixtures, signed in as John, and looked at as pictures: **2,342px** at 1440×1000 and **2,658px** at
+393×851, both unchanged. The phone desk does not show the surfaces, so the Sell line is not on it.
+
+Compared with the design this time. The artifact's page was read through the studio's artifact tool
+and rendered locally with Playwright, signed in through "Continue with Google". Its desk is
+**1,922px** at 1440×1000; ours is **2,342px**, 420px taller. The extra height is three things the
+design does not have: the "2 tickets are stuck" banner, the fixture's red warning that the venture's
+composer key is missing, and longer surface lines. The order of the sections matches. Every time in
+the design agrees with the others (*"2 minutes"*, *"3 days"*), and every time on ours now does too.
+The design has no phone layout for the desk: at 393×851 it squeezes the desktop page into a narrow
+column, 7,115px tall, so there is nothing to compare our phone desk against. Its phone screen is the
+pocket studio.
+
+Still not read on production. The ticket says so.
+
+## FB-149 finished for an admin — the cross-venture "Needs you", 2026-10-02
+
+Signed in as an admin (John), local build of this branch. On the UI gate's fixtures, `/attention` is
+**1,366px** at 1440×1000 and **2,182px** at 393×851; ARCA's desk is **2,324px** and **2,658px**. On
+ARCA's real data (the same repositories production reads), `/attention` is **1,458px** and
+**2,299px**; the desk is **1,984px** and **2,548px**. Nothing scrolls sideways at either size.
+
+The header badge, the page's number and ARCA's desk sentence all say **10** on both. Before this
+branch, on the fixtures, the header and the page said 4. On real data ARCA has no send waiting, so
+the ten are finished work and the page looks as it did, with the same number.
+
+Looked at as pictures. On the fixtures the six sends sit first under "About to leave a company",
+each with a "send" tag, its venture, "Sell — Go-to-market" and its state; the four pieces of
+finished work follow under "Finished work, oldest first". On a phone each row wraps to three or four
+short lines and nothing is cut off. Not compared with the Claude Design artifact: the design has no
+cross-venture page (its rail reaches Tickets, What happened, Memory, Handbook and the pocket studio),
+so there is nothing to put beside it. The live side is a local build on real data, not production —
+this session cannot sign in to production as an admin.
+
+## FB-169 — the Memory screen says which documents the team cannot find, 2026-10-02
+
+One sentence was added under the Memory table. Read two ways, on a local build of this branch,
+signed in as ARCA's founder, landing on `/venture/arca/knowledge` both times:
+
+- **ARCA's real data** (a GitHub access key read from this machine, so it reads what production
+  reads). The box does not write the new record yet, so the sentence says "Nothing checks yet
+  whether your team can find every document here…". **1,187px** at 1440×1000 and **2,239px** at
+  393×851. No sideways scroll.
+- **The UI gate's fixture**, which has a record saying one of four documents cannot be found. The
+  sentence is in the warning colour and names it: "Your team cannot find 1 document of your 4 …
+  It is: Set naming decision." **1,060px** at 1440×1000 and **1,878px** at 393×851. No sideways
+  scroll.
+
+The sentence adds two lines on a desktop and four on a phone. The real-data heights are above the
+scorecard's 1,096 / 1,988 because ARCA now has five documents with longer titles, not because of
+this sentence.
+
+Compared with the design: a saved copy of the Claude Design artifact, opened in a browser, signed in
+with "Continue with Google" and clicked to Memory. It is **1,000px** at 1440×1000 and **2,103px** at
+393×851. Looked at as pictures, side by side. The design has no such sentence; its table answers a
+related question per row ("Not cited yet"). The new sentence sits where the screen's other notes
+already sit, under the table and above "What happens without you asking", in the same small type.
+The saved copy is from 2026-10-02 01:16; the hosted artifact itself was not reopened.
+
+**After review, 2026-10-02.** The sentence can now add one more clause: how many documents in the
+table the check does not count (another surface's documents, or a folder's own README). Rendered on
+a local build of the branch, signed in as ARCA's founder, landing on `/venture/arca/knowledge`:
+
+- **The UI gate's fixture, unchanged:** **1,060px** at 1440×1000 and **1,878px** at 393×851, the
+  same as before review. The new clause does not appear, because every listed document is checked.
+- **The fixture plus one folder README** (`context/sell/README.md`), to see the new clause: **1,175px**
+  and **2,090px**. Most of the extra height is the README's own row and the "could not be read just
+  now" note it brings. The clause adds one line on a desktop and two on a phone. No sideways scroll.
+  The wording was then shortened to "One more document listed above is not part of this check…"; that
+  final wording was checked by the unit tests, not re-rendered.
+
+ARCA's real data was not re-rendered: with no record from the box yet, it shows the "Nothing checks
+yet" sentence, which this change does not touch. The design was not reopened for this pass.

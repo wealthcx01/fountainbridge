@@ -1,6 +1,6 @@
 # FB-149 — "Needs you" counts one thing in the rail and another on the desk
 
-**Status:** Shipped in part · **Area:** Studio / attention · **Depends on:** FB-129
+**Status:** Done · **Area:** Studio / attention · **Depends on:** FB-129
 
 ## What happens
 
@@ -33,9 +33,9 @@ has nowhere to land.
 
 ## Acceptance criteria
 
-- [ ] The badge, the desk's sentence, the banner and the destination page all state the same number.
-      True for a founder. Not yet for an admin: their header leads to the cross-venture page,
-      which lists finished work only, so it can say 4 over a desk that says 10.
+- [x] The badge, the desk's sentence, the banner and the destination page all state the same number.
+      True for a founder since 2026-10-01. True for an admin since 2026-10-02: the cross-venture
+      page their header leads to now counts and lists waiting sends too (see below).
 - [x] The destination lists external actions awaiting the gate as well as finished work.
 - [x] A test asserts the badge and its destination's own count cannot differ.
       *(`lib/__tests__/needs-you.test.ts` runs the rail's own loader over the UI gate's fixtures and
@@ -95,5 +95,36 @@ Both now agree with the list.
 - A test compared the shared count with the rail, which uses the same count, so it could never fail.
   It now reads the desk and Tickets pages themselves; breaking either one turns it red.
 
-**Shipped in part:** an admin's "Needs you" header leads to the cross-venture page, which does not
-list sends yet, so for an admin the header and the desk can still differ.
+## Finished for an admin, 2026-10-02
+
+**What was left.** Someone who can see several ventures (an admin) has a header "Needs you" that
+leads to the cross-venture page, `/attention`. That page listed finished work only, and the header
+counted finished work only. So on the UI gate's fixtures it said 4 while ARCA's desk said 10.
+
+**What changed.** The cross-venture page now lists the sends waiting on a founder as well as
+finished work. Sends come first, under "About to leave a company", each labelled "send", naming its
+venture and its part of the company, and saying its state ("waiting for your yes", "tried and did
+not go", or "recorded as approved by nobody the studio can name"). Each one links to the send's own
+page. There is no approve button on this page — the send's own page is still the only place a send
+is decided (FB-183). Finished work follows, oldest first, as before.
+
+**One number.** The page's number, and the admin's header badge, are now worked out by one new
+loader, `lib/needs-you-load.ts`. It asks each venture the same question its desk asks — open pull
+requests plus the sends the shared rule in `lib/needs-you.ts` picks out — and adds the answers up.
+So the cross-venture number is the sum of the desks' numbers. When more than one venture has
+something waiting, the page also prints each venture's own number under the heading, so an admin
+can match it to that venture's desk.
+
+**When a venture's sends cannot be read,** the page says so in a box below the list, and that the
+number may be too low. It does not quietly count them as none.
+
+**What it looks like.** On the fixtures, signed in as an admin: header 10, page 10, ARCA's desk 10.
+On ARCA's real data (a local build reading the same repositories production reads): header 10,
+page 10, desk 10 — ARCA has no send waiting today, so all ten are finished work. Heights are in
+`docs/design-conformance.md`.
+
+**Tests.** `lib/__tests__/needs-you.test.ts` runs the page's own loader on the fixtures and checks
+its number equals the sum of every venture's rail number, that every send it counts is listed, that
+an unreadable venture is named, and that a founder sees only their own venture. Each was broken on
+purpose and went red. `e2e/attention.spec.ts` checks, on a phone, that an admin reads the desk's
+number in the header and on the page the header leads to.

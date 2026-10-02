@@ -59,35 +59,44 @@ describe('what the Sell surface says', () => {
   it('says what went and when, and says the rest is NOT reported', () => {
     // Sourced or silent. Two thirds of the design's line cannot be obtained from the Gmail API
     // without a read scope or a tracking pixel, and inventing them is the one thing forbidden here.
-    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update to 41 signups', at: now, outcome: 'sent' }, 3);
+    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update to 41 signups', at: now, outcome: 'sent' }, 3, 3_600_000);
     expect(line).toContain('September update to 41 signups');
     expect(line).toContain('not reported');
   });
 
   it('never prints a number the studio does not have', () => {
-    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update', at: now, outcome: 'sent' }, 3);
+    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update', at: now, outcome: 'sent' }, 3, 3_600_000);
     expect(line, 'a delivered/opened/replied count appeared from nowhere').not.toMatch(/\b\d+ (delivered|opened|replied)/);
     expect(line).not.toMatch(/\b0 /);
   });
 
   it('leads with a failure rather than burying it', () => {
-    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update', at: now, outcome: 'failed' }, 3);
+    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update', at: now, outcome: 'failed' }, 3, 3_600_000);
     expect(line).toMatch(/^Last send did not go out/);
     expect(line).toContain('Nothing left the building');
   });
 
   it('says when a send went out on an approval it cannot verify', () => {
-    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update', at: now, outcome: 'unverified' }, 3);
+    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'September update', at: now, outcome: 'unverified' }, 3, 3_600_000);
     expect(line).toContain('cannot verify');
   });
 
   it('invites a first send rather than reporting nothing', () => {
-    expect(sellOutcome(null, 0)).toContain('Nothing has been sent yet');
-    expect(sellOutcome(null, 3)).toContain('3 tickets');
+    expect(sellOutcome(null, 0, null)).toContain('Nothing has been sent yet');
+    expect(sellOutcome(null, 3, null)).toContain('3 tickets');
+  });
+
+  it('says the age the server worked out, not one of its own (FB-241)', () => {
+    // This line is drawn in the browser, where the pinned test clock does not exist. If it worked
+    // the age out from `at` it would say "a year ago" in the gate beside "10 minutes" elsewhere.
+    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'x', at: '2020-01-01T00:00:00Z', outcome: 'sent' }, 1, 3 * 86_400_000);
+    expect(line).toContain('3 days ago');
+    const unreadable = sellOutcome({ id: 'a1', repo: 'r', summary: 'x', at: 'not a date', outcome: 'sent' }, 1, null);
+    expect(unreadable).toContain('recently');
   });
 
   it('does not guess a time it does not have', () => {
-    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'x', at: null, outcome: 'sent' }, 1);
+    const line = sellOutcome({ id: 'a1', repo: 'r', summary: 'x', at: null, outcome: 'sent' }, 1, null);
     expect(line).toContain('unrecorded time');
   });
 });

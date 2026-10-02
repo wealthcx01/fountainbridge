@@ -8,6 +8,7 @@ import { githubWorkSource, loadWork } from '@/lib/work-load';
 import { fixtureWorkSource } from '@/lib/work-fixture';
 import { WorkDetail } from '@/components/WorkDetail';
 import { VentureForbidden } from '@/components/VentureForbidden';
+import { ageMs } from '@/lib/when';
 
 /**
  * One piece of work, inside the studio (FB-064).
@@ -67,7 +68,7 @@ export default async function WorkPage({
       <p style={{ fontSize: 'var(--fs-body-sm)' }}>
         <Link href={`/venture/${id}`} data-testid="work-back">← Back to {venture.name}</Link>
       </p>
-      <WorkDetail ventureId={id} work={work} launch={launch} />
+      <WorkDetail ventureId={id} work={work} launch={launch} waitingMs={ageMs(work.createdAt)} />
     </>
   );
 }
