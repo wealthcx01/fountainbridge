@@ -28,6 +28,28 @@ Fountainbridge is therefore **not** a Bruntsfield-wide operations dashboard (Hol
 
 **D1 — One VPS per venture, from day one.** Each venture gets its own Hetzner VPS running the workshop stack (Claude Code, tmux lanes, gstack, gbrain). **Both the human founder and John get SSH access.** Isolation is physical; venture secrets never share a box. Provisioning is a runbook that becomes a script (FB-011).
 
+> **D1 amendment (2026-10-02, PR FB-239; D11 in `docs/architecture-replan-2026-09.md`, ruled by
+> John):** each venture keeps its own persistent VPS, but **the work on a ticket may run on a
+> temporary machine made for that ticket and removed afterwards.** The persistent VPS keeps what
+> holds state — the approval record, the venture brain, the office, the composer. John's three
+> rulings, which bind this:
+>
+> 1. **Railway.** Ticket machines run on Railway, one environment per ticket in a project kept for
+>    them. Hetzner stays as a second provider behind the same interface, off unless chosen.
+> 2. **Only the studio makes machines.** The studio holds the one provider token. A venture's lane
+>    may only *ask* the studio for a machine for one of its own tickets; the studio checks, on the
+>    server, that the request is from that venture and for that venture's ticket, and the machine
+>    receives that venture's credentials and no other's. No venture box or ticket machine ever holds
+>    a provider key. This is how isolation survives the move from physical to logical: it is proved
+>    by a test that tries to cross ventures and fails (`lib/__tests__/machine-service.test.ts`).
+> 3. **A monthly budget per venture, approved once by John,** recorded as a signed approval the
+>    studio verifies before every machine. At the budget no machine is made and the founder is told
+>    plainly. No per-ticket approval.
+>
+> So "isolation is physical" now reads: **a venture's persistent box is physical; its ticket machines
+> are isolated by the studio, one venture's credentials per machine, and by Railway, one environment
+> per ticket.** Venture secrets still never share a machine.
+
 **D2 — Git stays under Bruntsfield's existing GitHub.** Venture repos live in the existing org. **The human founder creates their own GitHub account** and is added as a collaborator; they can build to the repo directly. The repo is the source of truth — tickets as markdown in `docs/tickets/`, one ticket = one branch = one PR, dashboard reads/writes via the GitHub API. No new database of record for work.
 
 **D3 — Gates: PRs for engineering; ActiveGraph for external actions; venture domains for sending (DECIDED — see `docs/research-gtm.md`).** Engineering keeps the proven gate (PR review, never-self-merge). External actions (email, social, CRM, payments) gate on **ActiveGraph** — its event-sourced `approval.proposed`/`approval.granted` log is exactly the audit record PECR/GDPR accountability wants. FB-012's verified findings overturned one v2 assumption: **agents never send from the founder's personal Gmail** (restricted-scope/CASA burden, weekly token death on unverified apps, ~500–2,000/day caps, founder's identity as blast radius). Sending runs on **venture-owned Google Workspace domains** (internal-app OAuth exemption; SPF/DKIM/DMARC from day one; outreach on a subdomain). The founder's Gmail remains their *login identity* for the studio (D4) and their human mailbox — nothing more. **Ratified stance (John): outreach is interest-based only — cold outreach is de-scoped entirely.** Agents email only people who have flagged interest (ad response, waitlist, signup, enquiry, event registration), which puts every send on consent / soft-opt-in ground under PECR and makes B2C email fully lawful. Sending streams split by type: **1:1 replies to flagged interest** go from the founder's venture address on the primary domain (agent-drafted, gated — these are personal emails and should look like it); **bulk/lifecycle/newsletter** goes from a dedicated subdomain (e.g. `mail.thereset.com`) so the apex domain's reputation is never exposed to volume sends. B2B partner outreach (corporate subscribers) stays lawful under the same gate with LIA/suppression discipline. LinkedIn is agent-drafted, human-sent only. Every send is a recorded approval event: recipient classification + interest source, lawful basis, suppression check, exact draft, approver, timestamp, sending identity.

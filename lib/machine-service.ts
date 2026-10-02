@@ -331,8 +331,8 @@ export async function reapAll(deps: MachineDeps, header: string | null): Promise
       failed += r.failed;
       for (const k of r.kept) if (k.machine) accounted.add(k.machine.id);
     } catch (e) {
-      // One venture that cannot be read must not leave the others' machines running.
-      failed += 1;
+      // A venture that cannot be read means its working machines cannot be told apart from forgotten
+      // ones, so the provider-wide sweep below must not run on this pass.
       log(`clean-up could not read ${v.id}: ${(e as Error).message}`);
       return { status: 500, body: { error: 'could not read every venture, so unaccounted machines were left for the next pass', removed } };
     }

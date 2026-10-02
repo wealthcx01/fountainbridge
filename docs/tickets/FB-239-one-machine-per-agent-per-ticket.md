@@ -5,75 +5,43 @@ railway per pixel agent, per ticket that is being worked, with the right skills 
 ticket? and we should be able to see what skills each worker used"* · **Depends on:** FB-228, FB-231 ·
 One ticket = one branch = one PR.
 
-> **Shipped in part.** PR #296 landed **the ruling only** — a character means a piece of work, helpers
-> invisible — and closed design gap 3 with it. **None of the build has started**, and it deliberately
-> cannot until the preview link arrives (FB-228, FB-230) and the office can see a worker that is not on
-> the venture's machine (FB-231).
->
-> Recorded this way rather than left at `filed`, because the commit that carried the ruling names this
-> ticket and `ticket-drift` is right to notice. A decision landing is not the work landing.
+**Shipped in part:** the studio can make, hand work to, and remove a temporary Railway machine for one ticket, within a monthly budget John approves, and venture isolation is tested — but it is switched off, no real machine has ever been made, the office cannot yet draw a worker on one (FB-231 item 3), and the running preview waits on FB-230. Switching it on needs John (`docs/ticket-machines.md`, "Switching it on").
 
-## Shipped 2026-10-02: the machine itself — made, given only what it needs, and always destroyed
+## Where this stands
 
-**Shipped in part:** the temporary machine is built and proved against a stand-in provider, but no real machine has ever been made, the office cannot yet draw a worker on one (FB-231 item 3), and the isolation test D11 requires has not been written. Switching it on needs a Hetzner token and a spending cap from John (`docs/ticket-machines.md`).
+Two pull requests carry this ticket's history.
 
-**What was built.** When the venture's lane picks a ticket and `TICKET_MACHINES=on`, it no longer works
-the ticket in place. It makes a machine for that ticket, sends it only the lane's scripts and this
-venture's credentials over a key made for that one run, runs the same `supervisor.sh` there, brings
-back whether the run finished, which guides it followed and its session list, and destroys the machine.
-It is **off by default**, so nothing on any venture changes until someone switches it on.
+- **PR #296** landed the ruling only: a character in the office means a piece of work, and the
+  helpers a worker starts are never drawn. It closed design gap 3.
+- **PR #350** builds the machine. Its first version put the machine on Hetzner and had each venture's
+  own box make it. An independent review found that unsafe — the box would have held a key able to
+  reach every venture's server — and found that a machine failing during set-up was reported as a
+  success. John then ruled on how it must work (below), and PR #350 was reworked to those rulings.
 
-| file | what it does |
-| --- | --- |
-| `deploy/lane/machine-lib.mjs` | the lifecycle, the caps and the clean-up, with no network in it |
-| `deploy/lane/machine-hetzner.mjs` | the Hetzner provider: create, wait, list ours, destroy |
-| `deploy/lane/machine-ssh.mjs` | a key per run; files and credentials go over the connection, never a command line |
-| `deploy/lane/ticket-machine.mjs` | `run` (called by `run-once.sh`) and `reap` (called by the timer) |
-| `deploy/lane/worker-run.sh` | what runs on the machine: fetch the one repo, run the supervisor, write the result |
-| `deploy/lane/foundry-ticket-reaper.{service,timer}` | the clean-up job, every ten minutes |
-| `docs/ticket-machines.md` | why Hetzner, the cost per run, and the three things that switch it on |
+This ticket was first written to be built last, after the preview link (FB-228, FB-230) and an
+office that can see a worker off the box (FB-231). The machine itself does not need either, so it is
+built now and **left switched off**. The office and the preview are still needed before it is worth
+switching on for a founder, and they are listed below as what is left.
 
-**Why it cannot be left running.** Three separate things end a machine: the run destroys it whatever
-happens (and finds it by label if the create reply was lost); the machine switches itself off at its
-deadline; and the clean-up job asks Hetzner — not a file — for every ticket machine and destroys each
-one past its deadline. A machine lives at most about three hours.
+## RULED by John, 2026-10-02: Railway, only the studio makes machines, a monthly budget per venture
 
-**Why Hetzner.** The venture machines are already there (D1), the lane needs a whole machine rather than
-an app container, and Hetzner bills by the hour and stops when the machine is deleted. A typical
-ticket costs one to two euro cents of machine time; the budget counts every run at its worst case of
-six cents, with a default cap of €1.00 a day.
+1. **Provider: Railway.** Each ticket's temporary machine runs on Railway, as John first asked and as
+   D11 in `docs/architecture-replan-2026-09.md` says. The Hetzner code stays as a second provider
+   behind the same interface, off unless chosen.
+2. **Only the studio creates machines.** No venture's machine or box ever holds a provider key that
+   could touch another venture (D1, non-negotiable 6). The studio, which Bruntsfield controls, holds
+   the one provider token and makes and removes machines. A venture's lane may only *ask* the studio
+   for a machine for one of its own tickets; the studio checks, on the server, that the request is
+   from that venture and for that venture's ticket, and gives the machine only that venture's
+   credentials. The request endpoint is treated as a public endpoint and checks everything itself.
+   The cross-venture isolation test D11 requires is part of this ruling.
+3. **Spending: a monthly cap per venture that John approves once.** The studio refuses to make a
+   machine unless the venture has a monthly budget John approved, recorded as a signed approval the
+   studio can verify and a lane cannot forge. Spend so far this month is kept per venture in the
+   studio's database, under the same forced row-level security as every other table. At the cap no
+   machine is made and the founder is told plainly. No per-ticket click.
 
-**Tested against a stand-in, not a real account.** 39 tests: a whole run; a crash mid-run, a failed
-delivery, a lost create reply and a run that leaves no result all still end with the machine destroyed;
-a run killed outright is caught by the clean-up job once past its deadline and not before; the
-clean-up never touches a machine without the ticket-machine label; two tickets at once get two
-machines and neither receives the other's token or files; no secret is put in the start-up script the
-provider keeps.
-
-## The shape John is describing
-
-One ticket, one temporary machine, one character in the office, the right skills loaded for that kind of
-work, and afterwards a link to the result and a record of what the worker used.
-
-**It is the right shape.** It makes the office an honest picture of the company rather than of the runtime,
-it stops tickets contaminating each other, and it answers "what is happening right now" with something a
-founder can actually look at.
-
-## What has to be true first, and none of it is optional
-
-Three things, all already written up, and this ticket is the one that assembles them:
-
-1. **A preview link that arrives** (FB-228, FB-230). Currently blocked on a single GitHub permission. Without
-   it a temporary machine produces work nobody can see, which is worse than working on the box.
-2. **An office that can see a worker that is not on the box** (FB-231). Today the office draws a character
-   per Claude transcript **file on the venture's own machine**. A worker on a temporary machine writes its
-   transcript there, so it would be **invisible** — and the office would show an empty room while work was
-   happening. That is worse than the crowded room FB-218 just fixed.
-3. **A record of what a worker loaded** (FB-231). The office stores eight facts per character and the run
-   report stores nine; neither has room for skills. It is not hidden, it is **never written down**.
-
-**So this ticket is deliberately last.** Doing it first would break the one screen that tells a founder the
-factory is alive.
+The phased plan's D1 now carries these rulings as an amendment (`docs/fountainbridge-phased-plan.md`).
 
 ## RULED by John, 2026-09-30: one machine and one character per ticket, helpers invisible
 
@@ -83,25 +51,61 @@ So a character means **a piece of work**, not an agent and not a department. A w
 subagents shows **one** character, because eight would make the room a picture of how the runtime
 parallelised rather than of what the company is doing — the objection FB-218 raised.
 
-Three consequences, and they are what this ticket builds to:
-
 - **The unit is the ticket.** One temporary machine, one character, one preview link, one entry in the
   record. Anything the worker spawns inside itself is its own business and is never drawn.
 - **FB-218's bound still has to hold.** A character appears while its ticket is being worked and is gone
-  when it stops. That is easier under this ruling than the old one, because there is one thing to track
-  per ticket rather than a fluctuating count of subagents.
-- **This closes design gap 3.** `docs/design-gaps-open.md` asked whether a figure means an agent, a
-  department or a piece of work. It means a piece of work. The gap moves to Closed with this date.
+  when it stops.
+- **This closed design gap 3** (`docs/design-gaps-open.md`): a figure means a piece of work.
+
+## What was built (PR #350, reworked 2026-10-02)
+
+When a venture's lane picks a ticket and temporary machines are switched on, the lane asks the studio
+for a machine. The studio checks the request, the venture's budget and the month's spend, makes a
+Railway environment for that one ticket, and starts it. The machine collects that venture's work from
+the studio once, runs the same `supervisor.sh` the venture's box runs, tells the studio how far it got,
+and is removed. How it works, what it costs and how to switch it on are in `docs/ticket-machines.md`.
+
+| file | what it does |
+| --- | --- |
+| `lib/ticket-machines.ts` | the rules: costs, keys, what a lane may ask, what a machine is given, how a run ended |
+| `lib/machine-service.ts` | the five things the studio answers: ask, check, collect, finish, clean up |
+| `lib/machine-store.ts`, `db/007_ticket_machines.sql` | budgets, this month's spend and each machine, per venture |
+| `lib/machine-railway.ts` | Railway: one environment and one service per ticket |
+| `lib/machine-hetzner.ts` | Hetzner, the second provider, off unless chosen |
+| `app/api/machines/…` | the endpoints, each checking its own key |
+| `scripts/ticket-machines.mjs` | John's commands: approve a budget, print a lane key, print the clean-up key |
+| `deploy/lane/ticket-machine.mjs` | the venture box asks the studio and waits |
+| `deploy/lane/worker-run.sh`, `worker-call.mjs` | what runs on the machine, and how it talks to the studio |
+
+**Tested without a real machine.** 24 tests drive the studio's endpoints against real Postgres and a
+stand-in provider: a whole run; venture A can never get a machine with venture B's credentials or for
+B's ticket, nor read or end B's run; a budget a lane wrote itself, one approved by someone who is not
+an admin, or one moved from another venture is refused; at the cap nothing is made; a machine that
+fails while setting itself up, one that stops without a word, and one that runs out of time are all
+failures with a reason; a lost create reply removes this run's machine and only this one. More tests
+cover the store's isolation, both providers' requests, the venture box's side, the machine's side
+(including `worker-run.sh` run for real against a stand-in studio), and that a refused machine is not
+counted as an attempt or a wake.
+
+## The shape John is describing
+
+One ticket, one temporary machine, one character in the office, the right skills loaded for that kind of
+work, and afterwards a link to the result and a record of what the worker used. It makes the office an
+honest picture of the company rather than of the runtime, stops tickets contaminating each other, and
+answers "what is happening right now" with something a founder can look at.
 
 ## Scope
 
-1. The lane's claim stays on the persistent machine. It is a git branch-create compare-and-set, which
-   already works across machines and is what stops two workers taking the same ticket.
-2. The **work** moves to a machine that exists only for that ticket, then is destroyed.
-3. Skills are chosen by the ticket's kind — the surface it belongs to, whether it touches a screen, whether
-   it is sensitive — and the choice is **recorded**, not just made.
+1. ~~The lane's claim stays on the persistent machine.~~ **Changed in PR #350:** the claim (a git
+   branch-create compare-and-set) is made by the supervisor on the temporary machine. It is the same
+   operation against GitHub either way, so it still stops two workers taking one ticket, but it no
+   longer happens on the persistent machine.
+2. The **work** moves to a machine that exists only for that ticket, then is removed. **Built, off.**
+3. Skills are chosen by the ticket's kind and the choice is **recorded**. The worker runs the same
+   supervisor, which records the guides it followed (FB-231); they come back to the studio and the box.
 4. The office draws one character for that worker, live, and it disappears when the work ends.
-5. The ticket's trail carries the preview link and the skills used.
+   **Not started** (FB-231 item 3).
+5. The ticket's trail carries the preview link and the skills used. **Preview waits on FB-230.**
 
 ## What stays on the persistent machine, and why each cannot move
 
@@ -116,35 +120,40 @@ Three consequences, and they are what this ticket builds to:
 
 - FB-228, FB-230 and FB-231. This depends on them; it does not contain them.
 - The free Railway VM. Its own published limits rule it out: three machines per address per day, 2 GB of
-  memory where ARCA uses 1.9 GB at rest, deleted after 24 hours.
-- Ruling what a character means. That is the design gap above and it comes first.
+  memory where ARCA uses 1.9 GB at rest, deleted after 24 hours. Ticket machines use Railway's ordinary
+  paid environments instead.
+- A studio screen for approving a budget. It is a command for now.
 
 ## Acceptance criteria
 
-- [ ] A ticket is worked on a machine that did not exist before it and does not exist after. **Built and
-      proved against a stand-in provider (2026-10-02); no real machine has been made yet.** It is met when
+- [ ] A ticket is worked on a machine that did not exist before it and does not exist after. **Built
+      and proved against a stand-in provider; switched off; no real machine has been made.** Met when
       one real ticket has been watched going through.
 - [ ] Its character appears in the office while it works and is gone when it stops — and an empty office
       still means nothing is running. **Not started.** Needs FB-231 item 3; the worker's sessions are
       already brought back and added to the venture's index, marked with the machine.
 - [ ] The founder can click through to the result. The pull request link works as today; the running
       preview still waits on FB-230.
-- [ ] The trail says which skills the worker used, in words, without the founder needing to know what a skill
-      is. **In code, not yet seen:** the worker runs the same `write_runreport`, which reads its own
-      transcripts (FB-231), so the run report should carry them. Unverified until a real run.
-- [ ] Two tickets can be worked at once without either seeing the other's files. **The machines are
-      separate and a test proves neither receives the other's token or files**, but the venture's
-      one-wake lock still allows one ticket at a time.
+- [ ] The trail says which skills the worker used, in words, without the founder needing to know what a
+      skill is. **In code, not yet seen:** the worker runs the same `write_runreport`, which reads its
+      own transcripts (FB-231). Unverified until a real run.
+- [ ] Two tickets can be worked at once without either seeing the other's files. **Each ticket gets its
+      own Railway environment, and the studio allows two per venture**, but the venture box's one-wake
+      lock still allows one ticket at a time.
 - [x] Nothing in the four persistent things above moved. The approval record, the brain, the office
       socket and the composer stay on the venture's machine; none is sent to a worker.
-- [ ] The cross-venture isolation test D11 requires lands **before** this ships, not after. A temporary
-      machine holds a credential, and a test must prove that credential reaches exactly one venture.
-      **Not written.** The worker holds exactly the venture's own GitHub token and nothing else, so this
-      test is the same as narrowing that token (`docs/venture-github-token.md`). Must pass before the
-      switch is turned on.
+- [x] The cross-venture isolation test D11 requires lands **before** this ships. It covers the
+      provider token (no venture ever holds one) as well as the credentials a machine receives:
+      venture A can never get a machine with venture B's credentials or for B's ticket
+      (`lib/__tests__/machine-service.test.ts`). It is only as narrow as each venture's GitHub token,
+      which John sets per venture when he switches this on.
+- [x] A machine that fails while setting itself up is reported as a failure, with a run report saying
+      where it stopped. A machine that was refused or could not be made is not counted as an attempt.
+- [x] No machine is made without a monthly budget John approved, and none past it (John, 2026-10-02).
 
 ## Verification
 
-The office is a screen, so non-negotiable 11 applies in full. And the real verification is watching one real
-ticket go through: a character appears, work happens, a link works, the character goes, the machine is gone.
-Anything less is a pipeline nobody has seen run.
+The office is a screen, so non-negotiable 11 applies in full when item 4 is built. This pull request
+changes no screen. The real verification is watching one real ticket go through: an environment
+appears on Railway, work happens, a link works, the environment goes. Anything less is a pipeline
+nobody has seen run.
