@@ -16,6 +16,7 @@ const request = vi.fn();
 const listDir = vi.fn();
 const putFile = vi.fn();
 const getFileWithSha = vi.fn();
+const getFileContent = vi.fn();
 
 vi.mock('@/auth', () => ({ auth: () => auth() }));
 vi.mock('@/lib/ventures', () => ({ loadVentures: () => loadVentures() }));
@@ -26,6 +27,7 @@ vi.mock('@/lib/github', () => ({
     listDir = listDir;
     putFile = putFile;
     getFileWithSha = getFileWithSha;
+    getFileContent = getFileContent;
   },
 }));
 
@@ -62,6 +64,7 @@ function wireGitHub() {
   ]);
   getFileWithSha.mockResolvedValue(null);
   putFile.mockResolvedValue('sha');
+  getFileContent.mockResolvedValue(null);
 }
 
 /** One `tools/call` through the real route, with a credential the studio signed for `venture`. */
@@ -177,26 +180,49 @@ describe('file_ticket checks what it is sent, because anyone can send it anythin
     expect(r.isError, r.text).toBe(false);
     expect(written()[0].path).toBe('docs/tickets/ARCA-068-github-workflows-ci.md');
   });
+
+  it('still files a title written in another script, under a name made from it', async () => {
+    const first = await call('file_ticket', { ...TICKET, title: '全てのオークションを表示' });
+    expect(first.isError, first.text).toBe(false);
+    const name = written()[0].path;
+    expect(name).toMatch(/^docs\/tickets\/ARCA-068-ticket-[0-9a-f]{8}\.md$/);
+    // The same title gets the same name, so asking twice updates the ticket rather than filing two.
+    putFile.mockClear();
+    await call('file_ticket', { ...TICKET, title: '全てのオークションを表示' });
+    expect(written()[0].path).toBe(name);
+  });
 });
 
 describe('an actor sent in a request is not believed', () => {
   // `filePlan` and `readThread` are server actions: anyone can call them with any arguments, signed
   // in or not. Before FB-257 an actor was believed on its email alone, and the founders' emails are
   // in the public manifests.
-  it('refuses to file for a forged founder actor', async () => {
-    const plan = {
-      venture_id: 'arca', repo: 'arca', source_title: 'x', created_at: '2026-10-02T00:00:00.000Z',
-      tickets: [{ slug: 'forged', title: 'Forged', body: '# Forged\n\nbody', depends_on: [], source: 'x' }],
-    };
-    const r = await filePlan('arca', 'arca', plan, 1, { email: VENTURE.founderEmail });
+  const plan = () => ({
+    venture_id: 'arca', repo: 'arca', source_title: 'x', created_at: '2026-10-02T00:00:00.000Z',
+    tickets: [{ slug: 'forged', title: 'Forged', body: '# Forged\n\nbody', depends_on: [], source: 'x' }],
+  });
+
+  it.each([
+    ['a founder', { email: VENTURE.founderEmail }],
+    ['an admin', { email: 'john.gallagher@wealthcx.com' }],
+    ['the tools, naming this venture', { email: 'studio-tools@arca', scopedTo: 'arca' }],
+  ])('refuses to file for an actor claiming to be %s', async (_who, actor) => {
+    const r = await filePlan('arca', 'arca', plan(), 1, actor);
     expect(r.ok).toBe(false);
+    expect(r.message).toBe('That credential is not one this studio issued.');
     expect(putFile).not.toHaveBeenCalled();
   });
 
-  it('refuses a forged tool actor that names its venture', async () => {
+  it('refuses to read a ticket’s conversation for a forged tool actor', async () => {
     const r = await readThread('arca', 'arca', 'ARCA-001', { email: 'studio-tools@arca', scopedTo: 'arca' });
     expect(r.ok).toBe(false);
-    expect(listDir).not.toHaveBeenCalled();
-    expect(request).not.toHaveBeenCalled();
+    expect(getFileContent).not.toHaveBeenCalled();
+  });
+
+  it('still lets a signed-in founder file with no actor at all', async () => {
+    auth.mockResolvedValue({ user: { email: VENTURE.founderEmail } });
+    const r = await filePlan('arca', 'arca', plan(), 1);
+    expect(r.ok, r.message).toBe(true);
+    expect(written()).toHaveLength(1);
   });
 });
