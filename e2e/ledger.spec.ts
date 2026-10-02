@@ -110,6 +110,44 @@ test.describe('the ledger (FB-136)', () => {
     await expect(page.getByTestId('as-founder-strip')).toHaveCount(0);
   });
 
+  test('a credential found on a venture box is named on the ledger, never its value (FB-206)', async ({ page }) => {
+    await testLogin(page, JOHN);
+    await page.goto('/');
+    const arca = page.getByTestId('box-scan-arca');
+    await expect(arca).toHaveAttribute('data-state', 'found');
+    await expect(arca).toContainText('2 credentials found outside /etc/foundry/credentials');
+    await expect(page.getByTestId('box-scan-findings-arca')).toContainText('/opt/foundry/lane/arca/.git/config, line 8');
+    await expect(page.getByTestId('box-scan-findings-arca')).toContainText('looks like a GitHub fine-grained token');
+    // The record holds no value, and no token shape reaches the page from anywhere else either.
+    const text = await page.getByTestId('ledger-box-scan').innerText();
+    expect(text).not.toMatch(/github_pat_|gh[pousr]_[A-Za-z0-9]{20,}/);
+  });
+
+  test('a box that never reported is "not known", and an old clean scan is not called clean (FB-206)', async ({ page }) => {
+    await testLogin(page, JOHN);
+    await page.goto('/');
+    // the-reset has no record on its ref at all. That is not clean.
+    const reset = page.getByTestId('box-scan-the-reset');
+    await expect(reset).toHaveAttribute('data-state', 'not-reported');
+    await expect(reset).toContainText('not the same as clean');
+    // modernisation-engine's last scan was clean — three weeks before the pinned clock.
+    const old = page.getByTestId('box-scan-modernisation-engine');
+    await expect(old).toHaveAttribute('data-state', 'clean');
+    await expect(old).toHaveAttribute('data-stale', 'true');
+    await expect(old).toContainText('the scanner may have stopped');
+  });
+
+  test('a founder cannot see the credential scan (FB-206)', async ({ page }) => {
+    // A credential on a founder's box is Bruntsfield's failure to fix, not theirs (FB-083's rule).
+    await testLogin(page, ROSS);
+    await page.goto('/');
+    await expect(page.getByTestId('ledger-box-scan')).toHaveCount(0);
+    for (const route of ['/venture/the-reset', '/venture/the-reset/activity', '/venture/the-reset/tickets']) {
+      await page.goto(route);
+      await expect(page.getByText('Credential scan')).toHaveCount(0);
+    }
+  });
+
   test('it fits a phone', async ({ page }) => {
     // Seven columns on a 393px screen is FB-153 waiting to happen.
     await page.setViewportSize({ width: 393, height: 851 });

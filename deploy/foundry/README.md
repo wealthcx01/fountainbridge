@@ -57,6 +57,17 @@ Walks the places a credential has actually been found on a box and exits non-zer
 but here. It prints the file and what kind of thing it is — **never the value**, because a scanner
 that prints the secret it found has just written it to another log.
 
+## Telling the studio (FB-206)
+
+The daily timer runs it with `--publish`. That also writes what it found to `health/secret-scan.json`
+on the venture's `foundry-state` ref, every time, clean or not. The studio's admin ledger reads that
+file and shows each venture's last scan: a credential found, clean, clean but old, or never reported.
+Founders never see it.
+
+It needs `REPO` (from `lane.env`) and `TICKET_GITHUB_TOKEN` (from the credentials file); the unit
+loads both. If the write fails, the journal says `COULD NOT TELL THE STUDIO` and why, and a clean scan
+exits 3 so the unit still shows as failed.
+
 ## Rotating
 
 `docs/rotating-a-venture-credential.md`. It names every consumer, because the rotation this ticket

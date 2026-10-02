@@ -690,3 +690,19 @@ in bold accent text. The design's line reads "Follow it to the VM: 3 commits · 
 ours says "the preview" instead of "the VM", leaves the commit count out, and on ARCA today says
 "none has been built for this work yet", because ARCA's three open pull requests predate working
 previews. The link half was checked on live previews rather than seen on ARCA's screen.
+
+### FB-206: the credential scan on the admin ledger, 2026-10-02
+
+Built on the fixtures, signed in as the Bruntsfield admin (this section is admin-only, so the
+founder reading does not apply). The ledger (`/`) is **1,254px** at 1440×1000 and **2,570px** at
+393×851; the new section is **231px** and **420px** of that. No sideways scroll on either. Signed in
+as THE RESET's founder, `/` lands on `/venture/the-reset` and the section is not on the page.
+
+Looked at as pictures. Each venture is one line under the footnotes: ARCA red with its two files
+listed by path and line, Modernisation Engine amber ("21 days ago … the scanner may have stopped"),
+THE RESET grey ("not the same as clean"). Long transcript paths wrap inside the column on a phone.
+
+Not compared side by side with the Claude Design artifact in this pass. The section is new, so the
+design is unlikely to show it, but that was not checked. It reuses the footnotes' eyebrow, type sizes
+and state marks rather than adding a style of its own. Noticed, not changed (out of scope): on a phone the ledger table above squeezes its seven
+columns into word-per-line cells; that is the existing table, not this ticket.
