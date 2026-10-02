@@ -9,6 +9,8 @@ import { defaultNow } from '@/lib/health';
 import { ledgerSummary, provisioningPatterns, waitingNow, type LedgerRow } from '@/lib/ledger';
 import { loadLedgerRow, loadWaitingAges } from '@/lib/ledger-load';
 import { Ledger, LedgerRowWaiting, WaitingNote } from '@/components/Ledger';
+import { defaultScanSource, loadVentureScan } from '@/lib/box-scan-load';
+import { BoxScan } from '@/components/BoxScan';
 
 /**
  * Home (FB-015: private — no public landing).
@@ -67,8 +69,29 @@ export default async function Home() {
         </Suspense>
         <Onboarding ventures={visible} />
       </div>
+
+      <hr className="hr" />
+
+      {/* FB-206. Below the footnotes and in its own boundary: one small file per venture, but a slow
+          code host must not hold up the table above it. Only here — never on the rail, never on a
+          founder's screen. */}
+      <div data-testid="ledger-box-scan">
+        <p className="eyebrow" style={{ marginBottom: '0.15rem' }}>Credential scan, on each venture&rsquo;s machine</p>
+        <Suspense fallback={<p className="muted" style={{ fontSize: 'var(--fs-body-sm)' }}>Reading each machine&rsquo;s last scan…</p>}>
+          <LoadedBoxScan ventures={visible} />
+        </Suspense>
+      </div>
     </section>
   );
+}
+
+async function LoadedBoxScan({ ventures }: { ventures: VentureSummary[] }) {
+  const now = defaultNow();
+  const source = defaultScanSource();
+  const rows = await Promise.all(
+    ventures.map(async (v) => ({ ventureId: v.id, name: v.name, state: await loadVentureScan(v, now, source) })),
+  );
+  return <BoxScan rows={rows} />;
 }
 
 /**

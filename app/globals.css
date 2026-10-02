@@ -1429,3 +1429,12 @@ body:has(.rail) .main {
 }
 
 .chip:hover { border-color: var(--color-border-strong); }
+
+/* ---- The credential scan on each venture's machine (FB-206) ------------------------------------
+   Admin ledger only. One line per venture; a finding is listed underneath by file and kind. Paths
+   on a box are long and unbroken, so they wrap anywhere rather than push a phone sideways. */
+.box-scan { list-style: none; margin: 0; padding: 0; font-size: var(--fs-body-sm); }
+.box-scan > li { padding: 0.35rem 0; border-top: 1px solid var(--color-border); }
+.box-scan > li:first-child { border-top: 0; }
+.box-scan-findings { margin: 0.25rem 0 0 1rem; padding: 0; list-style: none; font-size: var(--fs-meta-lg); }
+.box-scan-findings code { overflow-wrap: anywhere; word-break: break-word; }
