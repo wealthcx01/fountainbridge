@@ -254,6 +254,11 @@ export interface SurfaceOutcomeInput {
    */
   lastSend?: Send | null;
   /**
+   * How long ago that send went out, worked out on the server (FB-241). The desk draws this line in
+   * the browser, which cannot read the studio's clock, so the age arrives as a number.
+   */
+  lastSendAgeMs?: number | null;
+  /**
    * Connectors the surface declares (FB-248). Declaring `meta-ads` settles the platform question
    * for that venture, so its line stops saying "platform tbd" — and says "not connected" instead,
    * because no ad account is linked yet and the studio cannot read one.
@@ -286,7 +291,7 @@ export function surfaceOutcome(input: SurfaceOutcomeInput): string {
   // FB-142: Sell is no longer silent. The studio holds every send it gated, so it can say what went
   // and when — and it says plainly that what happened NEXT is not reported, rather than printing a
   // zero for it. `lib/sends.ts` explains why two thirds of the design's line cannot be obtained.
-  if (input.departmentId === 'sell') return sellOutcome(input.lastSend ?? null, input.ticketCount);
+  if (input.departmentId === 'sell') return sellOutcome(input.lastSend ?? null, input.ticketCount, input.lastSendAgeMs ?? null);
 
   // Nothing has reported, which is a different fact from nothing having happened — and only one of
   // them is true. There is no analytics source anywhere in the studio yet.
