@@ -965,3 +965,21 @@ pocket studio.
 
 Still not read on production. The ticket says so.
 
+## FB-149 finished for an admin — the cross-venture "Needs you", 2026-10-02
+
+Signed in as an admin (John), local build of this branch. On the UI gate's fixtures, `/attention` is
+**1,366px** at 1440×1000 and **2,182px** at 393×851; ARCA's desk is **2,324px** and **2,658px**. On
+ARCA's real data (the same repositories production reads), `/attention` is **1,458px** and
+**2,299px**; the desk is **1,984px** and **2,548px**. Nothing scrolls sideways at either size.
+
+The header badge, the page's number and ARCA's desk sentence all say **10** on both. Before this
+branch, on the fixtures, the header and the page said 4. On real data ARCA has no send waiting, so
+the ten are finished work and the page looks as it did, with the same number.
+
+Looked at as pictures. On the fixtures the six sends sit first under "About to leave a company",
+each with a "send" tag, its venture, "Sell — Go-to-market" and its state; the four pieces of
+finished work follow under "Finished work, oldest first". On a phone each row wraps to three or four
+short lines and nothing is cut off. Not compared with the Claude Design artifact: the design has no
+cross-venture page (its rail reaches Tickets, What happened, Memory, Handbook and the pocket studio),
+so there is nothing to put beside it. The live side is a local build on real data, not production —
+this session cannot sign in to production as an admin.

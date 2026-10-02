@@ -19,7 +19,7 @@ test.describe('where the studio spent its time (FB-151)', () => {
     await expect(page.getByTestId('timing-table')).toContainText('rail: everything');
     await expect(page.getByTestId('timing-table')).toContainText('rail: open work');
     // The header's own read is measured too — it was the five seconds, and it is not under a rail.
-    await expect(page.getByTestId('timing-table')).toContainText('root layout: open work across your ventures');
+    await expect(page.getByTestId('timing-table')).toContainText('root layout: what waits on you across your ventures');
   });
 
   test('a founder is told plainly that it is not for them', async ({ page }) => {
