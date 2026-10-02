@@ -1,5 +1,5 @@
 import { requireVenture } from '@/lib/venture-access';
-import { buildTranscriber, refuseAudio, TranscriptionError } from '@/lib/transcribe';
+import { buildTranscriber, MAX_AUDIO_BYTES, refuseAudio, TranscriptionError } from '@/lib/transcribe';
 
 /**
  * A voice note in, words out (FB-173).
@@ -19,6 +19,13 @@ import { buildTranscriber, refuseAudio, TranscriptionError } from '@/lib/transcr
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request): Promise<Response> {
+  // Refuse an oversized upload before reading it. `formData()` reads the whole body into memory, so
+  // the size check on the recording itself (in `refuseAudio`) would come after the damage. The
+  // allowance above the recording's own limit is for the form around it.
+  const declared = Number(req.headers.get('content-length') ?? '');
+  if (Number.isFinite(declared) && declared > MAX_AUDIO_BYTES + 64 * 1024) {
+    return Response.json({ error: 'That recording is too long. Keep a voice note under about ten minutes.' }, { status: 413 });
+  }
   let form: FormData;
   try {
     form = await req.formData();

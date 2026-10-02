@@ -28,6 +28,9 @@ describe('choosing the transcriber', () => {
   it('refuses the test double in production, whatever the settings say', () => {
     expect(() => buildTranscriber({ TRANSCRIBER: 'test-double', NODE_ENV: 'production' })).toThrow(/refused in production/);
     expect(buildTranscriber({ TRANSCRIBER: 'test-double', NODE_ENV: 'development' })?.name).toBe('test-double');
+    // The browser-test rig only: a production build with the test sign-in switched on.
+    expect(buildTranscriber({ TRANSCRIBER: 'test-double', NODE_ENV: 'production', E2E_TEST_LOGIN: '1' })?.name).toBe('test-double');
+    expect(() => buildTranscriber({ TRANSCRIBER: 'test-double', NODE_ENV: 'production', E2E_TEST_LOGIN: '0' })).toThrow(/refused in production/);
   });
 });
 

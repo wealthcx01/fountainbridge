@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /**
  * The voice note door (FB-173). A session is required by the middleware; this pins the second door —
@@ -11,6 +14,42 @@ const post = vi.fn();
 vi.mock('server-only', () => ({}));
 vi.mock('@/auth', () => ({ auth: () => auth() }));
 vi.mock('@/lib/ventures', () => ({ loadVentures: () => loadVentures() }));
+
+// Every place the studio could keep a recording, watched. The database: any connection or query is
+// recorded. Files: every write through node's file system is recorded (and still happens).
+const dbTouched = vi.fn();
+vi.mock('pg', () => {
+  class Pool {
+    constructor(..._args: unknown[]) { dbTouched('new Pool'); }
+    on() { return this; }
+    async connect() {
+      dbTouched('connect');
+      return { query: async (...a: unknown[]) => { dbTouched('query', a); return { rows: [] }; }, release: () => undefined };
+    }
+    async query(...a: unknown[]) { dbTouched('query', a); return { rows: [] }; }
+  }
+  return { Pool, default: { Pool } };
+});
+const fileWrites = vi.fn();
+vi.mock('node:fs/promises', async (orig) => {
+  const real = await orig<typeof import('node:fs/promises')>();
+  const watch = <F extends (...a: never[]) => unknown>(name: string, f: F) =>
+    ((...a: Parameters<F>) => { fileWrites(name, a[0]); return f(...a); }) as F;
+  const out = { ...real, writeFile: watch('writeFile', real.writeFile), appendFile: watch('appendFile', real.appendFile), open: watch('open', real.open) };
+  return { ...out, default: out };
+});
+vi.mock('node:fs', async (orig) => {
+  const real = await orig<typeof import('node:fs')>();
+  const watch = <F extends (...a: never[]) => unknown>(name: string, f: F) =>
+    ((...a: Parameters<F>) => { fileWrites(name, a[0]); return f(...a); }) as F;
+  const out = {
+    ...real,
+    writeFileSync: watch('writeFileSync', real.writeFileSync),
+    appendFileSync: watch('appendFileSync', real.appendFileSync),
+    createWriteStream: watch('createWriteStream', real.createWriteStream),
+  };
+  return { ...out, default: out };
+});
 
 const realFetch = globalThis.fetch;
 const { POST } = await import('../route');
@@ -70,6 +109,18 @@ describe('what it refuses, before sending anything', () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it('an upload that says it is too big, before reading it', async () => {
+    const r = new Request('http://studio/api/voice', {
+      method: 'POST',
+      headers: { 'content-length': String(50 * 1024 * 1024), 'content-type': 'multipart/form-data; boundary=x' },
+      body: 'not read',
+    });
+    const formData = vi.spyOn(r, 'formData');
+    expect((await POST(r)).status).toBe(413);
+    expect(formData).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it('a studio with no transcriber says so, instead of pretending', async () => {
     delete process.env.OPENAI_API_KEY;
     const r = await POST(req({ venture: 'arca', audio: iphone() }));
@@ -89,5 +140,51 @@ describe('what comes back', () => {
   it('a service that is down is a 502, so the browser keeps the recording', async () => {
     post.mockResolvedValue(new Response('{}', { status: 503 }));
     expect((await POST(req({ venture: 'arca', audio: iphone() }))).status).toBe(502);
+  });
+});
+
+describe('the studio keeps nothing it was given', () => {
+  // The composer tells a founder, before they speak, that the studio does not keep the recording.
+  // This makes every store the studio has LIVE — a database, a document store on disk, a GitHub
+  // token — and watches each one while a note goes through. The only thing allowed to leave is the
+  // one call to the transcription service.
+  let store: string;
+  beforeEach(() => {
+    store = mkdtempSync(join(tmpdir(), 'voice-store-'));
+    process.env.DATABASE_URL = 'postgres://watched/nowhere';
+    process.env.DOCUMENT_STORE = 'filesystem';
+    process.env.DOCUMENT_STORE_DIR = store;
+    process.env.GITHUB_TOKEN = 'ghp_watched';
+  });
+  afterEach(() => {
+    rmSync(store, { recursive: true, force: true });
+    for (const k of ['DATABASE_URL', 'DOCUMENT_STORE', 'DOCUMENT_STORE_DIR', 'GITHUB_TOKEN']) delete process.env[k];
+  });
+
+  const nothingKept = () => {
+    expect(readdirSync(store, { recursive: true }), 'something was written to the document store').toEqual([]);
+    expect(dbTouched, 'the database was used').not.toHaveBeenCalled();
+    expect(fileWrites, 'a file was written').not.toHaveBeenCalled();
+    const where = post.mock.calls.map((c) => String(c[0]));
+    expect(where.filter((u) => !u.startsWith('https://api.openai.com/')), 'the recording was sent somewhere else').toEqual([]);
+  };
+
+  it('when the words come back', async () => {
+    const r = await POST(req({ venture: 'arca', audio: iphone() }));
+    expect(r.status).toBe(201);
+    expect(post).toHaveBeenCalledTimes(1);
+    nothingKept();
+  });
+
+  it('when the transcription service is down', async () => {
+    post.mockResolvedValue(new Response('{}', { status: 503 }));
+    expect((await POST(req({ venture: 'arca', audio: iphone() }))).status).toBe(502);
+    nothingKept();
+  });
+
+  it('when the recording has no words in it', async () => {
+    post.mockResolvedValue(new Response(JSON.stringify({ text: '' }), { status: 200 }));
+    expect((await POST(req({ venture: 'arca', audio: iphone() }))).status).toBe(422);
+    nothingKept();
   });
 });

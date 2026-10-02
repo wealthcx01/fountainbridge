@@ -44,8 +44,11 @@ export function VoiceNote({ ventureId, onWords, disabled }: {
     let status: number | null = null;
     let body: unknown = null;
     try {
-      const res = await fetch('/api/voice', { method: 'POST', body: form });
-      status = res.status;
+      // `manual`: an expired sign-in is answered with a redirect to the login page. Followed, it
+      // comes back as a 200 web page and looks like an answer about the recording. Not followed, it
+      // arrives as status 0, which `uploadOutcome` reads as "sign in again" and keeps the note.
+      const res = await fetch('/api/voice', { method: 'POST', body: form, redirect: 'manual' });
+      status = res.type === 'opaqueredirect' ? 0 : res.status;
       body = await res.json().catch(() => null);
     } catch { /* the network: status stays null, and the note is kept */ }
     const out = uploadOutcome(status, body);

@@ -875,3 +875,11 @@ the failure says the recording is saved on this device and offers it again after
 draft said the words appear "in the box below" from a paragraph that sits under the box; it now says
 "in the text box", and the paragraph is shorter. The design's composer has no record button; it is
 the one addition, under the existing two.
+
+After review, 2026-10-02: the failure after an expired sign-in now reads "You need to sign in
+again. The recording is saved on this device — sign in, come back here, and it will be offered
+again", with "Try again" and "Throw it away" under it. Looked at as pictures on a local build with
+fixture data: the composer is **1,000px** at 1440×1000 and **1,169px** at 393×851 in that state, and
+nothing scrolls sideways. A browser test (`e2e/voice.spec.ts`) now draws the record button in the UI
+gate, using the test transcriber. The hosted design artifact was not opened: it needs a signed-in
+claude.ai session, and this review had none. Its composer has no record button to compare against.

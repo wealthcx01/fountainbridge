@@ -65,7 +65,10 @@ export function buildTranscriber(
     throw new Error(`TRANSCRIBER is set to ${JSON.stringify(key)}, which this studio does not know. Use one of: ${PROVIDERS.join(', ')}.`);
   }
   if (key === 'test-double') {
-    if (env.NODE_ENV === 'production') {
+    // The one exception is the UI gate's rig, which runs a production build with the test sign-in
+    // switched on. A studio with E2E_TEST_LOGIN lets anyone sign in as anyone, so it is never a real
+    // studio, and its browser test can then press record without sending audio anywhere.
+    if (env.NODE_ENV === 'production' && env.E2E_TEST_LOGIN !== '1') {
       throw new Error('TRANSCRIBER=test-double is refused in production: it returns a fixed sentence, not what was said.');
     }
     return testDouble;

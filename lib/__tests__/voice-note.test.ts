@@ -29,6 +29,24 @@ describe('a recording is let go only when it is no longer needed', () => {
     expect(uploadOutcome(403, {}).kind).toBe('keep'); // signed out: sign back in and it can go
   });
 
+  it('keeps it when the sign-in has run out, and says so rather than blaming the recording', () => {
+    // An expired sign-in is answered by the gate with a redirect to the login page, not with 401.
+    // The browser is told not to follow it, so it arrives as status 0.
+    const expired = uploadOutcome(0, null);
+    expect(expired.kind).toBe('keep');
+    expect(expired.kind === 'keep' && expired.message).toMatch(/sign in again/);
+    expect(uploadOutcome(401, null).kind).toBe('keep');
+  });
+
+  it('keeps it on any answer it does not recognise — a login page, a missing route, a bad request', () => {
+    expect(uploadOutcome(200, null).kind).toBe('keep'); // the login page, if a redirect was followed
+    expect(uploadOutcome(307, null).kind).toBe('keep');
+    expect(uploadOutcome(404, null).kind).toBe('keep');
+    expect(uploadOutcome(405, null).kind).toBe('keep');
+    expect(uploadOutcome(400, { error: 'No recording arrived.' }).kind).toBe('keep');
+    expect(uploadOutcome(413, {}).kind).toBe('keep');
+  });
+
   it('never turns an empty answer into an empty draft', () => {
     expect(uploadOutcome(201, { text: '' }).kind).toBe('drop');
     expect(uploadOutcome(201, {}).kind).toBe('drop');
@@ -48,14 +66,9 @@ describe('what the founder is told before they speak is true', () => {
     expect(WHERE_IT_GOES).toMatch(/does not keep the recording/);
   });
 
-  it('the voice route stores nothing — no database, no repository, no file', () => {
-    // The sentence above is only true while this holds. A future change that keeps the audio must
-    // change the sentence too, and this test is what makes them meet.
-    const route = readFileSync(join(process.cwd(), 'app/api/voice/route.ts'), 'utf8');
-    for (const keeper of ['withVenture', 'putFile', 'GitHubClient', 'writeFile', 'document-store', 'docstore']) {
-      expect(route, keeper).not.toContain(keeper);
-    }
-  });
+  // That the voice route keeps nothing is checked by behaviour, not by reading its source:
+  // `app/api/voice/__tests__/route.test.ts`, "the studio keeps nothing it was given", makes every
+  // store live and watches each one while a note goes through.
 
   it('the composer offers recording only beside its own Send, so speaking cannot file anything', () => {
     const composer = readFileSync(join(process.cwd(), 'components/Composer.tsx'), 'utf8');

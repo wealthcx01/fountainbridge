@@ -5,7 +5,9 @@
 **Shipped in part:** recording, transcription and the words landing in the composer are built and
 checked in a browser with a simulated microphone. Not yet done: a real recording on a real iPhone,
 which needs an `OPENAI_API_KEY` set on the studio first; and the record button on the desk's pocket
-prompt bar (it is on the composer, which the prompt bar opens in one press).
+prompt bar (it is on the composer, which the prompt bar opens in one press). And there is no limit
+on how much transcription one founder can use: each minute sent to OpenAI is paid for, and John has
+to decide whether that needs a budget, like the departments' budgets, before it is switched on.
 
 ## Why
 
@@ -64,12 +66,21 @@ Two consequences:
       record the founder reads: *"Your recording goes to OpenAI's Whisper service to be turned into
       words, which land in the text box. The studio does not keep the recording: it stays on this
       device until the words are back, then it is deleted. OpenAI's own terms decide what it
-      keeps."* A test fails if the voice route ever starts storing anything, so the sentence and the
-      code cannot drift apart.
+      keeps."* A test in `app/api/voice/__tests__/route.test.ts` makes every store the studio has
+      live — the database, the document store, a GitHub token — sends a note through, and fails if
+      anything was written to any of them or sent anywhere but the transcription service. Review
+      found the first version of this test only searched the route for six words, and a route that
+      saved every recording into the document store passed it; that change now fails.
 - [x] Every failure names itself; the text box keeps working throughout. No microphone, a browser
       that cannot record, no signal, the service down, a recording it cannot read, and no words
       coming back each have their own sentence. Checked in the browser with the network cut: the
-      recording stayed on the device and was offered again after a reload.
+      recording stayed on the device and was offered again after a reload. Review found that an
+      expired sign-in deleted the recording and blamed it: the sign-in gate answers with a redirect
+      to the login page, the browser followed it, and the page read the login page as "the studio
+      could not use that recording". Now the redirect is not followed, an expired sign-in says
+      "You need to sign in again" and keeps the note, and a recording is deleted only on an answer
+      that names the recording itself as the problem. `e2e/voice.spec.ts` drives this in a browser:
+      the sign-in is cleared mid-recording, the note is kept, and after signing back in it is sent.
 - [x] The transcription choice and its privacy reasoning are argued in the PR body.
 
 ## What shipped
@@ -85,7 +96,8 @@ Two consequences:
   (`TRANSCRIBER`, default `openai-whisper`); an unknown name is refused; the test transcriber is
   refused in production. A transcript that comes back empty is an error with a sentence, never an
   empty draft. The route checks the venture against the session before anything is sent anywhere,
-  and stores nothing.
+  and stores nothing. An upload that declares itself larger than a recording can be is refused
+  before it is read.
 - **Off until it can work.** Without `OPENAI_API_KEY` the composer shows no record button at all.
 
 ## Why this does not wait for FB-174
