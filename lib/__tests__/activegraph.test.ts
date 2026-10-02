@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  canonicalEvent, eventPath, narrate, narrateFault, project, seqFromPath,
+  canonicalEvent, eventPath, narrate, narrateFault, project, seqFromPath, proposedEventData, activeGraphGateMode,
   type ActiveGraphEvent, type EventType, type ActorKind,
 } from '../activegraph';
 
@@ -188,5 +188,22 @@ describe('telling the founder what happened', () => {
     const line = narrate(ev({ seq: 4, type: 'action.failed', actor: { kind: 'executor', id: 'x' }, data: { reason: 'the mail provider refused it' } }));
     expect(line).toContain('the mail provider refused it');
     expect(line).toContain('nothing went out');
+  });
+});
+
+describe('what a proposal tells ActiveGraph (FB-171)', () => {
+  it('carries only plain text, because the signature must read the same in TypeScript and Python', () => {
+    // An object or a boolean does not turn into the same text in both languages, and the canonical
+    // form is text — so nothing but a string is let in.
+    expect(proposedEventData('sha-1', { summary: 'Send it', ticket: 7, department: { id: 'sell' }, action_type: true }))
+      .toEqual({ proposal_sha: 'sha-1', summary: 'Send it' });
+    expect(proposedEventData('sha-1', { ticket: '   ' })).toEqual({ proposal_sha: 'sha-1' });
+  });
+
+  it('reads the gate setting the way the executor does', () => {
+    expect(activeGraphGateMode(undefined)).toBe('off');
+    expect(activeGraphGateMode('shadow')).toBe('shadow');
+    expect(activeGraphGateMode('Enforce')).toBe('enforce');
+    expect(activeGraphGateMode('enforced')).toBe('enforce');
   });
 });

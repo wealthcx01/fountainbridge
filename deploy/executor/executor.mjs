@@ -46,18 +46,31 @@
 //      the executor still runs and still gates — it just cannot record the history, and says so.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { expectedAttestation as sharedAttestation, decideExecution, eventsForExecution, signEvent } from './executor-lib.mjs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import {
+  expectedAttestation as sharedAttestation, decideExecution, eventsForExecution, signEvent,
+  graphGateMode, parseGraphVerdict, combineGates, githubApiBase,
+} from './executor-lib.mjs';
 
 const REPO = process.env.REPO || 'wealthcx01/arca';
 const REF = process.env.APPROVALS_REF || 'foundry-approvals';
 const TOKEN = process.env.EXECUTOR_GITHUB_TOKEN || '';   // NO fallback to the lane token.
 const SECRET = process.env.FOUNDRY_APPROVAL_SECRET || '';
-const API = 'https://api.github.com';
+// Overridable only so the end-to-end test can stand a fake GitHub in front of the real executor
+// (FB-171), and only to GitHub or this machine: see githubApiBase. Null means refuse to start.
+const API = githubApiBase(process.env.EXECUTOR_GITHUB_API_URL);
 const toSet = (v) => new Set((v || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 const AG_REPO = process.env.ACTIVEGRAPH_REPO || '';
 const AG_REF = process.env.ACTIVEGRAPH_REF || 'foundry-activegraph';
 const VENTURE_ID = process.env.VENTURE_ID || '';
 const APPROVER_IDS = toSet(process.env.APPROVER_IDENTITIES);
+// FB-171: the second gate, real ActiveGraph. See graphGateMode in executor-lib.mjs for the modes.
+const GRAPH_MODE = graphGateMode(process.env.ACTIVEGRAPH_GATE);
+const GRAPH_STORE = process.env.ACTIVEGRAPH_STORE || '';
+const GRAPH_PYTHON = process.env.ACTIVEGRAPH_PYTHON || '/opt/activegraph/bin/python';
+const GRAPH_SCRIPT = process.env.FOUNDRY_GRAPH_SCRIPT
+  || fileURLToPath(new URL('../activegraph/foundry_graph.py', import.meta.url));
 const ID_RE = /^[A-Za-z0-9._-]+$/;
 
 // The attestation a legit grant must carry:
@@ -144,7 +157,14 @@ async function handleApproval(id) {
 
   // Verify the studio-issued attestation (allowlisted approver + pins this exact proposal + valid
   // HMAC signature). A lane-written grant.json has no valid attestation → rejected.
-  const v = attestationValid(grant.json, id, proposal.sha);
+  const fileVerdict = attestationValid(grant.json, id, proposal.sha);
+
+  // FB-171: ask ActiveGraph too, unless the gate is off. In `enforce` both must say yes.
+  const graph = GRAPH_MODE === 'off' ? null : await askGraph(id, proposal.sha);
+  const gate = combineGates({ mode: GRAPH_MODE, file: fileVerdict, graph });
+  if (gate.note) log(`approval ${id}: ${gate.note}`);
+  if (gate.skip) return 0;                                               // left for the next pass
+  const v = gate.verify;
   if (v.ok) log(`approval ${id}: attestation valid (approver ${v.approver}) — executing ${proposal.json.action_type}`);
   else log(`approval ${id}: REJECTED — ${v.reason}`);
 
@@ -211,9 +231,51 @@ async function recordHistory(id, records) {
   }
 }
 
+/**
+ * Ask ActiveGraph whether a person approved exactly this proposal (FB-171).
+ *
+ * First takes this approval's signed events from the studio's git record into the graph (the graph
+ * is built from git; git stays the record), then asks the gate. Returns null when ActiveGraph could
+ * not be asked at all — which, in `enforce`, means nothing is sent this pass.
+ */
+async function askGraph(id, proposalSha) {
+  try {
+    const dirPath = `activegraph/${VENTURE_ID}/${REPO.split('/').pop()}/${id}`;
+    const listed = await ghRepo(AG_REPO, `/repos/${AG_REPO}/contents/${encodeURI(dirPath)}?ref=${encodeURIComponent(AG_REF)}`);
+    const lines = [];
+    for (const f of Array.isArray(listed) ? listed : []) {
+      if (f.type !== 'file' || !/^\d{4}-.*\.json$/.test(String(f.name))) continue;
+      const file = await ghRepo(AG_REPO, `/repos/${AG_REPO}/contents/${encodeURI(f.path)}?ref=${encodeURIComponent(AG_REF)}`);
+      if (file?.content) lines.push(JSON.stringify(JSON.parse(Buffer.from(file.content, 'base64').toString('utf8'))));
+    }
+    const env = { ...process.env, ACTIVEGRAPH_STORE: GRAPH_STORE, VENTURE_ID };
+    const ingest = spawnSync(GRAPH_PYTHON, [GRAPH_SCRIPT, 'ingest'], { input: lines.join('\n'), env, encoding: 'utf8', timeout: 60_000 });
+    if (ingest.status !== 0) {
+      log(`activegraph: could not take approval ${id} in —`, (ingest.stdout || ingest.stderr || String(ingest.error)).trim().slice(0, 400));
+      return null;
+    }
+    const refused = ingestRefusals(ingest.stdout);
+    if (refused) log(`activegraph: refused for ${id}: ${refused}`);
+    const gate = spawnSync(GRAPH_PYTHON, [GRAPH_SCRIPT, 'gate', '--repo', REPO, '--id', id, '--proposal-sha', proposalSha], { env, encoding: 'utf8', timeout: 60_000 });
+    if (gate.error) { log('activegraph: the gate did not run —', String(gate.error)); return null; }
+    return parseGraphVerdict(gate.stdout);
+  } catch (e) {
+    log('activegraph: could not be asked —', e?.message ?? e);
+    return null;
+  }
+}
+
+/** The refusals an ingest reported, as one log line, or '' when there were none. */
+function ingestRefusals(stdout) {
+  try {
+    const r = JSON.parse(String(stdout).trim().split('\n').pop());
+    return (r.refused || []).map((x) => `#${x.seq} ${x.type}: ${x.reason}`).join('; ');
+  } catch { return ''; }
+}
+
 /** Same request shape as `gh`, against an explicitly-named repo (the studio's, for the history). */
 async function ghRepo(repo, path, init = {}) {
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await fetch(`${API}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json', ...(init.headers || {}) },
   });
@@ -224,8 +286,15 @@ async function ghRepo(repo, path, init = {}) {
 
 async function main() {
   if (!TOKEN) { log('FAIL-CLOSED: EXECUTOR_GITHUB_TOKEN is not set (its own token, never the lane\'s)'); process.exit(2); }
+  if (!API) { log('FAIL-CLOSED: EXECUTOR_GITHUB_API_URL is set to somewhere other than GitHub or this machine, so the token would leave for it'); process.exit(2); }
   if (!SECRET) { log('FAIL-CLOSED: FOUNDRY_APPROVAL_SECRET is not set (shared studio↔executor; the lane must never hold it)'); process.exit(2); }
   if (APPROVER_IDS.size === 0) { log('FAIL-CLOSED: APPROVER_IDENTITIES is empty — no one is authorised to grant'); process.exit(2); }
+  if (GRAPH_MODE !== 'off' && (!AG_REPO || !VENTURE_ID || !GRAPH_STORE)) {
+    const missing = ['ACTIVEGRAPH_REPO', 'VENTURE_ID', 'ACTIVEGRAPH_STORE'].filter((k) => !process.env[k]).join(', ');
+    if (GRAPH_MODE === 'enforce') { log(`FAIL-CLOSED: ACTIVEGRAPH_GATE=enforce but ${missing} is not set, so ActiveGraph cannot be asked`); process.exit(2); }
+    log(`activegraph: shadow mode needs ${missing}; ActiveGraph will be asked and will not answer`);
+  }
+  log(`ActiveGraph gate: ${GRAPH_MODE}`);
   const dir = await gh(`/repos/${REPO}/contents/approvals?ref=${encodeURIComponent(REF)}`);
   if (!Array.isArray(dir)) { log('no approvals/ on', REF, '— nothing to do'); return; }
   let acted = 0;

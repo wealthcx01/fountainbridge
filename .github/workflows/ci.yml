@@ -117,6 +117,31 @@ jobs:
           AUTH_SECRET: build-time-placeholder-not-a-real-secret
           AUTH_TRUST_HOST: "true"
 
+  activegraph:
+    name: ActiveGraph gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # FB-171: the approval gate in real ActiveGraph, pinned to the version on the venture boxes.
+    # The Python tests run the gate itself; the end-to-end test runs the real executor against it.
+    # FB171_REQUIRE_ACTIVEGRAPH makes that test FAIL rather than skip if ActiveGraph is missing.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install ActiveGraph 1.10.0
+        run: python -m venv .ag-venv && .ag-venv/bin/pip install --quiet activegraph==1.10.0
+      - name: The gate, against real ActiveGraph
+        run: .ag-venv/bin/python -m unittest -v deploy/activegraph/test_foundry_graph.py
+      - run: npm ci --no-audit --no-fund
+      - name: The executor, end to end, against real ActiveGraph
+        run: npx vitest run deploy/executor/__tests__/executor-activegraph.e2e.test.mjs
+        env:
+          FB171_REQUIRE_ACTIVEGRAPH: "1"
+
   e2e:
     name: Playwright UI gate
     runs-on: ubuntu-latest
