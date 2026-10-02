@@ -35,6 +35,7 @@ const { POST } = await import('../route');
 const { mintMcpTicket } = await import('@/lib/mcp');
 const { filePlan } = await import('@/app/actions/file-plan');
 const { readThread } = await import('@/app/actions/threads');
+const { requireVenture, toolActor } = await import('@/lib/venture-access');
 
 const SECRET = 'test-secret-for-the-tools';
 const VENTURE = {
@@ -132,6 +133,117 @@ describe('file_ticket files one ticket', () => {
   });
 });
 
+describe('file_ticket puts the title on top unless the body opens with its own heading', () => {
+  it('accepts a title of exactly the longest length', async () => {
+    const r = await call('file_ticket', { ...TICKET, title: 'x'.repeat(160) });
+    expect(r.isError, r.text).toBe(false);
+  });
+
+  it('adds the title as the heading when the body only has a heading further down', async () => {
+    const r = await call('file_ticket', { ...TICKET, body: 'One list of every auction.\n\n# How we know it works\n\nIt matches.' });
+    expect(r.isError, r.text).toBe(false);
+    const body = written()[0].body;
+    // The title is the ticket's heading; the lower heading stays a section inside it.
+    expect(body.startsWith('# ARCA-068 — Show every live auction on one page\n')).toBe(true);
+    expect(body).toContain('\n# How we know it works\n');
+  });
+});
+
+describe('file_ticket does not write over a set a founder has waiting', () => {
+  /** A GitHub where the branch this ticket would use already exists, holding `waiting`, unmerged. */
+  function branchAlreadyHolds(waiting: string[]) {
+    request.mockImplementation(async (path: string, init?: { method?: string }) => {
+      if (/^\/repos\/[^/]+\/[^/]+$/.test(path)) return { default_branch: 'main' };
+      if (path.includes('/ref/heads/foundry/')) return { object: { sha: 'set-sha' } };
+      if (path.includes('/matching-refs/')) return [{ ref: 'refs/heads/foundry/plan-show-every-live-auction-on-one-page' }];
+      if (path.endsWith('/pulls') && init?.method === 'POST') return { html_url: 'https://github.com/wealthcx01/arca/pull/12' };
+      return {};
+    });
+    const mergedFiles = [{ name: 'ARCA-001-terminal-setup.md', type: 'file' }];
+    listDir.mockImplementation(async (_repo: string, _path: string, ref: string) => (
+      ref === 'main' ? mergedFiles : [...mergedFiles, ...waiting.map((name) => ({ name, type: 'file' }))]
+    ));
+  }
+
+  it('refuses when the branch it would use already holds another set’s tickets', async () => {
+    // A founder's set, not yet merged, whose first ticket has the same short name as this one, and a
+    // second ticket beside it. The tool ticket would land on that branch and replace the first one.
+    branchAlreadyHolds(['ARCA-002-show-every-live-auction-on-one-page.md', 'ARCA-003-auction-alerts.md']);
+    const r = await call('file_ticket', TICKET);
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('A different set of tickets is already waiting');
+    expect(putFile).not.toHaveBeenCalled();
+    expect(openedPulls()).toHaveLength(0);
+  });
+
+  it('still updates its own ticket when asked for the same ticket twice', async () => {
+    branchAlreadyHolds(['ARCA-002-show-every-live-auction-on-one-page.md']);
+    getFileWithSha.mockResolvedValue({ sha: 'old', content: 'x' });
+    const r = await call('file_ticket', TICKET);
+    expect(r.isError, r.text).toBe(false);
+    // Same file, same number: the ticket was updated, not filed a second time.
+    expect(written()).toHaveLength(1);
+    expect(written()[0].path).toBe('docs/tickets/ARCA-002-show-every-live-auction-on-one-page.md');
+  });
+});
+
+describe('a tool credential for one venture is refused on every other venture', () => {
+  // The actor's venture is the whole of the cross-venture guard for a tool call: a tool actor skips
+  // the email check, because its email is not a person's. So these use REAL actors, made the way the
+  // route makes them, and point them at the wrong venture.
+  const resetPlan = () => ({
+    venture_id: 'the-reset', repo: 'the-reset', source_title: 'x', created_at: '2026-10-02T00:00:00.000Z',
+    tickets: [{ slug: 'crossed', title: 'Crossed', body: '# Crossed\n\nbody', depends_on: [], source: 'x' }],
+  });
+
+  it('lets an ARCA actor act on ARCA', async () => {
+    const access = await requireVenture('arca', toolActor('arca'));
+    expect(access.ok).toBe(true);
+  });
+
+  it('refuses an ARCA actor on The Reset', async () => {
+    const access = await requireVenture('the-reset', toolActor('arca'));
+    expect(access).toEqual({ ok: false, error: 'That credential is for a different venture.' });
+  });
+
+  it('refuses an ARCA actor on The Reset even while an admin is signed in', async () => {
+    // An admin's session could reach The Reset. The actor is narrower than any session, never wider.
+    auth.mockResolvedValue({ user: { email: 'john.gallagher@wealthcx.com' } });
+    const access = await requireVenture('the-reset', toolActor('arca'));
+    expect(access.ok).toBe(false);
+  });
+
+  it('refuses to file into The Reset with an ARCA actor, and writes nothing', async () => {
+    const r = await filePlan('the-reset', 'the-reset', resetPlan(), 1, toolActor('arca'));
+    expect(r.ok).toBe(false);
+    expect(r.message).toBe('That credential is for a different venture.');
+    expect(putFile).not.toHaveBeenCalled();
+    expect(openedPulls()).toHaveLength(0);
+  });
+
+  it('refuses to read The Reset’s conversations with an ARCA actor', async () => {
+    const r = await readThread('the-reset', 'the-reset', 'RESET-001', toolActor('arca'));
+    expect(r.ok).toBe(false);
+    expect(getFileContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('an actor made by one copy of the access module is believed by another', () => {
+  // Next.js can load one file twice — once for the route, once for the server actions. If each copy
+  // kept its own list of actors, every real tool call would be refused as "not one this studio
+  // issued". This loads the module twice, the way that would happen, and checks both copies agree.
+  it('accepts an actor made by a separately loaded copy', async () => {
+    vi.resetModules();
+    const first = await import('@/lib/venture-access');
+    vi.resetModules();
+    const second = await import('@/lib/venture-access');
+    expect(first.toolActor).not.toBe(second.toolActor);
+
+    const access = await second.requireVenture('arca', first.toolActor('arca'));
+    expect(access.ok).toBe(true);
+  });
+});
+
 describe('file_ticket checks what it is sent, because anyone can send it anything', () => {
   it('refuses a repository that is not this venture’s, and writes nothing', async () => {
     const r = await call('file_ticket', { ...TICKET, repo: 'the-reset' });
@@ -163,6 +275,8 @@ describe('file_ticket checks what it is sent, because anyone can send it anythin
   it.each([
     ['a title with a line break in it', { title: 'Fine title\n**Status:** Done' }],
     ['a title that is too long', { title: 'x'.repeat(161) }],
+    ['a title with an invisible line break (U+2028) in it', { title: 'Fine title **Status:** Done' }],
+    ['a title with an invisible paragraph break (U+2029) in it', { title: 'Fine title **Status:** Done' }],
     ['an empty title', { title: '   ' }],
     ['a title that is not text', { title: { toString: 'x' } }],
     ['an empty body', { body: '' }],

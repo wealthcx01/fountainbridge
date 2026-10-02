@@ -68,10 +68,39 @@ in a request is refused.
 
 **What the tool now checks, because it is a public endpoint:** the venture comes from the signed
 credential and never from the arguments; the repository must be one of the venture's own; the title
-must be one line, under 160 characters, with no line breaks; the body must be under 40,000
-characters. A title with nothing usable in it for a file name (one written in another script, say)
+must be one line, 160 characters or fewer, with no line breaks; the body must be 40,000
+characters or fewer. A title with nothing usable in it for a file name (one written in another script, say)
 gets a fixed name made from a fingerprint of the title, so asking twice updates the ticket instead of
 filing it twice.
 
 A single ticket's pull request is now titled with its id and title (`ARCA-068: Show every live
 auction`) rather than "<source>: 1 tickets".
+
+## Fixed after review
+
+- **The cross-venture check had no test.** A tool call skips the email check, so the line that
+  refuses a credential for one venture on another is the whole guard. There are now tests that make
+  a real ARCA tool actor and point it at The Reset — through the access check, through filing a plan,
+  and through reading a conversation, including while an admin is signed in. Each is refused.
+  Removing the check turns these tests red.
+- **A comment claimed a safeguard that did not exist.** It said the studio signs tool credentials
+  only for people who passed the venture check. Nothing in the studio signs credentials yet. The
+  comment now says so: today anyone holding `FOUNDRY_APPROVAL_SECRET` can make a credential for any
+  venture, and whatever mints credentials later must run the venture check first.
+- **The list of actors the studio made could have split in two.** It lived inside one file. If
+  Next.js loaded that file twice (once for the tool route, once for the server actions), every real
+  tool call would have been refused with "That credential is not one this studio issued." The list
+  now lives on the server process, so both copies share it. A test loads the file twice and checks.
+  This still has not run in a built server; if that message ever appears on a real tool call, this
+  is where to look.
+- **A tool ticket could write over a founder's waiting set.** If its short name matched the first
+  ticket of a founder's set that was not yet merged, it landed on that set's branch and replaced the
+  ticket. A tool ticket is now refused when its branch already holds another unmerged ticket, and
+  Claude is told to choose a different title. One case is left: a founder's set of exactly one
+  ticket with the same short name looks the same as Claude asking for its own ticket twice, and is
+  still updated in place. Nothing merges without the founder, so nothing external can follow from it.
+- **Two input checks had no test.** Titles with an invisible line break (U+2028 or U+2029) are now
+  tested. A body whose only heading is further down now gets the title as its heading on top (it did
+  not before), and that is tested too.
+- **Wording.** The limits now say "160 characters or fewer" and "40,000 characters or fewer", which
+  is what the code allows.

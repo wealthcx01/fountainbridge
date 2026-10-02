@@ -56,7 +56,7 @@ export function slugFromTitle(title: string): string {
   return slug;
 }
 
-/** The day, as the plan records it. */
+/** The moment the plan was made, as a full date and time, which is how the plan records it. */
 const today = (now: number) => new Date(now).toISOString();
 
 export type ToolTicketPlan = { ok: true; plan: PlanDraft } | { ok: false; message: string };
@@ -91,12 +91,14 @@ export function oneTicketPlan(input: {
   // title anyone asked for.
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f\u2028\u2029]/.test(title)) return { ok: false, message: 'the title must be one line of plain text' };
-  if (title.length > TITLE_MAX) return { ok: false, message: `keep the title under ${TITLE_MAX} characters` };
-  if (body.length > BODY_MAX) return { ok: false, message: `keep the ticket under ${BODY_MAX.toLocaleString('en-GB')} characters` };
+  if (title.length > TITLE_MAX) return { ok: false, message: `keep the title to ${TITLE_MAX} characters or fewer` };
+  if (body.length > BODY_MAX) return { ok: false, message: `keep the ticket to ${BODY_MAX.toLocaleString('en-GB')} characters or fewer` };
 
-  // A body without a heading would be filed as "Untitled". The title is the heading the founder
-  // will expect, so it goes on top, with the status every new ticket starts at.
-  if (!/^#\s+\S/m.test(body)) body = `# ${title}\n\n**Status:** Todo\n\n${body}`;
+  // A body that does not open with a heading would be filed as "Untitled", or titled by whatever
+  // heading sits lower down. The title is the heading the founder will expect, so it goes on top,
+  // with the status every new ticket starts at. Only the first line counts: a heading further down
+  // is a section of the ticket, not its title.
+  if (!/^#\s+\S/.test(body)) body = `# ${title}\n\n**Status:** Todo\n\n${body}`;
 
   return {
     ok: true,

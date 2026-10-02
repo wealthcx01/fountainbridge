@@ -259,6 +259,26 @@ export async function filePlan(
     // hyphen-safe regex rather than `existingTicketFile`, whose `[A-Za-z]+` cannot cross the hyphen
     // in `THE-RESET` — so on the launch venture this guarantee would have quietly not held (FB-146).
     const onBranch = (await client.listDir(full, 'docs/tickets', branch)).filter((e) => e.type === 'file').map((e) => e.name);
+
+    // A ticket from Claude's tools must not land on somebody else's waiting set (FB-257).
+    //
+    // The branch is named from the first ticket's short name. A tool ticket whose title gives the same
+    // short name as the first ticket of a founder's set that is still waiting to be merged would land
+    // on that set's branch, and the reuse below would replace that ticket's body. So, for a tool
+    // ticket, a branch that already holds an unmerged ticket this plan does not name belongs to
+    // another set, and the ticket is refused rather than written over it. A founder pressing their own
+    // set twice is not affected: this applies only to tool calls.
+    if (actor) {
+      const mergedNames = new Set(merged);
+      const ours = (name: string) => plan.tickets.some((t) => fileForSlug([name], prefix, t.slug));
+      if (onBranch.some((name) => !mergedNames.has(name) && !ours(name))) {
+        return {
+          ok: false,
+          message: `A different set of tickets is already waiting under the name “${plan.tickets[0].slug}”. `
+            + 'Give this ticket a different title and try again. Nothing was filed.',
+        };
+      }
+    }
     const already = new Map<string, string>();
     for (const t of ordered) {
       const file = fileForSlug(onBranch, prefix, t.slug);
