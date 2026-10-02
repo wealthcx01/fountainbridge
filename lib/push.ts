@@ -1,3 +1,5 @@
+import { sendHref, workHref } from './palette';
+
 /**
  * The one push (FB-141, gap G8).
  *
@@ -66,9 +68,21 @@ export function pushMessage(ventureName: string, waiting: number): { title: stri
 /**
  * Where a push opens.
  *
- * The queue, filtered to what waits on this founder — the thing the notification is about. Not the
- * desk: a founder woken by a buzz has one question, and answering it with a whole screen and a
- * search is how a useful notification becomes an annoying one.
+ * The thing the notification is about. When exactly one thing is waiting, that is the item itself —
+ * its ticket, its work page, or the send's own page (FB-179: a notification deep-links to the exact
+ * item). When several are, it is the queue, filtered to what waits on this founder. Never the desk:
+ * a founder woken by a buzz has one question, and answering it with a whole screen and a search is
+ * how a useful notification becomes an annoying one.
+ *
+ * The address travels inside the encrypted message and is never shown on the lock screen, so naming
+ * the item here does not break the rule that the push says nothing about what is waiting.
  */
-export const pushDestination = (ventureId: string): string =>
-  `/venture/${ventureId}/tickets?filter=needs`;
+export type SoleItem =
+  | { kind: 'work'; repo: string; number: number; title: string; ticketId: string | null }
+  | { kind: 'send'; repo: string; id: string };
+
+export const pushDestination = (ventureId: string, sole: SoleItem | null = null): string => {
+  if (sole?.kind === 'work') return workHref(ventureId, sole);
+  if (sole?.kind === 'send') return sendHref(ventureId, sole);
+  return `/venture/${ventureId}/tickets?filter=needs`;
+};
