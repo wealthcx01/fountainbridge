@@ -1,5 +1,5 @@
 ---
-slug: selling
+section: selling
 title: Selling — interest, not interruption
 order: 10
 summary: How a Foundry venture gets its first and next customers — on consent, from real demand.

@@ -1,5 +1,5 @@
 ---
-slug: founder-egoist
+section: founder-egoist
 chapter: 5
 title: Founder Egoist
 order: 5

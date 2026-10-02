@@ -1,5 +1,5 @@
 ---
-slug: introduction
+section: introduction
 title: The Foundry Playbook
 order: 0
 summary: How Bruntsfield builds and sells co-created ventures — the operating method behind the studio.

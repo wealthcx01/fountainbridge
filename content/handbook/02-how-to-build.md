@@ -1,5 +1,5 @@
 ---
-slug: how-to-build
+section: how-to-build
 chapter: 2
 title: How to Build
 order: 2

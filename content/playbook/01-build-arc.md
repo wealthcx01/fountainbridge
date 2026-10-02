@@ -1,5 +1,5 @@
 ---
-slug: build-arc
+section: build-arc
 title: The build arc
 order: 1
 summary: From idea to scale in six questions — the disciplined path, reworked for co-created ventures.

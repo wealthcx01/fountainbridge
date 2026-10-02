@@ -1,5 +1,5 @@
 ---
-slug: lanes
+section: lanes
 title: Lanes on a box
 order: 1
 summary: One venture, one server — where the agents actually do the work.

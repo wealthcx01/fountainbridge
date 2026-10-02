@@ -1,5 +1,5 @@
 ---
-slug: disciplined-entrepreneurship
+section: disciplined-entrepreneurship
 chapter: 6
 title: Disciplined Entrepreneurship
 order: 6

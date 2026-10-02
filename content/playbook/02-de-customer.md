@@ -1,5 +1,5 @@
 ---
-slug: de-customer
+section: de-customer
 title: DE · Who is your customer?
 order: 2
 summary: Steps 1–6 — segment the market, pick one beachhead, and know its people cold.

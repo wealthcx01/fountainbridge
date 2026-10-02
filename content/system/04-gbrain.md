@@ -1,5 +1,5 @@
 ---
-slug: gbrain
+section: gbrain
 title: gbrain
 order: 4
 summary: Durable memory the lanes and the studio draw on — partitioned per venture.

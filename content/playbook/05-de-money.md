@@ -1,5 +1,5 @@
 ---
-slug: de-money
+section: de-money
 title: DE · How do you make money?
 order: 5
 summary: Steps 15–19 — business model, pricing, LTV, the sales process, and COCA.

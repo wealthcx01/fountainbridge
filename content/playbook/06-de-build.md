@@ -1,5 +1,5 @@
 ---
-slug: de-build
+section: de-build
 title: DE · How do you design and build your product?
 order: 6
 summary: Steps 20–23 — surface the assumptions, test them, ship an MVBP, prove demand.

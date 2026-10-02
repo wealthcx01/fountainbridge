@@ -1,5 +1,5 @@
 ---
-slug: moats
+section: moats
 title: Moats — the seven powers
 order: 8
 summary: Value you can't defend is a treadmill. The seven durable advantages, and when to build each.

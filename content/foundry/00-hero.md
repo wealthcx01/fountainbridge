@@ -1,5 +1,5 @@
 ---
-slug: hero
+section: hero
 title: A co-founder that ships
 order: 0
 summary: The headline — what Foundry is, in one breath.

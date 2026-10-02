@@ -1,5 +1,5 @@
 ---
-slug: de-value
+section: de-value
 title: DE · What can you do for your customer?
 order: 3
 summary: Steps 7–11 — spec the product, quantify the value, and find where you win.

@@ -1,5 +1,5 @@
 ---
-slug: how-to-scale
+section: how-to-scale
 chapter: 4
 title: How to Scale
 order: 4

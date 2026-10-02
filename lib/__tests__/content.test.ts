@@ -41,6 +41,30 @@ describe('loadContentSections (real content/foundry)', () => {
   });
 });
 
+describe('every content file loads, and none carries a slug line (FB-250)', () => {
+  // A file without a `section:` line is skipped silently, so a renamed or missed key makes a section
+  // vanish from its page with no error. Comparing counts per folder is what notices.
+  const files = markdownFilesUnder(join(process.cwd(), 'content'));
+  const dirs = [...new Set(files.map((f) => f.slice(0, f.lastIndexOf('/'))))];
+
+  it('found the content folders at all', () => {
+    expect(dirs.length, 'no content folders found — has content/ moved?').toBeGreaterThanOrEqual(4);
+  });
+
+  it.each(dirs)('%s: every file becomes a section', (dir) => {
+    const onDisk = readdirSync(dir).filter((f) => f.endsWith('.md')).length;
+    expect(loadContentSections(dir)).toHaveLength(onDisk);
+  });
+
+  it('no file has a slug: line, which the brain would refuse', () => {
+    // gbrain reads `slug:` as the page's name in the brain and refuses the file when it disagrees
+    // with the path. One refused file stops the whole brain update.
+    const frontmatterOf = (f: string) => /^---\r?\n([\s\S]*?)\r?\n---/.exec(readFileSync(f, 'utf8'))?.[1] ?? '';
+    const withSlug = files.filter((f) => /^slug:/m.test(frontmatterOf(f)));
+    expect(withSlug).toEqual([]);
+  });
+});
+
 describe('DRAFT-marker guard (FB-022)', () => {
   it('no content/**/*.md ships a DRAFT placeholder marker', () => {
     const offenders: string[] = [];

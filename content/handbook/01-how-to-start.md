@@ -1,5 +1,5 @@
 ---
-slug: how-to-start
+section: how-to-start
 chapter: 1
 title: How to Start
 order: 1
