@@ -22,6 +22,10 @@ import { toneColor } from '@/lib/status';
  * in the attention colour, naming the venture; then the example, inside its own frame, headed as made
  * up. The example's "now" is pinned to the end of its own period so it reads the same every day.
  *
+ * The example is shown to every venture that chooses Meta, so it must not be about any one of them
+ * (CLAUDE.md #5): its campaigns are named for what any product does — a waitlist, a guide, a demo —
+ * never for what one venture sells.
+ *
  * Scoped server-side before anything is read, like every other venture route (CLAUDE.md #6).
  */
 export default async function VentureAdsPage({ params }: { params: Promise<{ id: string }> }) {

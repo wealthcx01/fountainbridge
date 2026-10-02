@@ -166,7 +166,96 @@ describe('readAdsReport, when Meta’s answer is not clean', () => {
     const r = readAdsReport(raw({ insights: { data: [row({ campaign_id: 'a', spend: 'twenty' }), row({ campaign_id: 'b', spend: '30.00' })] } }), END_OF_SEPTEMBER);
     expect(r.campaigns.find((c) => c.id === 'a')?.spendMinor).toBeNull();
     expect(r.totals.spendMinor).toBe(3000);
-    expect(r.notes.join(' ')).toMatch(/spend figure for A could not be read/);
+    expect(r.notes.join(' ')).toMatch(/spend figure for A was missing or could not be read/);
+  });
+
+  it('adds up every row Meta sends for a campaign, when it sends one per day', () => {
+    // Asked for a daily breakdown, Meta sends one row per campaign per day. Keeping only the last
+    // would show £20 of £30 spent while the page still claimed both days.
+    const r = readAdsReport(
+      raw({
+        insights: {
+          data: [
+            row({ campaign_id: 'a', spend: '10.00', date_start: '2026-09-01', date_stop: '2026-09-01', actions: [{ action_type: 'lead', value: '2' }] }),
+            row({ campaign_id: 'a', spend: '20.00', date_start: '2026-09-02', date_stop: '2026-09-02', actions: [{ action_type: 'lead', value: '3' }] }),
+          ],
+        },
+      }),
+      END_OF_SEPTEMBER,
+    );
+    const a = r.campaigns.find((c) => c.id === 'a');
+    expect(a).toMatchObject({ spendMinor: 3000, result: { kind: 'sign-up', count: 5 }, costPerResultMinor: 600 });
+    expect(r.totals.spendMinor).toBe(3000);
+    expect(r.period).toEqual({ start: '2026-09-01', end: '2026-09-02' });
+    expect(r.notes).toEqual([]);
+  });
+
+  it('adds sales value across daily rows too', () => {
+    const r = readAdsReport(
+      {
+        account: account(),
+        campaigns: { data: [{ id: 's', name: 'S', objective: 'OUTCOME_SALES', effective_status: 'ACTIVE' }] },
+        insights: {
+          data: [
+            row({ campaign_id: 's', actions: [{ action_type: 'purchase', value: '1' }], action_values: [{ action_type: 'purchase', value: '40.00' }] }),
+            row({ campaign_id: 's', actions: [{ action_type: 'purchase', value: '2' }], action_values: [{ action_type: 'purchase', value: '60.50' }] }),
+          ],
+        },
+      },
+      END_OF_SEPTEMBER,
+    );
+    expect(r.campaigns[0]).toMatchObject({ spendMinor: 2000, result: { kind: 'purchase', count: 3 }, salesMinor: 10050 });
+  });
+
+  it('one unreadable day makes the campaign’s spend unreadable, not a smaller number', () => {
+    const r = readAdsReport(
+      raw({ insights: { data: [row({ campaign_id: 'a', spend: '10.00' }), row({ campaign_id: 'a', spend: 'n/a' }), row({ campaign_id: 'b', spend: '30.00' })] } }),
+      END_OF_SEPTEMBER,
+    );
+    expect(r.campaigns.find((c) => c.id === 'a')?.spendMinor).toBeNull();
+    expect(r.totals.spendMinor).toBe(3000);
+    expect(r.notes.join(' ')).toMatch(/spend figure for A was missing or could not be read/);
+  });
+
+  it('does not add people reached across days, and says why it is missing', () => {
+    // The same person reached on two days is one person. Adding daily reach would overstate it.
+    const teaser = { id: 't', name: 'Teaser', objective: 'OUTCOME_AWARENESS', effective_status: 'ACTIVE' };
+    const daily = readAdsReport(
+      raw({ campaigns: { data: [teaser] }, insights: { data: [row({ campaign_id: 't', reach: '100' }), row({ campaign_id: 't', reach: '80' })] } }),
+      END_OF_SEPTEMBER,
+    );
+    expect(daily.campaigns[0].result).toBeNull();
+    expect(daily.campaigns[0].spendMinor).toBe(2000);
+    expect(daily.notes.join(' ')).toMatch(/figures for Teaser in parts.*people reached cannot be added up/);
+    const whole = readAdsReport(raw({ campaigns: { data: [teaser] }, insights: { data: [row({ campaign_id: 't', reach: '150' })] } }), END_OF_SEPTEMBER);
+    expect(whole.campaigns[0].result).toEqual({ kind: 'person-reached', count: 150 });
+    expect(whole.notes).toEqual([]);
+  });
+
+  it('names a row with no spend figure at all, rather than counting it as £0', () => {
+    const r = readAdsReport(
+      raw({ insights: { data: [row({ campaign_id: 'a', spend: undefined }), row({ campaign_id: 'b', spend: '30.00' })] } }),
+      END_OF_SEPTEMBER,
+    );
+    expect(r.campaigns.find((c) => c.id === 'a')?.spendMinor).toBeNull();
+    expect(r.notes.join(' ')).toMatch(/spend figure for A was missing or could not be read/);
+  });
+
+  it('orders campaigns of the same status by what they spent, most first', () => {
+    const r = readAdsReport(
+      raw({
+        campaigns: {
+          data: [
+            { id: 'small', name: 'Small', effective_status: 'ACTIVE' },
+            { id: 'big', name: 'Big', effective_status: 'ACTIVE' },
+            { id: 'mid', name: 'Mid', effective_status: 'ACTIVE' },
+          ],
+        },
+        insights: { data: [row({ campaign_id: 'small', spend: '5.00' }), row({ campaign_id: 'big', spend: '50.00' }), row({ campaign_id: 'mid', spend: '20.00' })] },
+      }),
+      END_OF_SEPTEMBER,
+    );
+    expect(r.campaigns.map((c) => c.id)).toEqual(['big', 'mid', 'small']);
   });
 
   it('names a status it does not recognise', () => {

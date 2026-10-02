@@ -736,5 +736,17 @@ among the external hops marked ↗. So the desk line was compared against that t
 built from the studio's existing parts (eyebrow, serif title, hairline card, label-over-figure, rows
 divided by rules). Looked at as pictures at both sizes. One fault was found by looking and fixed: the
 awareness campaign showed "£0.01 each" per person reached, which is true and meaningless; reach now
-shows no price per result. On the phone the desk's surface columns are hidden (unchanged), so the page
-has no door there yet.
+shows no price per result.
+
+**Re-read after review, same day, beside the design.** The desk was then rendered side by side with
+the Claude Design artifact's desk (from the artifact's saved page, signed in with "Continue with
+Google"). Design: **1,922px** at 1440×1000. Ours on ARCA's real data: **1,845px** at 1440×1000 and
+**2,258px** at 393×851; the ads page **1,274px** and **2,046px** (the example's campaign names were
+made generic, which shortened two rows on the phone). In the pictures the Scale column sits where the
+design puts it, last of three, with the same shape: a sentence saying it is not connected, the ticket
+count, then links. Ours reads "Meta ads · not connected yet" where the design says "platform tbd",
+because the platform is now chosen. The design marks its ads link ↗ as a hop outside the studio;
+ours is "your ads on Meta →" because it opens a page inside the studio. The design's phone view is
+the separate pocket-studio prototype; on ours the page is reached from the phone in two presses, "See
+the whole desk" and then "your ads on Meta →" in the Scale column (seen in the picture). An earlier
+line here said the phone had no way in; that was wrong.

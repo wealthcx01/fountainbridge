@@ -9,7 +9,7 @@
     "data": [
       {
         "id": "120000000000000001",
-        "name": "Waitlist — UK card collectors",
+        "name": "Waitlist sign-ups — UK",
         "objective": "OUTCOME_LEADS",
         "effective_status": "ACTIVE",
         "daily_budget": "2500",
@@ -17,7 +17,7 @@
       },
       {
         "id": "120000000000000002",
-        "name": "Price history video — people like our sign-ups",
+        "name": "Product video — people like our sign-ups",
         "objective": "OUTCOME_TRAFFIC",
         "effective_status": "ACTIVE",
         "daily_budget": "1500",
@@ -25,7 +25,7 @@
       },
       {
         "id": "120000000000000003",
-        "name": "Grading guide — people who visited the site",
+        "name": "Free guide — people who visited the site",
         "objective": "OUTCOME_LEADS",
         "effective_status": "PAUSED",
         "daily_budget": "800",
@@ -42,7 +42,7 @@
       },
       {
         "id": "120000000000000005",
-        "name": "Deck builder demo",
+        "name": "Product demo",
         "objective": "OUTCOME_ENGAGEMENT",
         "effective_status": "IN_PROCESS",
         "daily_budget": "1000",
@@ -50,7 +50,7 @@
       },
       {
         "id": "120000000000000006",
-        "name": "Auction alerts — returning visitors",
+        "name": "Reminder — returning visitors",
         "objective": "OUTCOME_LEADS",
         "effective_status": "WITH_ISSUES",
         "daily_budget": "600",
@@ -63,7 +63,7 @@
     "data": [
       {
         "campaign_id": "120000000000000001",
-        "campaign_name": "Waitlist — UK card collectors",
+        "campaign_name": "Waitlist sign-ups — UK",
         "spend": "412.37",
         "impressions": "58214",
         "reach": "31090",
@@ -80,7 +80,7 @@
       },
       {
         "campaign_id": "120000000000000002",
-        "campaign_name": "Price history video — people like our sign-ups",
+        "campaign_name": "Product video — people like our sign-ups",
         "spend": "268.9",
         "impressions": "41877",
         "reach": "22410",
@@ -95,7 +95,7 @@
       },
       {
         "campaign_id": "120000000000000003",
-        "campaign_name": "Grading guide — people who visited the site",
+        "campaign_name": "Free guide — people who visited the site",
         "spend": "96.12",
         "impressions": "9022",
         "reach": "3110",
@@ -123,7 +123,7 @@
       },
       {
         "campaign_id": "120000000000000006",
-        "campaign_name": "Auction alerts — returning visitors",
+        "campaign_name": "Reminder — returning visitors",
         "spend": "18.40",
         "impressions": "1630",
         "reach": "904",

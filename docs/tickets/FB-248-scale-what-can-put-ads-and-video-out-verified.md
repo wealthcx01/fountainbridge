@@ -182,11 +182,18 @@ change or pay for an ad.
   results inside an `actions` list, every list paged. The rules it keeps:
   money is read as text into whole pence, never through a floating-point number; a lead is counted
   once (Meta reports `lead` and also its parts, and adding them would double it); results of
-  different kinds are never added together; a spend it cannot read is named and left out of the total,
-  never counted as nothing; and if Meta had more to report than was read, the page says the totals
-  are only part of the account.
+  different kinds are never added together; a spend it cannot read, or a row with no spend at all, is
+  named and left out of the total, never counted as nothing; when Meta sends one row per day for a
+  campaign, every row is added up (people reached cannot be added across days, so it is left out and
+  the page says why); and if Meta had more to report than was read, the page says the totals are
+  only part of the account.
 - `lib/meta-ads-example.json` — the example: six campaigns plus one deleted after it spent, covering
-  running, paused, ended, waiting for Meta's review, and flagged by Meta.
+  running, paused, ended, waiting for Meta's review, and flagged by Meta. It is shown to every venture
+  that chooses Meta, so its campaigns are named for what any product does (a waitlist, a guide, a
+  demo), not for what one venture sells.
+- **On a phone the page is two presses away.** The phone desk keeps the surfaces block behind "See
+  the whole desk"; the Scale column there carries "your ads on Meta →". Checked on a phone-sized
+  screen, 2026-10-02.
 - **There is no "connected" state in the code yet.** Adding one before a real account has ever been
   read would be a state nobody has seen.
 

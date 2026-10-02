@@ -245,23 +245,78 @@ const RESULT_RULES: { objectives: string[]; kind: ResultKind; actions: string[] 
   { objectives: ['OUTCOME_AWARENESS', 'REACH', 'BRAND_AWARENESS'], kind: 'person-reached', actions: 'reach' },
 ];
 
+/**
+ * One campaign's reporting, with every row Meta sent for it added together.
+ *
+ * Meta sends ONE row per campaign for the whole period by default, but one row per day (or per week)
+ * when asked to break it down. Keeping only one of those rows would quietly drop the rest of the
+ * money while the page still claimed the whole period — the same short read as a list cut off at
+ * page one. So rows are added: spend, every result count and every sales value.
+ *
+ * People reached is the exception. The same person reached on Monday and on Tuesday is one person,
+ * so daily reach figures cannot be added. With more than one row it is left unread, and said so.
+ */
+interface CampaignFigures {
+  rows: number;
+  name: string | undefined;
+  /** Minor units. Null when any row's spend was missing or could not be read. */
+  spendMinor: number | null;
+  /** Per action type: the total count, or null when any row's count for it could not be read. */
+  actions: Map<string, number | null>;
+  /** Per action type: the total value in minor units, or null when any row's could not be read. */
+  values: Map<string, number | null>;
+  /** Null when unreadable, or when it came in more than one row and so cannot be added. */
+  reach: number | null;
+}
+
+/** Adds `value` into `map[key]`. One unreadable part makes the whole total unreadable. */
+function addInto(map: Map<string, number | null>, key: string, value: number | null): void {
+  if (!map.has(key)) {
+    map.set(key, value);
+    return;
+  }
+  const before = map.get(key) ?? null;
+  map.set(key, before === null || value === null ? null : before + value);
+}
+
+function figuresOf(rows: MetaInsightRow[], digits: number): CampaignFigures {
+  const out: CampaignFigures = {
+    rows: rows.length,
+    name: rows.find((r) => r.campaign_name)?.campaign_name,
+    spendMinor: 0,
+    actions: new Map(),
+    values: new Map(),
+    reach: rows.length === 1 ? count(rows[0].reach) : null,
+  };
+  for (const r of rows) {
+    // A row with no spend at all is not a row that spent nothing: Meta writes "0" for that.
+    const spend = decimalToMinor(r.spend, digits);
+    out.spendMinor = out.spendMinor === null || spend === null ? null : out.spendMinor + spend;
+    for (const a of r.actions ?? []) addInto(out.actions, a.action_type, count(a.value));
+    for (const a of r.action_values ?? []) addInto(out.values, a.action_type, decimalToMinor(a.value, digits));
+  }
+  return out;
+}
+
+function ruleFor(objective: string | undefined) {
+  return RESULT_RULES.find((r) => r.objectives.includes((objective ?? '').toUpperCase()));
+}
+
 function resultOf(
   objective: string | undefined,
-  row: MetaInsightRow | undefined,
-  digits: number,
+  figures: CampaignFigures | undefined,
 ): { result: CampaignLine['result']; salesMinor: number | null } {
-  const rule = RESULT_RULES.find((r) => r.objectives.includes((objective ?? '').toUpperCase()));
-  if (!rule || !row) return { result: null, salesMinor: null };
+  const rule = ruleFor(objective);
+  if (!rule || !figures) return { result: null, salesMinor: null };
   if (rule.actions === 'reach') {
-    const n = count(row.reach);
+    const n = figures.reach;
     return { result: n === null ? null : { kind: rule.kind, count: n }, salesMinor: null };
   }
   for (const type of rule.actions) {
-    const hit = row.actions?.find((a) => a.action_type === type);
-    const n = count(hit?.value);
+    const n = figures.actions.get(type) ?? null;
     if (n === null) continue;
-    const value = rule.kind === 'purchase' ? row.action_values?.find((a) => a.action_type === type) : undefined;
-    return { result: { kind: rule.kind, count: n }, salesMinor: value ? decimalToMinor(value.value, digits) : null };
+    const value = rule.kind === 'purchase' ? (figures.values.get(type) ?? null) : null;
+    return { result: { kind: rule.kind, count: n }, salesMinor: value };
   }
   // Set up for this, and nothing of this kind came back. Zero is a real answer here: Meta reported
   // the row and the row has none.
@@ -273,9 +328,9 @@ const ORDER: CampaignStatus[] = ['problem', 'in-review', 'running', 'unknown', '
 /**
  * Meta's account, campaigns and insight rows → one report a founder can read.
  *
- * Campaigns are joined to their insight row by id. A campaign with no row showed to nobody in the
- * period; a row with no campaign is one that was deleted since, and is still money that went out, so
- * it is kept. Problems first (they need someone), then what is running, then by money.
+ * Campaigns are joined to their insight rows by id, every row added (Meta may send one per day). A
+ * campaign with no row showed to nobody in the period; a row with no campaign is one that was deleted
+ * since, and is still money that went out, so it is kept. Problems first (they need someone), then what is running, then by money.
  */
 export function readAdsReport(raw: MetaAdsRaw, now: Date = new Date()): AdsReport {
   const currency = (raw.account.currency ?? '').toUpperCase() || 'GBP';
@@ -283,19 +338,29 @@ export function readAdsReport(raw: MetaAdsRaw, now: Date = new Date()): AdsRepor
   const notes: string[] = [];
   if (!raw.account.currency) notes.push('Meta did not say which currency this account uses, so pounds are assumed.');
 
-  const rows = new Map<string, MetaInsightRow>();
-  for (const r of raw.insights.data) rows.set(r.campaign_id, r);
+  // Every row for a campaign, not the last one: see CampaignFigures.
+  const grouped = new Map<string, MetaInsightRow[]>();
+  for (const r of raw.insights.data) {
+    if (!r || typeof r.campaign_id !== 'string') continue;
+    const list = grouped.get(r.campaign_id);
+    if (list) list.push(r);
+    else grouped.set(r.campaign_id, [r]);
+  }
+  const rows = new Map<string, CampaignFigures>();
+  for (const [id, list] of grouped) rows.set(id, figuresOf(list, digits));
 
   const lines: CampaignLine[] = [];
   const seen = new Set<string>();
   const unreadable: string[] = [];
+  const reachByDay: string[] = [];
 
-  const line = (c: MetaCampaign | null, row: MetaInsightRow | undefined): CampaignLine => {
-    const id = c?.id ?? row!.campaign_id;
-    const name = c?.name ?? row?.campaign_name ?? `Campaign ${id}`;
-    const spendMinor = row ? decimalToMinor(row.spend ?? '0', digits) : 0;
+  const line = (id: string, c: MetaCampaign | null, row: CampaignFigures | undefined): CampaignLine => {
+    const name = c?.name ?? row?.name ?? `Campaign ${id}`;
+    // No row at all: Meta reported nothing for it in the period, so it showed to nobody.
+    const spendMinor = row ? row.spendMinor : 0;
     if (spendMinor === null) unreadable.push(name);
-    const { result, salesMinor } = resultOf(c?.objective, row, digits);
+    const { result, salesMinor } = resultOf(c?.objective, row);
+    if (ruleFor(c?.objective)?.actions === 'reach' && row && row.rows > 1) reachByDay.push(name);
     const daily = minorString(c?.daily_budget);
     const lifetime = minorString(c?.lifetime_budget);
     return {
@@ -320,12 +385,12 @@ export function readAdsReport(raw: MetaAdsRaw, now: Date = new Date()): AdsRepor
   for (const c of raw.campaigns.data) {
     if (!c || typeof c.id !== 'string' || seen.has(c.id)) continue;
     seen.add(c.id);
-    lines.push(line(c, rows.get(c.id)));
+    lines.push(line(c.id, c, rows.get(c.id)));
   }
   for (const [id, row] of rows) {
     if (!seen.has(id)) {
       seen.add(id);
-      lines.push(line(null, row));
+      lines.push(line(id, null, row));
     }
   }
 
@@ -335,7 +400,12 @@ export function readAdsReport(raw: MetaAdsRaw, now: Date = new Date()): AdsRepor
 
   if (unreadable.length > 0) {
     notes.push(
-      `Meta’s spend figure for ${unreadable.join(', ')} could not be read, so it is left out of the total rather than counted as nothing.`,
+      `Meta’s spend figure for ${unreadable.join(', ')} was missing or could not be read, so it is left out of the total rather than counted as nothing.`,
+    );
+  }
+  if (reachByDay.length > 0) {
+    notes.push(
+      `Meta sent the figures for ${reachByDay.join(', ')} in parts, one for each day or week. The number of people reached cannot be added up across the parts, because one person reached on two days would count twice, so it is not shown.`,
     );
   }
   // Either list being cut short makes every total on the page a part-total.
