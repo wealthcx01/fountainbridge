@@ -5,9 +5,10 @@
 **Shipped in part:** the keyboard palette and the push's deep link are built and checked in a
 browser. Not yet done: a real notification on a real phone (that is FB-141's last step, and needs
 John's keys, database change and timer first), and driving the palette with a real screen reader
-(VoiceOver or NVDA) rather than checking its labels and roles in code. And when several things
-are waiting, the push opens the "Needs you" list rather than one item — John has to agree that this
-meets "every notification opens the exact item", or say what it should open instead.
+(VoiceOver or NVDA) rather than checking its labels and roles in code. (John agreed on 2026-10-02
+that when several things are waiting, the push opening the "Needs you" list meets the deep-link
+criterion, and that the notification card covering the top of that list until it is answered is
+fine.)
 
 ## The argument, and the half of it that applies to us
 
@@ -69,8 +70,8 @@ So the OS is his answer and cannot be ours. The *need* is identical and is unadd
       in first, stays inside the open box, and Escape puts the cursor back. Also checked in a browser at 1440×1000 and 393×851 on ARCA's real data, keyboard only: Ctrl-K from
       the Handbook, type "arca 61", arrow down, Enter → the Tickets screen opened on ARCA-61. ⌘K,
       "composer", Enter → the composer. Escape closes it and puts focus back.
-- [ ] Every notification and external link deep-links to the exact item. **Met when one thing is
-      waiting; not when several are, and John needs to agree to that reading.** With several
+- [x] Every notification and external link deep-links to the exact item. **John agreed this reading
+      on 2026-10-02: one thing waiting opens that item; several open "Needs you".** With several
       waiting, the push opens "Needs you" rather than one of them, because picking one would be
       arbitrary and the push never says what the item is. That is a different promise from the one
       written here. The studio sends exactly one kind of notification (FB-141), and it opens the
