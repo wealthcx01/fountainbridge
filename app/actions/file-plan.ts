@@ -38,7 +38,8 @@ import {
 } from '@/lib/plan-draft';
 import { ticketPath, withTicketId } from '@/deploy/librechat/ticket-mcp/ids.mjs';
 import {
-  FOUNDING_MAP_PATH, mapProblem, parseFoundingMap, renderFoundingMapFile, traceProblem, MAP_MARKER,
+  FOUNDING_MAP_PATH, isFoundingPlan, mapProblem, parseFoundingMap, renderFoundingMapFile, traceProblem,
+  MAP_MARKER, MAP_NOT_SENT,
   type FoundingMap,
 } from '@/lib/founding-map';
 
@@ -175,6 +176,11 @@ export async function filePlan(
     }
     const unfinished = mapProblem(map) ?? traceProblem(plan);
     if (unfinished) return { ok: false, message: unfinished };
+  } else if (isFoundingPlan(plan)) {
+    // A founding set that arrives without its map would otherwise file as an ordinary plan: no map
+    // saved, the unknown-unknowns check never run, and nobody told. Refused here as well as in the
+    // panel, so a panel that dropped the map cannot get past it.
+    return { ok: false, message: MAP_NOT_SENT };
   }
 
   const ordered = planFilingOrder(plan);

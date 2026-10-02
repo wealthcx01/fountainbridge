@@ -135,6 +135,63 @@ export function extractFoundingMap(blocks: ReplyBlock[]): FoundingMap | null {
   return null;
 }
 
+/**
+ * The plan's `source_title` when its tickets came out of a founding walk.
+ *
+ * The composer is told to write exactly this. It is how the studio knows a set of tickets is a
+ * founding set even when the map that should travel with it is missing — and a founding set without
+ * its map must not file as an ordinary plan, because then the unknown-unknowns check never runs.
+ */
+export const FOUNDING_SOURCE_TITLE = 'The founding map';
+
+/** Does this plan say it came out of a founding walk? */
+export const isFoundingPlan = (plan: Pick<PlanDraft, 'source_title'>): boolean =>
+  /^\s*the founding map\b/i.test(plan.source_title);
+
+const CLAIMS_MAP = new RegExp(`"${MAP_MARKER}"\\s*:`);
+
+/**
+ * Did the composer try to hand over a map in this reply, whether or not it could be read?
+ *
+ * One stray line break inside the JSON makes the map unreadable. Without this, an unreadable map
+ * looks exactly like no map at all, and the tickets would file without it and without a word.
+ */
+export function claimsFoundingMap(blocks: ReplyBlock[]): boolean {
+  return blocks.some((b) => b.kind === 'draft' && CLAIMS_MAP.test(b.text));
+}
+
+/** Said when a founding set arrives with no map at all. Used by the panel and by the server. */
+export const MAP_NOT_SENT = 'These tickets come from a founding map, but the map itself did not come with them. '
+  + 'Nothing can be filed without it. Ask the composer to hand over the map again.';
+
+/**
+ * Why a set cannot be filed because its founding map is missing or unreadable — or null.
+ *
+ * Only about the map arriving at all. Whether a map that did arrive is complete is `mapProblem`'s job.
+ */
+export function missingMapProblem(blocks: ReplyBlock[], plan: PlanDraft, map: FoundingMap | null): string | null {
+  if (map) return null;
+  if (claimsFoundingMap(blocks)) {
+    return 'The composer sent a founding map with these tickets, but the studio could not read it, so it '
+      + 'cannot be saved with them. Nothing can be filed yet. Ask the composer to hand over the map again.';
+  }
+  return isFoundingPlan(plan) ? MAP_NOT_SENT : null;
+}
+
+/**
+ * What to tell the founder when a map arrived but the tickets that go with it did not.
+ *
+ * The map is the whole result of the walk. It is shown, not hidden, and the founder is told plainly
+ * what is missing — never a quiet empty panel (CLAUDE.md #10).
+ */
+export function mapWithoutPlanProblem(map: FoundingMap | null): string {
+  return map
+    ? 'The composer handed over your founding map, but the first tickets that go with it could not be read. '
+      + 'Nothing has been filed, and the map is not lost: it is below. Ask the composer to hand over the tickets again.'
+    : 'The composer tried to hand over a founding map, but the studio could not read it or the tickets with it. '
+      + 'Nothing has been filed. Ask the composer to hand over the map again.';
+}
+
 /** Which quadrant a heading names, matched loosely so "## Unknown unknowns — the landmines" counts. */
 function quadrantOf(heading: string): Quadrant | null {
   const h = heading.toLowerCase().replace(/^\d+[.)]\s*/, '');

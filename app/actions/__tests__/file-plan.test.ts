@@ -452,6 +452,16 @@ describe('a founding set files its map with it (FB-236)', () => {
     expect(written().map((w) => w.path)).not.toContain(MAP_PATH);
   });
 
+  it('refuses a founding set that arrives without its map, and writes nothing', async () => {
+    // Without this, the set would file as an ordinary plan: no map saved, the unknown-unknowns check
+    // never run, and nobody told.
+    const r = await filePlan('kiln', 'kiln', PLAN, 5);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('the map itself did not come with them');
+    expect(putFile).not.toHaveBeenCalled();
+    expect(createdBranches()).toEqual([]);
+  });
+
   it('refuses a map that stopped before the unknown unknowns, and writes nothing', async () => {
     const body = MAP.body.split('## Unknown unknowns')[0];
     const r = await filePlan('kiln', 'kiln', PLAN, 5, undefined, { ...MAP, body });

@@ -64,7 +64,10 @@ repo ("who is desperate for this?") are the right register.
 - [x] The walk reaches the unknown-unknowns stage rather than stopping at a tidy list of knowns — that stage
       is the whole reason for choosing this over a crawler. — *the composer is told never to skip it, and
       the studio refuses to file a map that has nothing under "Unknown unknowns"
-      (`mapProblem`, checked in the panel and again on the server).*
+      (`mapProblem`, checked in the panel and again on the server). A founding set whose map is missing
+      or cannot be read is refused too, in the panel and on the server, with a sentence saying why — so
+      the check cannot be skipped by the map simply not arriving. What the studio cannot check is the
+      conversation itself; it checks the map the conversation hands over.*
 - [x] The map is written into `context/` and is readable later by the venture brain. — *saved as
       `context/general/founding-map.md`, in the same pull request as the tickets, listing the id each
       ticket was given. The brain's own rules count it as part of the venture's knowledge and share it
@@ -72,8 +75,10 @@ repo ("who is desperate for this?") are the right register.
 - [x] Tickets are filed through `filePlan`, not a second writer. — *`filePlan` takes the map as one more
       argument and writes it on the same branch.*
 - [x] Nothing is filed the founder has not seen and agreed to. — *the map and the tickets arrive in the
-      plan panel; the founder can read the whole map, strike any line, and nothing is written until
-      they press "File all N". The composer is told never to file a founding set itself.*
+      plan panel; the founder can read the whole map, strike any ticket, and nothing is written until
+      they press "File all N". The composer is told never to file a founding set itself. One limit:
+      the map is shown folded (one click opens it) and its points cannot be struck one by one; to change
+      the map, the founder asks the composer. It is saved in a pull request a person still merges.*
 - [ ] Run for real on one venture that does not exist yet, not on ARCA's existing backlog.
 
 ## What was built (2026-10-02)
@@ -89,6 +94,12 @@ repo ("who is desperate for this?") are the right register.
 - **One press files both.** The plan panel shows the idea, the map (folded, one click to read), and the
   tickets; `filePlan` writes the tickets and then the map, on one branch, in one pull request. It will
   not write over a founding map that has already been merged.
+
+**Fixed after review (2026-10-02).** A founding set no longer files as an ordinary plan when its map
+is missing or unreadable: the panel and the server both refuse it and say why. A map whose tickets
+cannot be read now stays on screen, open, with a sentence saying the tickets are missing, instead of
+vanishing. The browser test presses "File all" and proves the map travels with the tickets. A test
+keeps the walk's questions the same as FB-069's. The panel no longer reads "From The founding map".
 
 Found on the way and filed separately: **FB-257** — the studio's `file_ticket` tool for Claude cannot
 file anything.

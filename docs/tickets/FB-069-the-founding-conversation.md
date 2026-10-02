@@ -6,9 +6,11 @@
 
 **Shipped in part:** the strategic lens (`lib/founding-lens.ts`) — the powers read out of the shipped
 playbook, the questions, and the boundary that decides when to coach and when to stay out of the
-way. Still to come: the composer actually using it (its instructions live on the box), the
-corpus-in/thesis-out conversation mode, and writing the thesis to the venture's knowledge. A founder
-does not yet get a founding conversation.
+way. Since FB-236, the composer's instructions use the lens's questions in the founding walk, and a
+test fails if the two lists drift apart; those instructions reach a venture's machine only when its
+composer is re-seeded, and none has been yet. Still to come: the corpus-in/thesis-out conversation
+mode, and writing the thesis to the venture's knowledge (FB-236 saves a founding map, which is not a
+thesis). A founder does not yet get a founding conversation of this kind.
 
 ## Why this matters (for the founder)
 The first thing a founder should do is not "file a ticket". It is to bring in everything they already

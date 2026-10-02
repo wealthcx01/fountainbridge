@@ -3,8 +3,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   FOUNDING_MAP_PATH, FOUNDING_STAGES, MAP_MARKER, QUADRANTS, extractFoundingMap, foundingOpener,
-  mapProblem, mapSections, parseFoundingMap, renderFoundingMapFile, traceProblem,
+  FOUNDING_SOURCE_TITLE, MAP_NOT_SENT, isFoundingPlan, mapProblem, mapSections, parseFoundingMap,
+  renderFoundingMapFile, traceProblem,
 } from '../founding-map';
+import { FOUNDING_QUESTIONS } from '../founding-lens';
 import { parseReply } from '../composer';
 import { railState } from '../composer-rail';
 import { strikeTicket } from '../plan-draft';
@@ -100,10 +102,67 @@ describe('the rail shows the map with its tickets', () => {
     expect(state.map?.idea).toBe(MAP.idea);
   });
 
-  it('an ordinary plan has no map', () => {
-    const reply = handOverReply().replace(/```\n\{"foundry_map"[^\n]*\n```\n/, '');
+  it('an ordinary plan has no map, and is not held up for one', () => {
+    const reply = handOverReply(MAP, { ...PLAN, source_title: 'Kiln pitch deck' })
+      .replace(/```\n\{"foundry_map"[^\n]*\n```\n/, '');
     const state = railState({ latestReply: reply, aboutTicketId: null, filed: null });
-    expect(state.kind === 'plan' && state.map).toBeNull();
+    if (state.kind !== 'plan') throw new Error(`expected a plan, got ${state.kind}`);
+    expect(state.map).toBeNull();
+    expect(state.mapMissing).toBeNull();
+  });
+});
+
+describe('a founding set never files without its map', () => {
+  // The unknown-unknowns check only runs on a map that arrives. These are the two ways one does not.
+  const rail = (reply: string) => railState({ latestReply: reply, aboutTicketId: null, filed: null });
+  const withoutMap = handOverReply().replace(/```\n\{"foundry_map"[^\n]*\n```\n/, '');
+  // A literal line break inside a JSON string: the likeliest way a model breaks the block.
+  const breakMap = (reply: string) => reply.replace('"body":"## Known knowns\\n', '"body":"## Known knowns\n');
+
+  it('a complete hand-over is not held up', () => {
+    const state = rail(handOverReply());
+    expect(state.kind).toBe('plan');
+    expect(state.kind === 'plan' && state.mapMissing).toBeNull();
+  });
+
+  it('the composer left the map out: the press is refused, and it says why', () => {
+    expect(withoutMap).not.toContain('foundry_map');
+    const state = rail(withoutMap);
+    if (state.kind !== 'plan') throw new Error(`expected a plan, got ${state.kind}`);
+    expect(state.map).toBeNull();
+    expect(state.mapMissing).toBe(MAP_NOT_SENT);
+  });
+
+  it('the map has one stray line break and cannot be read: refused, and it says so', () => {
+    const broken = breakMap(handOverReply());
+    expect(broken).not.toBe(handOverReply());
+    const state = rail(broken);
+    if (state.kind !== 'plan') throw new Error(`expected a plan, got ${state.kind}`);
+    expect(state.map).toBeNull();
+    expect(state.mapMissing).toMatch(/could not read it/);
+  });
+
+  it('the composer is told to title a founding set the way the studio recognises it', () => {
+    expect(isFoundingPlan(PLAN)).toBe(true);
+    expect(PROMPT).toContain(`"source_title":"${FOUNDING_SOURCE_TITLE}"`);
+  });
+
+  describe('a map whose tickets cannot be read is shown, not lost', () => {
+    const badPlan = { ...PLAN, tickets: PLAN.tickets.map((t, i) => (i === 0 ? { ...t, slug: 'Not A Slug' } : t)) };
+
+    it('keeps the map and says the tickets are missing', () => {
+      const state = rail(handOverReply(MAP, badPlan));
+      if (state.kind !== 'map-only') throw new Error(`expected the map on its own, got ${state.kind}`);
+      expect(state.map?.idea).toBe(MAP.idea);
+      expect(state.problem).toMatch(/first tickets that go with it could not be read/);
+    });
+
+    it('says so even when neither block can be read', () => {
+      const state = rail(breakMap(handOverReply(MAP, badPlan)));
+      if (state.kind !== 'map-only') throw new Error(`expected the map on its own, got ${state.kind}`);
+      expect(state.map).toBeNull();
+      expect(state.problem).toMatch(/could not read it or the tickets/);
+    });
   });
 });
 
@@ -174,6 +233,14 @@ describe('the composer on the box is told the same walk the studio checks', () =
     const map = parseFoundingMap(asTheModelReadsIt);
     expect(map).not.toBeNull();
     expect(mapSections(map!).map((s) => s.quadrant)).toEqual([...QUADRANTS]);
+  });
+
+  it('asks every question FB-069’s founding lens asks', () => {
+    // The walk's known-unknowns stage repeats the lens's questions. Held together here so a change
+    // to one is a red test, not a quiet drift.
+    const plain = (t: string) => t.toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const prompt = plain(PROMPT);
+    for (const q of FOUNDING_QUESTIONS) expect(prompt, q.ask).toContain(plain(q.ask));
   });
 
   it('day one types the same opener the composer suggests', () => {

@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { PlanPanel } from './PlanPanel';
+import { FoundingMapView, PlanPanel } from './PlanPanel';
+import { Mark } from './Mark';
+import { toneColor } from '@/lib/status';
 import type { RailState } from '@/lib/composer-rail';
 
 /**
  * The composer's right-hand rail (FB-131) — the thing being made, while it is being made.
  *
- * Five states and never two. It chooses none of them: `railState` decides and this renders, so the
+ * Six states and never two. It chooses none of them: `railState` decides and this renders, so the
  * question "what am I about to press" has one answer computed in one place.
  *
  * The promise in the copy is load-bearing: *"Every line came from the conversation."* Nothing here
@@ -31,7 +33,21 @@ export function ComposerRail({
   if (state.kind === 'plan') {
     // FB-127 already owns this state whole, including its own press. Wrapping it rather than
     // re-implementing it is what stops two "file" buttons behaving differently.
-    return <div data-testid="rail-plan"><PlanPanel plan={state.plan} map={state.map} /></div>;
+    return <div data-testid="rail-plan"><PlanPanel plan={state.plan} map={state.map} mapMissing={state.mapMissing} /></div>;
+  }
+
+  if (state.kind === 'map-only') {
+    // FB-236: the walk's whole result, with nothing to file beside it. Said plainly and shown open,
+    // so the founder can see the map was not lost (CLAUDE.md #10).
+    return (
+      <aside className="card" data-testid="rail-map-only">
+        <p className="eyebrow" style={{ marginTop: 0 }}>Your founding map</p>
+        <p data-testid="rail-map-problem" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.75rem', color: toneColor('attention') }}>
+          <Mark />{state.problem}
+        </p>
+        {state.map ? <FoundingMapView map={state.map} summary="The map" open /> : null}
+      </aside>
+    );
   }
 
   if (state.kind === 'filed') {

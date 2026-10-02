@@ -38,7 +38,16 @@ import { noteDecision } from '@/lib/decided';
  * The layout here is deliberately plain. The desk design's `planOn` rail is FB-131; this is the
  * control, not its final shape.
  */
-export function PlanPanel({ plan: proposed, map = null }: { plan: PlanDraft; map?: FoundingMap | null }) {
+export function PlanPanel({
+  plan: proposed,
+  map = null,
+  mapMissing = null,
+}: {
+  plan: PlanDraft;
+  map?: FoundingMap | null;
+  /** A founding set whose map is missing or unreadable: said, and the press is refused. */
+  mapMissing?: string | null;
+}) {
   const [plan, setPlan] = useState(proposed);
   const [filing, setFiling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +57,8 @@ export function PlanPanel({ plan: proposed, map = null }: { plan: PlanDraft; map
   // line never reshuffles the list under the founder's eyes, and what they read is what lands.
   const lines = planOrder(plan);
   const ordered = planFilingOrder(plan);
-  const problem = planProblem(plan) ?? (map ? mapProblem(map) ?? traceProblem(plan) : null);
-  const sections = map ? mapSections(map) : [];
-  const points = sections.reduce((n, sec) => n + sec.points.length, 0);
+  const founding = Boolean(map || mapMissing);
+  const problem = planProblem(plan) ?? mapMissing ?? (map ? mapProblem(map) ?? traceProblem(plan) : null);
   const titleOf = (slug: string) => plan.tickets.find((t) => t.slug === slug)?.title ?? slug;
 
   // A filed set is history. Re-rendering the strike controls over it would invite a founder to edit
@@ -72,34 +80,13 @@ export function PlanPanel({ plan: proposed, map = null }: { plan: PlanDraft; map
   return (
     <div className="card" data-testid="plan-panel" style={{ marginTop: '1rem' }}>
       <p className="eyebrow" style={{ marginTop: 0 }}>
-        <span className="eyebrow-id">{map ? 'Your first tickets, from the map' : 'The plan, taking shape'}</span>
+        <span className="eyebrow-id">{founding ? 'Your first tickets, from the map' : 'The plan, taking shape'}</span>
       </p>
-      {map ? (
-        <div data-testid="plan-map" style={{ margin: '0 0 0.75rem' }}>
-          <p style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.4rem' }}>
-            <strong>Your idea:</strong> {map.idea}
-          </p>
-          <details data-testid="plan-map-details">
-            <summary style={{ fontSize: 'var(--fs-body-sm)', cursor: 'pointer' }}>
-              Read the map these came from — {points} {points === 1 ? 'point' : 'points'}. It is saved with them.
-            </summary>
-            {sections.map((sec) => (
-              <div key={sec.quadrant} data-testid="plan-map-section" style={{ margin: '0.6rem 0 0' }}>
-                <p className="eyebrow" style={{ margin: '0 0 0.2rem' }}>{sec.quadrant}</p>
-                <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: 'var(--fs-body-sm)' }}>
-                  {sec.points.map((pt, i) => (
-                    <li key={i}>
-                      {formatInline(pt).map((span, j) => (span.strong ? <strong key={j}>{span.text}</strong> : <span key={j}>{span.text}</span>))}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </details>
-        </div>
-      ) : null}
+      {map ? <FoundingMapView map={map} summary="Read the map these came from" after="It is saved with them." /> : null}
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.75rem' }}>
-        From <strong>{plan.source_title}</strong> — {ordered.length} {ordered.length === 1 ? 'ticket' : 'tickets'},
+        {/* A founding set's source is the map just above, so it is not named again mid-sentence. */}
+        {founding ? null : <>From <strong>{plan.source_title}</strong> — </>}
+        {ordered.length} {ordered.length === 1 ? 'ticket' : 'tickets'},
         smallest first. Strike anything you do not want.
       </p>
 
@@ -199,4 +186,40 @@ export function PlanPanel({ plan: proposed, map = null }: { plan: PlanDraft; map
 function dependencyTitles(plan: PlanDraft, slug: string, titleOf: (s: string) => string): string[] {
   const kept = new Set(keptTickets(plan).map((t) => t.slug));
   return effectiveDependsOn(plan, slug).filter((d) => kept.has(d)).map(titleOf);
+}
+
+/**
+ * A founding map, as the founder reads it: their idea, then the map folded under one line (FB-236).
+ *
+ * Shared by the plan panel and by the rail's "map, but no tickets" state, so the map looks the same
+ * wherever it appears. Folded by default because opened it is about 800px on a desktop; `open`
+ * unfolds it where the map is the only thing on the table.
+ */
+export function FoundingMapView({ map, summary, after, open = false }: { map: FoundingMap; summary: string; after?: string; open?: boolean }) {
+  const sections = mapSections(map);
+  const points = sections.reduce((n, sec) => n + sec.points.length, 0);
+  return (
+    <div data-testid="plan-map" style={{ margin: '0 0 0.75rem' }}>
+      <p style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.4rem' }}>
+        <strong>Your idea:</strong> {map.idea}
+      </p>
+      <details data-testid="plan-map-details" open={open}>
+        <summary style={{ fontSize: 'var(--fs-body-sm)', cursor: 'pointer' }}>
+          {summary} — {points} {points === 1 ? 'point' : 'points'}.{after ? ` ${after}` : null}
+        </summary>
+        {sections.map((sec) => (
+          <div key={sec.quadrant} data-testid="plan-map-section" style={{ margin: '0.6rem 0 0' }}>
+            <p className="eyebrow" style={{ margin: '0 0 0.2rem' }}>{sec.quadrant}</p>
+            <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: 'var(--fs-body-sm)' }}>
+              {sec.points.map((pt, i) => (
+                <li key={i}>
+                  {formatInline(pt).map((span, j) => (span.strong ? <strong key={j}>{span.text}</strong> : <span key={j}>{span.text}</span>))}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </details>
+    </div>
+  );
 }

@@ -20,7 +20,9 @@
 
 import { parseReply, type ReplyBlock } from './composer';
 import { extractPlanDraft, type PlanDraft } from './plan-draft';
-import { extractFoundingMap, type FoundingMap } from './founding-map';
+import {
+  claimsFoundingMap, extractFoundingMap, mapWithoutPlanProblem, missingMapProblem, type FoundingMap,
+} from './founding-map';
 
 /** A ticket taking shape, in the four parts the design shows. */
 export interface DraftSections {
@@ -42,7 +44,16 @@ export type RailState =
    * A document became a set (FB-127) — or a founding walk handed over its map and the first tickets
    * out of it (FB-236), in which case `map` is the map and is saved with them.
    */
-  | { kind: 'plan'; plan: PlanDraft; map: FoundingMap | null }
+  | {
+    kind: 'plan'; plan: PlanDraft; map: FoundingMap | null;
+    /** Set when this is a founding set whose map is missing or unreadable. It blocks the press. */
+    mapMissing: string | null;
+  }
+  /**
+   * A founding walk handed over a map, but the tickets that go with it could not be read (FB-236).
+   * The map is shown with a plain sentence saying what is missing, rather than vanishing.
+   */
+  | { kind: 'map-only'; map: FoundingMap | null; problem: string }
   /** One ticket, taking shape. `revises` is set when the founder arrived from a ticket. */
   | { kind: 'draft'; draft: DraftSections; revises: string | null }
   /** Nothing on the table yet, which is most of the time and is not an error. */
@@ -80,7 +91,11 @@ export function railState(input: RailInput): RailState {
 
   const blocks = input.latestReply ? parseReply(input.latestReply) : [];
   const plan = extractPlanDraft(blocks);
-  if (plan) return { kind: 'plan', plan, map: extractFoundingMap(blocks) };
+  const map = extractFoundingMap(blocks);
+  if (plan) return { kind: 'plan', plan, map, mapMissing: missingMapProblem(blocks, plan, map) };
+  // A map with no readable plan beside it is the whole result of a founding walk, about to be lost.
+  // It outranks a draft: the map's own block is not a ticket, and must not be read as one.
+  if (map || claimsFoundingMap(blocks)) return { kind: 'map-only', map, problem: mapWithoutPlanProblem(map) };
 
   const draft = draftSections(blocks);
   if (draft) return { kind: 'draft', draft, revises: input.aboutTicketId };

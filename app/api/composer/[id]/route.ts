@@ -57,8 +57,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // decisions with different controls, and a fixture that can only say one thing can only ever
     // exercise one of them. Chosen by what was asked, exactly as the real composer would choose.
     const asked = ((await req.json().catch(() => null)) as Body | null)?.messages?.at(-1)?.content ?? '';
-    // FB-236 adds a third: the founding walk's last stage, which hands over a map with its tickets.
-    const script = /\bhand over the map\b/i.test(asked)
+    // FB-236 adds a third: the founding walk's last stage, which hands over a map with its tickets —
+    // and a fourth, the same hand-over with a ticket list the studio cannot read, so the screen that
+    // keeps the map rather than losing it is seen too.
+    const script = /\bhand over the map\b.*\bunreadable tickets\b/i.test(asked)
+      ? process.env.COMPOSER_FIXTURE.replace(/[^/]+$/, 'founding-map-only.sse')
+      : /\bhand over the map\b/i.test(asked)
       ? process.env.COMPOSER_FIXTURE.replace(/[^/]+$/, 'founding.sse')
       : /break .{0,40}\binto tickets\b|\bas a plan\b/i.test(asked)
         ? process.env.COMPOSER_FIXTURE.replace(/[^/]+$/, 'plan.sse')
