@@ -17,6 +17,7 @@ import { departmentBudgets, type BudgetDisclosure } from '@/lib/budgets';
 import { ageRuns, engineState, type RunReport } from '@/lib/runreports';
 import { ageMs, stampAgeMs } from '@/lib/when';
 import { buildOffice } from '@/lib/office';
+import { lastSend } from '@/lib/sends';
 import { ventureApprovals, ventureRuns, type Runs } from '@/lib/venture-reads';
 import { composeBrief, bucketRuns, type Brief } from '@/lib/brief';
 import { blockerLine, degradedGroups, deskSummary, type ReadFailure } from '@/lib/desk';
@@ -436,6 +437,7 @@ async function Desk({
       lanes={lanes}
       departments={venture.departments}
       approvals={approvals}
+      lastSendAgeMs={ageMs(lastSend(approvals)?.at, now.getTime())}
       budgets={budgets}
       budgetsError={budgetsError}
       orphanEnvelopes={orphanEnvelopes}

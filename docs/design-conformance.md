@@ -945,3 +945,23 @@ two times, the banner and the waiting row, both say 7 days.
 Not compared with the design artifact (it needs a signed-in claude.ai session, which this run did
 not have), and not read on production: `E2E_NOW` is never set there, and on 2026-09-30 ARCA's real
 rows were already seen agreeing with the check-in sentence beside them.
+
+**After review, 2026-10-02.** The Sell line in "The company, by surface" was the one time left on
+the desk worked out in the browser. Under the gate's pinned clock it now says *"Last send went out 3
+days ago"*: the fixture's send went out on 18 July and the pinned "now" is 22 July. Before, the
+browser used the real clock and would have said about 76 days. Read on a local build with the gate's
+fixtures, signed in as John, and looked at as pictures: **2,342px** at 1440×1000 and **2,658px** at
+393×851, both unchanged. The phone desk does not show the surfaces, so the Sell line is not on it.
+
+Compared with the design this time. The artifact's page was read through the studio's artifact tool
+and rendered locally with Playwright, signed in through "Continue with Google". Its desk is
+**1,922px** at 1440×1000; ours is **2,342px**, 420px taller. The extra height is three things the
+design does not have: the "2 tickets are stuck" banner, the fixture's red warning that the venture's
+composer key is missing, and longer surface lines. The order of the sections matches. Every time in
+the design agrees with the others (*"2 minutes"*, *"3 days"*), and every time on ours now does too.
+The design has no phone layout for the desk: at 393×851 it squeezes the desktop page into a narrow
+column, 7,115px tall, so there is nothing to compare our phone desk against. Its phone screen is the
+pocket studio.
+
+Still not read on production. The ticket says so.
+

@@ -105,6 +105,7 @@ export function VentureBoard({
   lanes,
   departments = [],
   approvals = [],
+  lastSendAgeMs = null,
   budgets = [],
   budgetsError = null,
   brief = null,
@@ -139,6 +140,8 @@ export function VentureBoard({
   lanes: LaneTickets[];
   departments?: DepartmentSummary[];
   approvals?: ActiveGraphApproval[];
+  /** How long ago the last send went out, worked out on the server (FB-241). */
+  lastSendAgeMs?: number | null;
   budgets?: (BudgetDisclosure | null)[];
   /** Finished work waiting to be read, newest-waiting first — the desk's section 7 (FB-128). */
   openWorkQueue?: PrApproval[];
@@ -638,6 +641,7 @@ export function VentureBoard({
                         provisioned: d.provisioned,
                         // FB-142: from the sends this venture has already gated. No new read.
                         lastSend: d.id === 'sell' ? lastSend(approvals) : null,
+                        lastSendAgeMs,
                         connectors: d.connectors,
                       })}
                       {/* Policy belongs in the handbook; this one is not policy, it is a caution

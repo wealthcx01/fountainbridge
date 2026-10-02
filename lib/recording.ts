@@ -63,7 +63,8 @@ export async function startRecording(on: { level: (l: number) => void; elapsed: 
   const chunks: Blob[] = [];
   recorder.addEventListener('dataavailable', (e) => { if (e.data.size > 0) chunks.push(e.data); });
 
-  const startedAt = Date.now();
+  // A stopwatch: both ends are read from this browser's own clock, so they cannot disagree.
+  const startedAt = Date.now(); // one-clock: stopwatch
   let stopped = false;
   let audio: AudioContext | null = null;
   let frame = 0;
@@ -86,7 +87,10 @@ export async function startRecording(on: { level: (l: number) => void; elapsed: 
     // No meter is not no recording — but say so rather than draw a flat bar that reads as silence.
     on.level(-1);
   }
-  const ticker = window.setInterval(() => on.elapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+  const ticker = window.setInterval(
+    () => on.elapsed(Math.floor((Date.now() - startedAt) / 1000)), // one-clock: stopwatch
+    1000,
+  );
 
   const teardown = () => {
     stopped = true;
@@ -100,7 +104,7 @@ export async function startRecording(on: { level: (l: number) => void; elapsed: 
   return {
     stop: () => new Promise((resolve, reject) => {
       recorder.addEventListener('stop', () => {
-        const seconds = Math.round((Date.now() - startedAt) / 1000);
+        const seconds = Math.round((Date.now() - startedAt) / 1000); // one-clock: stopwatch
         teardown();
         const type = recorder.mimeType || mimeType || 'audio/webm';
         const blob = new Blob(chunks, { type });

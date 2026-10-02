@@ -72,8 +72,10 @@ export const prWaitingItem = (a: PrApproval, ventureId: string, surface?: string
   // by (FB-099). The pull request's title otherwise — never a guess between.
   title: a.ticketTitle ?? a.title,
   meta: surface ?? 'Your venture',
-  // Aged by the desk page against the studio's one clock before it reaches here.
-  waitingMs: a.ageMs,
+  // Aged by the desk page against the studio's one clock before it reaches here. A pull request
+  // whose opening date cannot be read has an age of 0, which is not "a few seconds": the row says
+  // "waiting on you" instead, as it did before FB-241.
+  waitingMs: Number.isFinite(Date.parse(a.createdAt)) ? a.ageMs : null,
   href: `/venture/${ventureId}/work/${a.repo}/${a.number}`,
   external: false,
 });
