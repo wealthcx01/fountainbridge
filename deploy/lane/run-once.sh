@@ -170,7 +170,7 @@ fire_due_routine() {
 fire_due_routine
 
 # --- scan each department for the first workable ticket ---------------------------------------------
-PICK="" PICK_SLUG="" PICK_DEPT="" PICK_GATE="" PICK_REPO="" PICK_DIR="" PICK_BASE=""
+PICK="" PICK_SLUG="" PICK_DEPT="" PICK_GATE="" PICK_REPO="" PICK_DIR="" PICK_BASE="" PICK_RELEASED_BY=""
 # FB-121: how much of the queue is held on the founder rather than on us. An idle wake with ten
 # tickets waiting for a go is not the same fact as an idle wake with an empty queue, and a founder
 # who cannot tell them apart has no way to know they are the blocker.
@@ -188,6 +188,7 @@ for f in docs/tickets/*.md; do
   grep -qE '^#[[:space:]]+\S' "$f" || continue
   case "$(ticket_status "$f")" in todo|ready) ;; *) continue ;; esac
   slug=$(basename "$f" .md)
+  released_by=""
   if git ls-remote --exit-code --heads "$(origin_url)" "foundry/$slug" >/dev/null 2>&1; then
     if has_open_pr "$slug"; then continue; fi   # in-flight (open PR) → leave it
     flog "reclaiming stale orphan claim foundry/$slug (branch exists, no open PR)"
@@ -225,15 +226,15 @@ for f in docs/tickets/*.md; do
     # change is gated on the pull request; anything leaving the building is gated on a signed
     # ActiveGraph approval this box holds no secret for. The record of WHO released a plan is written
     # into the studio's own ActiveGraph, where this lane has no credential and cannot forge one.
-    if release_of "$slug" >/dev/null; then
-      flog "$slug released by $(release_of "$slug") — clearing the hold and working it"
+    if released_by=$(release_of "$slug"); then
+      flog "$slug released by $released_by — clearing the hold and working it"
       rm -f "$STATE_DIR/awaiting-$slug"
     else
       HELD=$((HELD + 1)); HELD_NAMES="${HELD_NAMES:+$HELD_NAMES, }$slug"
       flog "skip $slug — waiting on your go (held)"; continue
     fi
   fi
-  PICK="$REPO_DIR/$f"; PICK_SLUG="$slug"
+  PICK="$REPO_DIR/$f"; PICK_SLUG="$slug"; PICK_RELEASED_BY="$released_by"
   PICK_DEPT="$DEPT_ID"; PICK_GATE="$DEPT_GATE"; PICK_REPO="$REPO"; PICK_DIR="$REPO_DIR"; PICK_BASE="$BASE_BRANCH"
   return 0
 done
@@ -295,7 +296,6 @@ fi
 #
 # `outreach` and `send email` used to sit in the engineering list, which is why every send stopped at
 # a plan and the approval gate had nothing to render.
-ENGINEERING_SENSITIVE='\bauth(entication|orization)?\b|password|payment|billing|stripe|\bmigration\b|secret|credential|\bdeploy\b'
 REQUIRE_PROPOSAL=0
 if ! grep -qiE "$ENGINEERING_SENSITIVE" "$PICK" && is_external_action "$PICK"; then
   case "$PICK_GATE" in
@@ -304,7 +304,10 @@ if ! grep -qiE "$ENGINEERING_SENSITIVE" "$PICK" && is_external_action "$PICK"; t
   esac
 fi
 
-if [ "$REQUIRE_PROPOSAL" = 0 ] && grep -qiE "$ENGINEERING_SENSITIVE|\boutreach\b|send.{0,6}email" "$PICK"; then
+if [ "$REQUIRE_PROPOSAL" = 0 ] && [ -n "$PICK_RELEASED_BY" ] && is_plan_first "$PICK"; then
+  flog "$PICK_SLUG is high-impact, and $PICK_RELEASED_BY read its plan and gave the go — working it"
+fi
+if [ "$REQUIRE_PROPOSAL" = 0 ] && plan_before_work "$PICK" "$PICK_RELEASED_BY"; then
   # Produce the plan ONCE (not every wake) so the founder sees exactly what the lane WOULD do before
   # approving — honest "stop-at-PLAN", not stop-before-plan (adversarial review P1).
   # (The "already surfaced" check that used to live here is gone: the scan skips a parked ticket

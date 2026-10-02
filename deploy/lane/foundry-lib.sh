@@ -692,3 +692,22 @@ brain_research() {
   rm -f "$err"
   return $rc
 }
+
+# --- the high-impact gate: plan first, or work it (FB-122, FB-162) ----------------------------------
+# Engineering work that touches sign-in, payments, migrations, secrets or deploys, or that would send
+# something out, is planned and shown to the founder before anything is built.
+ENGINEERING_SENSITIVE='\bauth(entication|orization)?\b|password|payment|billing|stripe|\bmigration\b|secret|credential|\bdeploy\b'
+
+# Is this the kind of ticket that is planned first? $1: the ticket file.
+is_plan_first() { grep -qiE "$ENGINEERING_SENSITIVE|\boutreach\b|send.{0,6}email" "$1"; }
+
+# Must the lane stop and plan before working this ticket? $1: the ticket file; $2: who released its
+# plan from the studio, or empty.
+#
+# Once the founder has read the plan and given the go, the answer is no. Before FB-162 a release
+# cleared the hold and the next line sent the ticket straight back to planning, because the ticket
+# still mentioned sign-in. On ARCA the re-planning used up the lane's daily allowance every day for
+# five weeks (730 plans), so John's go on ARCA-061 never became work and no other ticket was worked.
+# The work is still gated on its pull request, like every other change.
+plan_before_work() { [ -z "${2:-}" ] && is_plan_first "$1"; }
+
