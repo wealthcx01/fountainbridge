@@ -10,6 +10,7 @@ import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/li
 import { toneColor } from '@/lib/status';
 import { acceptWork, sendBackWork } from '@/app/actions/work';
 import { Mark } from './Mark';
+import { noteDecision } from '@/lib/decided';
 
 /**
  * Ticket detail drawer (FB-006): the whole ticket, rendered, with the decision on it (FB-105).
@@ -183,7 +184,7 @@ export function TicketDrawer({
                     // No `seenHeadSha`: the founder read the ASK here, not the work, so there is no
                     // rendered commit to bind to. The server still re-reads and re-decides against
                     // what is currently true, which is the check that matters.
-                    setResult(await acceptWork(ventureId, waiting.repo, waiting.number));
+                    setResult(noteDecision(await acceptWork(ventureId, waiting.repo, waiting.number)));
                   })
                 }
               >
@@ -215,7 +216,7 @@ export function TicketDrawer({
                   style={{ marginTop: '0.4rem' }}
                   onClick={() =>
                     startTransition(async () => {
-                      setResult(await sendBackWork(ventureId, waiting.repo, waiting.number, note));
+                      setResult(noteDecision(await sendBackWork(ventureId, waiting.repo, waiting.number, note)));
                     })
                   }
                 >

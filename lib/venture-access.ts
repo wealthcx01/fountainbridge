@@ -39,11 +39,12 @@ export type VentureAccess =
   | { ok: true; venture: VentureSummary; email: string }
   | { ok: false; error: string };
 
-export async function requireVentureRepo(
-  ventureId: string,
-  repo: string,
-  actor?: Actor,
-): Promise<VentureAccess> {
+/**
+ * The same check, for a write that belongs to the venture rather than to one of its repositories —
+ * a founder's phone subscribing to its push (FB-141). `requireVentureRepo` below is this check plus
+ * one more, so the rules exist once.
+ */
+export async function requireVenture(ventureId: string, actor?: Actor): Promise<VentureAccess> {
   // A ticket that names one venture may only ever be used on that venture. Checked before anything
   // else, because it is the narrowest rule and the cheapest to be sure of.
   if (actor?.scopedTo && actor.scopedTo !== ventureId) {
@@ -51,16 +52,24 @@ export async function requireVentureRepo(
   }
   const email = actor?.email ?? (await auth())?.user?.email;
   if (!email) return { ok: false, error: 'You need to sign in.' };
-
-  const admins = parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS);
   const ventures = loadVentures();
-  const access = authorizeVentures(email, ventures, admins);
+  const access = authorizeVentures(email, ventures, parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS));
   const venture = ventures.find((v) => v.id === ventureId);
   if (!venture || !canAccessVenture(access, ventureId)) {
     return { ok: false, error: 'You do not have access to this venture.' };
   }
-  if (!(venture.repos ?? []).includes(repo)) {
+  return { ok: true, venture, email };
+}
+
+export async function requireVentureRepo(
+  ventureId: string,
+  repo: string,
+  actor?: Actor,
+): Promise<VentureAccess> {
+  const access = await requireVenture(ventureId, actor);
+  if (!access.ok) return access;
+  if (!(access.venture.repos ?? []).includes(repo)) {
     return { ok: false, error: 'That work is not in one of this venture’s repositories.' };
   }
-  return { ok: true, venture, email };
+  return access;
 }

@@ -7,6 +7,7 @@ import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } f
 import { describeOutcome } from '@/lib/runreports';
 import { toneColor } from '@/lib/status';
 import { panelState } from '@/lib/read-failures';
+import { noteDecision } from '@/lib/decided';
 
 /**
  * Routines, as a founder controls them (FB-047).
@@ -36,7 +37,7 @@ export function RoutinesView({
   const decide = (routine: Routine, decision: 'approve' | 'pause' | 'resume') => {
     setMessage(null);
     startTransition(async () => {
-      const result = await decideRoutine(ventureId, routine.id, decision);
+      const result = noteDecision(await decideRoutine(ventureId, routine.id, decision));
       setMessage({ ok: result.ok, text: result.message });
       // Re-read either way. On success the row is stale; on failure it is stale in a more
       // interesting way — something changed underneath, and the founder should see what.
