@@ -88,3 +88,93 @@ export async function decideExecution({ id, proposal, verify, performAction, now
     }];
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// The second gate: real ActiveGraph (FB-171).
+//
+// The grant file's signature has been the only gate since FB-044. FB-171 records every approval in
+// ActiveGraph as well (deploy/activegraph/foundry_graph.py) and lets the executor ask it. The
+// switch-over is a setting, ACTIVEGRAPH_GATE, so it can be watched before it is trusted:
+//
+//   off      (the default) — exactly today's behaviour. ActiveGraph is not asked.
+//   shadow   — ActiveGraph is asked and any disagreement is logged loudly, but only the grant file
+//              decides. This is how the switch-over is proven on a real box without risking a send.
+//   enforce  — BOTH must agree. A send goes out only when the grant file verifies AND ActiveGraph
+//              holds a person's signed grant for exactly this proposal. This only ever adds a "no";
+//              it can never turn a refused or unsigned grant into a yes.
+//
+// Any other value is treated as `enforce`, because a typo in the one setting that guards external
+// sends must fail closed, not open.
+// ---------------------------------------------------------------------------------------------
+
+/** Which gate mode is in force. Unset means off; anything unrecognised means enforce. */
+export function graphGateMode(value) {
+  const v = String(value ?? '').trim().toLowerCase();
+  if (v === '' || v === 'off') return 'off';
+  if (v === 'shadow') return 'shadow';
+  return 'enforce';
+}
+
+/**
+ * Read what foundry_graph.py said. It prints one JSON object; anything else is not an answer.
+ *
+ * "Not an answer" comes back as retry: true. ActiveGraph being unreachable is a reason to wait —
+ * never a reason to send, and never a reason to close the approval for good.
+ */
+export function parseGraphVerdict(stdout) {
+  try {
+    const lines = String(stdout ?? '').trim().split('\n');
+    const v = JSON.parse(lines[lines.length - 1]);
+    if (v && typeof v === 'object' && typeof v.ok === 'boolean') {
+      return {
+        ok: v.ok === true,
+        approver: typeof v.approver === 'string' ? v.approver : null,
+        reason: typeof v.reason === 'string' ? v.reason : '',
+        retry: v.retry === true,
+      };
+    }
+  } catch { /* not JSON: fall through */ }
+  return { ok: false, approver: null, reason: 'ActiveGraph gave no readable answer', retry: true };
+}
+
+/**
+ * Put the two gates together.
+ *
+ * `file` is the grant-file verdict (`{ok, approver}` or `{ok:false, reason}`). `graph` is
+ * ActiveGraph's (from parseGraphVerdict), or null when it could not be asked. Returns the verdict to
+ * act on, whether to leave the approval for the next pass instead, and a line for the log.
+ */
+export function combineGates({ mode, file, graph }) {
+  if (mode === 'off') return { verify: file, skip: false, note: null };
+
+  const graphSays = graph ? (graph.ok ? `approved by ${graph.approver}` : `no — ${graph.reason}`) : 'no answer';
+  const sameApprover = Boolean(graph?.ok && file.ok
+    && String(graph.approver).trim().toLowerCase() === String(file.approver).trim().toLowerCase());
+  const agree = (file.ok && sameApprover) || (!file.ok && !graph?.ok);
+
+  if (mode === 'shadow') {
+    return {
+      verify: file,
+      skip: false,
+      note: agree ? null : `SHADOW DISAGREEMENT: the grant file says ${file.ok ? 'yes' : 'no'}; ActiveGraph says ${graphSays}`,
+    };
+  }
+
+  // enforce
+  if (!file.ok) return { verify: file, skip: false, note: null };
+  if (!graph) {
+    return { verify: file, skip: true, note: 'ActiveGraph could not be asked, so nothing is sent; trying again next pass' };
+  }
+  if (graph.ok && sameApprover) return { verify: file, skip: false, note: null };
+  if (graph.ok) {
+    return {
+      verify: { ok: false, reason: `the grant file names ${file.approver} but ActiveGraph records ${graph.approver}; the two records disagree, so nothing is sent` },
+      skip: false,
+      note: null,
+    };
+  }
+  if (graph.retry) {
+    return { verify: file, skip: true, note: `ActiveGraph does not have this grant yet (${graph.reason}); nothing is sent, trying again next pass` };
+  }
+  return { verify: { ok: false, reason: `ActiveGraph refused it: ${graph.reason}` }, skip: false, note: null };
+}
