@@ -24,6 +24,7 @@ import { fullRepoName } from '@/lib/venture-repos';
 import { approverRoleForDepartment, attestationFor, canApprove, refusalAttestationFor } from '@/lib/approval-attestation';
 import { verifyGrant, verifyRefusal } from '@/lib/provenance';
 import { appendEvent } from '@/lib/activegraph-log';
+import { activeGraphGateMode, proposedEventData } from '@/lib/activegraph';
 
 export interface ApproveResult {
   ok: boolean;
@@ -180,7 +181,7 @@ export async function approveExternalAction(
     v: 1, seq: 1, venture: ventureId, repo, id: approvalId,
     type: 'approval.proposed', at: grant.granted_at,
     actor: { kind: 'agent', id: proposer },
-    data: { proposal_sha: proposalR.sha, ...(proposal.summary ? { summary: proposal.summary } : {}) },
+    data: proposedEventData(proposalR.sha, proposal),
   }, secret);
 
   const grantRecorded = recorded.ok
@@ -197,6 +198,15 @@ export async function approveExternalAction(
     // executor will verify it — but the history is incomplete, and the last version of this told a
     // founder everything was fine while its audit write had quietly failed.
     console.error('[approve] activegraph append failed', { ventureId, approvalId, reason: grantRecorded.reason });
+    if (activeGraphGateMode() === 'enforce') {
+      // FB-171: once the executor requires ActiveGraph's agreement, a grant that never reached the
+      // record does not go out. "Nothing else is affected" would be false, so it is not said.
+      return {
+        ok: true,
+        message: 'Approved, but the studio could not write your approval to the record, and nothing goes '
+          + 'out until it is there. Tell Bruntsfield that the approval record could not be written.',
+      };
+    }
     return {
       ok: true,
       message: 'Approved, and the action will run shortly. The studio could not write it to the history, '
@@ -325,7 +335,7 @@ export async function refuseExternalAction(
     v: 1, seq: 1, venture: ventureId, repo, id: approvalId,
     type: 'approval.proposed', at: refusedAt,
     actor: { kind: 'agent', id: 'foundry-lane' },
-    data: { proposal_sha: proposalR.sha, ...(proposal.summary ? { summary: proposal.summary } : {}) },
+    data: proposedEventData(proposalR.sha, proposal),
   }, secret);
 
   const refusalRecorded = recorded.ok

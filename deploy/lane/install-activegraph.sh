@@ -6,10 +6,11 @@
 #
 # ## Two things worth knowing before changing this
 #
-# 1. **This is NOT the studio's approval gate.** The studio has its own thing called ActiveGraph — a
-#    signed approval record (FB-051/FB-071) that CLAUDE.md non-negotiable 4 rests on. They share a
-#    name and nothing else. Installing this changes no gate. FB-111 renames the in-house one so the
-#    collision stops costing anyone a double-take.
+# 1. **Installing this changes no gate by itself.** Since FB-171 the approval gate CAN be recorded in
+#    ActiveGraph (deploy/activegraph/), but only where the executor runs, because the gate needs the
+#    studio's signing secret and that secret must never be on a lane box. On a lane box this install
+#    is the lane's own runtime. The same script installs the gate's copy on the executor's host;
+#    see deploy/activegraph/README.md for the cut-over, which is off until someone turns it on.
 #
 # 2. **A virtualenv, deliberately.** Debian and Ubuntu mark the system Python externally-managed
 #    (PEP 668) and refuse a bare `pip install`. The tempting fix is `--break-system-packages`, and it
