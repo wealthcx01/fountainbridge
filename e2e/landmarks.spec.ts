@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { testLogin } from './helpers';
+import { REFUSED, SIGNED_IN, SIGNED_OUT } from './landmark-pages';
 
 /**
  * FB-168 — every page has exactly one main region.
@@ -11,43 +12,15 @@ import { testLogin } from './helpers';
  * `page.locator('main')` refuses to pick between two, so a script that asked for it threw instead
  * of measuring anything. That is how it was found.
  *
- * FB-203 removed the inner one. This holds it removed: it opens every page the UI gate already
- * visits, at desktop and at phone size, and counts. Two is a failure, and so is none.
+ * FB-203 removed the inner one. This holds it removed: it opens every page the studio has (the list
+ * is in ./landmark-pages.ts, and a unit test fails if a page is missing from it), at desktop and at
+ * phone size, and counts. Two is a failure, and so is none.
  *
  * The same lesson as FB-124's two navigations: a doubled landmark is invisible in every check that
  * looks for one thing being present, and only a check that counts sees it.
  */
 const JOHN = 'john.gallagher@wealthcx.com';
 
-/** Every page the gate's other tests open, once each, without the query strings that pick a tab. */
-const SIGNED_IN = [
-  '/',
-  '/attention',
-  '/activity',
-  '/lanes',
-  '/foundry',
-  '/handbook',
-  '/handbook/how-to-start',
-  '/how-it-works',
-  '/playbook',
-  '/playbook/moats',
-  '/admin/timing',
-  '/admin/machine-budgets',
-  '/venture/arca',
-  '/venture/arca/tickets',
-  '/venture/arca/tickets?t=arca%2FARCA-1',
-  '/venture/arca/knowledge',
-  '/venture/arca/activity',
-  '/venture/arca/composer',
-  '/venture/arca/handbook',
-  '/venture/arca/handbook/how-to-start',
-  '/venture/arca/sell',
-  '/venture/arca/work/arca/10',
-  '/venture/arca/approvals/arca/free-post',
-  '/venture/the-reset',
-  '/venture/the-reset/knowledge',
-  '/venture/the-reset/sell',
-] as const;
 
 const SIZES = [
   ['desktop', 1440, 1000],
@@ -80,9 +53,19 @@ for (const [size, width, height] of SIZES) {
     expect(wrong, `pages without exactly one <main> at ${size} size: ${wrong.join('; ')}`).toEqual([]);
   });
 
+  test(`the page that refuses an account has exactly one main region, at ${size} size`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    // An account with no venture is sent here on sign-in, so it is reached the way a person reaches it.
+    await testLogin(page, 'stranger@example.com');
+    await page.goto(REFUSED);
+    expect(new URL(page.url()).pathname).toBe(REFUSED);
+    expect(await mainCount(page)).toBe(1);
+  });
+
   test(`the sign-in page has exactly one main region, at ${size} size`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto('/login');
+    await page.goto(SIGNED_OUT);
+    expect(new URL(page.url()).pathname).toBe(SIGNED_OUT);
     expect(await mainCount(page)).toBe(1);
   });
 }
