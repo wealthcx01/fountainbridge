@@ -69,7 +69,14 @@ export interface HistoryScope {
    * steady progress. Null when no ticket dominates, and then nothing is said about it.
    */
   busiest?: { ticket: string; count: number } | null;
+  /**
+   * True when each row is one stretch of work on one ticket rather than one report (FB-180). Then
+   * "the 20 most recent" means twenty pieces of the story, not twenty reports, and the sentence says so.
+   */
+  byStretch?: boolean;
 }
+
+const STRETCH_LINE = 'Each line is one stretch of work on one ticket, however many reports it took.';
 
 const plural = (n: number, one: string) => `${n.toLocaleString('en-GB')} ${n === 1 ? one : `${one}s`}`;
 
@@ -103,10 +110,11 @@ export function historyScope(input: HistoryScope): string | null {
   const reaches = oldestShown ? onDate(oldestShown) : null;
 
   // The read got everything. Only here may a date be called the start of the history.
+  const stretchLine = input.byStretch ? ` ${STRETCH_LINE}` : '';
   if (!bounded) {
-    return reaches
+    return (reaches
       ? `Everything ${ventureName} did since ${reaches}, newest first.`
-      : `Everything ${ventureName} did, newest first.`;
+      : `Everything ${ventureName} did, newest first.`) + stretchLine;
   }
 
   // Bounded. Lead with what EXISTS, because that is the fact the old sentence destroyed, and a
@@ -125,7 +133,7 @@ export function historyScope(input: HistoryScope): string | null {
   const showing = reaches
     ? `This page shows ${howMany}, back to ${reaches}.`
     : `This page shows ${howMany}.`;
-  return `${recorded}${mostly} ${showing}`;
+  return `${recorded}${mostly}${stretchLine} ${showing}`;
 }
 
 /**

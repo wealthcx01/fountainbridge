@@ -67,7 +67,20 @@ export function ActivityFeed({ items, couldNotRead = false }: { items: FeedItem[
               <>{item.text}<Attestation item={item} /></>
             )}
             {/* One fact, said once, with how many times it was recorded. Never a second row. */}
-            {item.repeats && item.repeats > 1 ? (
+            {/* FB-180: a stretch is a ticket's reports in an unbroken row, counted off the listing.
+                Only the newest was opened, so this says how many there were — not that they all
+                said the same thing, which nobody read. */}
+            {/* From three, because the lane writes two reports for one ordinary run (started, then
+                finished), and "the latest of 2 reports" on every row was noise that wrapped most of
+                the page onto a second line. The date only when it is not the row's own day. */}
+            {item.stretch && item.stretch.count >= 3 ? (
+              <span className="muted" data-testid="activity-stretch">
+                {' '}· the latest of {item.stretch.count.toLocaleString('en-GB')} reports on this
+                {item.stretch.since && onDate(item.stretch.since) !== onDate(item.at)
+                  ? <> since {onDate(item.stretch.since)}</>
+                  : null}
+              </span>
+            ) : item.repeats && item.repeats > 1 ? (
               <span className="muted" data-testid="activity-repeats"> · {item.repeats} times</span>
             ) : null}
           </span>

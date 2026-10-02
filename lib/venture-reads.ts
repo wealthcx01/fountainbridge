@@ -88,6 +88,8 @@ export type Runs = {
   total: number;
   earliest: string | null;
   busiest: { ticket: string; count: number } | null;
+  /** How many stretches of work the whole record holds — only from `ventureStory` (FB-180). */
+  stretches?: number | null;
 };
 const NO_RUNS: Runs = { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null };
 
@@ -109,6 +111,21 @@ const approvalsById = cache(async (ventureId: string): Promise<ActiveGraphApprov
  * degrades rather than throwing.
  */
 export const ventureRuns = (venture: VentureSummary): Promise<Runs> => runsById(venture.id);
+
+const storyById = cache(async (ventureId: string): Promise<Runs> => {
+  const venture = ventureFor(ventureId);
+  return venture ? loadRunReports(venture, runReportSource(ventureId), undefined, 'stretches') : NO_RUNS;
+});
+
+/**
+ * What this venture's team did, told as one line per stretch of work — for "What happened" (FB-180).
+ *
+ * `ventureRuns` opens the newest reports, which is right for the desk ("what is happening now") and
+ * wrong for a history: on ARCA the newest sixty are all one ticket re-parked every five minutes, so
+ * the record showed one line and five weeks of work were behind it. This opens the newest report of
+ * each stretch instead, for the same number of files.
+ */
+export const ventureStory = (venture: VentureSummary): Promise<Runs> => storyById(venture.id);
 
 /** The external actions waiting on this founder, once per request. */
 export const ventureApprovals = (venture: VentureSummary): Promise<ActiveGraphApproval[]> =>

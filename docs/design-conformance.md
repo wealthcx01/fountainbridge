@@ -648,3 +648,12 @@ the phone header said 4 over that same desk.
 Two faults were found only by looking at the pictures, and both are fixed here: a send's row read
 "send · … · external send · …", and every send was labelled "Build — Product" because it was named by
 the repository it came from rather than the department it names (ARCA's investor email is Sell).
+
+## FB-180 — What happened, as a story, 2026-10-01
+
+Read on ARCA's real data as its founder, on a local build of this branch. Before: **two lines**, at
+1,000px — the newest sixty reports were all one ticket re-parked every five minutes, so five weeks
+of work collapsed behind one row. After: twelve lines, one per stretch of work on one ticket,
+reaching back to 26 August, at **1,236px** (1440×1000) and **2,547px** (393×851). The design shows
+six rows on one screen; this shows twelve on about one and a quarter. On the UI gate's fixtures:
+1,000px and 1,907px. Sends on this page now read "Sell — Go-to-market", not "Build — Product".

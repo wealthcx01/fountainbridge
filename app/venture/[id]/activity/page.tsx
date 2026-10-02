@@ -5,7 +5,7 @@ import { auth } from '@/auth';
 import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { loadVentureHealth } from '@/lib/health';
-import { ventureApprovals, ventureRuns } from '@/lib/venture-reads';
+import { ventureApprovals, ventureStory } from '@/lib/venture-reads';
 import { type ActiveGraphApproval } from '@/lib/approvals';
 import { GitHubClient } from '@/lib/github';
 import { buildFeed } from '@/lib/activity-feed';
@@ -113,9 +113,9 @@ async function Record({
   const [health, runs, approvals] = await Promise.all([
     loadVentureHealth(venture, { refresh: refreshing }),
     // Shared with the rail around this page (FB-157), which reads both of these too.
-    ventureRuns(venture).catch(() => {
+    ventureStory(venture).catch(() => {
       unreadable.push('what your team has been doing');
-      return { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null };
+      return { reports: [], heartbeats: [], checkIns: [], total: 0, earliest: null, busiest: null, stretches: null as number | null };
     }),
     ventureApprovals(venture).catch((): ActiveGraphApproval[] => {
       unreadable.push('the decisions you have made');
@@ -133,8 +133,9 @@ async function Record({
   // FB-180: the meta column names the surface a founder owns, not the repository git happens to
   // keep it in. Built here because the manifest is the only place that knows the mapping.
   const surfaces = Object.fromEntries((venture.departments ?? []).map((d) => [d.repo, d.name]));
-  const { items: feed } = buildFeed({
+  const { items: feed, truncated } = buildFeed({
     activity, runs: runs.reports, approvals, limit: FEED_LIMIT, surfaces, ventureName: venture.name,
+    departments: Object.fromEntries((venture.departments ?? []).map((d) => [d.id, d.name])),
   });
   // Composed from the SAME list the rows come from. `lib/activity-summary.ts` states that invariant
   // in its own header — "there is no second pass that could drift" — and composing it from the
@@ -153,7 +154,14 @@ async function Record({
   // one row because they were all the same park, and one item built with one item kept is not a
   // truncation. The read was bounded long before that, and only `runs.total` knows it.
   // Reports read against reports that exist — the same kind of number on both sides.
-  const bounded = readWasBounded(runs.reports.length, runs.total);
+  //
+  // FB-180: the runs are now one per stretch of work (`ventureStory`), so the same kind of number
+  // is stretches read against stretches that exist. Twenty identical parks are one stretch, so the
+  // FB-242 trap above cannot recur — and so `truncated` means something again: a row dropped is a
+  // piece of the story dropped. Either one makes the page a part of the record, and it says so.
+  const bounded = typeof runs.stretches === 'number'
+    ? runs.reports.length < runs.stretches || truncated
+    : readWasBounded(runs.reports.length, runs.total);
   const scope = historyScope({
     ventureName: venture.name,
     shown: feed.length,
@@ -162,6 +170,7 @@ async function Record({
     oldestShown: feed.length ? feed[feed.length - 1].at : null,
     busiest: runs.busiest,
     bounded,
+    byStretch: typeof runs.stretches === 'number',
   });
 
   return (
@@ -235,8 +244,11 @@ async function Record({
  * for a week. FB-178 settled this argument on the desk: a screen a founder reads beats a screen a
  * founder scrolls, and "everything, in order" is a shape that only ever grows.
  *
- * Twenty is a fortnight of a working venture with room to spare, and the line under the list says
- * plainly that it is the twenty most recent and that the rest is still in the venture's records.
- * Nothing is lost and nothing is implied to be complete that is not.
+ * The line under the list says plainly how many it shows and that the rest is still in the
+ * venture's records. Nothing is lost and nothing is implied to be complete that is not.
+ *
+ * Twelve since FB-180. Rows became one per stretch of work, so the page reached five weeks back on
+ * ARCA instead of one day — and twenty of those measured 1,807px against the ticket's 1,500. Twelve
+ * on ARCA is back to 26 August: the last month of the venture, on about one and a half screens.
  */
-const FEED_LIMIT = 20;
+const FEED_LIMIT = 12;

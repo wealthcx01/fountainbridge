@@ -63,6 +63,43 @@ export interface RunReport {
   repo: string;
   /** True for the single overwritten liveness beacon, which is not run history. */
   isHeartbeat: boolean;
+  /**
+   * Set only when the report was chosen as the newest of a STRETCH (FB-180): an unbroken run of
+   * reports about one ticket, read off the listing. `count` is how many reports that stretch holds
+   * and `since` is when its first one was written. Absent everywhere else.
+   */
+  stretch?: { count: number; since: string | null };
+}
+
+/**
+ * A run of consecutive reports about one ticket, newest first (FB-180).
+ *
+ * Read from the listing alone — a report's ticket and time are both in its filename — so finding
+ * them opens nothing. ARCA's 10,198 reports are 40 stretches: one ticket re-parked 9,737 times in a
+ * row is ONE stretch, and the thirty-nine others are the rest of five weeks of work.
+ */
+export interface Stretch<T extends { name: string; at: string }> {
+  /** The newest report in the stretch — the one worth opening. */
+  head: T;
+  count: number;
+  /** When the stretch's oldest report was written, or null if none carries a stamp. */
+  since: string | null;
+}
+
+/** Group a newest-first listing into stretches of one ticket. Names with no ticket stand alone. */
+export function stretchesOf<T extends { name: string; at: string }>(newestFirst: readonly T[]): Stretch<T>[] {
+  const out: Array<Stretch<T> & { ticket: string | null }> = [];
+  for (const d of newestFirst) {
+    const ticket = ticketFromName(d.name);
+    const last = out[out.length - 1];
+    if (last && ticket !== null && last.ticket === ticket) {
+      last.count += 1;
+      if (d.at) last.since = d.at;
+      continue;
+    }
+    out.push({ head: d, count: 1, since: d.at || null, ticket });
+  }
+  return out.map(({ head, count, since }) => ({ head, count, since }));
 }
 
 /**
@@ -282,7 +319,17 @@ export async function loadRunReports(
   venture: VentureSummary,
   source: RunReportSource,
   limit = 20,
+  /**
+   * `newest` (the default): the newest reports, for the desk and the rail.
+   *
+   * `stretches` (FB-180, "What happened"): the newest report of each stretch of work on one ticket,
+   * so a ticket re-parked ten thousand times is one report opened, not the whole page. Same read
+   * budget as `newest`; `reports` carries every stretch head read, each with its `stretch`.
+   */
+  select: 'newest' | 'stretches' = 'newest',
 ): Promise<{
+  /** How many stretches the whole record holds, when `select` is `stretches`; else null. */
+  stretches: number | null;
   reports: RunReport[];
   heartbeats: RunReport[];
   checkIns: RunReport[];
@@ -361,7 +408,12 @@ export async function loadRunReports(
   // is global. The margin's argument (see READ_MARGIN) holds unchanged across surfaces: for the true
   // newest-20-by-start to fall outside the newest-60-by-write, forty reports would have to be
   // written between one run starting and finishing.
-  const newest = dated.slice(0, limit * READ_MARGIN);
+  const budget = limit * READ_MARGIN;
+  const stretches = select === 'stretches' ? stretchesOf(dated) : null;
+  const newest = stretches ? stretches.slice(0, budget).map((s) => s.head) : dated.slice(0, budget);
+  const stretchOf = new Map(
+    (stretches ?? []).slice(0, budget).map((s) => [`${s.head.repo}/${s.head.name}`, { count: s.count, since: s.since }]),
+  );
 
   const all: RunReport[] = [];
   const wanted = [...beacons, ...newest];
@@ -389,7 +441,9 @@ export async function loadRunReports(
     wanted.map(async ({ repo, name }) => {
       try {
         const hit = batched.get(`${repo}/${name}`);
-        return fromLaneRecord(hit ?? await source.read(repo, name), repo);
+        const parsed = fromLaneRecord(hit ?? await source.read(repo, name), repo);
+        const stretch = stretchOf.get(`${repo}/${name}`);
+        return parsed && stretch ? { ...parsed, stretch } : parsed;
       } catch {
         // One unreadable report must not lose the other nineteen.
         return null;
@@ -423,7 +477,11 @@ export async function loadRunReports(
   const busiest = dominantTicket(dated.map((d) => d.name), total);
 
   return {
-    reports: reports.slice(0, limit), heartbeats, checkIns: all.sort(byRecency), total, earliest, busiest,
+    // In `stretches` mode every head read is returned: they are already one per stretch, and the
+    // page caps its own rows.
+    reports: stretches ? reports : reports.slice(0, limit),
+    heartbeats, checkIns: all.sort(byRecency), total, earliest, busiest,
+    stretches: stretches ? stretches.length : null,
   };
 }
 
