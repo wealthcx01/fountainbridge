@@ -16,12 +16,16 @@
  *       counts as an attempt at the ticket);
  *   3 — no machine was made: switched off, refused (no budget, budget used, too many at once), or the
  *       studio could not be reached. Not an attempt and not a wake: the ticket never ran.
+ *   4 — the studio tried to make a machine and the provider failed. The ticket never ran, so it is
+ *       not an attempt; but the try cost money, so run-once.sh counts it as a wake, and the day's
+ *       wake limit bounds how often a failing provider is asked.
  */
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const NOT_MADE = 3;
+export const TRIED_AND_FAILED = 4;
 const POLL_MS = 30_000;
 const GRACE_MS = 15 * 60_000;
 
@@ -65,6 +69,9 @@ export async function workTicketOnMachine({
     const res = await fetchImpl(`${studio}/api/machines`, { method: 'POST', headers, body: JSON.stringify(body) });
     made = await res.json().catch(() => ({}));
     if (res.status === 401) return { code: NOT_MADE, summary: 'The studio did not accept this venture\'s machine key, so no machine was made. Bruntsfield needs to check the key on this box.' };
+    if (res.status === 502) {
+      return { code: TRIED_AND_FAILED, summary: made?.reason || 'The studio tried to make a machine for this ticket and could not.' };
+    }
     if (res.status !== 201 || !made?.created || typeof made.runId !== 'string') {
       return { code: NOT_MADE, summary: made?.reason || `The studio did not make a machine for this ticket (it answered ${res.status}).` };
     }

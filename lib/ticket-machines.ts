@@ -11,11 +11,15 @@
  *    venture's credentials and nobody else's (D1 as amended by D11, CLAUDE.md #6).
  * 3. **A monthly budget per venture, approved once by John.** No budget on record, signed so a lane
  *    cannot forge it, means no machine. At the budget, no machine, and the founder is told why.
+ *    John approves it on the studio's budget page, signed in with Google, and only the address in
+ *    `BUDGET_APPROVER_EMAIL` can (`lib/machine-budget.ts`).
  *
  * ## Who holds what
  *
  * - The **studio** holds the provider token, `TICKET_MACHINE_SECRET` (from which every lane key and
  *   every run token is derived), each venture's machine credentials, and the approval secret.
+ *   Whoever can read the studio's settings and write its database could still forge a budget, as
+ *   they could forge any approval the studio signs; that is the honest limit of a signature.
  * - A **venture's lane** holds only its own lane key. That key opens one door: asking for a machine
  *   for that venture, and asking how that venture's machine is getting on.
  * - The **provider** (Railway) holds only what a machine needs to find the studio: the studio's
@@ -129,6 +133,7 @@ export function machineSecret(env: Record<string, string | undefined>): string |
 
 export interface BudgetRow {
   venture_id: string;
+  proposal_id: string;
   monthly_cents: number;
   approver: string;
   approved_at: Date | string;
@@ -137,16 +142,23 @@ export interface BudgetRow {
 
 export type BudgetCheck = { ok: true; monthlyCents: number; approver: string } | { ok: false; reason: string };
 
+/** The one address that may approve a monthly machine budget (John's), lower-cased, or null. */
+export function budgetApprover(env: Record<string, string | undefined>): string | null {
+  const a = env.BUDGET_APPROVER_EMAIL?.trim().toLowerCase();
+  return a && /^[^@\s]+@[^@\s]+$/.test(a) ? a : null;
+}
+
 /**
- * Is there a monthly budget for this venture that John approved? Checks the newest budget on record:
- * the signature must verify against the approval secret, the approver must be a studio admin today,
- * and the amount must be above zero. Anything else is "no budget", said plainly.
+ * Is there a monthly budget for this venture that John approved? Checks the newest budget on record
+ * (which `latestBudget` only returns when it names a proposal approved for the same amount): the
+ * signature must verify against the approval secret, the approver must be the budget approver
+ * today, and the amount must be above zero. Anything else is "no budget", said plainly.
  */
 export function verifyBudget(
   row: BudgetRow | null,
   ventureId: string,
   secret: string | undefined,
-  adminEmails: string[],
+  approver: string | null,
 ): BudgetCheck {
   const none = {
     ok: false as const,
@@ -154,12 +166,11 @@ export function verifyBudget(
       'No monthly budget for temporary machines has been approved for this venture, so no machine was made. '
       + 'Bruntsfield approves one amount a month, once; until then the work waits.',
   };
-  if (!row || !secret) return none;
+  if (!row || !secret || !approver) return none;
   const approvedAt = new Date(row.approved_at).toISOString();
-  const want = machineBudgetAttestationFor(ventureId, row.monthly_cents, row.approver, approvedAt, secret);
+  const want = machineBudgetAttestationFor(ventureId, row.proposal_id, row.monthly_cents, row.approver, approvedAt, secret);
   if (row.venture_id !== ventureId || !sameSecret(row.attestation, want)) return none;
-  const admins = adminEmails.map((a) => a.trim().toLowerCase()).filter(Boolean);
-  if (!admins.includes(row.approver.trim().toLowerCase())) return none;
+  if (row.approver.trim().toLowerCase() !== approver) return none;
   if (!(row.monthly_cents > 0)) {
     return { ok: false, reason: 'The monthly budget for temporary machines for this venture has been withdrawn, so no machine was made.' };
   }
@@ -196,6 +207,14 @@ const TUNABLES = ['MAX_VALIDATION_ROUNDS', 'PLAN_TIMEOUT', 'IMPL_TIMEOUT', 'REVI
  * the venture's manifest says — never a repository the request merely names. The ticket must be a
  * file under `docs/tickets/` with nothing that could climb out of it. Whether that file really
  * exists in that repository is checked against GitHub by the caller.
+ *
+ * The department and its gate come from the manifest too: the department is the one whose
+ * repository this is, and its gate is the manifest's, whatever the request says. One thing is taken
+ * from the lane: whether this ticket ends in an external action and so must stop at a proposal. The
+ * lane decides that by reading the ticket's text (`is_external_action` in foundry-lib.sh), which the
+ * studio does not read. It can only matter in a department whose gate is not `pr`; in a `pr`
+ * department the studio sets it to "no", as the lane does. Saying "no" wrongly cannot send anything:
+ * the machine holds no credential that reaches anyone outside the company.
  */
 export function parseMachineRequest(
   body: unknown,
@@ -219,10 +238,19 @@ export function parseMachineRequest(
   const baseBranch = typeof b.baseBranch === 'string' ? b.baseBranch : 'main';
   if (!BRANCH.test(baseBranch) || baseBranch.includes('..')) return bad('That branch name is not allowed.');
 
-  const department = typeof b.department === 'string' && b.department ? b.department : 'build';
-  if (!/^[a-z0-9-]{1,40}$/.test(department)) return bad('That department name is not allowed.');
-  const gateRaw = typeof b.gate === 'string' && b.gate ? b.gate : 'pr';
-  if (gateRaw !== 'pr' && gateRaw !== 'activegraph' && gateRaw !== 'tbd-fb012') return bad('That gate is not one this studio knows.');
+  const asked = typeof b.department === 'string' && b.department ? b.department : null;
+  const homes = (venture.departments ?? []).filter((d) => d.repo && fullRepoName(d.repo, org) === repo);
+  let department = 'build';
+  let gateRaw = 'pr';
+  if (homes.length) {
+    const home = homes.find((d) => d.id === asked) ?? (homes.length === 1 && !asked ? homes[0] : null);
+    if (!home) return bad('That department is not the one this repository belongs to.');
+    department = home.id;
+    gateRaw = home.gate;
+  } else if (asked && asked !== 'build') {
+    return bad('That department is not the one this repository belongs to.');
+  }
+  if (gateRaw !== 'pr' && gateRaw !== 'activegraph' && gateRaw !== 'tbd-fb012') return bad('That department\'s gate is not one this studio knows.');
 
   let stateRef: string | null = null;
   if (b.stateRef !== undefined && b.stateRef !== null && b.stateRef !== '') {
@@ -245,7 +273,7 @@ export function parseMachineRequest(
     ok: true,
     req: {
       venture: venture.id, repo, baseBranch, ticketPath, slug: m[1], department, gate: gateRaw,
-      requireProposal: b.requireProposal === true, stateRef, tunables,
+      requireProposal: gateRaw !== 'pr' && b.requireProposal === true, stateRef, tunables,
     },
   };
 }

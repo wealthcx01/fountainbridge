@@ -69,6 +69,10 @@ export default defineConfig({
       // gate would reach GitHub for it, which is both slow and a network dependency the UI gate is
       // built to avoid — and it would render the "could not be read" state on every run.
       ROUTINES_FIXTURE_DIR: 'e2e/fixtures/routines',
+      // FB-239: the monthly budgets for temporary machines, drawn without a database. Gated on
+      // E2E_TEST_LOGIN at the call site. John's address is the budget approver here, as in production.
+      MACHINE_BUDGETS_FIXTURE: 'e2e/fixtures/machine-budgets/overview.json',
+      BUDGET_APPROVER_EMAIL: 'john.gallagher@wealthcx.com',
       // FB-235: the Sell pipeline. Invented people only — this repository is public.
       CRM_FIXTURE_DIR: 'e2e/fixtures/crm',
       // FB-065. A recorded stream off the real ARCA box, including the inconsistent tool-call

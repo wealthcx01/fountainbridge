@@ -5,7 +5,7 @@ railway per pixel agent, per ticket that is being worked, with the right skills 
 ticket? and we should be able to see what skills each worker used"* · **Depends on:** FB-228, FB-231 ·
 One ticket = one branch = one PR.
 
-**Shipped in part:** the studio can make, hand work to, and remove a temporary Railway machine for one ticket, within a monthly budget John approves, and venture isolation is tested — but it is switched off, no real machine has ever been made, the office cannot yet draw a worker on one (FB-231 item 3), and the running preview waits on FB-230. Switching it on needs John (`docs/ticket-machines.md`, "Switching it on").
+**Shipped in part:** the studio can make, hand work to, and remove a temporary Railway machine for one ticket, within a monthly budget John approves on the studio's budget page, and venture isolation is tested — but it is switched off, no real machine has ever been made, no real budget has been recorded, the office cannot yet draw a worker on one (FB-231 item 3), and the running preview waits on FB-230. Switching it on needs John (`docs/ticket-machines.md`, "Switching it on").
 
 ## Where this stands
 
@@ -17,6 +17,10 @@ Two pull requests carry this ticket's history.
   own box make it. An independent review found that unsafe — the box would have held a key able to
   reach every venture's server — and found that a machine failing during set-up was reported as a
   success. John then ruled on how it must work (below), and PR #350 was reworked to those rulings.
+  A second review found that a machine's unused money could be given back twice, that a supervisor
+  dying early was still reported as a success, that the studio took the lane's word for a
+  department's gate, and that nothing proved who approved a budget. All four were fixed in PR #350
+  before it merged; the PR's "Fixed after review" section lists each.
 
 This ticket was first written to be built last, after the preview link (FB-228, FB-230) and an
 office that can see a worker off the box (FB-231). The machine itself does not need either, so it is
@@ -24,6 +28,10 @@ built now and **left switched off**. The office and the preview are still needed
 switching on for a founder, and they are listed below as what is left.
 
 ## RULED by John, 2026-10-02: Railway, only the studio makes machines, a monthly budget per venture
+
+John gave these three rulings in the lead's working session on 2026-10-02. They were not written
+anywhere else first, so this ticket and `docs/fountainbridge-phased-plan.md` are where they are
+recorded.
 
 1. **Provider: Railway.** Each ticket's temporary machine runs on Railway, as John first asked and as
    D11 in `docs/architecture-replan-2026-09.md` says. The Hetzner code stays as a second provider
@@ -40,6 +48,12 @@ switching on for a founder, and they are listed below as what is left.
    studio can verify and a lane cannot forge. Spend so far this month is kept per venture in the
    studio's database, under the same forced row-level security as every other table. At the cap no
    machine is made and the founder is told plainly. No per-ticket click.
+
+   **How John approves it** (settled in review, 2026-10-02): through the studio's existing approval
+   pattern, not a command. Anyone at Bruntsfield proposes an amount on the budget page
+   (`/admin/machine-budgets`); John, signed in with Google, approves it there. Only the address in
+   `BUDGET_APPROVER_EMAIL` can approve — not any admin. The studio records `approval.proposed` and
+   `approval.granted` in its ActiveGraph record, and stores nothing if that record cannot be written.
 
 The phased plan's D1 now carries these rulings as an amendment (`docs/fountainbridge-phased-plan.md`).
 
@@ -69,23 +83,28 @@ and is removed. How it works, what it costs and how to switch it on are in `docs
 | --- | --- |
 | `lib/ticket-machines.ts` | the rules: costs, keys, what a lane may ask, what a machine is given, how a run ended |
 | `lib/machine-service.ts` | the five things the studio answers: ask, check, collect, finish, clean up |
-| `lib/machine-store.ts`, `db/007_ticket_machines.sql` | budgets, this month's spend and each machine, per venture |
+| `lib/machine-store.ts`, `db/007_ticket_machines.sql` | budget proposals, budgets, this month's spend and each machine, per venture |
+| `lib/machine-budget.ts`, `app/actions/machine-budget.ts` | proposing and approving a monthly budget, and the record of each |
+| `app/admin/machine-budgets/page.tsx`, `components/MachineBudgetControls.tsx` | the budget page, for Bruntsfield only |
 | `lib/machine-railway.ts` | Railway: one environment and one service per ticket |
 | `lib/machine-hetzner.ts` | Hetzner, the second provider, off unless chosen |
 | `app/api/machines/…` | the endpoints, each checking its own key |
-| `scripts/ticket-machines.mjs` | John's commands: approve a budget, print a lane key, print the clean-up key |
+| `scripts/ticket-machines.mjs` | John's commands: print a lane key, print the clean-up key (no budget command, on purpose) |
 | `deploy/lane/ticket-machine.mjs` | the venture box asks the studio and waits |
 | `deploy/lane/worker-run.sh`, `worker-call.mjs` | what runs on the machine, and how it talks to the studio |
 
-**Tested without a real machine.** 24 tests drive the studio's endpoints against real Postgres and a
+**Tested without a real machine.** 27 tests drive the studio's endpoints against real Postgres and a
 stand-in provider: a whole run; venture A can never get a machine with venture B's credentials or for
-B's ticket, nor read or end B's run; a budget a lane wrote itself, one approved by someone who is not
-an admin, or one moved from another venture is refused; at the cap nothing is made; a machine that
-fails while setting itself up, one that stops without a word, and one that runs out of time are all
-failures with a reason; a lost create reply removes this run's machine and only this one. More tests
-cover the store's isolation, both providers' requests, the venture box's side, the machine's side
-(including `worker-run.sh` run for real against a stand-in studio), and that a refused machine is not
-counted as an attempt or a wake.
+B's ticket, nor read or end B's run; a budget a lane wrote itself, one approved by an admin who is not
+the budget approver, or one moved from another venture is refused; at the cap nothing is made; a
+machine removed by two callers at once gives its money back once; a machine that fails while setting
+itself up, one that stops without a word, and one that runs out of time are all failures with a
+reason; a lost create reply removes this run's machine and only this one; a machine that boots before
+the studio hears back is not refused. 12 more test the budget page's rules: who may propose, that only
+the budget approver may approve, and that nothing is stored when the record cannot be written. More
+tests cover the store's isolation, both providers' requests, the venture box's side, the machine's
+side (including `worker-run.sh` run for real against a stand-in studio and a stand-in supervisor), and
+what counts as a wake or an attempt.
 
 ## The shape John is describing
 
@@ -122,7 +141,6 @@ answers "what is happening right now" with something a founder can look at.
 - The free Railway VM. Its own published limits rule it out: three machines per address per day, 2 GB of
   memory where ARCA uses 1.9 GB at rest, deleted after 24 hours. Ticket machines use Railway's ordinary
   paid environments instead.
-- A studio screen for approving a budget. It is a command for now.
 
 ## Acceptance criteria
 
@@ -148,12 +166,18 @@ answers "what is happening right now" with something a founder can look at.
       (`lib/__tests__/machine-service.test.ts`). It is only as narrow as each venture's GitHub token,
       which John sets per venture when he switches this on.
 - [x] A machine that fails while setting itself up is reported as a failure, with a run report saying
-      where it stopped. A machine that was refused or could not be made is not counted as an attempt.
+      where it stopped — and so is a supervisor that stops before writing down how the ticket ended.
+      A machine that was refused or could not be made is not counted as an attempt.
 - [x] No machine is made without a monthly budget John approved, and none past it (John, 2026-10-02).
+      Proved against real Postgres and a stand-in record: only the budget approver's approval, made on
+      the budget page and recorded in ActiveGraph, counts, and a machine's unused money is given back
+      once. Not yet used on the real studio.
 
 ## Verification
 
 The office is a screen, so non-negotiable 11 applies in full when item 4 is built. This pull request
-changes no screen. The real verification is watching one real ticket go through: an environment
+adds one screen, the budget page, which is for Bruntsfield and not a founder. The design artifact has
+no budget screen to compare it with; it was rendered at 1440×1000 and 393×851 and looked at, and its
+heights are in `docs/design-conformance.md`. The real verification is watching one real ticket go through: an environment
 appears on Railway, work happens, a link works, the environment goes. Anything less is a pipeline
 nobody has seen run.

@@ -337,12 +337,19 @@ $(cat "$PICK")" >"$PLAN_OUT" 2>&1
 fi
 
 # --- run the RPIV lane: count the wake + the attempt, then hand the ticket to the supervisor --------
-# Counted only when the ticket is really worked. FB-239: a temporary machine that was refused or could
-# not be made is neither a wake nor an attempt — the ticket never ran — so on that path the count waits
-# until the studio says a machine exists. Counting it anyway parked tickets after three provider
-# failures with the untrue reason "couldn't get it past its own review/tests".
-count_wake_and_attempt() {
+# Counted only when the ticket is really worked. FB-239: a temporary machine that was refused is
+# neither a wake nor an attempt — the ticket never ran — so on that path the count waits until the
+# studio says a machine exists. Counting it anyway parked tickets after three provider failures with
+# the untrue reason "couldn't get it past its own review/tests".
+#
+# One case in between: the studio TRIED to make a machine and the provider failed. That costs money
+# (Railway charges at least a minute), so it counts as a wake — the day's wake limit then bounds how
+# often a failing provider is asked — but not as an attempt, because the ticket still never ran.
+count_wake() {
   echo "$PICK_SLUG $(date -u +%FT%TZ)" >> "$BUDGET_FILE"
+}
+count_wake_and_attempt() {
+  count_wake
   echo $(( $(attempts_of "$PICK_SLUG") + 1 )) > "$STATE_DIR/attempts-$PICK_SLUG"
 }
 if [ "$REQUIRE_PROPOSAL" = 1 ]; then
@@ -373,7 +380,9 @@ if [ "${TICKET_MACHINES:-off}" = "on" ]; then
   set -e
   flog "temporary machine: ${MACHINE_SAYS:-no word from it}"
   case "$MACHINE_EXIT" in
-    3)
+    3|4)
+      # 4: the studio tried and the provider failed — a wake, see count_wake above.
+      if [ "$MACHINE_EXIT" = 4 ]; then count_wake; fi
       # No machine was made: not a wake, not an attempt. Said once a day as a report on the ticket,
       # then on the heartbeat, for FB-162's reason — a report on every five-minute wake buries the
       # venture's history.

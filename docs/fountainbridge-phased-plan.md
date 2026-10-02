@@ -42,8 +42,10 @@ Fountainbridge is therefore **not** a Bruntsfield-wide operations dashboard (Hol
 >    receives that venture's credentials and no other's. No venture box or ticket machine ever holds
 >    a provider key. This is how isolation survives the move from physical to logical: it is proved
 >    by a test that tries to cross ventures and fails (`lib/__tests__/machine-service.test.ts`).
-> 3. **A monthly budget per venture, approved once by John,** recorded as a signed approval the
->    studio verifies before every machine. At the budget no machine is made and the founder is told
+> 3. **A monthly budget per venture, approved once by John,** on the studio's budget page while
+>    signed in with Google, by the one address in `BUDGET_APPROVER_EMAIL`, and recorded as
+>    `approval.proposed` then `approval.granted` in ActiveGraph. The studio verifies the signed
+>    budget before every machine. At the budget no machine is made and the founder is told
 >    plainly. No per-ticket approval.
 >
 > So "isolation is physical" now reads: **a venture's persistent box is physical; its ticket machines

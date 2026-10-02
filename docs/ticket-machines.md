@@ -1,8 +1,9 @@
 # Ticket machines — one temporary machine per ticket (FB-239)
 
-John's ruling of 2026-09-30: one machine and one character per ticket. His rulings of 2026-10-02 say
-how: **on Railway**, **made only by the studio**, and **within a monthly budget per venture that he
-approves once**. This page says how that works, what it costs, and exactly what switches it on.
+John's ruling of 2026-09-30: one machine and one character per ticket. His rulings of 2026-10-02, given
+in the lead's working session that day and recorded here and in the ticket, say how: **on Railway**,
+**made only by the studio**, and **within a monthly budget per venture that he approves once**. This
+page says how that works, what it costs, and exactly what switches it on.
 
 **Nothing here has run against a real machine yet, and it is switched off.** The whole lifecycle is
 proved against a stand-in provider and real Postgres in `lib/__tests__/machine-service.test.ts`.
@@ -14,7 +15,9 @@ This is the part that matters most, because it is what keeps one venture out of 
 
 - **The studio** holds the only provider token (Railway's), each venture's machine credentials, the
   secret that every machine key is made from, and the approval secret that signs budgets. Bruntsfield
-  controls the studio.
+  controls the studio. Someone who could read the studio's settings *and* write its database could
+  still forge a budget, as they could forge any approval the studio signs. That is the limit of a
+  signature, and it is the same limit every other approval here has.
 - **A venture's own box** holds one key, `TICKET_MACHINE_LANE_KEY`. It can do two things with it: ask
   the studio for a machine for one of that venture's tickets, and ask how that machine is getting on.
   It cannot make, list or remove a machine. It holds no provider key.
@@ -31,7 +34,10 @@ This is the part that matters most, because it is what keeps one venture out of 
 3. The studio checks, in this order, and refuses with a plain sentence at the first "no":
    - the key is this venture's own;
    - the repository is one of this venture's, as its manifest says, and the ticket file exists there;
-   - this venture has a monthly budget, signed with the approval secret, approved by a studio admin;
+   - the department is the one that repository belongs to, and its gate is the manifest's — the
+     studio does not take the lane's word for either;
+   - this venture has a monthly budget that the budget approver approved on the studio's budget page,
+     signed with the approval secret;
    - fewer than two of this venture's machines are working;
    - one more machine, counted at its worst case, still fits in this month's budget.
 4. The studio makes a new Railway environment for the ticket, with one service in it, sized at 4
@@ -48,9 +54,19 @@ This is the part that matters most, because it is what keeps one venture out of 
 Only a run that reached the end of the lane counts as finished. Anything else becomes a run report
 saying where it stopped and the last thing it said, so a founder reads *why*.
 
-**A machine that was refused, or that could not be made, is not an attempt.** The ticket never ran,
-so it does not count toward the three tries after which the lane parks a ticket, nor toward the day's
-wakes. The founder is told why once a day, then on the heartbeat.
+**So is a supervisor that stops before writing down how the ticket ended.** If `supervisor.sh` exits
+with an error and has not written a final run report (for example because the Claude credential is
+missing), the run is a failure "part way through the work", and the venture's box writes the run
+report. A supervisor that wrote down that the ticket failed, and then exited with an error, did reach
+its end: the founder already has its report.
+
+**A machine that was refused is not an attempt.** The ticket never ran, so it does not count toward
+the three tries after which the lane parks a ticket, nor toward the day's wakes. The founder is told
+why once a day, then on the heartbeat.
+
+**A machine the studio tried to make, and Railway failed to, counts as a wake** but not as an attempt.
+The ticket never ran, but the try cost money (at least a minute), so the day's limit of eight wakes
+bounds how often a failing provider is asked.
 
 ## Why a machine cannot be left running
 
@@ -78,7 +94,9 @@ that limit, so it can never cost more than **$0.0037 a minute — about $0.22 an
 - **A typical ticket** takes about an hour: about **$0.22**.
 - **The worst case** — a run cut off at its deadline and removed by the clean-up job — is 160
   minutes: **$0.59**. Every machine is counted at that worst case when it is made, then brought down to
-  the minutes it really ran when it is removed. So the month's count is never below the true bill.
+  the minutes it really ran when it is removed. Three things may remove a machine at about the same
+  time; only the first to record the removal brings the count down, so it is brought down once. So the
+  month's count is never below the true bill.
 - **A budget of $50 a month** covers about 225 typical tickets, or 84 worst-case ones. The lane's own
   wake budget is eight tickets a day, about 240 a month, so $50 is a real limit, not a formality.
 
@@ -116,24 +134,30 @@ before the switch does.
 
 **Approve the monthly budget** (once per venture):
 
-9. From a terminal with the studio's settings, for example
-   `railway run node scripts/ticket-machines.mjs approve-budget arca 50 john@bruntsfield.capital`.
-   It signs the amount with `FOUNDRY_APPROVAL_SECRET` and records it in the studio's database. Your
-   address must be in `STUDIO_ADMIN_EMAILS`, or the studio will not accept the budget. Add `--dry-run`
-   to see what would be recorded first. To change the amount, approve again; to stop all spending for
-   a venture, approve `0`.
+9. Set `BUDGET_APPROVER_EMAIL` on the studio to John's own address. Only that address can approve a
+   budget; being a studio admin is not enough. The studio also needs `FOUNDRY_APPROVAL_SECRET` and
+   `STUDIO_APPROVAL_GITHUB_TOKEN`, which it already has for approving sends.
+10. Open **/admin/machine-budgets** in the studio, signed in with Google. Anyone at Bruntsfield can
+    propose an amount for a venture there. John, signed in as the budget approver, presses **Approve
+    this budget**. The studio checks his address on the server, signs the amount, records it, and
+    writes `approval.proposed` and `approval.granted` to its ActiveGraph record. If the record cannot
+    be written, nothing is approved. To change the amount, propose and approve a new one; to stop all
+    spending for a venture, propose and approve `0`.
+
+    There is no command-line way to approve a budget. An earlier version had one; it accepted any
+    approver address typed into it, so it was removed after review.
 
 **The clean-up timer:**
 
-10. Have something call `POST /api/machines/reap` every ten minutes with
+11. Have something call `POST /api/machines/reap` every ten minutes with
     `Authorization: Bearer <key>`, where the key is printed by
     `railway run node scripts/ticket-machines.mjs reap-key` — the same kind of timer as the push
     check (a Railway cron service or a scheduled workflow).
 
 **The switch:**
 
-11. `TICKET_MACHINES=on` on the studio.
-12. On the venture's own box: `TICKET_MACHINE_LANE_KEY` (printed by
+12. `TICKET_MACHINES=on` on the studio.
+13. On the venture's own box: `TICKET_MACHINE_LANE_KEY` (printed by
     `node scripts/ticket-machines.mjs lane-key arca`) and `FOUNDRY_STUDIO_URL` in
     `/etc/foundry/credentials`, and `TICKET_MACHINES=on` in the lane's environment. Sync the lane
     files to the box with `scripts/sync-box.sh` first.
@@ -165,4 +189,10 @@ token. Its start-up script carries only the run's boot variables, never a creden
   is the same compare-and-set against GitHub either way, so it works across machines.
 - **One ticket at a time per venture, still.** The venture's box holds its one-wake lock while it
   waits. The studio allows two machines per venture, so narrowing that lock is all that remains.
-- **No screen for the budget.** John approves it with a command, not a button in the studio.
+- **The budget page has not been used for real.** It is proved against real Postgres and a stand-in
+  for the ActiveGraph record, and drawn in a browser from fixture rows. It has not yet recorded a real
+  budget, because the studio's database does not have `db/007_ticket_machines.sql` applied.
+- **The lane still decides whether a ticket ends in something sent to people.** The studio takes the
+  department's gate from the manifest, but whether a particular ticket must stop at a proposal is
+  read from the ticket's text by the lane, which the studio does not read. Getting that wrong cannot
+  send anything: the machine holds no credential that reaches anyone outside the company.

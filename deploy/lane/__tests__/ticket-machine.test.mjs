@@ -5,7 +5,7 @@ import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NOT_MADE, requestBody, workTicketOnMachine } from '../ticket-machine.mjs';
+import { NOT_MADE, TRIED_AND_FAILED, requestBody, workTicketOnMachine } from '../ticket-machine.mjs';
 import { collectWork, redact, reportFinish, shellLine } from '../worker-call.mjs';
 
 const LANE = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -61,11 +61,17 @@ describe('the venture box asks the studio; it never makes a machine itself', () 
     ['the budget is used', 402, 'This month\'s budget for temporary machines ($40.00) is used, so no machine was made.'],
     ['no budget was approved', 402, 'No monthly budget for temporary machines has been approved for this venture, so no machine was made.'],
     ['two are already working', 429, 'Your team already has 2 temporary machines working.'],
-    ['the provider failed', 502, 'The studio could not get a temporary machine for this ticket.'],
   ])('when %s, nothing is made, the studio\'s reason is passed on, and it is "not made" — not an attempt', async (_w, status, reason) => {
     const s = fakeStudio([{ status, body: { created: false, reason } }]);
     expect(await run(s.fetchImpl)).toEqual({ code: NOT_MADE, summary: reason });
     expect(s.calls).toHaveLength(1);
+  });
+
+  it('when the studio tried and the provider failed, it says so with its own code, which the box counts as a wake', async () => {
+    const reason = 'The studio could not get a temporary machine for this ticket, so the work did not start.';
+    const s = fakeStudio([{ status: 502, body: { created: false, reason } }]);
+    expect(await run(s.fetchImpl)).toEqual({ code: TRIED_AND_FAILED, summary: reason });
+    expect(TRIED_AND_FAILED).not.toBe(NOT_MADE);
   });
 
   it('a studio that cannot be reached is "not made", not a failed attempt', async () => {
@@ -220,4 +226,113 @@ describe('worker-run.sh, run for real against a stand-in studio', () => {
     // The work was collected into a file only its owner can read.
     expect(readFileSync(join(scratch, 'run', 'run.env'), 'utf8')).toContain("REPO='wealthcx01/arca'");
   }, 30_000);
+});
+
+describe('worker-run.sh, when the supervisor ends', () => {
+  /**
+   * Runs the real worker-run.sh, from a scratch copy of the lane with a stand-in supervisor, against a
+   * stand-in studio. Set-up succeeds (stand-in apt-get, git and claude), so what is under test is only
+   * what the script makes of the supervisor's ending.
+   */
+  async function workWith(supervisorBody) {
+    const reports = [];
+    const server = createServer((req, res) => {
+      let data = '';
+      req.on('data', (c) => { data += c; });
+      req.on('end', () => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        if (req.url.endsWith('/start')) {
+          res.end(JSON.stringify({ env: { REPO: 'wealthcx01/arca', BASE_BRANCH: 'main', TICKET_SLUG: 'ARCA-061-x', TICKET_PATH: 'docs/tickets/ARCA-061-x.md', TICKET_GITHUB_TOKEN: 'ghp_never_leaves_0000' } }));
+        } else {
+          reports.push(JSON.parse(data));
+          res.end('{"recorded":true}');
+        }
+      });
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+
+    const scratch = mkdtempSync(join(tmpdir(), 'worker-end-'));
+    const lane = join(scratch, 'lane');
+    const bin = join(scratch, 'bin');
+    execFileSync('mkdir', ['-p', lane, bin, join(scratch, '.claude', 'skills', 'gstack')]);
+    for (const f of ['worker-run.sh', 'worker-call.mjs']) writeFileSync(join(lane, f), readFileSync(join(LANE, f)));
+    writeFileSync(join(lane, 'skills-used.mjs'), '');
+    writeFileSync(join(lane, 'supervisor.sh'), `#!/usr/bin/env bash\n${supervisorBody}\n`);
+    const stub = (name, body) => { writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`); chmodSync(join(bin, name), 0o755); };
+    stub('apt-get', 'exit 0');
+    stub('claude', 'exit 0');
+    // `git clone ... <dir>` makes the repository with the ticket in it; every other git call succeeds.
+    stub('git', 'if [ "$1" = clone ]; then for a; do d="$a"; done; mkdir -p "$d/docs/tickets"; echo "# ticket" > "$d/docs/tickets/ARCA-061-x.md"; fi; exit 0');
+
+    const code = await new Promise((resolve) => {
+      const child = spawn('bash', [join(lane, 'worker-run.sh')], {
+        env: {
+          PATH: `${bin}:${process.env.PATH}`, HOME: scratch, FOUNDRY_RUN_DIR: join(scratch, 'run'),
+          FOUNDRY_STUDIO_URL: `http://127.0.0.1:${server.address().port}`, FOUNDRY_RUN_ID: 'aaaaaaaaaaaaaaa1', FOUNDRY_RUN_TOKEN: 'run-token-1234', FOUNDRY_VENTURE: 'arca',
+        },
+        stdio: 'ignore',
+      });
+      child.on('close', resolve);
+    });
+    server.close();
+    expect(reports).toHaveLength(1);
+    return { code, report: reports[0] };
+  }
+
+  it('a supervisor that dies before writing any run report (no Claude credential) is "work", never "done"', async () => {
+    const { code, report } = await workWith('echo "need Claude auth" >&2; exit 1');
+    expect(code).toBe(1);
+    expect(report).toMatchObject({ stage: 'work', exit: 1 });
+    expect(report.log).toMatch(/before your team wrote down how the ticket ended/);
+  }, 30_000);
+
+  it('a "working" report is not an ending: a supervisor that dies after it is still "work"', async () => {
+    const { report } = await workWith('echo "ARCA-061-x working" >> "$RUNREPORT_LOG"; exit 1');
+    expect(report).toMatchObject({ stage: 'work', exit: 1 });
+  }, 30_000);
+
+  it('a supervisor that wrote down that the ticket failed, then exited 1, reached its end: "done"', async () => {
+    const { code, report } = await workWith('echo "ARCA-061-x working" >> "$RUNREPORT_LOG"; echo "ARCA-061-x failed" >> "$RUNREPORT_LOG"; exit 1');
+    expect(code).toBe(1);
+    expect(report).toMatchObject({ stage: 'done', exit: 1 });
+  }, 30_000);
+
+  it('a supervisor that exits 0 reached its end', async () => {
+    const { code, report } = await workWith('exit 0');
+    expect(code).toBe(0);
+    expect(report).toMatchObject({ stage: 'done', exit: 0 });
+  }, 30_000);
+});
+
+describe('write_runreport tells worker-run.sh which reports it really wrote', () => {
+  // The real write_runreport from foundry-lib.sh, with GitHub stood in for: the record is built by the
+  // real runreport-record.mjs, and only the PUT's answer is invented.
+  function writeReport(putAnswer, withLog = true) {
+    const scratch = mkdtempSync(join(tmpdir(), 'runreport-log-'));
+    const log = join(scratch, 'written');
+    const script = `
+      set -euo pipefail
+      . "${join(LANE, 'foundry-lib.sh')}"
+      ensure_state_ref() { return 0; }
+      gh_api() { if [ "\${1:-}" = -X ]; then echo '${putAnswer}'; else echo '{}'; fi; }
+      write_runreport ARCA-061-x failed "It could not pass its own tests." || true
+    `;
+    execFileSync('bash', ['-c', script], {
+      env: { PATH: process.env.PATH, HOME: scratch, REPO: 'wealthcx01/arca', STATE_REF: 'foundry-state', LANE_ID: 'arca', ...(withLog ? { RUNREPORT_LOG: log } : {}) },
+      stdio: 'ignore',
+    });
+    try { return readFileSync(log, 'utf8'); } catch { return null; }
+  }
+
+  it('adds "<slug> <status>" when GitHub accepted the report', () => {
+    expect(writeReport('{"content":{"path":"x"}}')).toBe('ARCA-061-x failed\n');
+  });
+
+  it('adds nothing when GitHub refused it — a report that was not written is not an ending', () => {
+    expect(writeReport('{"message":"Bad credentials"}') ?? '').toBe('');
+  });
+
+  it('writes nowhere when RUNREPORT_LOG is not set, as on a venture\'s own box', () => {
+    expect(writeReport('{"content":{"path":"x"}}', false)).toBeNull();
+  });
 });

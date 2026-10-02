@@ -11,6 +11,8 @@
 # The stage is part of that report, and only "done" counts as a run that reached its end. A machine
 # that fails while setting itself up reports "setup", with the last lines of its set-up log, and the
 # founder's run report says so (CLAUDE.md #10). Before this, such a run was reported as a success.
+# The same holds one step later: a supervisor that exits non-zero without writing a run report
+# reports "work", not "done".
 #
 # Never run by hand on a venture's own machine: it expects a machine that will be thrown away.
 set -euo pipefail
@@ -94,6 +96,11 @@ STAGE=work
 LEFT=$(( ${FOUNDRY_EXPIRES_AT:-0} - $(date +%s) - 180 ))
 [ "$LEFT" -gt 60 ] || LEFT=60
 cd "$REPO_DIR"
+# write_runreport (foundry-lib.sh) adds one line here, "<slug> <status>", for each run report it
+# really wrote. It is how this script tells a supervisor that ended by writing down what happened
+# from one that died before it could.
+export RUNREPORT_LOG="$STATE_DIR/runreports-written"
+: > "$RUNREPORT_LOG"
 set +e
 timeout --signal=TERM --kill-after=60 "$LEFT" bash "$LANE_DIR/supervisor.sh" "$TICKET_SLUG" "$REPO_DIR/$TICKET_PATH"
 WORK_EXIT=$?
@@ -101,6 +108,14 @@ set -e
 # 124 and 137 are timeout's own codes: the work was cut off, which is not a run that reached its end.
 if [ "$WORK_EXIT" -eq 124 ] || [ "$WORK_EXIT" -eq 137 ]; then
   say "the work was stopped at the machine's deadline"
+  exit "$WORK_EXIT"
+fi
+# A supervisor that exits non-zero has reached its end only if it wrote down how the ticket ended
+# (`fail` in supervisor.sh writes a "failed" report, then exits 1). One that stopped before that —
+# no Claude credential, or `set -e` part way — wrote nothing, and is a failure of the run, not a
+# finished run. Before this, it was reported to the founder as a success.
+if [ "$WORK_EXIT" -ne 0 ] && ! awk -v s="$TICKET_SLUG" '$1 == s && $2 ~ /^(failed|blocked|awaiting_founder|opened_pr)$/ { found = 1 } END { exit !found }' "$RUNREPORT_LOG"; then
+  say "the work stopped (exit code $WORK_EXIT) before your team wrote down how the ticket ended"
   exit "$WORK_EXIT"
 fi
 

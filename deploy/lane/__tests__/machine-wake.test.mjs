@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const RUN_ONCE = readFileSync(new URL('../run-once.sh', import.meta.url), 'utf8');
-const COUNTER = RUN_ONCE.slice(RUN_ONCE.indexOf('count_wake_and_attempt() {'), RUN_ONCE.indexOf('if [ "$REQUIRE_PROPOSAL" = 1 ]; then'));
+const COUNTER = RUN_ONCE.slice(RUN_ONCE.indexOf('count_wake() {'), RUN_ONCE.indexOf('if [ "$REQUIRE_PROPOSAL" = 1 ]; then'));
 const MACHINE = RUN_ONCE.slice(RUN_ONCE.indexOf('# --- FB-239: the work on a machine'), RUN_ONCE.lastIndexOf('count_wake_and_attempt'));
 
 function wake(machineExit, say, state = mkdtempSync(join(tmpdir(), 'wake-'))) {
@@ -47,6 +47,16 @@ describe('a machine that was not made', () => {
     const second = wake(3, 'still used', first.state);
     expect(second.reports.split('\n')[1]).toMatch(/^heartbeat\|blocked\|Your team is awake, and waiting for a temporary machine: still used/);
     expect(second.wakes).toBe(0);
+  });
+});
+
+describe('a machine the studio tried to make, and the provider failed', () => {
+  it('counts as a wake, so the day\'s wake limit bounds the tries — but not as an attempt at the ticket', () => {
+    const r = wake(4, 'The studio could not get a temporary machine for this ticket, so the work did not start.');
+    expect(r.wakes).toBe(1);
+    expect(r.attempts).toBe('');
+    expect(r.reports).toBe('ARCA-061|blocked|The studio could not get a temporary machine for this ticket, so the work did not start.\n');
+    expect(r.reports).not.toContain('fell through');
   });
 });
 

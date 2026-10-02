@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
@@ -6,26 +7,56 @@ import { attestationFor, machineBudgetAttestationFor, refusalAttestationFor } fr
 import {
   BOOT_COMMAND, MACHINE, bootVariables, costForMicroUsd, dollars, finishSummary, laneKeyFor, machineName,
   microUsdPerMinute, monthOf, parseFinish, parseMachineRequest, reapKeyFor, runTokenFor, verifyBudget,
-  workerEnv, worstCaseMicroUsd,
+  workerEnv, worstCaseMicroUsd, type BudgetRow,
 } from '../ticket-machines';
-import { adjust, latestBudget, recordBudget, reserve, spentIn, type Querier } from '../machine-store';
+import {
+  adjust, decideProposal, insertRun, latestBudget, markDestroyed, recordBudget, recordProposal, reserve, spentIn, type Querier,
+} from '../machine-store';
 import type { VentureSummary } from '../ventures';
 // @ts-expect-error — a plain .mjs script with no type declarations
-import { budgetAttestation, budgetRow, laneKey, reapKey } from '../../scripts/ticket-machines.mjs';
+import { laneKey, reapKey } from '../../scripts/ticket-machines.mjs';
 
-const ARCA = { id: 'arca', repos: ['arca'], departments: [{ id: 'sell', repo: 'arca-sell' }] } as unknown as VentureSummary;
+const ARCA = {
+  id: 'arca', repos: ['arca'],
+  departments: [
+    { id: 'build', repo: 'arca', gate: 'pr' },
+    { id: 'sell', repo: 'arca-sell', gate: 'activegraph' },
+  ],
+} as unknown as VentureSummary;
 
-describe('the signatures John\'s script makes are the ones the studio checks', () => {
-  it('pins a known budget vector, identical in the studio and in scripts/ticket-machines.mjs', () => {
-    const v = machineBudgetAttestationFor('arca', 4000, 'John@Bruntsfield.Capital', '2026-10-02T09:00:00.000Z', 'test-secret');
-    expect(v).toBe(budgetAttestation('arca', 4000, 'john@bruntsfield.capital', '2026-10-02T09:00:00.000Z', 'test-secret'));
-    expect(v).toMatch(/^[0-9a-f]{64}$/);
+const P1 = '0123456789abcdef';
+const JOHN = 'john@bruntsfield.capital';
+
+describe('the keys John\'s script makes are the ones the studio checks', () => {
+  it('lane keys and the reap key are identical in the studio and in scripts/ticket-machines.mjs', () => {
     expect(laneKeyFor('s'.repeat(32), 'arca')).toBe(laneKey('s'.repeat(32), 'arca'));
     expect(reapKeyFor('s'.repeat(32))).toBe(reapKey('s'.repeat(32)));
   });
 
+  it('the script cannot approve a budget: that is done on the studio\'s budget page only', () => {
+    let status = 0;
+    let said = '';
+    try {
+      execFileSync('node', ['scripts/ticket-machines.mjs', 'approve-budget', 'arca', '40', JOHN], {
+        env: { ...process.env, FOUNDRY_APPROVAL_SECRET: 's', DATABASE_URL: 'postgres://nowhere.invalid/x' }, stdio: 'pipe',
+      });
+    } catch (e) {
+      status = (e as { status: number }).status;
+      said = String((e as { stderr: Buffer }).stderr);
+    }
+    expect(status).toBe(2);
+    expect(said).toMatch(/budget page/);
+  });
+
+  it('a budget signature binds its proposal, so it cannot be moved to another', () => {
+    const a = machineBudgetAttestationFor('arca', P1, 4000, 'John@Bruntsfield.Capital', '2026-10-02T09:00:00.000Z', 'test-secret');
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+    expect(a).toBe(machineBudgetAttestationFor('arca', P1, 4000, JOHN, '2026-10-02T09:00:00.000Z', 'test-secret'));
+    expect(a).not.toBe(machineBudgetAttestationFor('arca', 'fedcba9876543210', 4000, JOHN, '2026-10-02T09:00:00.000Z', 'test-secret'));
+  });
+
   it('a budget can never be read as an approval to send, or a refusal', () => {
-    const budget = machineBudgetAttestationFor('arca', 4000, 'j@x.com', 't', 's');
+    const budget = machineBudgetAttestationFor('arca', P1, 4000, 'j@x.com', 't', 's');
     expect(budget).not.toBe(attestationFor('arca', '4000', 't', 'j@x.com', 's'));
     expect(budget).not.toBe(refusalAttestationFor('arca', '4000', 't', 'j@x.com', 's', 't', ''));
   });
@@ -37,13 +68,19 @@ describe('the signatures John\'s script makes are the ones the studio checks', (
     expect(runTokenFor(s, 'arca', 'aaaaaaaaaaaaaaa1')).not.toBe(runTokenFor(s, 'arca', 'aaaaaaaaaaaaaaa2'));
   });
 
-  it('the script refuses a budget it cannot sign or read, in words', () => {
-    expect(budgetRow({ venture: 'arca', dollars: '40', approver: 'john@b.c', secret: '' }).error).toMatch(/FOUNDRY_APPROVAL_SECRET/);
-    expect(budgetRow({ venture: 'Arca!', dollars: '40', approver: 'john@b.c', secret: 's' }).error).toMatch(/not a venture id/);
-    expect(budgetRow({ venture: 'arca', dollars: 'forty', approver: 'john@b.c', secret: 's' }).error).toMatch(/dollars/);
-    const ok = budgetRow({ venture: 'arca', dollars: '37.50', approver: 'John@B.C', secret: 's', now: Date.parse('2026-10-02T09:00:00Z') });
-    expect(ok.row).toMatchObject({ monthly_cents: 3750, approver: 'john@b.c', approved_at: '2026-10-02T09:00:00.000Z' });
-    expect(verifyBudget(ok.row, 'arca', 's', ['john@b.c'])).toEqual({ ok: true, monthlyCents: 3750, approver: 'john@b.c' });
+  it('only the budget approver\'s signed budget counts — not any admin, and not with no approver set', () => {
+    const signed = (approver: string, cents = 3750): BudgetRow => ({
+      venture_id: 'arca', proposal_id: P1, monthly_cents: cents, approver, approved_at: '2026-10-02T09:00:00.000Z',
+      attestation: machineBudgetAttestationFor('arca', P1, cents, approver, '2026-10-02T09:00:00.000Z', 's'),
+    });
+    expect(verifyBudget(signed(JOHN), 'arca', 's', JOHN)).toEqual({ ok: true, monthlyCents: 3750, approver: JOHN });
+    // Another admin, correctly signed: still not a budget, because only the approver may approve.
+    expect(verifyBudget(signed('ops@bruntsfield.capital'), 'arca', 's', JOHN).ok).toBe(false);
+    expect(verifyBudget(signed(JOHN), 'arca', 's', null).ok).toBe(false);
+    expect(verifyBudget(signed(JOHN), 'arca', 'another-secret', JOHN).ok).toBe(false);
+    expect(verifyBudget(signed(JOHN), 'the-reset', 's', JOHN).ok).toBe(false);
+    expect(verifyBudget({ ...signed(JOHN), proposal_id: 'fedcba9876543210' }, 'arca', 's', JOHN).ok).toBe(false);
+    expect(verifyBudget(signed(JOHN, 0), 'arca', 's', JOHN)).toMatchObject({ ok: false, reason: expect.stringMatching(/withdrawn/) });
   });
 });
 
@@ -71,7 +108,16 @@ describe('reading a lane\'s request, trusting none of it', () => {
 
   it('accepts a ticket in one of the venture\'s own repositories', () => {
     expect(read({})).toMatchObject({ ok: true, req: { repo: 'wealthcx01/arca', gate: 'pr', department: 'build', baseBranch: 'main' } });
-    expect(read({ repo: 'wealthcx01/arca-sell' })).toMatchObject({ ok: true });
+    expect(read({ repo: 'wealthcx01/arca-sell' })).toMatchObject({ ok: true, req: { department: 'sell', gate: 'activegraph' } });
+  });
+
+  it('takes the department and its gate from the manifest, never from the lane', () => {
+    // A Sell ticket asked for as if it were ordinary engineering work: the manifest's gate wins.
+    const r = read({ repo: 'arca-sell', department: 'sell', gate: 'pr', requireProposal: false });
+    expect(r).toMatchObject({ ok: true, req: { department: 'sell', gate: 'activegraph', requireProposal: false } });
+    expect(read({ repo: 'arca-sell', requireProposal: true })).toMatchObject({ ok: true, req: { gate: 'activegraph', requireProposal: true } });
+    // In a `pr` department nothing stops at a proposal, whatever the lane says — as on the box.
+    expect(read({ gate: 'activegraph', requireProposal: true })).toMatchObject({ ok: true, req: { gate: 'pr', requireProposal: false } });
   });
 
   it.each([
@@ -82,7 +128,7 @@ describe('reading a lane\'s request, trusting none of it', () => {
     ['a name that does not match its file', { slug: 'ARCA-999' }],
     ['a branch that climbs', { baseBranch: '../main' }],
     ['a branch with a space', { baseBranch: 'main; rm -rf /' }],
-    ['a gate nobody knows', { gate: 'none' }],
+    ['a department that does not own the repository', { department: 'sell' }],
     ['a setting that is not a number', { tunables: { PLAN_TIMEOUT: '600; curl evil' } }],
     ['another venture named in the body', { venture: 'the-reset' }],
   ])('refuses %s', (_why, patch) => {
@@ -160,12 +206,42 @@ describe('the store, against real Postgres with the studio\'s own role', () => {
     };
     return { db, as };
   }
-  const row = (v: string) => ({ venture_id: v, monthly_cents: 4000, approver: 'j@x.com', approved_at: '2026-10-02T09:00:00.000Z', attestation: 'a'.repeat(64) });
+  const row = (v: string, proposal = P1) => ({ venture_id: v, proposal_id: proposal, monthly_cents: 4000, approver: 'j@x.com', approved_at: '2026-10-02T09:00:00.000Z', attestation: 'a'.repeat(64) });
+  const AT = new Date('2026-10-02T08:00:00Z');
+  /** A proposal, approved, and the budget recorded from it — the order the budget page writes them in. */
+  async function granted(as: Awaited<ReturnType<typeof fresh>>['as'], v: string) {
+    await as(v, async (q) => {
+      await recordProposal(q, { venture_id: v, proposal_id: P1, monthly_cents: 4000, proposed_by: 'ops@x.com', proposed_at: AT });
+      await decideProposal(q, P1, 'j@x.com', AT);
+      await recordBudget(q, row(v));
+    });
+  }
+
+  it('a budget with no approved proposal behind it is no budget', async () => {
+    const { as } = await fresh();
+    // Written straight into the table, as a command line could: nothing approved it.
+    await as('arca', (q) => recordBudget(q, row('arca')));
+    expect(await as('arca', (q) => latestBudget(q))).toBeNull();
+    // A proposal for a different amount does not make it count either.
+    await as('arca', async (q) => {
+      await recordProposal(q, { venture_id: 'arca', proposal_id: P1, monthly_cents: 9000, proposed_by: 'ops@x.com', proposed_at: AT });
+      await decideProposal(q, P1, 'j@x.com', AT);
+    });
+    expect(await as('arca', (q) => latestBudget(q))).toBeNull();
+  });
+
+  it('a proposal is approved once; a second approval changes nothing', async () => {
+    const { as } = await fresh();
+    await as('arca', (q) => recordProposal(q, { venture_id: 'arca', proposal_id: P1, monthly_cents: 4000, proposed_by: 'ops@x.com', proposed_at: AT }));
+    expect(await as('arca', (q) => decideProposal(q, P1, 'j@x.com', AT))).toBe(true);
+    expect(await as('arca', (q) => decideProposal(q, P1, 'j@x.com', AT))).toBe(false);
+  });
 
   it('one venture can never see another\'s budget or spend', async () => {
     const { as } = await fresh();
-    await as('arca', (q) => recordBudget(q, row('arca')));
+    await granted(as, 'arca');
     await as('arca', (q) => reserve(q, 'arca', '2026-10-01', 500, 10_000));
+    expect(await as('arca', (q) => latestBudget(q))).toMatchObject({ venture_id: 'arca', proposal_id: P1, monthly_cents: 4000 });
     expect(await as('the-reset', (q) => latestBudget(q))).toBeNull();
     expect(await as('the-reset', (q) => spentIn(q, '2026-10-01'))).toBe(0);
     expect(await as('arca', (q) => spentIn(q, '2026-10-01'))).toBe(500);
@@ -178,10 +254,12 @@ describe('the store, against real Postgres with the studio\'s own role', () => {
 
   it('the studio can neither rewrite nor delete a budget, nor wipe a month\'s spend', async () => {
     const { as } = await fresh();
-    await as('arca', (q) => recordBudget(q, row('arca')));
+    await granted(as, 'arca');
     await as('arca', (q) => reserve(q, 'arca', '2026-10-01', 500, 10_000));
     await expect(as('arca', (q) => q.query('update machinestore.budgets set monthly_cents = 999999'))).rejects.toThrow(/permission denied/);
     await expect(as('arca', (q) => q.query('delete from machinestore.budgets'))).rejects.toThrow(/permission denied/);
+    await expect(as('arca', (q) => q.query('update machinestore.budget_proposals set monthly_cents = 999999'))).rejects.toThrow(/permission denied/);
+    await expect(as('arca', (q) => q.query('delete from machinestore.budget_proposals'))).rejects.toThrow(/permission denied/);
     await expect(as('arca', (q) => q.query('delete from machinestore.spend'))).rejects.toThrow(/permission denied/);
     await expect(as('arca', (q) => q.query('delete from machinestore.runs'))).rejects.toThrow(/permission denied/);
   });
@@ -195,10 +273,28 @@ describe('the store, against real Postgres with the studio\'s own role', () => {
     expect(await as('arca', (q) => spentIn(q, '2026-10-01'))).toBe(0);
   });
 
+  it('the month\'s count holds the largest budget allowed ($10,000), past what an integer column can', async () => {
+    const { as } = await fresh();
+    const cap = 1_000_000 * 10_000;
+    expect(await as('arca', (q) => reserve(q, 'arca', '2026-10-01', 3_000_000_000, cap))).toBe(true);
+    expect(await as('arca', (q) => reserve(q, 'arca', '2026-10-01', 3_000_000_000, cap))).toBe(true);
+    expect(await as('arca', (q) => spentIn(q, '2026-10-01'))).toBe(6_000_000_000);
+  });
+
+  it('a machine\'s removal is recorded once, however many callers race to record it', async () => {
+    const { as } = await fresh();
+    await as('arca', (q) => insertRun(q, {
+      ventureId: 'arca', runId: 'aaaaaaaaaaaaaaa1', provider: 'railway', reservedMicro: 100, createdAt: AT, expiresAt: AT,
+      settings: { repo: 'wealthcx01/arca', baseBranch: 'main', ticketPath: 'docs/tickets/A.md', slug: 'A', department: 'build', gate: 'pr', requireProposal: false, stateRef: null, tunables: {} },
+    }));
+    expect(await as('arca', (q) => markDestroyed(q, 'aaaaaaaaaaaaaaa1', AT))).toBe(true);
+    expect(await as('arca', (q) => markDestroyed(q, 'aaaaaaaaaaaaaaa1', AT))).toBe(false);
+  });
+
   it('row-level security is forced on every table, so not even the owner reads through it', async () => {
     const { db } = await fresh();
     await db.exec('reset role');
-    for (const t of ['budgets', 'spend', 'runs']) {
+    for (const t of ['budget_proposals', 'budgets', 'spend', 'runs']) {
       const { rows } = await db.query<{ relrowsecurity: boolean; relforcerowsecurity: boolean }>(
         `select relrowsecurity, relforcerowsecurity from pg_class where oid = 'machinestore.${t}'::regclass`);
       expect(rows[0], t).toEqual({ relrowsecurity: true, relforcerowsecurity: true });

@@ -8,8 +8,10 @@
  *   - a timer asks for every overdue machine to be removed      → `reapAll`
  *
  * Every one of them is reachable without a signed-in session, so every one is treated as a public
- * endpoint (the FB-127 lesson): it checks its own key before reading anything else, trusts nothing in
- * the request, and answers "not authorised" the same way whether the venture exists or not.
+ * endpoint (the FB-127 lesson): it checks its own key before reading anything else, checks what the
+ * request says against the venture's manifest and GitHub (`parseMachineRequest` names the one thing
+ * it takes from the lane, and why), and answers "not authorised" the same way whether the venture
+ * exists or not.
  *
  * Nothing here talks to the network or the database directly. The route handlers pass both in, so
  * the tests drive this file with a stand-in provider and real Postgres (PGlite).
@@ -18,11 +20,11 @@ import { randomBytes } from 'node:crypto';
 import type { VentureSummary } from './ventures';
 import type { Machine, MachineProvider } from './machine-provider';
 import {
-  adjust, claimStart, getRun, insertRun, latestBudget, liveRuns, reserve, updateRun,
+  adjust, claimStart, getRun, insertRun, latestBudget, liveRuns, markDestroyed, recordMade, reserve, updateRun,
   type Querier, type RunRow,
 } from './machine-store';
 import {
-  BOOT_COMMAND, LANE_SOURCE_DEFAULT, MACHINE, bearerOf, bootVariables, budgetUsedReason, costForMicroUsd,
+  BOOT_COMMAND, LANE_SOURCE_DEFAULT, MACHINE, bearerOf, bootVariables, budgetApprover, budgetUsedReason, costForMicroUsd,
   finishSummary, laneKeyFor, machineName, machineSecret, monthOf, parseFinish, parseMachineRequest,
   reapKeyFor, runTokenFor, sameSecret, ventureCredentials, verifyBudget, workerEnv, worstCaseMicroUsd,
   type RunSettings,
@@ -45,10 +47,6 @@ export interface Reply { status: number; body: Record<string, unknown> }
 
 const NOT_AUTHORISED: Reply = { status: 401, body: { error: 'not authorised' } };
 const refused = (status: number, reason: string): Reply => ({ status, body: { created: false, reason } });
-
-function adminEmails(env: Record<string, string | undefined>): string[] {
-  return (env.STUDIO_ADMIN_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-}
 
 /** Find the venture a key claims to be, and check the key is that venture's. Null for any mismatch. */
 function laneVenture(deps: MachineDeps, header: string | null, ventureId: unknown): VentureSummary | null {
@@ -107,7 +105,7 @@ export async function requestMachine(deps: MachineDeps, header: string | null, b
   // The budget, the count and the reservation, in one transaction: two requests at once cannot both
   // squeeze under the cap.
   const gate = await deps.withVenture(venture.id, async (q) => {
-    const budget = verifyBudget(await latestBudget(q), venture.id, deps.env.FOUNDRY_APPROVAL_SECRET?.trim(), adminEmails(deps.env));
+    const budget = verifyBudget(await latestBudget(q), venture.id, deps.env.FOUNDRY_APPROVAL_SECRET?.trim(), budgetApprover(deps.env));
     if (!budget.ok) return refused(402, budget.reason);
     const live = (await liveRuns(q)).length;
     if (live >= MACHINE.maxPerVenture) {
@@ -138,9 +136,7 @@ export async function requestMachine(deps: MachineDeps, header: string | null, b
       bootCommand: BOOT_COMMAND,
       shape: MACHINE,
     });
-    await deps.withVenture(venture.id, (q) => updateRun(q, runId, {
-      machine: { id: machine.id, name: machine.name, ref: machine.ref }, state: 'made',
-    }));
+    await deps.withVenture(venture.id, (q) => recordMade(q, runId, { id: machine.id, name: machine.name, ref: machine.ref }));
     log(`made ${name} for ${venture.id}/${req.slug}; it must be gone by ${expiresAt.toISOString()}`);
     return { status: 201, body: { created: true, runId, machine: name, expiresAt: expiresAt.toISOString() } };
   } catch (e) {
@@ -158,9 +154,9 @@ export async function requestMachine(deps: MachineDeps, header: string | null, b
       await updateRun(q, runId, {
         state: 'failed',
         summary: 'The studio could not get a temporary machine for this ticket, so the work did not start.',
-        ...(allGone ? { destroyed_at: new Date(now()) } : { machine: found[0] ? { id: found[0].id, name, ref: found[0].ref } : null }),
+        ...(allGone ? {} : { machine: found[0] ? { id: found[0].id, name, ref: found[0].ref } : null }),
       });
-      if (allGone) await adjust(q, month, cost - reserved);
+      if (allGone && await markDestroyed(q, runId, new Date(now()))) await adjust(q, month, cost - reserved);
     });
     return refused(502, 'The studio could not get a temporary machine for this ticket, so the work did not start. The next wake will try again.');
   }
@@ -279,8 +275,10 @@ async function destroyRun(deps: MachineDeps, ventureId: string, run: RunRow): Pr
   const endedMs = now();
   const cost = run.machine ? costForMicroUsd(run.created_at.getTime(), endedMs) : 0;
   await deps.withVenture(ventureId, async (q) => {
-    await updateRun(q, run.run_id, { destroyed_at: new Date(endedMs) });
-    await adjust(q, monthOf(run.created_at.getTime()), cost - run.reserved_micro);
+    // Only the first remover gives the unused money back (see `markDestroyed`).
+    if (await markDestroyed(q, run.run_id, new Date(endedMs))) {
+      await adjust(q, monthOf(run.created_at.getTime()), cost - run.reserved_micro);
+    }
   });
   return true;
 }

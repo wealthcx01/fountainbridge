@@ -4,8 +4,9 @@ import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { machineBudgetAttestationFor } from '../approval-attestation';
 import type { Machine, MachineProvider, MachineSpec, MachineState } from '../machine-provider';
+import { approveBudget, proposeBudget, type BudgetDeps } from '../machine-budget';
 import { finishRun, reapAll, removeAfterFinish, requestMachine, runStatus, startRun, type MachineDeps } from '../machine-service';
-import { recordBudget, spentIn, type Querier } from '../machine-store';
+import { decideProposal, getRun, recordBudget, recordProposal, spentIn, type Querier } from '../machine-store';
 import { MACHINE, costForMicroUsd, laneKeyFor, monthOf, reapKeyFor, runTokenFor, worstCaseMicroUsd } from '../ticket-machines';
 import type { VentureSummary } from '../ventures';
 
@@ -29,6 +30,7 @@ const ENV = {
   TICKET_MACHINE_SECRET: SECRET,
   FOUNDRY_APPROVAL_SECRET: APPROVAL,
   STUDIO_ADMIN_EMAILS: `${JOHN}, ops@bruntsfield.capital`,
+  BUDGET_APPROVER_EMAIL: JOHN,
   STUDIO_PUBLIC_URL: 'https://studio.example',
   GITHUB_ORG: 'wealthcx01',
   TICKET_MACHINE_GITHUB_TOKEN_ARCA: 'gh-token-arca-only',
@@ -59,6 +61,10 @@ function fakeProvider() {
     machines, specs, removed,
     failAfterMaking: false,
     failOutright: false,
+    /** Runs after the machine exists and before the provider's reply reaches the studio. */
+    beforeReply: null as null | (() => Promise<void>),
+    /** When set, every removal waits for it — so two removers can be made to overlap. */
+    holdDestroy: null as null | Promise<void>,
     stateOf: new Map<string, MachineState>(),
     created: 0,
   };
@@ -70,12 +76,13 @@ function fakeProvider() {
       const m: Machine = { id: `env-${next++}`, name: spec.name, createdAt: new Date(now).toISOString(), ref: { serviceId: 'svc' } };
       machines.set(m.id, m);
       specs.push(spec);
+      if (o.beforeReply) await o.beforeReply();
       if (o.failAfterMaking) throw new Error('connection reset');
       return m;
     },
     async state(m) { return o.stateOf.get(m.id) ?? (machines.has(m.id) ? 'running' : 'gone'); },
     async list() { return [...machines.values()]; },
-    async destroy(m) { machines.delete(m.id); removed.push(m.id); },
+    async destroy(m) { if (o.holdDestroy) await o.holdDestroy; machines.delete(m.id); removed.push(m.id); },
   };
   return Object.assign(o, { provider });
 }
@@ -86,17 +93,24 @@ let fake: ReturnType<typeof fakeProvider>;
 let ids: string[];
 let deps: MachineDeps;
 
+// One connection, so one transaction at a time — what a real database does for two transactions that
+// touch the same row. Without this, two overlapping callers would share one PGlite transaction.
+let queue: Promise<unknown> = Promise.resolve();
 async function as<T>(v: string, fn: (q: Querier) => Promise<T>): Promise<T> {
-  await db.exec('begin');
-  await db.query('select set_config($1, $2, true)', ['app.venture_id', v]);
-  try {
-    const out = await fn(db as unknown as Querier);
-    await db.exec('commit');
-    return out;
-  } catch (e) {
-    await db.exec('rollback');
-    throw e;
-  }
+  const turn = queue.then(async () => {
+    await db.exec('begin');
+    await db.query('select set_config($1, $2, true)', ['app.venture_id', v]);
+    try {
+      const out = await fn(db as unknown as Querier);
+      await db.exec('commit');
+      return out;
+    } catch (e) {
+      await db.exec('rollback');
+      throw e;
+    }
+  });
+  queue = turn.catch(() => {});
+  return turn;
 }
 
 beforeEach(async () => {
@@ -117,12 +131,31 @@ beforeEach(async () => {
   };
 });
 
-async function approve(v: string, cents: number, approver = JOHN, secret = APPROVAL) {
+/** A budget approved the only way there is: proposed by an admin, approved by John on the budget page. */
+let proposals = 0;
+async function approve(v: string, cents: number) {
+  const budgetDeps: BudgetDeps = {
+    env: deps.env, ventures: deps.ventures, withVenture: as, record: async () => ({ ok: true }),
+    now: () => now, newId: () => (proposals += 1).toString(16).padStart(16, '0'),
+  };
+  const proposed = await proposeBudget(budgetDeps, 'ops@bruntsfield.capital', v, (cents / 100).toFixed(2));
+  expect(proposed.ok).toBe(true);
+  const approved = await approveBudget(budgetDeps, JOHN, v, proposals.toString(16).padStart(16, '0'));
+  expect(approved.ok).toBe(true);
+}
+
+/** A budget row written straight into the database, with an approved proposal behind it, signed as told. */
+async function forge(v: string, cents: number, approver: string, secret: string, signedFor = v) {
+  const id = (proposals += 1).toString(16).padStart(16, '0');
   const approvedAt = new Date(now).toISOString();
-  await as(v, (q) => recordBudget(q, {
-    venture_id: v, monthly_cents: cents, approver, approved_at: approvedAt,
-    attestation: machineBudgetAttestationFor(v, cents, approver, approvedAt, secret),
-  }));
+  await as(v, async (q) => {
+    await recordProposal(q, { venture_id: v, proposal_id: id, monthly_cents: cents, proposed_by: approver, proposed_at: new Date(now) });
+    await decideProposal(q, id, approver, new Date(now));
+    await recordBudget(q, {
+      venture_id: v, proposal_id: id, monthly_cents: cents, approver, approved_at: approvedAt,
+      attestation: machineBudgetAttestationFor(signedFor, id, cents, approver, approvedAt, secret),
+    });
+  });
 }
 
 const lane = (v: string) => `Bearer ${laneKeyFor(SECRET, v)}`;
@@ -191,11 +224,15 @@ describe('D11: one venture can never get a machine with another venture\'s crede
     expect(fake.created).toBe(0);
   });
 
-  it('may use its own department\'s repository', async () => {
+  it('may use its own department\'s repository, and the department\'s gate is the manifest\'s, not the lane\'s', async () => {
+    // Asked for as if Sell's gate were the pull request: the studio works out the gate itself.
     const r = await requestMachine(deps, lane('arca'), {
-      venture: 'arca', repo: 'arca-sell', ticketPath: 'docs/tickets/SELL-002-outreach.md', slug: 'SELL-002-outreach', department: 'sell', gate: 'activegraph',
+      venture: 'arca', repo: 'arca-sell', ticketPath: 'docs/tickets/SELL-002-outreach.md', slug: 'SELL-002-outreach', department: 'sell', gate: 'pr',
     });
     expect(r.status).toBe(201);
+    const id = String(r.body.runId);
+    const env = (await startRun(deps, run('arca', id), 'arca', id)).body.env as Record<string, string>;
+    expect(env).toMatchObject({ LANE_DEPARTMENT: 'sell', LANE_GATE: 'activegraph', REPO: 'wealthcx01/arca-sell' });
   });
 
   it('two ventures\' machines at once: each collects only its own credentials, and neither token opens the other run', async () => {
@@ -243,22 +280,23 @@ describe('the monthly budget John approves', () => {
     expect(fake.created).toBe(0);
   });
 
+  it('the forger\'s rows, signed properly, are what a real approval looks like — the control for the three below', async () => {
+    await forge('arca', TWENTY_DOLLARS, JOHN, APPROVAL);
+    expect((await requestMachine(deps, lane('arca'), arcaTicket)).status).toBe(201);
+  });
+
   it('a budget a lane wrote itself, without the approval secret, is worth nothing', async () => {
-    await approve('arca', TWENTY_DOLLARS, JOHN, 'a-guess-at-the-secret');
+    await forge('arca', TWENTY_DOLLARS, JOHN, 'a-guess-at-the-secret');
     expect((await requestMachine(deps, lane('arca'), arcaTicket)).status).toBe(402);
   });
 
-  it('a budget signed for someone who is not a studio admin is worth nothing', async () => {
-    await approve('arca', TWENTY_DOLLARS, 'founder@arca.example');
+  it('a budget approved by a studio admin who is not the budget approver is worth nothing', async () => {
+    await forge('arca', TWENTY_DOLLARS, 'ops@bruntsfield.capital', APPROVAL);
     expect((await requestMachine(deps, lane('arca'), arcaTicket)).status).toBe(402);
   });
 
   it('a budget moved from one venture to another does not verify', async () => {
-    const approvedAt = new Date(now).toISOString();
-    await as('arca', (q) => recordBudget(q, {
-      venture_id: 'arca', monthly_cents: TWENTY_DOLLARS, approver: JOHN, approved_at: approvedAt,
-      attestation: machineBudgetAttestationFor('the-reset', TWENTY_DOLLARS, JOHN, approvedAt, APPROVAL),
-    }));
+    await forge('arca', TWENTY_DOLLARS, JOHN, APPROVAL, 'the-reset');
     expect((await requestMachine(deps, lane('arca'), arcaTicket)).status).toBe(402);
   });
 
@@ -290,6 +328,30 @@ describe('the monthly budget John approves', () => {
     await finishRun(deps, run('arca', id), 'arca', id, { venture: 'arca', exit: 0, stage: 'done' });
     await removeAfterFinish(deps, 'arca', id);
     expect((await requestMachine(deps, lane('arca'), arcaTicket)).status).toBe(201);
+  });
+
+  it('a machine removed by two callers at once gives its unused money back once, not twice', async () => {
+    await approve('arca', TWENTY_DOLLARS);
+    const first = String((await requestMachine(deps, lane('arca'), arcaTicket)).body.runId);
+    const second = String((await requestMachine(deps, lane('arca'), arcaTicket)).body.runId);
+    await startRun(deps, run('arca', first), 'arca', first);
+    now = T0 + 42 * 60_000;
+    await finishRun(deps, run('arca', first), 'arca', first, { venture: 'arca', exit: 0, stage: 'done' });
+
+    // The studio's removal after the finish and the lane's status check both arrive while the
+    // provider is still removing the machine.
+    let release!: () => void;
+    fake.holdDestroy = new Promise<void>((r) => { release = r; });
+    const afterFinish = removeAfterFinish(deps, 'arca', first);
+    const statusCheck = runStatus(deps, lane('arca'), 'arca', first);
+    await new Promise((r) => setTimeout(r, 20));
+    release();
+    await Promise.all([afterFinish, statusCheck]);
+    fake.holdDestroy = null;
+
+    // The first is charged the 42 minutes it ran; the second, still working, its worst case.
+    expect(await as('arca', (q) => spentIn(q, monthOf(T0)))).toBe(costForMicroUsd(T0, now) + worstCaseMicroUsd());
+    expect((await as('arca', (q) => getRun(q, second)))?.destroyed_at).toBeNull();
   });
 
   it('a new month starts again', async () => {
@@ -347,6 +409,22 @@ describe('a machine that fails is reported as a failure, never a success', () =>
     const s = await runStatus(deps, lane('arca'), 'arca', id);
     expect(s.body).toMatchObject({ done: true, ok: false, removed: true });
     expect(s.body.summary).toMatch(/ran out of time/);
+  });
+});
+
+describe('a machine that boots fast', () => {
+  beforeEach(() => approve('arca', TWENTY_DOLLARS));
+
+  it('may collect its work before the provider\'s reply reaches the studio, and is not set back afterwards', async () => {
+    let early: number | null = null;
+    fake.beforeReply = async () => {
+      early = (await startRun(deps, run('arca', 'aaaaaaaaaaaaaaa1'), 'arca', 'aaaaaaaaaaaaaaa1')).status;
+    };
+    const r = await requestMachine(deps, lane('arca'), arcaTicket);
+    expect(r.status).toBe(201);
+    expect(early).toBe(200);
+    const stored = await as('arca', (q) => getRun(q, 'aaaaaaaaaaaaaaa1'));
+    expect(stored).toMatchObject({ state: 'started', machine: { id: 'env-1' } });
   });
 });
 
