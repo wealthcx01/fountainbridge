@@ -61,6 +61,9 @@ export default defineConfig({
       // FB-206: each venture box's credential scan record, read by the admin ledger only. ARCA's
       // has two findings, modernisation-engine's is clean but three weeks old, the-reset has none.
       BOXSCAN_FIXTURE_DIR: 'e2e/fixtures/boxscan',
+      // FB-169: whether the team can find every document. ARCA's machine cannot find the one filed
+      // under library/build/ — the real fault, in miniature. No other venture has a record.
+      BRAINCORPUS_FIXTURE_DIR: 'e2e/fixtures/brain-corpus',
       // FB-137: which reads to fail on purpose, so the degraded half of every screen can be
       // checked by eye and in CI rather than only when a code host is having a bad day. Empty by
       // default; `e2e/degraded.spec.ts` runs a second server with it set.

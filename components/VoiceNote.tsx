@@ -72,7 +72,7 @@ export function VoiceNote({ ventureId, onWords, disabled }: {
     try {
       const { blob, mimeType, seconds } = await h.stop();
       const note: PendingNote = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, // one-clock: written — a name for the recording, not a time anyone reads
         ventureId, blob, mimeType, seconds, recordedAt: new Date().toISOString(),
       };
       // Held BEFORE it is sent. If this throws (a private window), it is still sent — just without

@@ -178,7 +178,12 @@ fi
 BRAIN_GAP="${STATE_DIR:-/opt/foundry/lane/state}/brain-corpus-gap"
 if [ -s "$BRAIN_GAP" ]; then
   read -r GAP_N GAP_OF _ < "$BRAIN_GAP" || true
-  BRAIN_AGE_NOTE="${BRAIN_AGE_NOTE} — incomplete, it cannot see ${GAP_N:-some} of the venture's ${GAP_OF:-} documents"
+  if [ "${GAP_N:-}" = "?" ]; then
+    # gbrain could not list what it holds, so nobody knows how many it can see.
+    BRAIN_AGE_NOTE="${BRAIN_AGE_NOTE} — not known whether it can see every document (the last check could not run)"
+  else
+    BRAIN_AGE_NOTE="${BRAIN_AGE_NOTE} — incomplete, it cannot see ${GAP_N:-some} of the venture's ${GAP_OF:-} documents"
+  fi
 fi
 if [ -n "$BRAIN_DIGEST" ]; then
   RESEARCH_MODE="brain (semantic)${BRAIN_AGE_NOTE}"

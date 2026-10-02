@@ -1,6 +1,8 @@
 # FB-241 — a row that hydrates in the browser tells a different time from the one beside it
 
-**Status:** Open · **Phase:** 3 · **Found by:** FB-240, 2026-09-30
+**Status:** Shipped in part · **Phase:** 3 · **Found by:** FB-240, 2026-09-30
+
+**Shipped in part:** every time on the desk now agrees in the UI gate, and the check that keeps it that way follows the browser into `lib/`. What is left: nobody has read the desk on production (ARCA's real data) since the change. Do that, signed in as the founder, and tick the first criterion.
 
 ## What is on the screen
 
@@ -53,10 +55,59 @@ identical to this one.
 ## Acceptance criteria
 
 - [ ] Every time shown on the desk agrees with every other, in the gate as well as on real data.
-- [ ] A test fails if a client component derives an age from a timestamp rather than a duration.
-- [ ] `e2e/__screenshots__/20-desk.png` no longer contradicts itself.
+  In the gate: yes, seen in the pictures on 2026-10-02. On real data: not read since the change.
+- [x] A test fails if a client component derives an age from a timestamp rather than a duration —
+  including through a `lib/` helper it calls.
+- [x] `e2e/__screenshots__/20-desk.png` no longer contradicts itself.
 
 ## Notes
 
 Found while verifying FB-240 by looking at the regenerated screenshot rather than by trusting that
 the fix was complete. The rail and the desk had been fixed and the picture still said two things.
+
+## What shipped
+
+The server now works out every age on the desk, against one "now", and hands the number to the
+parts that draw in the browser. They only turn it into words.
+
+- **The run rows** (`EngineActivity`) get each run's age from `ageRuns` in `lib/runreports.ts`.
+- **The office ledger** gets `sinceMs` from `buildOffice`.
+- **The waiting rows and the blocker banner** were a second fault the screenshot showed: the
+  attention queue ages its pull requests against the real clock when it reads them, so under the
+  pinned clock they said *"79 days"* beside *"10 minutes"*. The desk page now re-ages them against
+  its own "now". Both say *"7 days"*.
+- **"updated just now"** is aged from the moment the studio fetched the data, by the same clock
+  that stamped it (`stampAgeMs`).
+- **Other screens with the same fault:** the work page's *"Waiting 3 days for you"*, and the
+  routines lists on Memory and on the routines page, which decided "ran recently" against the
+  browser's clock. All three now take the time from the server.
+
+`lib/__tests__/one-clock.test.ts` has the guard. It finds every file that runs in the browser —
+marked `'use client'`, or imported by one that is — and fails if any of them reads the clock or
+imports a helper that does. It also checks that the sentence and the rows under it say the same
+thing under a pinned clock.
+
+Before and after, on the gate's fixtures, are in `docs/design-conformance.md`. Every time on the
+desk now agrees. Production was not re-read after the change, because nothing changes there: the
+server and the browser already shared a clock, and the server now does what the browser did with
+the same clock. Found on the way: *"10 minutes ago"* wraps in its column — FB-262.
+
+## Fixed after review, 2026-10-02
+
+- **The check had a blind spot, and a real case was in it.** It only followed imports inside `app/`
+  and `components/`. The Sell line on the desk, *"Last send went out 3 days ago"*, was still worked
+  out in the browser: VentureBoard → `surfaceOutcome` (lib/desk) → `sellOutcome` (lib/sends) →
+  `howLong`. The server now works out how long ago the last send went, and hands the number down.
+  The check now follows the browser into `lib/` too, one function at a time, so a server-only
+  function that shares a file with a browser helper is not blamed for it. A failure names the route,
+  for example *"in the browser through VentureBoard → lib/desk.ts surfaceOutcome → lib/sends.ts
+  sellOutcome"*.
+- **A server action is not browser code.** The browser can call one, but it runs on the server, so
+  the check stops there.
+- **A stopwatch is allowed.** The voice note's timer reads the browser's clock at both ends, so it
+  cannot disagree with anything. Those lines are marked `one-clock: stopwatch`.
+- **A waiting row with an unreadable date** said *"waiting a few seconds"* after this change, because
+  the queue stores an unreadable date as an age of 0. It says *"waiting on you"* again, as it did
+  before.
+- **The check also sees a relative import** (`./when`), not only `@/lib/when`.
+

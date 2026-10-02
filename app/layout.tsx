@@ -5,7 +5,7 @@ import localFont from 'next/font/local';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { auth, signOut } from '@/auth';
-import { loadAccessibleAttention } from '@/lib/attention';
+import { loadAccessibleNeedsYou } from '@/lib/needs-you-load';
 import { headerNeedsYou } from '@/lib/needs-you';
 import { loadRailData } from '@/lib/rail';
 import { loadVentures } from '@/lib/ventures';
@@ -146,14 +146,15 @@ async function AttentionBadge({ email, ventureId }: { email: string; ventureId: 
   try {
     // FB-149: a founder's "Needs you" is their venture's, so it states the rail's own number — open
     // work AND sends waiting on them — read by the rail's own loader. Anyone seeing several ventures
-    // keeps the cross-venture count of finished work, which is what `/attention` lists.
+    // gets the cross-venture page's own number, from the same loader that page lists: open work and
+    // waiting sends, summed venture by venture with the rule the desks use.
     const venture = ventureId ? loadVentures().find((v) => v.id === ventureId) : undefined;
     // The email is deliberately NOT recorded as the reading's detail: the ring is process-global and
     // read by an admin, and a diagnostic is no place to accumulate who was signed in.
     count = venture
       ? (await loadRailData(venture)).needsYou
-      : (await timed('root layout: open work across your ventures', () => loadAccessibleAttention(email)))
-          .approvals.length;
+      : (await timed('root layout: what waits on you across your ventures', () => loadAccessibleNeedsYou(email)))
+          .count;
   } catch {
     // Guarded — the header must never take down every page when the code host is unreachable.
     count = 0;

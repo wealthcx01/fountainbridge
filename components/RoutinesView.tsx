@@ -25,10 +25,16 @@ export function RoutinesView({
   ventureId,
   routines,
   errors = [],
+  nowMs,
 }: {
   ventureId: string;
   routines: Routine[];
   errors?: string[];
+  /**
+   * "Now", from the server (FB-241). This renders in the browser, where the test clock does not
+   * exist, so a cooldown is judged against the server's instant rather than the browser's.
+   */
+  nowMs: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -47,7 +53,7 @@ export function RoutinesView({
 
   // `now` is read once per render rather than per row, so two routines in the same list cannot
   // disagree about whether a cooldown has passed.
-  const now = new Date();
+  const now = new Date(nowMs);
 
   return (
     <div className="stack" style={{ gap: '0.75rem' }}>

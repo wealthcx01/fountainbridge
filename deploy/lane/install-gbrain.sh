@@ -228,7 +228,7 @@ if [ -d /etc/systemd/system ]; then
   # errors out and — under set -e — would abort the install just before enabling the services.
   if [ "$SCRIPT_DIR" != "$LANE_DIR" ]; then
     install -m 0755 "$SCRIPT_DIR/brain-lib.mjs" "$SCRIPT_DIR/brain-query.mjs" "$SCRIPT_DIR/brain-bridge.mjs" \
-        "$SCRIPT_DIR/gbrain-refresh.sh" "$LANE_DIR/"
+        "$SCRIPT_DIR/brain-corpus-record.mjs" "$SCRIPT_DIR/gbrain-refresh.sh" "$LANE_DIR/"
   fi
   install -m 0644 "$SCRIPT_DIR/foundry-brain-bridge.service" "$SCRIPT_DIR/foundry-brain-sync.service" \
       "$SCRIPT_DIR/foundry-brain-sync.timer" /etc/systemd/system/

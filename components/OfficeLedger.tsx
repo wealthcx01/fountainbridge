@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { deskDoing, type Office, type OfficeDesk } from '@/lib/office';
-import { howLong } from '@/lib/when';
+import { howLongMs } from '@/lib/when';
 
 /**
  * The record beside the office (FB-203, item 8).
@@ -74,7 +74,8 @@ export function OfficeLedger({ office, ventureId }: { office: Office; ventureId?
  * history work" invites exactly one question, and the answer is that ticket.
  */
 function Row({ desk, ventureId }: { desk: OfficeDesk; ventureId?: string }) {
-  const since = desk.since ? howLong(desk.since) : null;
+  // An age from the server, not a timestamp (FB-241): this row renders in the browser.
+  const since = desk.sinceMs !== null ? howLongMs(desk.sinceMs) : null;
   const href = desk.ticketId && ventureId
     ? `/venture/${ventureId}/tickets?t=${encodeURIComponent(desk.ticketId)}`
     : null;

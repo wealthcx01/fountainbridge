@@ -141,6 +141,16 @@ test.describe('memory (FB-133)', () => {
     await expect(page.getByTestId('memory-used-note')).toContainText('nothing has read that document yet');
   });
 
+  test('the screen says which documents the team cannot find (FB-169)', async ({ page }) => {
+    // Listed here is not the same as findable by the team. ARCA's index skipped every Build
+    // document for a month while this table listed them; the sentence under it now says so, by name.
+    await page.goto('/venture/arca/knowledge');
+    const note = page.getByTestId('memory-find-note');
+    await expect(note).toHaveAttribute('data-tone', 'attention');
+    await expect(note).toContainText('Your team cannot find 1 document of your 4');
+    await expect(note).toContainText('Set naming decision');
+  });
+
   test('the summary counts the same documents the table lists', async ({ page }) => {
     // The FB-149 failure — a count over one screen and a list over another — on the one screen whose
     // entire job is to state what the studio actually holds.
