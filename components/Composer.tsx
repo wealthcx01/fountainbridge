@@ -7,6 +7,7 @@ import {
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
 import { parsePlanDraft } from '@/lib/plan-draft';
+import { parseFoundingMap } from '@/lib/founding-map';
 import { railState } from '@/lib/composer-rail';
 import { ComposerRail } from './ComposerRail';
 import { toneColor } from '@/lib/status';
@@ -407,7 +408,8 @@ function Reply({ text, mine }: { text: string; mine: boolean }) {
         // FB-127: a plan's block is JSON, and the panel below is its rendering. Offering "show me
         // exactly what will be filed" over it would open a data structure at a founder — the same
         // mistake as the four thousand characters of markdown this control exists to fold away.
-        if (b.kind === 'draft' && parsePlanDraft(b.text)) return null;
+        // FB-236: the founding map is the same — data the rail renders, not a draft to unfold.
+        if (b.kind === 'draft' && (parsePlanDraft(b.text) || parseFoundingMap(b.text))) return null;
         if (b.kind === 'draft') {
           return (
             <div key={i} data-testid="composer-draft" style={{ margin: '0.6rem 0' }}>

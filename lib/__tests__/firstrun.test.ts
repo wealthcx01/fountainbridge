@@ -74,7 +74,15 @@ describe('the welcome (FB-143)', () => {
     const w = welcome('THE RESET', 'Ross', 'ready');
     expect(w.greeting).toBe('Welcome, Ross. THE RESET is ready.');
     expect(w.action?.label).toBe('Tell the studio what you want');
-    expect(w.action?.href('the-reset')).toBe('/venture/the-reset/composer');
+    expect(w.action?.href('the-reset')?.split('?')[0]).toBe('/venture/the-reset/composer');
+  });
+
+  it('opens the composer with the founding walk’s first sentence typed, unsent (FB-236)', () => {
+    // Day one is when a venture has no backlog, which is exactly when the walk is for. The sentence
+    // is typed, not sent: starting it stays the founder's own press.
+    const href = welcome('THE RESET', 'Ross', 'ready').action?.href('the-reset') ?? '';
+    const ask = new URL(href, 'https://studio.test').searchParams.get('ask');
+    expect(ask).toBe("I am starting THE RESET. Walk me through what we know and don't know, and help me find the first things to build.");
   });
 
   it('does not claim to know the time of day', () => {
