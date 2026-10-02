@@ -8,6 +8,7 @@ import type { ActiveGraphApproval } from './approvals';
 import type { PrApproval } from './attention';
 import type { TrailSources } from './trail-load';
 import type { TrailInputs } from './trail';
+import { checkedPreview } from './preview-check';
 
 /**
  * The trail's sources, against real data (FB-130).
@@ -41,6 +42,14 @@ export interface AlreadyRead {
   filedPrNumbers?: Record<string, number>;
 }
 
+/** The work carrying a ticket — by its linked id, or by the filing that created it. */
+export function workForTicket(already: Pick<AlreadyRead, 'work' | 'filedPrNumbers'>, repo: string, ticketId: string): PrApproval | undefined {
+  const linked = already.work.find((w) => w.repo === repo && w.linkedTicketId === ticketId);
+  if (linked) return linked;
+  const filed = already.filedPrNumbers?.[`${repo} ${ticketId}`];
+  return filed === undefined ? undefined : already.work.find((w) => w.repo === repo && w.number === filed);
+}
+
 export function trailSources(venture: VentureSummary, already: AlreadyRead): TrailSources {
   const client = new GitHubClient();
   const secret = process.env.FOUNDRY_APPROVAL_SECRET ?? '';
@@ -50,13 +59,7 @@ export function trailSources(venture: VentureSummary, already: AlreadyRead): Tra
   // this PR's central claim (no dead link renders) was asserting over whatever happened to survive.
   const testRig = Boolean(process.env.APPROVALS_FIXTURE_DIR) && process.env.E2E_TEST_LOGIN === '1';
 
-  /** The work carrying this ticket — by its linked id, or by the filing that created it. */
-  const workFor = (repo: string, ticketId: string): PrApproval | undefined => {
-    const linked = already.work.find((w) => w.repo === repo && w.linkedTicketId === ticketId);
-    if (linked) return linked;
-    const filed = already.filedPrNumbers?.[`${repo} ${ticketId}`];
-    return filed === undefined ? undefined : already.work.find((w) => w.repo === repo && w.number === filed);
-  };
+  const workFor = (repo: string, ticketId: string) => workForTicket(already, repo, ticketId);
 
   return {
     async events(repo, approvalId) {
@@ -110,11 +113,16 @@ export function trailSources(venture: VentureSummary, already: AlreadyRead): Tra
       const pr = workFor(repo, ticketId);
       // Only when the deploy actually reported one. A preview URL is the single hop that proves the
       // founder's words became something running, so it is never guessed at from a branch name.
-      //
+      if (!pr?.previewUrl) return null;
+      // FB-184: and only when it OPENS. A deploy reporting a preview is a claim; a preview that
+      // redirects to the live site, or was torn down, is not "running from this venture's machine".
+      // Same check, same answer, as the "Follow it to…" line above the decision.
+      const check = await checkedPreview(pr.previewUrl);
+      if (check.state !== 'opens') return null;
       // Dated by the pull request, and that is the honest limit: the queue does not carry when the
       // preview built. It is the right order relative to the work hop — a preview cannot precede the
       // branch it built from — which is what the trail uses the time for.
-      return pr?.previewUrl ? { url: pr.previewUrl, at: pr.createdAt } : null;
+      return { url: pr.previewUrl, at: pr.createdAt };
     },
 
     async thread(): Promise<TrailInputs['thread']> {

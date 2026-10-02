@@ -391,3 +391,32 @@ test.describe('a surface link opens that surface (FB-213)', () => {
     expect(await page.locator('[data-testid^="tickets-row-"]').count()).toBeGreaterThan(0);
   });
 });
+
+/**
+ * FB-184 — every ticket says where to see the result, and links only to what opens.
+ *
+ * The rig never opens a preview (it makes no live call, FB-217), so here every preview is "not
+ * checked yet" and has no link. That is the half this gate can see: an unchecked address is never
+ * drawn as a link. The checked half is `lib/__tests__/result-link.test.ts`.
+ */
+test.describe('follow it to the result (FB-184)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+  });
+
+  test('work with a reported preview says so, with no link, directly above the decision', async ({ page }) => {
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-1');
+    const follow = page.getByTestId('detail-follow');
+    await expect(follow).toContainText('Follow it to the preview');
+    await expect(follow).toHaveAttribute('data-linked', 'false');
+    await expect(follow.locator('a')).toHaveCount(0);
+    // Directly above "Your decision": the next thing after the line is the decision panel.
+    const next = await follow.evaluate((el) => el.nextElementSibling?.getAttribute('data-testid') ?? '');
+    expect(next).toBe('detail-decision');
+  });
+
+  test('a ticket with nothing to look at says so', async ({ page }) => {
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-6');
+    await expect(page.getByTestId('detail-follow')).toHaveText('Nothing to follow yet');
+  });
+});
