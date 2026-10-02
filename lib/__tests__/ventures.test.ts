@@ -79,6 +79,29 @@ describe('loadVentures (against the real ventures/ manifests)', () => {
     expect(v?.departments.find((d) => d.id === 'bad')?.launch).toBeNull();
   });
 
+  it('reads the connectors a surface declares, and drops anything that is not a name (FB-248)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ventures-connectors-'));
+    writeFileSync(join(dir, 'v.yaml'), [
+      'id: v',
+      'name: V',
+      'repos: [v-ops, v-mkt]',
+      'departments:',
+      '  - { id: scale, venture_id: v, name: Scale, repo: v-ops, queue_path: docs/tickets, gate: pr,',
+      '      connectors: [meta-ads, 7, "", { x: 1 }] }',
+      '  - { id: sell, venture_id: v, name: Sell, repo: v-mkt, queue_path: docs/tickets, gate: activegraph }',
+    ].join('\n'));
+    const v = loadVentures(dir).find((x) => x.id === 'v');
+    expect(v?.departments.find((d) => d.id === 'scale')?.connectors).toEqual(['meta-ads']);
+    // Absent is an empty list, not undefined: every caller can ask `.includes` without a guard.
+    expect(v?.departments.find((d) => d.id === 'sell')?.connectors).toEqual([]);
+  });
+
+  it('ARCA declares Meta for Scale, as John ruled (FB-248)', () => {
+    const arca = loadVentures(DIR).find((v) => v.id === 'arca');
+    expect(arca?.departments.find((d) => d.id === 'scale')?.connectors).toEqual(['meta-ads']);
+    expect(arca?.departments.find((d) => d.id === 'build')?.connectors).toEqual([]);
+  });
+
   it('arca Build carries the real launch target; the other surfaces honestly do not (FB-093)', () => {
     // Flipped 2026-08-04, exactly as the previous version of this test instructed, when the
     // terminal went live on Railway. Sell and Scale still have nothing running — their pending

@@ -222,6 +222,18 @@ describe('the company, by surface', () => {
       .toBe('Not connected · platform tbd. 1 ticket waiting on it.');
   });
 
+  it('names Meta, and says it is not connected, once a venture declares it (FB-248)', () => {
+    // John ruled Meta first, so "platform tbd" is no longer true for a venture that declares it. But
+    // no ad account is linked, so "not connected" still is — both halves have to be said.
+    const line = surface({ departmentId: 'scale', ticketCount: 1, connectors: ['meta-ads'] });
+    expect(line).toBe('Meta ads · not connected yet. 1 ticket waiting on it.');
+    expect(line).not.toContain('tbd');
+    // Keyed on the declaration, not on the id: a surface named anything else that declares Meta
+    // says the same, and Scale without the declaration keeps the open-question line.
+    expect(surface({ departmentId: 'growth', ticketCount: 0, connectors: ['meta-ads'] })).toContain('Meta ads · not connected yet');
+    expect(surface({ departmentId: 'scale', ticketCount: 1, connectors: ['postmark'] })).toContain('platform tbd');
+  });
+
   it('stops saying Scale is not connected the moment a venture connects one', () => {
     // The line was hard-coded against the id. A venture that later declares somewhere to open would
     // have gone on being told, in the studio's voice, that it is not connected.

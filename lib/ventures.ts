@@ -33,6 +33,11 @@ export interface DepartmentSummary {
    * through is one copied manifest away from an XSS.
    */
   launch: { label: string | null; url: string } | null;
+  /**
+   * Connector names this surface declares (the schema's `connectors`), e.g. `meta-ads` (FB-248).
+   * A declaration of intent, not proof of a connection: `lib/meta-ads.ts` says which it is.
+   */
+  connectors: string[];
 }
 
 /** A D7 approval-matrix row: who approves a class of change (FB-046 routing). */
@@ -83,6 +88,7 @@ interface RawDepartment {
   queue_path?: unknown;
   gate?: unknown;
   launch?: unknown;
+  connectors?: unknown;
 }
 
 function toLaunch(raw: unknown): DepartmentSummary['launch'] {
@@ -131,6 +137,9 @@ function toDepartments(raw: unknown, repos: string[]): DepartmentSummary[] {
       queuePath: typeof d.queue_path === 'string' ? d.queue_path : 'docs/tickets',
       gate: typeof d.gate === 'string' ? d.gate : 'pr',
       launch: toLaunch(d.launch),
+      connectors: Array.isArray(d.connectors)
+        ? d.connectors.filter((c): c is string => typeof c === 'string' && c.length > 0)
+        : [],
       // Declared but not yet real until its repo is one the venture actually owns.
       provisioned: repo !== null && repos.includes(repo),
     });

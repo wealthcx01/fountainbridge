@@ -82,6 +82,9 @@ departments:
     repo: arca-ops              # analytics, ops, finance
     queue_path: docs/tickets
     gate: tbd-fb012             # ops/finance mutations gate; reads free (Phase 4 / FB-012 follow-on)
-    connectors: []
+    # FB-248: John ruled Meta first (2026-10-01). This DECLARES the platform; it connects nothing.
+    # There is no Meta ad account for ARCA yet, so the studio shows "not connected" until there is.
+    connectors:
+      - meta-ads
 
 connectors: []
