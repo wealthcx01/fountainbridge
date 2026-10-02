@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { testLogin } from './helpers';
 
 /**
@@ -11,6 +11,15 @@ import { testLogin } from './helpers';
 
 const JOHN = 'john.gallagher@wealthcx.com';
 const SHOTS = 'e2e/__screenshots__';
+
+/**
+ * The first row that is finished WORK, not an external send (FB-149).
+ *
+ * "Needs you" lists sends first since FB-149, the same order the desk uses. A send is decided on its
+ * own page and has no decision panel here, so tests about deciding on work must skip past them.
+ */
+const firstPieceOfWork = (page: Page) =>
+  page.getByTestId('tickets-list').locator('li button:not([data-testid^="tickets-row-send-"])').first();
 
 test.describe('tickets', () => {
   test.beforeEach(async ({ page }) => {
@@ -100,7 +109,7 @@ test.describe('tickets', () => {
     // The tab, not the URL: "Needs you" is the default since FB-185, so it is the one filter
     // deliberately absent from the query. Waiting on the tab still waits for the navigation.
     await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
-    await page.getByTestId('tickets-list').locator('li button').first().click();
+    await firstPieceOfWork(page).click();
 
     const decision = page.getByTestId('detail-decision');
     await expect(decision).toBeVisible();
@@ -119,7 +128,7 @@ test.describe('tickets', () => {
     // The tab, not the URL: "Needs you" is the default since FB-185, so it is the one filter
     // deliberately absent from the query. Waiting on the tab still waits for the navigation.
     await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
-    await page.getByTestId('tickets-list').locator('li button').first().click();
+    await firstPieceOfWork(page).click();
     await page.getByTestId('detail-refuse').click();
 
     await expect(page.getByTestId('detail-send-back')).toBeDisabled();
@@ -146,13 +155,29 @@ test.describe('tickets', () => {
     // The tab, not the URL: "Needs you" is the default since FB-185, so it is the one filter
     // deliberately absent from the query. Waiting on the tab still waits for the navigation.
     await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
-    await page.getByTestId('tickets-list').locator('li button').first().click();
+    await firstPieceOfWork(page).click();
 
     await page.getByTestId('detail-approve').click();
     await expect(page.getByTestId('detail-error')).toContainText('not set up');
     await expect(page.getByTestId('detail-outcome')).toHaveCount(0);
     // Still pressable: a refusal an admin can fix must not strand the decision.
     await expect(page.getByTestId('detail-approve')).toBeEnabled();
+  });
+
+  test('a send waiting on the founder is listed, and points at the one page where it is decided', async ({ page }) => {
+    // FB-149: the rail's badge counts sends, so the list it leads to must list them. FB-183: the send's
+    // own page is the only place its grant is signed, so the row is a pointer and draws no control.
+    await expect(page.getByTestId('tickets-filter-needs')).toHaveAttribute('aria-selected', 'true');
+    const send = page.getByTestId('tickets-list').locator('li button[data-testid^="tickets-row-send-"]').first();
+    await expect(send, 'the fixtures hold proposed sends, and none was listed').toBeVisible();
+    await send.click();
+    await expect(page.getByTestId('detail-send')).toBeVisible();
+    await expect(page.getByTestId('detail-approve')).toHaveCount(0);
+    await expect(page.getByTestId('detail-decision')).toHaveCount(0);
+    const href = await page.getByTestId('detail-open-send').getAttribute('href');
+    expect(href).toMatch(/^\/venture\/arca\/approvals\/[^/]+\/[^/]+$/);
+    await page.getByTestId('detail-open-send').click();
+    await expect(page.getByTestId('approval-page')).toBeVisible();
   });
 
   test('dependency chips move between tickets', async ({ page }) => {

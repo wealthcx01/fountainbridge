@@ -253,15 +253,22 @@ export function TicketsView({
                         distinct pieces of work all displayed as "ARCA-NEW", as though it were a
                         name. */}
                     <span className="mono" data-testid={`tickets-id-${r.id}`}>
-                      {isUnnumbered(r.id) ? 'unnumbered' : r.id}
+                      {r.send ? (r.send.ref ? `send · ${r.send.ref}` : 'send') : isUnnumbered(r.id) ? 'unnumbered' : r.id}
                     </span>
                     {r.surface ? <> · {r.surface}</> : null}
+                    {/* FB-149: a send says it is one, on the row. It is something leaving the company,
+                        not work to read, and a founder must tell the two apart before opening it. */}
+                    {r.send ? <> · <span data-testid={`tickets-send-${r.id}`}>{r.send.state}</span></> : null}
                     {r.waiting?.also ? <> · {r.waiting.also + 1} pieces of work on this one</> : null}
                   </span>
                 </span>
-                {/* Pushed right, in amber, because how long it has waited is the reason to open it. */}
+                {/* Pushed right, in amber, because how long it has waited is the reason to open it.
+                    A send has no age the studio can read, so it says "waiting on you" rather than
+                    inventing one — the same words the desk uses for it. */}
                 {r.waiting ? (
                   <span className="ticket-row-when">waiting {howLongMs(r.waiting.ageMs)}</span>
+                ) : r.send ? (
+                  <span className="ticket-row-when">waiting on you</span>
                 ) : null}
               </button>
             </li>
@@ -349,9 +356,9 @@ function Detail({
     <article className="card" style={{ padding: '1.25rem' }}>
       <p className="eyebrow" style={{ marginTop: 0 }}>
         <span className="mono eyebrow-id" data-testid="detail-id">
-          {isUnnumbered(row.id) ? 'unnumbered' : row.id}
+          {row.send ? (row.send.ref ? `send · ${row.send.ref}` : 'send') : isUnnumbered(row.id) ? 'unnumbered' : row.id}
         </span>
-        {row.surface ? <> · {row.surface}</> : null} · {STATUS_LABEL[row.group]}
+        {row.surface ? <> · {row.surface}</> : null} · {row.send ? 'something leaving your company' : STATUS_LABEL[row.group]}
         {/* FB-098's "is anything happening to the thing I asked for", moved here from the row by
             FB-208. On the row it was one clause of five on a line that wrapped to three; here it is
             beside the status it qualifies, on the screen a founder opened to find out. */}
@@ -370,10 +377,36 @@ function Detail({
       </p>
       <h2 data-testid="detail-title" style={{ margin: '0.25rem 0 0.75rem' }}>{row.title}</h2>
 
+      {/* FB-149: an external send. Its decision is made on its own page and nowhere else (FB-183,
+          held by one-signing-surface.test.ts), so this panel points there and draws no control. */}
+      {row.send ? (
+        <div data-testid="detail-send" style={{ marginTop: '0.25rem' }}>
+          {row.send.unverified ? (
+            <p className="card" data-testid="detail-send-unverified" style={{ borderColor: toneColor('attention'), color: toneColor('attention'), fontSize: 'var(--fs-body-sm)', padding: '0.5rem 0.75rem' }}>
+              <Mark />The studio cannot verify who approved this. Open it before anything else.
+            </p>
+          ) : null}
+          {/* What is true depends on the send's state: "would go outside" is only true of a
+              proposal. A failed send was tried; an unverified one was carried out (FB-149 review). */}
+          <p data-testid="detail-send-what" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.75rem', maxWidth: 'var(--content-narrow)' }}>
+            {row.send.status === 'failed'
+              ? 'This was approved and tried, and it did not go. What happens next is decided on its own page, which shows who it was for and what went wrong.'
+              : row.send.status === 'unverified-action'
+                ? 'A record says this was approved and carried out, and the studio cannot tell who approved it. Its own page shows what went out and to whom. Check it, and say whether the approval was yours.'
+                : 'This would go outside your company, so it is not decided here. It has its own page, which shows exactly who it reaches and what it costs. Approving there signs the record your venture checks before anything is sent.'}
+          </p>
+          <p style={{ margin: 0 }}>
+            <Link className="btn btn-primary" href={row.send.href} data-testid="detail-open-send">
+              Open this decision →
+            </Link>
+          </p>
+        </div>
+      ) : null}
+
       {/* Work that is tied to no ticket at all. Said out loud rather than left as an empty page: a
           founder looking at something their team built which matches nothing they asked for needs
           to know that is what they are looking at. */}
-      {!ticket ? (
+      {!ticket && !row.send ? (
         <p className="muted" data-testid="detail-no-ticket" style={{ fontSize: 'var(--fs-body-sm)' }}>
           There is no ticket for this. Your team finished work that is not tied to anything you asked
           for — read it, then decide.

@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { auth, signOut } from '@/auth';
 import { loadAccessibleAttention } from '@/lib/attention';
+import { headerNeedsYou } from '@/lib/needs-you';
+import { loadRailData } from '@/lib/rail';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { timed } from '@/lib/timing';
@@ -104,10 +106,10 @@ export const viewport: Viewport = {
  * The names deliberately match the page headings — "Needs you" and "What has been happening" — so a
  * founder who clicks a word arrives somewhere that uses the same word (FB-076, FB-080).
  */
-const NAV = (isAdmin: boolean) => [
+const NAV = (isAdmin: boolean, needsHref: string) => [
   // An admin genuinely is choosing between ventures; a founder has one and is going to theirs.
   { href: '/', label: isAdmin ? 'All ventures' : 'Your venture' },
-  { href: '/attention', label: 'Needs you' },
+  { href: needsHref, label: 'Needs you', badge: true },
   { href: '/activity', label: 'What happened' },
   { href: '/handbook', label: 'Handbook' },
 ];
@@ -138,13 +140,19 @@ const NAV = (isAdmin: boolean) => [
  * A zero here is a claim that nothing needs the founder, and this studio has learned what an
  * invented number does once it is on a screen (FB-124). Until the count is known there is no badge.
  */
-async function AttentionBadge({ email }: { email: string }) {
+async function AttentionBadge({ email, ventureId }: { email: string; ventureId: string | null }) {
   let count = 0;
   try {
+    // FB-149: a founder's "Needs you" is their venture's, so it states the rail's own number — open
+    // work AND sends waiting on them — read by the rail's own loader. Anyone seeing several ventures
+    // keeps the cross-venture count of finished work, which is what `/attention` lists.
+    const venture = ventureId ? loadVentures().find((v) => v.id === ventureId) : undefined;
     // The email is deliberately NOT recorded as the reading's detail: the ring is process-global and
     // read by an admin, and a diagnostic is no place to accumulate who was signed in.
-    count = (await timed('root layout: open work across your ventures', () => loadAccessibleAttention(email)))
-      .approvals.length;
+    count = venture
+      ? (await loadRailData(venture)).needsYou
+      : (await timed('root layout: open work across your ventures', () => loadAccessibleAttention(email)))
+          .approvals.length;
   } catch {
     // Guarded — the header must never take down every page when the code host is unreachable.
     count = 0;
@@ -166,9 +174,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // would buy nothing and would change the first nav row's word under the reader a beat after they
   // looked at it. Never fatal — a header that throws takes every page with it.
   let isAdmin = false;
+  let needs = headerNeedsYou({ isAdmin: false, ventureIds: [] });
   if (email) {
     try {
-      isAdmin = authorizeVentures(email, loadVentures(), parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS)).isAdmin;
+      const access = authorizeVentures(email, loadVentures(), parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS));
+      isAdmin = access.isAdmin;
+      needs = headerNeedsYou(access);
     } catch {
       isAdmin = false;
     }
@@ -188,15 +199,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {email ? (
             <>
               <nav className="topnav" data-testid="topnav">
-                {NAV(isAdmin).map((n) => (
+                {NAV(isAdmin, needs.href).map((n) => (
                   <Link key={n.href} className="pill" href={n.href}>
                     {n.label}
                     {/* The one expensive thing in this header, and the only thing that waits.
                         `fallback={null}` because there is no honest placeholder for a count — a
                         zero would be a claim, and a spinner beside a word is noise. */}
-                    {n.href === '/attention' ? (
+                    {'badge' in n ? (
                       <Suspense fallback={null}>
-                        <AttentionBadge email={email} />
+                        <AttentionBadge email={email} ventureId={needs.venture} />
                       </Suspense>
                     ) : null}
                   </Link>

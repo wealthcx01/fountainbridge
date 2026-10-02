@@ -48,16 +48,19 @@ test.describe('the desk', () => {
     else expect(inSummary).toBe('0');
   });
 
-  test('the rail’s badge states the number its own destination lists', async ({ page }) => {
-    // The badge counts open work; the desk's sentence counts external actions awaiting the gate as
-    // well, because the desk shows both and `/attention` does not. Unifying them needs a destination
-    // that can list an external action, which is FB-149 with FB-129. What must NOT happen meanwhile
-    // is a badge asserting a number the page it links to contradicts.
+  test('the rail’s badge, the desk’s sentence and the badge’s destination are one number', async ({ page }) => {
+    // FB-149. The badge used to count open work only, because its destination could not list an
+    // external send — while the desk's sentence counted sends too. Tickets lists sends now, so all
+    // three state one count. The badge's own row is where it leads, so that is what is followed.
     const badge = page.getByTestId('rail-needs-badge');
     const shown = (await badge.count()) ? ((await badge.textContent()) ?? '').trim() : '0';
 
-    await page.goto('/attention');
-    const there = ((await page.getByTestId('attention-count').textContent()) ?? '').trim();
+    const summary = (await page.getByTestId('desk-summary').textContent()) ?? '';
+    const inSummary = summary.match(/(\d+)\s+decisions?\s+waits?\s+on you/)?.[1] ?? '0';
+    expect(shown).toBe(inSummary);
+
+    await page.goto('/venture/arca/tickets?filter=needs');
+    const there = ((await page.getByTestId('tickets-filter-needs').textContent()) ?? '').match(/(\d+)/)?.[1] ?? '0';
     expect(shown).toBe(there);
   });
 
@@ -591,6 +594,31 @@ test.describe('the reading column (FB-188)', () => {
     // The design's own block measures 1,080px at this viewport. 5% either way.
     expect(width, `the column is ${width}px; the design draws into 1,080px`).toBeGreaterThan(1026);
     expect(width, `the column is ${width}px; the design draws into 1,080px`).toBeLessThan(1134);
+  });
+});
+
+/**
+ * FB-149 — on a phone the rail is hidden, and the header's "Needs you" is the only one a founder sees.
+ * It counted finished work across ventures and led to `/attention`, so ARCA's founder read 4 there
+ * and 10 on the desk. A founder has one venture, so it is now that venture's number and list.
+ */
+test.describe('the header’s "Needs you" (FB-149)', () => {
+  test('states the desk’s number on a phone, and leads to the list that holds it', async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+    // The desk's sentence stands down on a phone (FB-160), so it is read at desk width first.
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/venture/arca');
+    const summary = (await page.getByTestId('desk-summary').textContent()) ?? '';
+    const onDesk = summary.match(/(\d+)\s+decisions?\s+waits?\s+on you/)?.[1];
+    expect(onDesk, `the desk's sentence states no count: "${summary}"`).toBeDefined();
+
+    await page.setViewportSize({ width: 393, height: 851 });
+    await page.goto('/venture/arca');
+    await expect(page.getByTestId('nav-attention-badge')).toHaveText(onDesk!);
+    await page.getByTestId('topnav').getByRole('link', { name: /Needs you/ }).click();
+    await expect(page).toHaveURL(/\/venture\/arca\/tickets\?filter=needs$/);
+    const there = ((await page.getByTestId('tickets-filter-needs').textContent()) ?? '').match(/(\d+)/)?.[1];
+    expect(there).toBe(onDesk);
   });
 
   test('a narrow window is unaffected — nothing binds below the measure', async ({ page }) => {

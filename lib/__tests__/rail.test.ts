@@ -79,6 +79,7 @@ describe('a shortcut is not a section', () => {
 describe('the rail before its numbers are in', () => {
   const known: RailData = {
     needsYou: 3,
+    openWork: 2,
     budgets: [{
       department: 'sell', currency: 'GBP', period: 'monthly', limitMinor: 500_000,
       reportedMinor: 120_000, queuedMinor: 0, notes: [], overLimit: false,

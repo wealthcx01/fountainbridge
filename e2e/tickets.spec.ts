@@ -136,6 +136,9 @@ test.describe('the loop is visible on the queue (FB-098)', () => {
   });
 
   test('a parked ticket names how many attempts it took', async ({ page }) => {
+    // Opened by clicking, like the tests beside it. This used to rely on ARCA-4 being the ticket the
+    // screen opened on; FB-149 lists waiting sends first, so the screen now opens on a send.
+    await page.getByTestId('tickets-row-ARCA-4').click();
     const line = page.getByTestId('ticket-progress-ARCA-4');
     await expect(line).toHaveAttribute('data-state', 'parked');
     await expect(line).toContainText('Tried 2 times and stopped');
@@ -195,11 +198,15 @@ test.describe('one number for what is waiting (FB-099)', () => {
     // The whole ticket in one assertion: what the ticket screen says is waiting, and what the
     // cross-venture queue says is waiting, are one number from one knowledge. The board's column
     // was the other half of this pair and is gone (FB-178); the filter is its successor.
+    //
+    // FB-149: "Needs you" now lists external sends as well, and `/attention` is a list of finished
+    // work only. So the comparison is the filter's WORK — its count less its send rows.
     await page.goto('/venture/arca/tickets');
     const filter = Number((await page.getByTestId('tickets-filter-needs').innerText()).match(/\d+/)?.[0] ?? '-1');
+    const sends = await page.getByTestId('tickets-list').locator('button[data-testid^="tickets-row-send-"]').count();
     await page.goto('/attention');
     const badge = Number(await page.getByTestId('attention-count').innerText());
-    expect(filter).toBe(badge);
+    expect(filter - sends).toBe(badge);
   });
 
   test('the queue calls work by its ticket’s name, not the lane’s branch', async ({ page }) => {

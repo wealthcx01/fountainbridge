@@ -26,8 +26,13 @@ import { sellOutcome, type Send } from './sends';
 export interface WaitingInput {
   /** Pull requests carrying finished work — the attention queue. */
   openWork: number;
-  /** ActiveGraph proposals: an email, a send, a spend. Nothing has happened yet. */
+  /** External sends waiting on the founder: an email, a post, a spend (lib/needs-you.ts). */
   awaitingApproval: number;
+  /**
+   * How many of those were already tried or carried out (failed, or done on an approval the studio
+   * cannot verify). When it is above zero no sentence may call them actions that "would" go out.
+   */
+  sendsAlreadyTried?: number;
 }
 
 /**
@@ -147,7 +152,9 @@ export function blockerLine(input: WaitingInput & {
   const parts: string[] = [];
   if (input.openWork > 0) parts.push(`${plural(input.openWork, 'piece')} of finished work to read`);
   if (input.awaitingApproval > 0) {
-    parts.push(`${plural(input.awaitingApproval, 'action')} that would go outside the company`);
+    parts.push((input.sendsAlreadyTried ?? 0) > 0
+      ? `${plural(input.awaitingApproval, 'decision')} about something leaving the company`
+      : `${plural(input.awaitingApproval, 'action')} that would go outside the company`);
   }
   const kinds = parts.length > 1 ? ` — ${parts.join(' and ')}` : '';
 

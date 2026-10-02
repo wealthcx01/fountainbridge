@@ -632,3 +632,32 @@ ticket's own conclusion: it is a fault in the gate, not in the product.
 them is how **FB-240** was found — the rail saying *"your team has not checked in for 70 days"* beside
 a body saying *"your team checked in 10 minutes ago"*, both reading the same heartbeat, on a screen
 whose every measurement had just come back correct.
+
+## FB-149 — one "Needs you" number, 2026-10-01
+
+Read on ARCA's real data, signed in as its founder, on a local build of this branch pointed at the
+same GitHub repositories production reads. The desk is **1,689px** at 1440×1000 and **2,175px** at
+393×851; Tickets is **1,245px** and **1,600px**. The rail's badge, the desk's sentence, the amber
+banner, the phone header and the Tickets "Needs you" filter all say **9**. ARCA has no send waiting
+today, so on real data the nine are all finished work.
+
+The fixtures do hold sends, so they are where the sends were seen: all five places say **10** (four
+pieces of work, six sends). Desk 2,165px / 2,368px; Tickets 1,322px / 1,701px. Before this branch
+the phone header said 4 over that same desk.
+
+Two faults were found only by looking at the pictures, and both are fixed here: a send's row read
+"send · … · external send · …", and every send was labelled "Build — Product" because it was named by
+the repository it came from rather than the department it names (ARCA's investor email is Sell).
+
+### FB-149 and FB-183 after review, 2026-10-02
+
+Built from the FB-183 branch (which carries FB-149) on the fixtures, signed in as ARCA's founder.
+Desk **2,165px** at 1440×1000 and **2,368px** at 393×851 — the same as before the review fixes, so
+nothing grew. Tickets is **1,322px** at 1440×1000. All places still say **10**, phone header included.
+
+Looked at as pictures. The amber banner now reads *"6 decisions about something leaving the
+company"* rather than calling all six actions that "would go outside": one of them already went out,
+on an approval nobody can name. The Tickets detail for that send says so in words; the five that are
+still only proposals keep "This would go outside your company". Not compared side by side with the
+Claude Design artifact in this pass — the change is words inside existing rows and panels, and the
+heights above show the layout did not move.

@@ -30,7 +30,10 @@ test.describe('run reports and the founder brief', () => {
     // now rows in the banner's own shape, asserted below.
     const banner = page.getByTestId('blocker-banner');
     await expect(banner).toContainText('finished work to read');
-    await expect(banner).toContainText('outside the company');
+    // FB-149 review: the fixtures' sends include one that already went out on an approval nobody can
+    // name, so the banner must not call them actions that "would" go out. It names the kind instead.
+    await expect(banner).toContainText('leaving the company');
+    await expect(banner).not.toContainText('would go outside');
   });
 
   test('repeated attempts at one ticket are one fact, named (FB-104)', async ({ page }) => {
