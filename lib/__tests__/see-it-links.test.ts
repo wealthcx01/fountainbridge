@@ -87,7 +87,7 @@ describe('the desk links a surface’s door only when it opened', () => {
     doors,
     office: { desks: [], live: true, text: 'running' },
     totalWarnings: 0,
-    fetchedAt: 0,
+    fetchedAgeMs: 0,
     org: 'wealthcx01',
   }));
 
