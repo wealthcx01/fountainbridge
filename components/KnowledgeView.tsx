@@ -14,6 +14,7 @@ import { CADENCE_LABEL, STATE_LABEL, STATE_TONE, whyNotRunning, type Routine } f
 import { toneColor } from '@/lib/status';
 import { panelState } from '@/lib/read-failures';
 import { workHref, type LastUse } from '@/lib/readings';
+import type { CorpusNote } from '@/lib/brain-corpus';
 import { depositDocument } from '@/app/actions/knowledge';
 import { Mark } from './Mark';
 
@@ -51,6 +52,7 @@ export function KnowledgeView({
   nowMs,
   provenanceMissing = false,
   usedNote = null,
+  findNote = null,
   surfaces,
   departmentNames,
   /** Whether this studio keeps the file itself, or only its text (FB-174). */
@@ -90,6 +92,13 @@ export function KnowledgeView({
    * — a note explaining a state the rows are not in is the badge/destination disagreement again.
    */
   usedNote?: string | null;
+  /**
+   * Whether the team can find every one of these documents when it looks up what the venture knows
+   * (FB-169). A document listed here is not necessarily one the team can find: the venture's index
+   * held two of ARCA's five for a month. Loud when some cannot be found, quiet otherwise — and it
+   * says "we do not know" rather than nothing when there is no check.
+   */
+  findNote?: CorpusNote | null;
 }) {
   const [open, setOpen] = useState<KnowledgeDoc | null>(null);
   const ordered = orderRows(rows);
@@ -189,6 +198,17 @@ export function KnowledgeView({
               </tbody>
             </table>
           </div>
+
+          {findNote ? (
+            <p className={findNote.tone === 'attention' ? undefined : 'muted'} data-testid="memory-find-note"
+               data-tone={findNote.tone}
+               style={{
+                 fontSize: 'var(--fs-meta-lg)', maxWidth: 'var(--content-narrow)', marginTop: '0.5rem',
+                 ...(findNote.tone === 'attention' ? { color: toneColor('attention') } : {}),
+               }}>
+              {findNote.tone === 'attention' ? <Mark /> : null}{findNote.text}
+            </p>
+          ) : null}
 
           {usedNote ? (
             <p className="muted" data-testid="memory-used-note"

@@ -100,6 +100,11 @@ else
   say "BRAIN IS INCOMPLETE — it does not hold these documents, so no search can find them:"
   printf '%s\n' "$GAP" | tail -n +2 >&2
 fi
+# The same answer as a record the studio's Memory screen can show (FB-169). Written every time,
+# including when nothing is missing, so the screen can tell a measured zero from "never checked".
+# This unit holds no token; the lane carries the record to the state ref (run-once.sh).
+printf '%s\n' "$GAP" | node "$(dirname "$0")/brain-corpus-record.mjs" write "$STATE_DIR/brain-corpus.json" \
+  || say "WARN: could not write the record of what the brain can see — the studio will not hear of it"
 
 # 2. then code — so RESEARCH can find how something is already built, not just what was written
 #    about it. A code pass failing must not lose the prose pass above.

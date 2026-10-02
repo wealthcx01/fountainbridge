@@ -9,6 +9,9 @@ import { defaultKnowledgeSource, defaultProvenanceSource } from '@/lib/knowledge
 import { originOf, type KnowledgeRow } from '@/lib/knowledge';
 import { lastUse, readingsNote, type ReadingsRecord } from '@/lib/readings';
 import { defaultReadingsSource } from '@/lib/readings-load';
+import { corpusNote } from '@/lib/brain-corpus';
+import { loadCorpusRead } from '@/lib/brain-corpus-load';
+import { studioNow } from '@/lib/when';
 import { GitHubClient } from '@/lib/github';
 import { loadRoutines, type Routine } from '@/lib/routines';
 import { fixtureRoutineSource, githubRoutineSource } from '@/lib/routines-load';
@@ -77,7 +80,7 @@ async function Memory({ venture }: { venture: VentureSummary }) {
   const provenanceOf = defaultProvenanceSource();
   const readingsOf = defaultReadingsSource();
 
-  const [perRepo, routineResult] = await Promise.all([
+  const [perRepo, routineResult, corpusRead] = await Promise.all([
     Promise.all(
       approvalRepos(venture).map(async (repo) => {
         // A corpus read that THROWS must not blank the screen (FB-137). It did: with the read
@@ -118,6 +121,9 @@ async function Memory({ venture }: { venture: VentureSummary }) {
       }),
     ),
     loadRoutinesSafely(venture),
+    // FB-169: whether the team can find every one of these documents. One small file, read beside
+    // the rest rather than after it, and it never throws — a failed read is its own sentence.
+    timed('memory: what the team can find', () => loadCorpusRead(venture.repos), id),
   ]);
 
   const rows = perRepo.flatMap((r) => r.rows);
@@ -126,6 +132,10 @@ async function Memory({ venture }: { venture: VentureSummary }) {
   // that actually PUT documents on the screen count: ARCA's marketing repo holds no corpus, and
   // letting it vote turned the note into "some of your surfaces do not record what they read" over
   // a table where every visible row came from the one surface that does.
+  // The names in the sentence are the names on the rows: the machine records paths, the table shows
+  // titles. Only the venture's first surface is indexed, so only its rows are looked up.
+  const titles = new Map(rows.filter((r) => r.repo === venture.repos[0]).map((r) => [r.doc.path, r.doc.title]));
+  const findNote = corpusNote(corpusRead, { ventureName: venture.name, nowMs: studioNow(), titles });
   const usedNote = readingsNote(perRepo.filter((r) => r.rows.length > 0).map((r) => r.readings));
   // An unreadable corpus must never render as "you have given it nothing" — the difference between
   // those two is a founder's own work (FB-021, on the surface where it matters most).
@@ -152,6 +162,7 @@ async function Memory({ venture }: { venture: VentureSummary }) {
       nowMs={studioNow()}
       provenanceMissing={provenanceMissing}
       usedNote={usedNote}
+      findNote={findNote}
       // FB-181: the surface a founder owns, so three real files sharing one title read as three
       // real files rather than as a duplicated row.
       surfaces={Object.fromEntries((venture.departments ?? []).map((d) => [d.repo, d.name]))}
