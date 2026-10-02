@@ -54,6 +54,9 @@ export const config = {
     //
     // So the route answers 401 with a sentence instead, and reads the ticket itself. Anchored, so a
     // future `/api/mcp-something` stays gated.
-    '/((?!api/auth/|api/mcp$|api/health$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
+    //
+    // FB-141: `api/push/check` is excluded for the same reason. A timer calls it, with a secret in a
+    // header and no session; the route checks that secret before it does anything. Anchored.
+    '/((?!api/auth/|api/mcp$|api/health$|api/push/check$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
   ],
 };
