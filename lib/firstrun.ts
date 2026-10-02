@@ -20,6 +20,8 @@
  * budgets file that would not parse — takes the welcome off the table, whatever else is true.
  */
 
+import { foundingOpener } from './founding-map';
+
 /** What the board should be, before any of it is rendered. */
 export type BoardState =
   /** Everything read cleanly and there is nothing yet. One action, no panels. */
@@ -183,7 +185,12 @@ export function welcome(ventureName: string, founderFirstName: string | null, wi
       body: `Your team is set up and waiting for its first piece of work. Start with what you `
         + `already have: research, notes, a deck, exports from other conversations. Hand it over, `
         + `and it becomes what ${ventureName} knows.`,
-      action: { label: 'Tell the studio what you want', href: (id) => `/venture/${id}/composer` },
+      // FB-236: the composer opens with the founding walk's first sentence already typed — unsent,
+      // so starting the walk is still the founder's own press.
+      action: {
+        label: 'Tell the studio what you want',
+        href: (id) => `/venture/${id}/composer?ask=${encodeURIComponent(foundingOpener(ventureName))}`,
+      },
       waiting: null,
       coming: DAY_ONE_COMING,
     };

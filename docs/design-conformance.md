@@ -777,3 +777,39 @@ covers the list summary and the first rows below it on a 393px phone until it is
 left as it is, as a design decision for John — the design has no picture of the asking to compare
 against. The hosted design artifact was not opened this time either: it needs a signed-in claude.ai
 session, and this review had none. The live side is still a local build, not production.
+
+### FB-236 the founding map in the composer's plan panel, 2026-10-02
+
+Built on the fixtures, signed in as John, on ARCA's composer, with the scripted founding hand-over
+(`e2e/fixtures/composer/founding.sse`). Composer page **1,347px** at 1440×1000 and **2,326px** at
+393×851 with the map folded; **2,139px** and **3,248px** with the map opened. No sideways scroll at
+either size. The map is folded by default for that reason: opened, it adds about 800px on desktop.
+
+Looked at as pictures. The panel heads *"Your first tickets, from the map"*, shows the founder's idea,
+one line to open the map (four parts, 12 points), then the five tickets — each naming the part of the
+map it came from — and one *"File all 5"* button. **Not compared with the Claude Design artifact:**
+a browser here cannot sign in to claude.ai, so the artifact returned "Page not found". The design has
+no founding-map state of its own; the panel is the FB-127 plan panel with one block added above its
+lines.
+
+**Second reading, after review (2026-10-02).** Same method, on this worktree's own build with the
+fixtures. Composer page with the founding set, map folded: **1,347px** at 1440×1000 and **2,305px** at
+393×851 (21px shorter on the phone, because the line "From The founding map —" is gone). Map opened:
+**2,139px** and **3,227px**. The new state where the map arrived but its tickets could not be read:
+**1,425px** and **2,451px**; the rail shows a plain amber sentence saying the tickets are missing,
+then the idea and the whole map, open. No sideways scroll in any of the six.
+
+**Compared with the Claude Design artifact this time.** The artifact's page was read through the
+artifact service, saved, and rendered in a browser here; "Continue with Google", then the desk's
+*"Break the data room PRD into tickets"* prompt, reaches the design's plan state. That screen is
+**1,000px** at 1440×1000 (it fits the window). At 393×851 the design does not reflow (its phone
+layout is the separate pocket studio), so its 3,677px capture is not a fair phone reference.
+
+What the two pictures show, side by side at desktop: the founding additions (the idea, one line that
+opens the map) sit where the design has nothing, above the ticket lines, and do not disturb the
+layout. The older differences belong to the FB-127 plan panel and are not new here: the design's
+rail is a flat column under *"The plan, taking shape · draft; nothing filed"* with ticket ids and
+underlined "Strike" links; ours is a bordered card with buttons, and our "File all 5" lives in the
+rail where the design puts it in the conversation, beside "Change something". Ours is 347px taller,
+mostly because each line also says where it came from. Closing that gap belongs to the plan panel,
+not to this PR. It is not filed as a ticket here, because other open PRs are taking new numbers today.

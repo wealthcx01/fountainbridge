@@ -30,6 +30,7 @@ vi.mock('@/lib/github', () => ({
 const { filePlan } = await import('../file-plan');
 const { strikeTicket } = await import('@/lib/plan-draft');
 import type { PlanDraft } from '@/lib/plan-draft';
+import { MAP, PLAN } from '@/lib/__tests__/fixtures/founding-walk';
 
 const VENTURE = {
   id: 'arca',
@@ -408,5 +409,99 @@ describe('when it goes wrong', () => {
     expect(r.message).toMatch(/may already be filed/i);
     expect(r.message).toMatch(/pressing again/i);
     expect(r.message).not.toMatch(/branch|foundry\//i);
+  });
+});
+
+describe('a founding set files its map with it (FB-236)', () => {
+  // A venture that does not exist yet: no tickets, no context, an empty repository.
+  const KILN_VENTURE = { id: 'kiln', name: 'Kiln', repos: ['kiln'], founderEmail: 'kiln.founder@bruntsfield.capital', departments: [{ id: 'build', repo: 'kiln' }] };
+  const MAP_PATH = 'context/general/founding-map.md';
+
+  beforeEach(() => {
+    auth.mockResolvedValue({ user: { email: KILN_VENTURE.founderEmail } });
+    loadVentures.mockReturnValue([VENTURE, KILN_VENTURE]);
+    listDir.mockResolvedValue([]);
+  });
+
+  it('writes the five tickets and then the map, on one branch, in one pull request', async () => {
+    const r = await filePlan('kiln', 'kiln', PLAN, 5, undefined, MAP);
+    expect(r.ok, r.message).toBe(true);
+    const paths = written().map((w) => w.path);
+    expect(paths).toHaveLength(6);
+    expect(paths.at(-1)).toBe(MAP_PATH);
+    expect(paths.slice(0, 5).every((p) => p.startsWith('docs/tickets/KILN-'))).toBe(true);
+    expect(new Set(written().map((w) => w.branch)).size).toBe(1);
+    expect(openedPulls()).toHaveLength(1);
+    expect(openedPulls()[0].body).toContain(MAP_PATH);
+  });
+
+  it('the saved map names each ticket by the id it was actually given', async () => {
+    await filePlan('kiln', 'kiln', PLAN, 5, undefined, MAP);
+    const map = written().find((w) => w.path === MAP_PATH)?.body as string;
+    const ids = written().filter((w) => w.path.startsWith('docs/tickets/')).map((w) => w.path.match(/(KILN-\d+)/)?.[1]);
+    expect(ids).toHaveLength(5);
+    for (const id of ids) expect(map).toContain(`**${id}**`);
+    expect(map).toContain(MAP.idea);
+  });
+
+  it('an ordinary plan writes no map', async () => {
+    auth.mockResolvedValue({ user: { email: VENTURE.founderEmail } });
+    listDir.mockResolvedValue(BACKLOG);
+    const r = await filePlan('arca', 'arca', plan(), 3);
+    expect(r.ok, r.message).toBe(true);
+    expect(written().map((w) => w.path)).not.toContain(MAP_PATH);
+  });
+
+  it('refuses a founding set that arrives without its map, and writes nothing', async () => {
+    // Without this, the set would file as an ordinary plan: no map saved, the unknown-unknowns check
+    // never run, and nobody told.
+    const r = await filePlan('kiln', 'kiln', PLAN, 5);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('the map itself did not come with them');
+    expect(putFile).not.toHaveBeenCalled();
+    expect(createdBranches()).toEqual([]);
+  });
+
+  it('refuses a map that stopped before the unknown unknowns, and writes nothing', async () => {
+    const body = MAP.body.split('## Unknown unknowns')[0];
+    const r = await filePlan('kiln', 'kiln', PLAN, 5, undefined, { ...MAP, body });
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/stops before the unknown unknowns/);
+    expect(putFile).not.toHaveBeenCalled();
+    expect(createdBranches()).toEqual([]);
+  });
+
+  it('refuses a ticket that does not say which part of the map it came from', async () => {
+    const untraced = { ...PLAN, tickets: PLAN.tickets.map((t, i) => (i === 0 ? { ...t, source: 'A good idea' } : t)) };
+    const r = await filePlan('kiln', 'kiln', untraced, 5, undefined, MAP);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('Find out why the last two studio booking tools closed');
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('refuses a map drafted for another venture', async () => {
+    const r = await filePlan('kiln', 'kiln', PLAN, 5, undefined, { ...MAP, venture_id: 'arca' });
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('somewhere else');
+    expect(putFile).not.toHaveBeenCalled();
+  });
+
+  it('never writes over a founding map that has already merged', async () => {
+    getFileWithSha.mockImplementation(async (_r: string, path: string, ref: string) =>
+      path === MAP_PATH && ref === 'main' ? { text: '# The founding map', sha: 'merged' } : null);
+    const r = await filePlan('kiln', 'kiln', PLAN, 5, undefined, MAP);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('already has a founding map');
+    expect(putFile).not.toHaveBeenCalled();
+    expect(createdBranches()).toEqual([]);
+  });
+
+  it('a second press updates the map it wrote, rather than failing', async () => {
+    getFileWithSha.mockImplementation(async (_r: string, path: string, ref: string) =>
+      path === MAP_PATH && ref !== 'main' ? { text: 'first press', sha: 'on-branch' } : null);
+    const r = await filePlan('kiln', 'kiln', PLAN, 5, undefined, MAP);
+    expect(r.ok, r.message).toBe(true);
+    const call = putFile.mock.calls.find(([, path]) => path === MAP_PATH);
+    expect(call?.[2].sha).toBe('on-branch');
   });
 });
