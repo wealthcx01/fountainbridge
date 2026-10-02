@@ -84,4 +84,28 @@ describe('what it counts', () => {
     await POST(req(`Bearer ${SECRET}`));
     expect(checkQueue.mock.calls[0][2]).toBeNull();
   });
+
+  it('when exactly one thing waits, names it so the push can open it (FB-179)', async () => {
+    loadVentureAttention.mockResolvedValue({
+      approvals: [{ repo: 'arca', number: 93, title: 'build: ARCA-061', linkedTicketId: 'ARCA-061' }], errors: [],
+    });
+    await POST(req(`Bearer ${SECRET}`));
+    expect(checkQueue.mock.calls[0][4]).toEqual({
+      // The work page, not a ticket address: `ARCA-061` from a branch name may not be the id the
+      // ticket was filed under (ARCA files it as `ARCA-61`).
+      sole: { kind: 'work', repo: 'arca', number: 93, title: 'build: ARCA-061', ticketId: null },
+    });
+
+    checkQueue.mockClear();
+    loadVentureAttention.mockResolvedValue({ approvals: [], errors: [] });
+    ventureApprovals.mockResolvedValue([{ status: 'executed', repo: 'r', id: 'old' }, { status: 'proposed', repo: 'arca-marketing', id: 'investor-email-oct' }]);
+    await POST(req(`Bearer ${SECRET}`));
+    expect(checkQueue.mock.calls[0][4]).toEqual({ sole: { kind: 'send', repo: 'arca-marketing', id: 'investor-email-oct' } });
+  });
+
+  it('when several wait, names none of them', async () => {
+    loadVentureAttention.mockResolvedValue({ approvals: [{ repo: 'arca', number: 1 }, { repo: 'arca', number: 2 }], errors: [] });
+    await POST(req(`Bearer ${SECRET}`));
+    expect(checkQueue.mock.calls[0][4]).toEqual({ sole: null });
+  });
 });

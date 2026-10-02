@@ -43,6 +43,7 @@ describe('nothing here grants', () => {
       'read:what_happened',
       'read:budgets',
       'read:venture_memory',
+      'read:sell_pipeline',
       'write:file_ticket',
     ]);
   });

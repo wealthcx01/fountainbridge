@@ -69,6 +69,8 @@ export default defineConfig({
       // gate would reach GitHub for it, which is both slow and a network dependency the UI gate is
       // built to avoid — and it would render the "could not be read" state on every run.
       ROUTINES_FIXTURE_DIR: 'e2e/fixtures/routines',
+      // FB-235: the Sell pipeline. Invented people only — this repository is public.
+      CRM_FIXTURE_DIR: 'e2e/fixtures/crm',
       // FB-065. A recorded stream off the real ARCA box, including the inconsistent tool-call
       // indices the engine actually sends — so the UI gate proves the surface against what the
       // engine does, not against what its format says it should do.
@@ -89,6 +91,9 @@ export default defineConfig({
       PUSH_FIXTURE: '1',
       VAPID_PUBLIC_KEY: 'BJgmT8afelTGKjHrRNGo0VPeq-GUZd3SFeqroUB_RTUuAqOIbhOvwphnEFlsaMyP6BoIpS65obJhfKKFhfOmRVc',
       VAPID_PRIVATE_KEY: 'e2e-placeholder-not-a-key',
+      // FB-173: the test transcriber, so the record button is drawn and a voice note goes through
+      // without sending audio anywhere. It answers with a fixed sentence that says what it is.
+      TRANSCRIBER: 'test-double',
       // FB-092: the email+password door, driven end to end by password-login.spec.ts. The hash is
       // for 'e2e-founder-password-not-for-production' — minted with scripts/mint-password-login.mjs
       // and safe to commit precisely because it is a hash of a test-only password.

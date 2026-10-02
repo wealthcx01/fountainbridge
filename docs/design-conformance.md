@@ -777,3 +777,109 @@ covers the list summary and the first rows below it on a 393px phone until it is
 left as it is, as a design decision for John — the design has no picture of the asking to compare
 against. The hosted design artifact was not opened this time either: it needs a signed-in claude.ai
 session, and this review had none. The live side is still a local build, not production.
+
+### FB-236 the founding map in the composer's plan panel, 2026-10-02
+
+Built on the fixtures, signed in as John, on ARCA's composer, with the scripted founding hand-over
+(`e2e/fixtures/composer/founding.sse`). Composer page **1,347px** at 1440×1000 and **2,326px** at
+393×851 with the map folded; **2,139px** and **3,248px** with the map opened. No sideways scroll at
+either size. The map is folded by default for that reason: opened, it adds about 800px on desktop.
+
+Looked at as pictures. The panel heads *"Your first tickets, from the map"*, shows the founder's idea,
+one line to open the map (four parts, 12 points), then the five tickets — each naming the part of the
+map it came from — and one *"File all 5"* button. **Not compared with the Claude Design artifact:**
+a browser here cannot sign in to claude.ai, so the artifact returned "Page not found". The design has
+no founding-map state of its own; the panel is the FB-127 plan panel with one block added above its
+lines.
+
+**Second reading, after review (2026-10-02).** Same method, on this worktree's own build with the
+fixtures. Composer page with the founding set, map folded: **1,347px** at 1440×1000 and **2,305px** at
+393×851 (21px shorter on the phone, because the line "From The founding map —" is gone). Map opened:
+**2,139px** and **3,227px**. The new state where the map arrived but its tickets could not be read:
+**1,425px** and **2,451px**; the rail shows a plain amber sentence saying the tickets are missing,
+then the idea and the whole map, open. No sideways scroll in any of the six.
+
+**Compared with the Claude Design artifact this time.** The artifact's page was read through the
+artifact service, saved, and rendered in a browser here; "Continue with Google", then the desk's
+*"Break the data room PRD into tickets"* prompt, reaches the design's plan state. That screen is
+**1,000px** at 1440×1000 (it fits the window). At 393×851 the design does not reflow (its phone
+layout is the separate pocket studio), so its 3,677px capture is not a fair phone reference.
+
+What the two pictures show, side by side at desktop: the founding additions (the idea, one line that
+opens the map) sit where the design has nothing, above the ticket lines, and do not disturb the
+layout. The older differences belong to the FB-127 plan panel and are not new here: the design's
+rail is a flat column under *"The plan, taking shape · draft; nothing filed"* with ticket ids and
+underlined "Strike" links; ours is a bordered card with buttons, and our "File all 5" lives in the
+rail where the design puts it in the conversation, beside "Change something". Ours is 347px taller,
+mostly because each line also says where it came from. Closing that gap belongs to the plan panel,
+not to this PR. It is not filed as a ticket here, because other open PRs are taking new numbers today.
+
+## FB-235 — the Sell surface, a new screen, 2026-10-02
+
+**Not compared to a design, because there is none to compare it to.** The Claude Design artifact's
+rail reaches the desk, Tickets, What happened, Memory, the Handbook and the pocket studio; it has no
+Sell screen. So this screen has been looked at, but it has not been verified against a design, and
+nobody should read this line as saying it has. The shape comes from FB-235 (taken from the pipeline
+John runs); the layout borrows the desk's own pieces — the queue heading, the surface label, the
+hairline columns.
+
+**Not read on production either.** Production has no pipeline yet: `db/005_crm.sql` (FB-234) has not
+been run on the studio's database, and nothing has written a contact. So the reading is the UI
+gate's fixture — fifteen invented people and sixteen deals, built to hit every cap — on the
+studio's own build, signed in as ARCA's founder, landing on `/venture/arca/sell`.
+
+- Sell, with the fixture: **1,311px** at 1440×1000 and **2,814px** at 393×851. No sideways scroll.
+- Sell, with no database: **1,000px** and **1,014px** (one sentence saying it is not set up yet).
+- The desk, which gains one link ("your pipeline →") in the Sell column: **2,188px** at 1440×1000
+  (was 2,165px) and **2,368px** at 393×851 (unchanged).
+
+Looked at as pictures. On a desk the page is one screen and a third: five people who need the
+founder, each with a coloured edge for how warm they are, then six stage columns ending in Won. On a
+phone the board stacks, and it is the long part — every stage shows up to three deals, one under the
+other. If that proves too long in use, showing counts only on a phone is the next step.
+
+Read again after review, 2026-10-02, on the same fixture (now fifteen people: one has no deal, so
+the people count and the open-deal count differ) and the same build setup, signed in as ARCA's
+founder, landing on `/venture/arca/sell`: **1,311px** at 1440×1000 and **2,814px** at 393×851, the
+same as before, no sideways scroll. Looked at as pictures: the summary now reads "15 people, 14 open
+deals", and Ben's row still quotes his own message, not the note logged after it. The page for
+another venture (`/venture/the-reset/sell`, as ARCA's founder) shows the "No access" notice:
+**1,000px** and **851px**. Still not compared to a design, for the reason above.
+
+## FB-179 — "Go to anything", 2026-10-02
+
+Read on ARCA's real data, signed in as its founder, local build of this branch. The palette draws
+nothing until it is opened, so no screen changed height: the Handbook is **1,000px** at 1440×1000 and
+**1,581px** at 393×851 with it closed. Open, it is a box over the screen — 40rem wide on a desktop,
+the full width less 16px each side on a phone — and the page behind does not move.
+
+Looked at as pictures, at both sizes. On a phone the first draft put the hint beside the title and
+left the title one word wide ("build…"); the hint now goes underneath. The design has no palette; it
+is new, built from the same hairline, square, no-shadow rules as the rest of the studio.
+
+After review, 2026-10-02: a browser test (`e2e/palette.spec.ts`) now drives the palette with the
+keyboard only and saves `179-palette-desktop.png` to the UI gate's gallery. The hosted design
+artifact was not opened: it needs a signed-in claude.ai session, and this review had none. It has
+no palette to compare against in any case. The live side is still a local build, not production.
+
+## FB-173 — a voice note in the composer, 2026-10-02
+
+Read on ARCA's real data, signed in as its founder, local build, with Chromium's simulated
+microphone (it plays a tone, so the meter has something to show). The upload was answered inside
+the browser, so no recording went to any outside service during this reading.
+
+The composer is **1,000px** at 1440×1000 — the button and its one paragraph fit inside the first
+screen — and **1,193px** at 393×851, **1,224px** while recording. Looked at as pictures: the meter
+moves, the clock counts, the words land in the box after what was typed, and with the network cut
+the failure says the recording is saved on this device and offers it again after a reload. The first
+draft said the words appear "in the box below" from a paragraph that sits under the box; it now says
+"in the text box", and the paragraph is shorter. The design's composer has no record button; it is
+the one addition, under the existing two.
+
+After review, 2026-10-02: the failure after an expired sign-in now reads "You need to sign in
+again. The recording is saved on this device — sign in, come back here, and it will be offered
+again", with "Try again" and "Throw it away" under it. Looked at as pictures on a local build with
+fixture data: the composer is **1,000px** at 1440×1000 and **1,169px** at 393×851 in that state, and
+nothing scrolls sideways. A browser test (`e2e/voice.spec.ts`) now draws the record button in the UI
+gate, using the test transcriber. The hosted design artifact was not opened: it needs a signed-in
+claude.ai session, and this review had none. Its composer has no record button to compare against.

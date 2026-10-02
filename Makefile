@@ -23,11 +23,15 @@
 # reaches a founder's screen without a reasoned per-line opt-out. Needs no install; it reads app/,
 # components/ and the copy-bearing modules in lib/.
 #
+# activegraph-test: the approval gate in real ActiveGraph (FB-171). Builds a throwaway virtualenv in
+# .ag-venv with the same pinned version the box runs, then runs the gate's tests against it. Needs
+# `uv` or a Python with ensurepip; CI uses setup-python.
+#
 # sign-approval-fixtures: re-sign the e2e approval fixtures after adding or renaming one. Since
 # FB-051 an unsigned grant reads `unattested` and stays `proposed`, so a fixture that means
 # "granted" has to be signed like the real thing.
 
-.PHONY: validate-manifests parse-tickets provision-lint design-lint copy-lint sign-approval-fixtures ticket-drift
+.PHONY: validate-manifests parse-tickets provision-lint design-lint copy-lint sign-approval-fixtures ticket-drift activegraph-test
 
 validate-manifests:
 	cd tools/manifest-validate && npm ci && npm test
@@ -43,6 +47,14 @@ copy-lint:
 
 sign-approval-fixtures:
 	node scripts/sign-approval-fixtures.mjs
+
+ACTIVEGRAPH_PIN ?= 1.10.0
+activegraph-test:
+	@if [ ! -x .ag-venv/bin/python ]; then \
+		if command -v uv >/dev/null 2>&1; then uv venv .ag-venv --python 3.12 && VIRTUAL_ENV=.ag-venv uv pip install activegraph==$(ACTIVEGRAPH_PIN); \
+		else python3 -m venv .ag-venv && .ag-venv/bin/pip install activegraph==$(ACTIVEGRAPH_PIN); fi; \
+	fi
+	.ag-venv/bin/python -m unittest deploy/activegraph/test_foundry_graph.py
 
 # ticket-drift: fail when a ticket file says work is in progress that git says already shipped
 # (FB-070). Eight tickets were lying on 2026-07-31 and the only reason anyone noticed was that

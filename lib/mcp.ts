@@ -150,6 +150,19 @@ export const STUDIO_TOOLS: readonly StudioTool[] = [
     },
   },
   {
+    // FB-234: the Sell lane's read. `crm.cli`'s one good idea — an agent reading the pipeline with no
+    // integration — kept, over the studio's own database and its row-level policies.
+    name: 'sell_pipeline',
+    kind: 'read',
+    description:
+      'Who this venture is talking to about a sale: each deal by stage, who it is with, what has to '
+      + 'happen next, and which people have written in and are still waiting for an answer. Read it '
+      + 'before suggesting who to contact, so the suggestion fits what has already happened.\n\n'
+      + 'This only reads the pipeline. It contacts nobody; every message to a person waits for the '
+      + "founder's own OK on the studio's screen.",
+    input: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'file_ticket',
     kind: 'write',
     description:

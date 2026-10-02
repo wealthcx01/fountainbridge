@@ -7,11 +7,14 @@ import {
   type ComposerAction, type ComposerMessage,
 } from '@/lib/composer';
 import { parsePlanDraft } from '@/lib/plan-draft';
+import { parseFoundingMap } from '@/lib/founding-map';
 import { railState } from '@/lib/composer-rail';
 import { ComposerRail } from './ComposerRail';
 import { toneColor } from '@/lib/status';
 import { PlanPanel } from './PlanPanel';
 import { Mark } from './Mark';
+import { VoiceNote } from './VoiceNote';
+import { appendTranscript } from '@/lib/voice-note';
 
 /**
  * The conversation, inside the studio (FB-065).
@@ -55,7 +58,10 @@ export function Composer({
   ventureName,
   seed = null,
   aboutTicketId = null,
+  voice = false,
 }: {
+  /** FB-173: this studio can turn a voice note into words. Off when it has no transcriber. */
+  voice?: boolean;
   ventureId: string;
   ventureName: string;
   /** FB-131: arrived from a ticket. The rail shows that ticket rather than a draft. */
@@ -340,6 +346,16 @@ export function Composer({
           </button>
         </div>
 
+        {/* FB-173: the words land in the box above, after anything typed. Nothing is filed by
+            speaking — Send, and then File, are still the only way words become work. */}
+        {voice ? (
+          <VoiceNote
+            ventureId={ventureId}
+            disabled={sending}
+            onWords={(text) => { setDraft((d) => appendTranscript(d, text)); inputRef.current?.focus(); }}
+          />
+        ) : null}
+
         {/* FB-075: away from Send, and it asks first. A founder deliberately writing at length
             should not be one mis-click from losing all of it. */}
         {messages.length > 0 ? (
@@ -407,7 +423,8 @@ function Reply({ text, mine }: { text: string; mine: boolean }) {
         // FB-127: a plan's block is JSON, and the panel below is its rendering. Offering "show me
         // exactly what will be filed" over it would open a data structure at a founder — the same
         // mistake as the four thousand characters of markdown this control exists to fold away.
-        if (b.kind === 'draft' && parsePlanDraft(b.text)) return null;
+        // FB-236: the founding map is the same — data the rail renders, not a draft to unfold.
+        if (b.kind === 'draft' && (parsePlanDraft(b.text) || parseFoundingMap(b.text))) return null;
         if (b.kind === 'draft') {
           return (
             <div key={i} data-testid="composer-draft" style={{ margin: '0.6rem 0' }}>

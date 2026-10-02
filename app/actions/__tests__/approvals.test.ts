@@ -102,6 +102,27 @@ describe('the proposal the founder saw is the proposal that gets signed', () => 
     expect(grantedRepo).toBe('wealthcx01/fountainbridge');
   });
 
+  it('files the proposal under its department and action, so ActiveGraph can place it (FB-171)', async () => {
+    await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current');
+    const proposed = JSON.parse(putFile.mock.calls[1][2].content);
+    expect(proposed.type).toBe('approval.proposed');
+    expect(proposed.data).toEqual({
+      proposal_sha: 'sha-current', summary: 'Send it', department: 'sell', action_type: 'send',
+    });
+  });
+
+  it('under an enforcing gate, does not claim a grant with no record will still go out (FB-171)', async () => {
+    process.env.ACTIVEGRAPH_GATE = 'enforce';
+    try {
+      request.mockRejectedValue(new Error('403 Resource not accessible by personal access token'));
+      const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current');
+      expect(r.message).toContain('nothing goes out until it is there');
+      expect(r.message).not.toContain('nothing else is affected');
+    } finally {
+      delete process.env.ACTIVEGRAPH_GATE;
+    }
+  });
+
   it('still works for a card rendered before this shipped, which has no sha to send', async () => {
     const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing');
     expect(r.ok).toBe(true);

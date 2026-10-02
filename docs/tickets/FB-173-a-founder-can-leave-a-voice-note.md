@@ -1,6 +1,12 @@
 # FB-173 — a founder can leave a voice note, and it becomes a ticket
 
-**Status:** Open · **Depends on:** FB-174 (the audio needs somewhere to live) · **Phase:** 3 · **Raised by:** John, 2026-09-02
+**Status:** Shipped in part · **Depends on:** FB-174 only if the audio is ever kept — this ships without keeping it · **Phase:** 3 · **Raised by:** John, 2026-09-02
+
+**Shipped in part:** recording, transcription and the words landing in the composer are built and
+checked in a browser with a simulated microphone. Not yet done: a real recording on a real iPhone,
+which needs an `OPENAI_API_KEY` set on the studio first; and the record button on the desk's pocket
+prompt bar (it is on the composer, which the prompt bar opens in one press). Switching it on also
+needs `db/006_voice_usage.sql` run on the studio's database, which holds the daily count.
 
 ## Why
 
@@ -46,11 +52,72 @@ Two consequences:
 
 ## Acceptance criteria
 
-- [ ] A founder can record a note on an iPhone and see a transcript in the composer.
-- [ ] Nothing is filed without the founder pressing the existing gate.
-- [ ] Where the audio goes, and whether it is kept, is stated on screen and true.
-- [ ] Every failure names itself; the text box keeps working throughout.
-- [ ] The transcription choice and its privacy reasoning are argued in the PR body.
+- [ ] A founder can record a note on an iPhone and see a transcript in the composer. **Built, not
+      yet done on an iPhone.** Recorded and transcribed in Chromium at 1440×1000 and 393×851 with a
+      simulated microphone, and the words appeared in the composer's box after what was already
+      typed. The recorder asks for Safari's own format (`audio/mp4`), which Whisper reads. Doing it
+      on a real iPhone needs the key below.
+- [x] Nothing is filed without the founder pressing the existing gate. The words go into the
+      composer's text box and nowhere else. The founder presses Send, the composer drafts the
+      ticket, and the founder presses File — the same path as typing. Checked in the browser: after
+      the words arrived, the composer's side panel still said "Nothing on the table".
+- [x] Where the audio goes, and whether it is kept, is stated on screen and true. Before pressing
+      record the founder reads: *"Your recording goes to OpenAI's Whisper service to be turned into
+      words, which land in the text box. The studio does not keep the recording: it stays on this
+      device until the words are back, then it is deleted. OpenAI's own terms decide what it
+      keeps."* A test in `app/api/voice/__tests__/route.test.ts` makes every store the studio has
+      live — the database, the document store, a GitHub token — sends a note through, and fails if
+      anything was written to any of them or sent anywhere but the transcription service. Review
+      found the first version of this test only searched the route for six words, and a route that
+      saved every recording into the document store passed it; that change now fails.
+- [x] Every failure names itself; the text box keeps working throughout. No microphone, a browser
+      that cannot record, no signal, the service down, a recording it cannot read, and no words
+      coming back each have their own sentence. Checked in the browser with the network cut: the
+      recording stayed on the device and was offered again after a reload. Review found that an
+      expired sign-in deleted the recording and blamed it: the sign-in gate answers with a redirect
+      to the login page, the browser followed it, and the page read the login page as "the studio
+      could not use that recording". Now the redirect is not followed, an expired sign-in says
+      "You need to sign in again" and keeps the note, and a recording is deleted only on an answer
+      that names the recording itself as the problem. `e2e/voice.spec.ts` drives this in a browser:
+      the sign-in is cleared mid-recording, the note is kept, and after signing back in it is sent.
+- [x] The transcription choice and its privacy reasoning are argued in the PR body.
+
+## What shipped
+
+- **Record** (`components/VoiceNote.tsx`, `lib/recording.ts`, adapted from Grassmarket's live
+  recorder). One button to start. While recording, a meter moves with the founder's voice and a
+  clock counts up; "Stop and use it" or "Throw it away". It stops on its own at five minutes.
+- **Held until it arrives.** The recording goes into this device's storage the moment it stops and
+  is let go only when the studio has turned it into words. With no signal it stays, and next time
+  the composer opens it says *"A voice note from earlier did not reach the studio"* with "Send it
+  now" and "Throw it away".
+- **Transcribe** (`lib/transcribe.ts`, `app/api/voice/route.ts`). One place picks the provider
+  (`TRANSCRIBER`, default `openai-whisper`); an unknown name is refused; the test transcriber is
+  refused in production. A transcript that comes back empty is an error with a sentence, never an
+  empty draft. The route checks the venture against the session before anything is sent anywhere,
+  and stores nothing. An upload that declares itself larger than a recording can be is refused
+  before it is read.
+- **Off until it can work.** Without `OPENAI_API_KEY` the composer shows no record button at all.
+
+## John's rulings (2026-10-02)
+
+- **Sending a founder's recording to OpenAI needs no approval record.** It is the founder's own act,
+  and it reaches nobody outside the company. The control is a spending cap, below.
+- **A daily cap: 30 minutes of transcription per venture per day**, changeable with
+  `VOICE_DAILY_MINUTES`. The count is the seconds OpenAI says it billed, kept per venture per UTC day
+  in the studio's database (`db/006_voice_usage.sql`, row-locked per venture like every other
+  table). A note past the limit is refused before it is sent, with a sentence saying so and that
+  typing still works; the recording stays on the device. A studio with no database has no cap, so it
+  has no voice notes. Only a number is kept — never audio, never words.
+
+## Why this does not wait for FB-174
+
+The ticket sequenced FB-174 first because keeping the audio would have meant committing recordings
+into the venture's repository. This version keeps nothing — not the audio, and not a separate
+transcript. The words become part of the composer conversation exactly as typed words do. So there
+is nothing to store and nothing to encrypt at rest beyond what typing already produces. If a later
+version keeps recordings, it needs FB-174 and an answer for encryption, and the on-screen sentence
+must change with it (the test above will insist).
 
 ## What Grassmarket already learned, which we should not re-learn
 

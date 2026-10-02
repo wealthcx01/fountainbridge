@@ -132,11 +132,18 @@ fails. That test is writable once the store's location is decided, and not befor
 
 - [x] The three questions above are answered in writing before anything is installed. **Nothing has
       been installed.**
-- [ ] Contact details are not in a public repository. Whichever answer is chosen is stated and enforced.
-- [ ] A test proves one venture cannot read another's pipeline, at the boundary rather than in the UI.
+- [x] Contact details are not in a public repository. Whichever answer is chosen is stated and enforced.
+      **The answer is the studio's own database** (`db/005_crm.sql`). Nothing in the studio writes a
+      contact to git, and both ARCA repositories are private as well.
+- [x] A test proves one venture cannot read another's pipeline, at the boundary rather than in the UI.
+      `lib/__tests__/crm-isolation.test.ts`, against real Postgres, as the studio's own role.
 - [ ] The Sell surface shows the pipeline from the real store, with no second copy of any fact.
-- [ ] Nothing in it can send. Proved by trying.
+      The read is built; the screen is FB-235.
+- [x] Nothing in it can send. Proved by trying. The pipeline tool is a read, and asking the studio
+      for a send under five different names is refused without anything running.
 - [ ] If the mount is unavailable, the surface says so plainly and the rest of the studio is unaffected.
+      There is no mount any more. The read does tell "no database", "could not read" and "empty"
+      apart; the screen that says them is FB-235.
 
 ## Verification
 
@@ -146,10 +153,7 @@ design, both looked at, heights recorded.
 
 ## Addendum, 2026-10-01: both repos are private, and the answer changed anyway
 
-**Shipped in part:** the investigation and its recommendation — read `crm.cli` end to end, answered the
-three questions on ARCA's own box, and changed the answer to "contacts belong in the studio's
-Postgres". Nothing is built: the store, the Sell lane's read and the surface all wait on John's
-decision below.
+**Shipped in part:** the store, its isolation test and the Sell lane's read are built (see "Built, 2026-10-02" at the end). Left: the screen (FB-235), and running `db/005_crm.sql` on the production database, which is John's step.
 
 **John made `arca` and `arca-marketing` private.** Verified: `private=true` on both. (`arca-ops` is
 still public — it carries no contact data, but it is worth knowing.) So the blocker above is gone and
@@ -236,3 +240,43 @@ like, is built the same way (FB-235).
 
 **Next:** the schema (`db/005_crm.sql`), its isolation test at the database, and the Sell lane's read.
 FB-235 then gives it the shape John uses every day.
+
+
+## Built, 2026-10-02
+
+**What was built**
+
+- **The store.** `db/005_crm.sql` adds four tables: companies, contacts (people), deals and
+  activities (what happened with a person). Each one is locked to its venture by the same forced
+  row-level rule every other table here uses. Each rule also blocks *writing* into another venture,
+  not only reading it.
+- **Links cannot cross ventures.** A deal points at a person by the pair (venture, person). So the
+  database itself refuses to attach ARCA's deal to the-reset's person, whatever the code does.
+- **Forgetting a person is one delete.** It removes them and everything they said. Their deal stays,
+  as the venture's own record, but no longer names them. The studio's role is allowed to delete for
+  exactly this reason.
+- **The Sell lane's read.** `lib/crm-load.ts` reads one venture's pipeline through `withVenture`. A
+  new read-only tool, `sell_pipeline`, gives it to the Sell lane (or any Claude a founder connects)
+  in plain sentences: each deal by stage, who it is with, what happens next, and who is waiting for
+  an answer.
+- **It tells three things apart.** "No database here", "could not read it" and "it is empty" are
+  three different answers, and the read returns them as three.
+
+**How it was proved**
+
+- `lib/__tests__/crm-isolation.test.ts` runs the real schema in real Postgres (PGlite), as the
+  studio's own role. As ARCA it reads only ARCA. Asking for the-reset by name returns nothing.
+  A connection that names no venture sees nothing. ARCA cannot add, change or delete the-reset's
+  rows, and cannot link to them.
+- Each guard was broken on purpose to check the test notices. Every one of these turned the tests
+  red: removing FORCE; replacing each of the four read rules with "allow all"; removing the write
+  rule; removing the deal-to-person link; removing the cascade on "forget"; running the tests as
+  the superuser instead of the studio's role.
+
+**What is left**
+
+- **The screen.** FB-235.
+- **The production database.** `db/005_crm.sql` has to be run on the studio's Supabase database.
+  Until it is, the read says "the pipeline has not been set up in the studio's database yet" rather
+  than pretending the pipeline is empty. That step is John's: no worker deploys to production.
+- **Writing to the pipeline.** Nothing adds a person or a deal yet. That is a separate piece of work.
