@@ -711,3 +711,13 @@ is_plan_first() { grep -qiE "$ENGINEERING_SENSITIVE|\boutreach\b|send.{0,6}email
 # The work is still gated on its pull request, like every other change.
 plan_before_work() { [ -z "${2:-}" ] && is_plan_first "$1"; }
 
+# Is this the first wake today to find the daily budget spent? $1: the state directory. Succeeds once
+# per UTC day and leaves a marker; every later call that day fails (FB-162). The marker is per day, so
+# tomorrow's first spent wake is reported again.
+budget_spent_first_today() {
+  local marker
+  marker="$1/budget-spent-$(date -u +%F)"
+  [ -f "$marker" ] && return 1
+  mkdir -p "$1" && : > "$marker"
+}
+
