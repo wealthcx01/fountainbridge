@@ -1,5 +1,5 @@
 import { howLongMs } from '@/lib/when';
-import { findingLine, scanSentence, scanTone, type ScanState } from '@/lib/box-scan';
+import { findingLine, moreLine, scanSentence, scanTone, type ScanState } from '@/lib/box-scan';
 
 /**
  * The credential scan on each venture's machine (FB-206), as the admin ledger shows it.
@@ -30,6 +30,7 @@ export function BoxScan({ rows }: { rows: BoxScanRow[] }) {
     <ul className="box-scan" data-testid="ledger-box-scan-list">
       {rows.map(({ ventureId, name, state }) => {
         const tone = scanTone(state);
+        const more = moreLine(state);
         return (
           <li key={ventureId} data-testid={`box-scan-${ventureId}`} data-state={state.kind}
               data-stale={'stale' in state && state.stale ? 'true' : undefined}>
@@ -42,11 +43,7 @@ export function BoxScan({ rows }: { rows: BoxScanRow[] }) {
                 {state.findings.map((f) => (
                   <li key={`${f.path}:${f.line}`}><code>{findingLine(f)}</code></li>
                 ))}
-                {state.count > state.findings.length && (
-                  <li className="muted">
-                    and {state.count - state.findings.length} more. Run the scan on the machine for the full list.
-                  </li>
-                )}
+                {more && <li className="muted" data-testid={`box-scan-more-${ventureId}`}>{more}</li>}
               </ul>
             )}
           </li>

@@ -255,6 +255,9 @@ export const RECORD_PATH = 'health/secret-scan.json';
  */
 export const RECORD_LIST_CAP = 25;
 
+/** How many times to try the write when another write to the same branch got there first. */
+export const PUBLISH_ATTEMPTS = 3;
+
 /**
  * The record the studio reads (FB-206), built ONLY from what the scanner already reports.
  *
@@ -323,24 +326,33 @@ export async function publishRecord(record, { token, repo, ref = 'foundry-state'
     }
 
     const url = `${api}/repos/${repo}/contents/${RECORD_PATH}`;
-    const current = await fetchImpl(`${url}?ref=${encodeURIComponent(ref)}`, { headers });
-    let sha;
-    if (current.ok) sha = (await current.json())?.sha;
-    else if (current.status !== 404) return { ok: false, why: `GitHub would not show the last record (${current.status}${await said(current)})` };
-
     const n = record.findingCount;
-    const put = await fetchImpl(url, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({
-        message: `health: credential scan (${n === 0 ? 'clean' : `${n} found`})`,
-        content: Buffer.from(`${JSON.stringify(record, null, 2)}\n`, 'utf8').toString('base64'),
-        branch: ref,
-        ...(sha ? { sha } : {}),
-      }),
-    });
-    if (!put.ok) return { ok: false, why: `GitHub refused the write (${put.status}${await said(put)})` };
-    return { ok: true, why: null };
+    const content = Buffer.from(`${JSON.stringify(record, null, 2)}\n`, 'utf8').toString('base64');
+    // The lane writes its heartbeat to this same branch every few minutes. When two writes land
+    // together GitHub refuses one of them (409, or 422 when the file's version id has moved on). That
+    // is not a fault in the scan. So read the version id again and try again, a few times, before
+    // saying the studio could not be told.
+    for (let attempt = 1; ; attempt++) {
+      const current = await fetchImpl(`${url}?ref=${encodeURIComponent(ref)}`, { headers });
+      let sha;
+      if (current.ok) sha = (await current.json())?.sha;
+      else if (current.status !== 404) return { ok: false, why: `GitHub would not show the last record (${current.status}${await said(current)})` };
+
+      const put = await fetchImpl(url, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          message: `health: credential scan (${n === 0 ? 'clean' : `${n} found`})`,
+          content,
+          branch: ref,
+          ...(sha ? { sha } : {}),
+        }),
+      });
+      if (put.ok) return { ok: true, why: null };
+      const collided = put.status === 409 || put.status === 422;
+      if (collided && attempt < PUBLISH_ATTEMPTS) continue;
+      return { ok: false, why: `GitHub refused the write (${put.status}${await said(put)})${collided ? `, ${attempt} times in a row` : ''}` };
+    }
   } catch (err) {
     // A network error names the host, never the token: the token only ever travels in a header.
     return { ok: false, why: `could not reach GitHub (${err && err.message ? err.message : String(err)})` };

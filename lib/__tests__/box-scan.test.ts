@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, statSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
+import * as React from 'react';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { BoxScan } from '../../components/BoxScan';
 import {
   SCAN_STALE_MS,
   findingLine,
+  moreLine,
   parseScanRecord,
   scanSentence,
   scanState,
@@ -23,6 +28,9 @@ import { scanRoots, toRecord, RECORD_PATH, RECORD_LIST_CAP } from '../../deploy/
  * copy of a box, and passed through `toRecord` exactly as the timer does — so the studio is tested
  * against the shape the box actually writes, not a shape this file invented.
  */
+// Components in this repo are compiled with the classic JSX runtime, which expects `React` in scope.
+(globalThis as Record<string, unknown>).React = React;
+
 const FAKE_PAT = `github_pat_${'1'.repeat(22)}_${'A'.repeat(59)}`;
 const NOW = Date.parse('2026-09-20T12:00:00Z');
 const HOUR = 60 * 60 * 1000;
@@ -97,6 +105,26 @@ describe('a planted token reaches the ledger by file and kind, never by value (F
     const state = scanState({ kind: 'record', record: parseScanRecord(raw)! }, NOW, true);
     expect(state.kind === 'found' && state.count).toBe(RECORD_LIST_CAP + 7);
     expect(scanSentence(state, words)).toContain(`${RECORD_LIST_CAP + 7} credentials found`);
+    expect(moreLine(state)).toBe('and 7 more. Run the scan on the machine for the full list.');
+  });
+
+  it('draws the "and N more" line under a capped list, and only then', () => {
+    const found = (count: number) => ({
+      kind: 'found' as const, at: '2026-09-20T03:00:00Z', ageMs: 5 * HOUR, stale: false,
+      findings: [{ path: '/opt/foundry/lane/lane.env', line: 2, what: 'a GitHub token' }], count,
+    });
+    const drawn = (count: number) => renderToStaticMarkup(createElement(BoxScan, { rows: [{ ventureId: 'arca', name: 'ARCA', state: found(count) }] }));
+    expect(drawn(30)).toContain('and 29 more. Run the scan on the machine for the full list.');
+    expect(drawn(1)).not.toContain('more.');
+    expect(moreLine(found(1))).toBeNull();
+  });
+
+  it('says plainly when a credential was found in a scan that has since stopped running', () => {
+    const at = new Date(NOW - SCAN_STALE_MS - 24 * HOUR).toISOString();
+    const state = scanState({ kind: 'record', record: parseScanRecord({ at, findingCount: 1, findings: [{ path: '/x.env', line: 1, what: 'a GitHub token' }] })! }, NOW, true);
+    expect(state).toMatchObject({ kind: 'found', stale: true });
+    expect(scanSentence(state, words)).toContain('in a scan 72h old that has not run since');
+    expect(scanSentence(state, words)).not.toContain('scanned 72h ago');
   });
 });
 
@@ -139,6 +167,39 @@ describe('clean, old, and never reported are three different answers (FB-206)', 
     expect(scanSentence(scanState({ kind: 'absent' }, NOW, false), words)).toContain('names no machine');
   });
 
+  it('a clean scan that could not read some places reaches the ledger as "not a complete answer", not green', () => {
+    // Through the box's own `toRecord`, not a hand-written record: if the box stopped sending the
+    // count of places it could not read, a partial scan would be drawn green.
+    const problems = [
+      { path: '/root/.claude/projects/arca/locked.jsonl', why: 'EACCES' },
+      { path: '/opt/foundry/lane/arca/.git/config', why: 'EACCES' },
+    ];
+    const raw = JSON.parse(JSON.stringify(toRecord({ findings: [], weak: [], problems }, { at: '2026-09-20T03:00:00Z', host: 'arca', roots: ['/opt/foundry'] })));
+    expect(raw.unreadableCount).toBe(2);
+    const state = scanState({ kind: 'record', record: parseScanRecord(raw)! }, NOW, true);
+    expect(state).toMatchObject({ kind: 'clean', unreadableCount: 2 });
+    expect(scanTone(state), 'a partial scan was drawn green').toBe('attention');
+    expect(scanSentence(state, words)).toContain('2 places could not be read, so that is not a complete answer');
+  });
+
+  it.skipIf(process.getuid?.() === 0)('a file the scanner really cannot open is counted, end to end', () => {
+    // Root can read a file with no permissions at all, so this one only means something as a normal user.
+    const box = mkdtempSync(join(tmpdir(), 'fb206-'));
+    try {
+      mkdirSync(join(box, 'opt'), { recursive: true });
+      writeFileSync(join(box, 'opt', 'clean.env'), 'DAILY_BUDGET=8\n');
+      writeFileSync(join(box, 'opt', 'locked.env'), 'X=1\n');
+      chmodSync(join(box, 'opt', 'locked.env'), 0o000);
+      const raw = JSON.parse(JSON.stringify(toRecord(scanRoots([join(box, 'opt')]), { at: '2026-09-20T03:00:00Z', host: 'arca', roots: ['/opt/foundry'] })));
+      const state = scanState({ kind: 'record', record: parseScanRecord(raw)! }, NOW, true);
+      expect(scanTone(state)).toBe('attention');
+      expect(scanSentence(state, words)).toContain('1 place could not be read');
+    } finally {
+      try { chmodSync(join(box, 'opt', 'locked.env'), 0o600); } catch { /* already gone */ }
+      rmSync(box, { recursive: true, force: true });
+    }
+  });
+
   it('a clean scan that could not read some places says it is not a complete answer', () => {
     const state = scanState({ kind: 'record', record: parseScanRecord({ at: '2026-09-20T03:00:00Z', findingCount: 0, unreadableCount: 2 })! }, NOW, true);
     expect(scanTone(state)).toBe('attention');
@@ -176,6 +237,12 @@ describe('reading it off the ref (FB-206)', () => {
     await loadVentureScan(venture({ repos: ['arca', 'arca-marketing'] }), NOW, async (r) => { asked.push(r); return { kind: 'absent' }; });
     expect(asked).toEqual(['arca']);
   });
+
+  it('says whether the venture has a machine at all, from its manifest', async () => {
+    const absent = async () => ({ kind: 'absent' as const });
+    expect(await loadVentureScan(venture({ vpsHost: null }), NOW, absent)).toEqual({ kind: 'not-reported', hasMachine: false });
+    expect(await loadVentureScan(venture(), NOW, absent)).toEqual({ kind: 'not-reported', hasMachine: true });
+  });
 });
 
 describe('who pays for the read, and who can see it (FB-206)', () => {
@@ -202,14 +269,6 @@ describe('who pays for the read, and who can see it (FB-206)', () => {
     const importers = sources().filter((p) => /from ['"](@\/lib\/|\.\/|\.\.\/lib\/)box-scan-load['"]/.test(readFileSync(join(root, p), 'utf8')));
     expect(importers).toEqual(['app/page.tsx']);
   });
-
-  it('is mounted on the ledger only after a founder has been sent away', () => {
-    // app/page.tsx redirects a founder before it renders anything admin-only. The scan must come
-    // after that line, or a founder with two ventures would see it on their picker.
-    const page = readFileSync(join(__dirname, '..', '..', 'app', 'page.tsx'), 'utf8');
-    const founderLeaves = page.indexOf('if (!access.isAdmin) return <FounderVentures');
-    const scanMounted = page.indexOf('<LoadedBoxScan');
-    expect(founderLeaves).toBeGreaterThan(0);
-    expect(scanMounted).toBeGreaterThan(founderLeaves);
-  });
+  // That a founder never sees it — including a founder with two ventures, who stays on `/` and gets
+  // the picker — is tested by rendering the real page: `app/__tests__/home-box-scan.test.ts`.
 });

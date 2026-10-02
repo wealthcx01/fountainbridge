@@ -702,7 +702,22 @@ Looked at as pictures. Each venture is one line under the footnotes: ARCA red wi
 listed by path and line, Modernisation Engine amber ("21 days ago … the scanner may have stopped"),
 THE RESET grey ("not the same as clean"). Long transcript paths wrap inside the column on a phone.
 
-Not compared side by side with the Claude Design artifact in this pass. The section is new, so the
-design is unlikely to show it, but that was not checked. It reuses the footnotes' eyebrow, type sizes
-and state marks rather than adding a style of its own. Noticed, not changed (out of scope): on a phone the ledger table above squeezes its seven
-columns into word-per-line cells; that is the existing table, not this ticket.
+It reuses the footnotes' eyebrow, type sizes and state marks rather than adding a style of its own.
+Noticed, not changed (out of scope): on a phone the ledger table above squeezes its seven columns
+into word-per-line cells; that is the existing table, not this ticket.
+
+**Compared with the design, after review (same day).** I opened the Claude Design artifact in a
+browser at both sizes, pressed "Continue with Google", and looked at what it shows. It is the
+founder's studio: it lands on ARCA's desk, and its rail holds the desk, Tickets, Needs you, What
+happened, Memory and Handbook. **It has no admin ledger at all, and nothing about a credential
+scan.** So there is no design for this section to match, and the honest comparison is with the
+design's way of drawing things: a small coloured square before each line, an upper-case eyebrow
+over the block, and thin rules between rows. The section uses all three, and nothing else. The
+design is 1,922px tall on a desktop and 7,115px at phone width, because the prototype does not
+reflow for a phone (its phone view is "The pocket studio"). Re-rendered the ledger after the review
+fixes: still **1,254px** and **2,570px**, section **231px** and **420px**, no sideways scroll.
+
+**Not checked on production.** The ledger is admin-only and production needs a Google sign-in this
+pass does not have. And no venture box runs the new scanner yet, so on production every venture
+would show the grey "not known" line; the red, amber and green lines can only be seen on fixtures
+until a box reports.

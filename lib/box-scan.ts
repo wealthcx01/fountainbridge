@@ -191,6 +191,18 @@ export function scanSentence(state: ScanState, ago: (ms: number) => string): str
   }
 }
 
+/**
+ * The line under a capped list, or null when every finding is listed.
+ *
+ * The box names at most 25 findings but always sends the true count. Without this line a box with 40
+ * would look, at a glance, like a box with 25.
+ */
+export function moreLine(state: ScanState): string | null {
+  if (state.kind !== 'found') return null;
+  const more = state.count - state.findings.length;
+  return more > 0 ? `and ${more} more. Run the scan on the machine for the full list.` : null;
+}
+
 /** One finding, in words. `lane.env, line 3 — looks like a GitHub token`. */
 export function findingLine(f: ScanFinding): string {
   return `${f.path}${f.line > 0 ? `, line ${f.line}` : ''} — looks like ${f.what}`;

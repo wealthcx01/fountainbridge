@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scanRoots, toRecord, publishRecord, exitCode, RECORD_PATH } from '../secret-scan.mjs';
+import { scanRoots, toRecord, publishRecord, exitCode, RECORD_PATH, RECORD_LIST_CAP, PUBLISH_ATTEMPTS } from '../secret-scan.mjs';
 
 /**
  * FB-206 — the box's half of a finding reaching the studio.
@@ -30,8 +30,11 @@ beforeEach(() => { box = mkdtempSync(join(tmpdir(), 'fb206-box-')); });
 afterEach(() => { rmSync(box, { recursive: true, force: true }); });
 
 /** A fetch that answers like GitHub's contents API, and remembers every call. */
-function fakeGitHub({ refExists = true, existingSha = null, putStatus = 201 } = {}) {
+function fakeGitHub({ refExists = true, existingSha = null, putStatus = 201, putStatuses = null } = {}) {
   const calls = [];
+  // `putStatuses` answers each PUT in turn — a collision, then success — and repeats its last entry.
+  let puts = 0;
+  const nextPut = () => (putStatuses ? putStatuses[Math.min(puts++, putStatuses.length - 1)] : putStatus);
   const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
   const fetchImpl = async (url, init = {}) => {
     const method = init.method ?? 'GET';
@@ -40,7 +43,10 @@ function fakeGitHub({ refExists = true, existingSha = null, putStatus = 201 } = 
     if (url.includes('/git/ref/heads/')) return json(200, { object: { sha: 'base-sha-1' } });
     if (url.endsWith('/git/refs') && method === 'POST') return json(201, {});
     if (url.includes('/contents/') && method === 'GET') return existingSha ? json(200, { sha: existingSha }) : json(404, { message: 'Not Found' });
-    if (url.includes('/contents/') && method === 'PUT') return json(putStatus, putStatus < 300 ? { content: {} } : { message: 'Resource not accessible by personal access token' });
+    if (url.includes('/contents/') && method === 'PUT') {
+      const status = nextPut();
+      return json(status, status < 300 ? { content: {} } : { message: status === 409 ? 'is at old-sha but expected new-sha' : 'Resource not accessible by personal access token' });
+    }
     return json(500, {});
   };
   return { calls, fetchImpl };
@@ -102,6 +108,48 @@ describe('the record the box writes (FB-206)', () => {
     expect((await publishRecord(record, { token: '', repo: 'wealthcx01/arca', fetchImpl: gh.fetchImpl })).why).toContain('TICKET_GITHUB_TOKEN is not set');
     expect((await publishRecord(record, { token: FAKE_LANE_TOKEN, repo: '', fetchImpl: gh.fetchImpl })).why).toContain('REPO is not set');
     expect(gh.calls, 'it reached for GitHub without what it needs').toEqual([]);
+  });
+
+  it('builds each row from path, line and kind only — anything else on a finding stays off the ref', () => {
+    // Today's findings carry nothing else. This is for the field someone adds later.
+    const record = toRecord({
+      findings: [{ path: '/opt/x.env', line: 3, what: 'a GitHub token', value: FAKE_PAT, text: `T=${FAKE_PAT}` }],
+      weak: [],
+      problems: [{ path: '/root/y', why: 'EACCES', text: FAKE_PAT }],
+    }, { at: '2026-09-20T03:00:00Z', host: 'arca', roots: ['/opt/foundry'] });
+    expect(record.findings).toEqual([{ path: '/opt/x.env', line: 3, what: 'a GitHub token' }]);
+    expect(record.unreadable).toEqual([{ path: '/root/y', why: 'EACCES' }]);
+    expect(JSON.stringify(record)).not.toContain(FAKE_PAT);
+  });
+
+  it('sends the count of places it could not read, so a partial scan is not reported as complete', () => {
+    const problems = Array.from({ length: RECORD_LIST_CAP + 3 }, (_, i) => ({ path: `/root/p${i}`, why: 'EACCES' }));
+    const record = toRecord({ findings: [], weak: [], problems }, { at: '2026-09-20T03:00:00Z', host: 'arca', roots: ['/opt/foundry'] });
+    expect(record.unreadableCount, 'the box sent a partial scan as a complete one').toBe(RECORD_LIST_CAP + 3);
+    expect(record.unreadable.length).toBe(RECORD_LIST_CAP);
+  });
+
+  it('tries again when another write to the same branch got there first', async () => {
+    // The lane writes its heartbeat to foundry-state every few minutes; two writes can collide.
+    const record = toRecord({ findings: [], weak: [], problems: [] }, { at: '2026-09-20T03:00:00Z', host: 'x', roots: [] });
+    const gh = fakeGitHub({ existingSha: 'old-sha', putStatuses: [409, 201] });
+    expect(await publishRecord(record, { token: FAKE_LANE_TOKEN, repo: 'wealthcx01/arca', fetchImpl: gh.fetchImpl })).toEqual({ ok: true, why: null });
+    const puts = gh.calls.filter((c) => c.method === 'PUT');
+    expect(puts.length).toBe(2);
+    expect(gh.calls.filter((c) => c.method === 'GET' && c.url.includes('/contents/')).length, 'it retried without reading the new version id').toBe(2);
+  });
+
+  it('gives up after a few collisions and says so, and does not retry a refusal that is not a collision', async () => {
+    const record = toRecord({ findings: [], weak: [], problems: [] }, { at: '2026-09-20T03:00:00Z', host: 'x', roots: [] });
+    const busy = fakeGitHub({ putStatuses: [409, 409, 409, 409, 409] });
+    const sent = await publishRecord(record, { token: FAKE_LANE_TOKEN, repo: 'wealthcx01/arca', fetchImpl: busy.fetchImpl });
+    expect(sent.ok).toBe(false);
+    expect(sent.why).toContain(`${PUBLISH_ATTEMPTS} times in a row`);
+    expect(busy.calls.filter((c) => c.method === 'PUT').length).toBe(PUBLISH_ATTEMPTS);
+
+    const refused = fakeGitHub({ putStatus: 403 });
+    await publishRecord(record, { token: FAKE_LANE_TOKEN, repo: 'wealthcx01/arca', fetchImpl: refused.fetchImpl });
+    expect(refused.calls.filter((c) => c.method === 'PUT').length, 'a 403 will not change on a retry').toBe(1);
   });
 
   it('exits on a credential first, then on a report that did not arrive', () => {
