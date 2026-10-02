@@ -66,4 +66,9 @@ describe('run-once.sh hands the release to the gate', () => {
     expect(loop.indexOf('released_by=""')).toBeGreaterThan(-1);
     expect(loop.indexOf('released_by=""')).toBeLessThan(loop.indexOf('release_of "$slug"'));
   });
+
+  it('does not log a released high-impact ticket as low-risk', () => {
+    // Seen on ARCA the first time ARCA-061 was worked: the log called it "low blast-radius".
+    expect(RUN_ONCE).toMatch(/if \[ -n "\$PICK_RELEASED_BY" \] && is_plan_first "\$PICK"; then\s+flog "working [^"]*high-impact, released by/);
+  });
 });

@@ -336,7 +336,12 @@ echo $(( $(attempts_of "$PICK_SLUG") + 1 )) > "$STATE_DIR/attempts-$PICK_SLUG"
 if [ "$REQUIRE_PROPOSAL" = 1 ]; then
   flog "working $PICK_SLUG in $PICK_DEPT (RPIV; the external action will be PROPOSED, never performed)"
 else
-  flog "working $PICK_SLUG in ${PICK_DEPT:-build} (full-auto RPIV, low blast-radius)"
+  # A released high-impact ticket reaches here too (FB-251), so the log must not call it low-risk.
+  if [ -n "$PICK_RELEASED_BY" ] && is_plan_first "$PICK"; then
+    flog "working $PICK_SLUG in ${PICK_DEPT:-build} (high-impact, released by $PICK_RELEASED_BY; still gated on its pull request)"
+  else
+    flog "working $PICK_SLUG in ${PICK_DEPT:-build} (full-auto RPIV, low blast-radius)"
+  fi
 fi
 LANE_DEPARTMENT="${PICK_DEPT:-build}" LANE_GATE="${PICK_GATE:-pr}" LANE_REQUIRE_PROPOSAL="$REQUIRE_PROPOSAL" \
   "$SUP" "$PICK_SLUG" "$PICK"
