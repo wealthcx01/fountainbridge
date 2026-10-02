@@ -1042,3 +1042,33 @@ the app running". On real data the two previews ARCA has were opened live and bo
 The heights match the same screens before this change. Not compared with the Claude Design
 artifact: the change is one tag or one line inside existing rows, and this session had no signed-in
 claude.ai session to open the artifact. The live side is a local build on real data, not production.
+
+## FB-184 after review — beside the design, and with every check failing, 2026-10-02
+
+The review said the desk had not been put beside the design. It has now. The design artifact was
+read through the studio's artifact tool (the owner's own copy), opened in a browser, signed in with
+its "Continue with Google", and its desk captured at both sizes. The studio side is a local build of
+this branch on the UI gate's fixtures, signed in as ARCA's founder. It is not production: this
+session cannot sign in to production.
+
+Heights. Design desk: **1,922px** at 1440×1000. At 393×851 the design's desk is **7,115px**, because
+the design does not lay its desk out for a phone; its phone screen is the separate pocket studio, so
+that number is not a target. Studio desk: **2,188px** and **2,368px**. Work page for #13: **1,000px**
+and **1,014px**. Work page for #11: **1,000px** and **1,014px**. Cross-venture queue: **1,366px** and
+**2,231px**; with every check failing, **1,396px** and **2,245px** (one extra quiet line). Nothing
+scrolls sideways at either size.
+
+Looked at side by side. The design's Build column reads "14 tickets · preview of the app running
+from the venture VM", then "Open the app ↗". The studio's reads "6 tickets · preview of the app
+running from the venture machine", then "Open the terminal ↗" — the same line and the same link,
+with ARCA's own label. With every check set to fail, the studio's Build column drops "preview of the
+app running" and shows, in the muted colour, "Open the terminal: it did not open when the studio
+checked, because it is not answering." **The design has no failing state for a door.** Its rule for
+the ticket line is "render nothing when the link cannot be formed"; the studio draws no link, but
+does say why in one quiet line, because a founder who expects the button should not have to guess
+where it went (non-negotiable 10). That is a choice John may want to overrule. The design's second
+link, "changes on the VM ↗", is not in the studio; it needs the commit count FB-184 still leaves.
+
+The work page for #13 shows "Open the terminal ↗" and, under it, "The preview of this change: it did
+not open when the studio checked, because it is not answering." With every check failing, both are
+sentences and there is no button; on a phone they wrap to two lines each and nothing is cut off.

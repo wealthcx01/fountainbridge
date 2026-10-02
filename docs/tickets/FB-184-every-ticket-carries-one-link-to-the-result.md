@@ -13,6 +13,29 @@
 
 **Shipped in part:** the line is on every ticket, and every screen that offers a preview or a product link now opens it first. Still left: the `trace_url` field in bcap-contracts (another repository's change), and the commit count in the Build line.
 
+## Fixed after review, 2026-10-02
+
+**The "no link" half now has tests that fail.** The review removed the check from the work page's
+two buttons and from the desk's door, and every test stayed green. Both screens now take their
+link from one place (`offerFor` in `lib/result-link.ts`), which gives either a link to an address
+that opened or a sentence with no address in it. New tests draw the work page's "See it" and the
+whole desk with an address that failed, and check there is no link and the reason is shown. Each was
+broken on purpose and went red. The UI gate also opens a new piece of work, #13, whose preview the
+rig says is down.
+
+**A product behind a sign-in keeps its link.** A surface's door now counts as opening when its own
+server answers with a page, asks for a sign-in (401 or 403), or sends the visitor on to sign in on
+another site. The studio still never follows that last redirect. A preview stays strict, because a
+preview that sends you to another site is the fault the check exists to catch. A door on `http://`,
+which the manifest allows, is now checked rather than refused, and a door the studio will not open is
+no longer called "a preview".
+
+**A slow door holds a page for at most six seconds**, not five slow redirects of four seconds each.
+
+**Beside the design.** The desk was put beside the Claude Design artifact; see
+`docs/design-conformance.md`. The design has no failing state for a door; the studio shows one quiet
+sentence there.
+
 ## Every other "see it" link is checked too, 2026-10-02 (second pass)
 
 **What was left.** Three places still drew a stored address as a link without opening it first: the
@@ -28,7 +51,7 @@ did not open. The queue checks each preview in the background, so the list never
 **A door can be on the venture's own domain.** A preview address comes from a commit status, which
 anyone who can push to a venture repository can write, so the studio only ever opens addresses on
 the four preview hosts. A surface's door comes from the venture's manifest in this repository, which
-is reviewed, so it may be on any named https host — but never an IP address, `localhost`, or an
+is reviewed, so it may be on any named http or https host — but never an IP address, `localhost`, or an
 internal name. Those rules now live in `lib/preview-address.ts`.
 
 **The UI gate can now see both halves.** The rig still never opens an address. It answers from
@@ -139,11 +162,12 @@ rule the surface cards already follow.
 - [x] A Sell ticket whose send went out links to that send.
       *(Unit-tested on ARCA's real shape: sends proposed from the Build repository, naming Sell.)*
 - [x] A Scale ticket says "not connected yet" and renders no link.
-- [x] No `trace_url` is rendered as a link without being resolvable.
-      *(Read as "no result link": the field itself is not in bcap-contracts yet. Every place that
-      offers a preview or a product link — the ticket line, the trail, the work page, the queue and
-      the desk's doors — opens it first. A test reads every screen and fails if one links a stored
-      preview or door address directly.)*
+- [ ] No `trace_url` is rendered as a link without being resolvable.
+      *(Not ticked: there is no `trace_url` field yet, so this cannot be met as written. What is
+      true today: every place that offers a preview or a product link — the ticket line, the trail,
+      the work page, the queue and the desk's doors — opens it first and draws no link when it did
+      not open. Tests draw the work page and the desk with an address that failed and check there is
+      no link. When `trace_url` lands, it should go through the same check.)*
 - [ ] The trail, the ticket detail and the surface card all read the same field.
       *(They read the same check and say the same words, but there is no single field yet: that
       waits on `trace_url` in bcap-contracts.)*

@@ -24,17 +24,19 @@ export function isPreviewAddress(url: string): boolean {
 }
 
 /**
- * A surface's door, from the venture's manifest (FB-093's `launch:`): an https address on the
- * default port, on a named host. Not limited to preview hosts, because a venture's product can live
- * on its own domain. The manifest is reviewed config in this repository, not something anyone with a
- * commit status can write, so the wider rule is safe here and only here. Still never an IP address,
- * never `localhost`, never a host with no dot: the studio's server must not be pointed inward.
+ * A surface's door, from the venture's manifest (FB-093's `launch:`): an http or https address on
+ * the default port, on a named host. Not limited to preview hosts, because a venture's product can
+ * live on its own domain. http is allowed because the manifest allows it (`lib/ventures.ts`,
+ * "http(s) only"), and a door the manifest accepts must not lose its link for that alone. The manifest
+ * is reviewed config in this repository, not something anyone with a commit status can write, so the
+ * wider rule is safe here and only here. Still never an IP address, never `localhost`, never a host
+ * with no dot: the studio's server must not be pointed inward.
  */
 export function isDoorAddress(url: string): boolean {
   try {
     const u = new URL(url);
     const host = u.hostname.toLowerCase();
-    return u.protocol === 'https:' && u.port === '' && !u.username && !u.password
+    return (u.protocol === 'https:' || u.protocol === 'http:') && u.port === '' && !u.username && !u.password
       && host.includes('.') && !host.startsWith('[') && !/^[\d.]+$/.test(host)
       && host !== 'localhost' && !host.endsWith('.localhost') && !host.endsWith('.internal');
   } catch {

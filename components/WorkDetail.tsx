@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { whyNoLink, type PreviewCheck } from '@/lib/result-link';
+import type { PreviewCheck } from '@/lib/result-link';
+import { SeeIt } from './SeeIt';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { WorkItem } from '@/lib/work';
@@ -306,39 +307,8 @@ export function WorkDetail({
       {/* 2. What your team did. */}
       {work.description ? <WhatTheyDid body={work.description} /> : null}
 
-      {/* 3. See it. Review, click, look at the real thing — the one check a founder can always make
-          for themselves, and the page had no way to do it. The preview is this work specifically;
-          the launch link is the product as it stands, and they are labelled as the different things
-          they are rather than merged into one hopeful button. */}
-      {/* FB-184: each door is a link only when the studio opened it and it worked. Otherwise the
-          same place says why there is no link, in the words the ticket's "Follow it to…" line uses. */}
-      {previewCheck || (launch && launchCheck) ? (
-        <section data-testid="work-see-it" style={{ marginBottom: '1.5rem' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.4rem' }}>See it</p>
-          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            {previewCheck && previewCheck.state === 'opens' ? (
-              <a className="btn" href={previewCheck.url} target="_blank" rel="noreferrer" data-testid="work-preview">
-                See this change running ↗
-              </a>
-            ) : null}
-            {launch && launchCheck?.state === 'opens' ? (
-              <a className="btn" href={launchCheck.url} target="_blank" rel="noreferrer" data-testid="work-launch">
-                {launch.label ?? 'Open your product'} ↗
-              </a>
-            ) : null}
-          </div>
-          {previewCheck && whyNoLink(previewCheck) ? (
-            <p className="muted" data-testid="work-preview-why" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
-              The preview of this change: {whyNoLink(previewCheck)}.
-            </p>
-          ) : null}
-          {launch && launchCheck && whyNoLink(launchCheck) ? (
-            <p className="muted" data-testid="work-launch-why" style={{ fontSize: 'var(--fs-body-sm)', margin: '0.4rem 0 0' }}>
-              {launch.label ?? 'Your product'}: {whyNoLink(launchCheck)}.
-            </p>
-          ) : null}
-        </section>
-      ) : null}
+      {/* 3. See it. Each address is a link only when the studio opened it and it worked (FB-184). */}
+      <SeeIt previewCheck={previewCheck} launch={launch} launchCheck={launchCheck} />
 
       {/* 4. The changes. After the human summary, never instead of it. */}
       <div data-testid="work-changes" style={{ marginBottom: '1.5rem' }}>

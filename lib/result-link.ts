@@ -144,3 +144,19 @@ export function whyNoLink(check: PreviewCheck): string | null {
       return 'it has not been checked yet, so there is no link';
   }
 }
+
+/** What a screen draws for one checked address: a link, or the reason there is none. */
+export type Offer = { kind: 'link'; href: string } | { kind: 'why'; text: string };
+
+/**
+ * The one decision the work page and the desk's doors make (FB-184): a link only when the address
+ * was opened and it worked, and otherwise the reason in words. `null` when nothing was checked.
+ *
+ * A `why` carries no address at all, so a screen that draws from this cannot link an address the
+ * check did not pass.
+ */
+export function offerFor(check: PreviewCheck | null | undefined): Offer | null {
+  if (!check) return null;
+  if (check.state === 'opens') return { kind: 'link', href: check.url };
+  return { kind: 'why', text: whyNoLink(check) ?? '' };
+}

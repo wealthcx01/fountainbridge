@@ -253,7 +253,6 @@ describe('a surface’s door from the manifest is opened before it is linked', (
   });
 
   it.each([
-    'http://app.example-venture.com',
     'https://app.example-venture.com:8443/',
     'https://u:p@app.example-venture.com/',
     'https://169.254.169.254/',
