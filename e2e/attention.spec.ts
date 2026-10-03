@@ -33,7 +33,12 @@ test('attention queue lists open PRs oldest-first, with preview as the primary l
   await expect(page.getByTestId('approval-primary-arca#11')).toHaveAttribute('href', '/venture/arca/work/arca/11');
 
   // The preview is still one click away when there is one — it just is not the only thing to click.
-  await expect(page.getByTestId('approval-preview-arca#10')).toHaveAttribute('href', /preview\.example\.com/);
+  // FB-184: and only once the studio has opened it. The rig answers from
+  // e2e/fixtures/preview-checks.json: #11's preview opens, #13's does not, #10's was never checked.
+  await expect(page.getByTestId('approval-preview-arca#11')).toHaveAttribute('href', 'https://arca-pr-11.up.railway.app');
+  await expect(page.getByTestId('approval-preview-arca#13')).toHaveCount(0);
+  await expect(page.getByTestId('approval-preview-why-arca#13')).toContainText('it is not answering');
+  await expect(page.getByTestId('approval-preview-arca#10')).toHaveCount(0);
 
   // Nothing on this page sends a founder to a code host any more.
   const offsite = await page.locator('a[href*="github.com"]').count();

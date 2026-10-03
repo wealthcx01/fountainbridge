@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { followLine, sendForTicket, type FollowInput } from '../result-link';
-import { checkPreview, checkedPreview, type Fetcher } from '../preview-check';
+import { checkDoor, checkPreview, checkedDoor, checkedPreview, isDoorAddress, type Fetcher } from '../preview-check';
+import { whyNoLink } from '../result-link';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 /**
  * "Follow it to…" (FB-184): one line per ticket saying where to see the result, and a link only
@@ -224,5 +227,103 @@ describe('a checked preview is remembered for five minutes, then checked again',
   it('after five minutes, it is checked again — a preview torn down must lose its link', () => {
     const a = checkedPreview(URL, env, 2_000_000);
     expect(checkedPreview(URL, env, 2_000_000 + 5 * 60_000 + 1)).not.toBe(a);
+  });
+});
+
+/**
+ * FB-184's last surfaces: the work page's buttons, the cross-venture queue's "see it running", and a
+ * surface's door on the desk. Each used to draw a stored address as a link without opening it.
+ */
+describe('a surface’s door from the manifest is opened before it is linked', () => {
+  // ARCA's real door (ventures/arca.yaml), and a venture product on its own domain.
+  const ARCA_DOOR = 'https://arca-production-4e99.up.railway.app';
+  const OWN_DOMAIN = 'https://app.example-venture.com';
+
+  it('a door on the venture’s own domain is checked, where a preview on it would not be', async () => {
+    const opens = scripted({ [OWN_DOMAIN]: { status: 200 } });
+    expect((await checkDoor(OWN_DOMAIN, opens)).state).toBe('opens');
+    // The commit-status rule stays narrow: anyone who can post a status chooses that address.
+    expect((await checkPreview(OWN_DOMAIN, opens)).state).toBe('does-not-open');
+  });
+
+  it('a door that is down gets the reason, not a link', async () => {
+    const door = await checkDoor(ARCA_DOOR, scripted({ [ARCA_DOOR]: { status: 502 } }));
+    expect(door).toEqual({ url: ARCA_DOOR, state: 'does-not-open', reason: 'it is not answering' });
+    expect(whyNoLink(door)).toBe('it did not open when the studio checked, because it is not answering');
+  });
+
+  it.each([
+    'https://app.example-venture.com:8443/',
+    'https://u:p@app.example-venture.com/',
+    'https://169.254.169.254/',
+    'https://[::1]/',
+    'https://localhost/',
+    'https://box.localhost/',
+    'https://metadata.google.internal/',
+    'https://intranet/',
+  ])('never opens %s, even from a manifest', async (url) => {
+    expect(isDoorAddress(url)).toBe(false);
+    const fetched: string[] = [];
+    await checkDoor(url, async (u) => { fetched.push(u); return { status: 200, headers: { get: () => null } }; });
+    expect(fetched).toEqual([]);
+  });
+
+  it('is remembered apart from a preview at the same address', () => {
+    const URL = 'https://door-and-preview.example.com/';
+    expect(checkedDoor(URL, {}, 3_000_000)).not.toBe(checkedPreview(URL, {}, 3_000_000));
+  });
+});
+
+describe('the test rig answers from its fixture, and never opens anything', () => {
+  const rig = {
+    E2E_TEST_LOGIN: '1', PRS_FIXTURE_DIR: 'e2e/fixtures/prs',
+    PREVIEW_CHECK_FIXTURE: 'e2e/fixtures/preview-checks.json',
+  };
+
+  it('a listed address that opens is "opens"', async () => {
+    expect(await checkedPreview('https://arca-pr-11.up.railway.app', rig)).toEqual({ url: 'https://arca-pr-11.up.railway.app', state: 'opens' });
+    expect((await checkedDoor('https://arca-production-4e99.up.railway.app', rig)).state).toBe('opens');
+  });
+
+  it('a listed address that does not open says why', async () => {
+    expect(await checkedPreview('https://arca-pr-13.up.railway.app', rig)).toEqual({
+      url: 'https://arca-pr-13.up.railway.app', state: 'does-not-open', reason: 'it is not answering',
+    });
+  });
+
+  it('an address the fixture does not list is still "not checked"', async () => {
+    expect((await checkedPreview('https://arca-pr-10.preview.example.com', rig)).state).toBe('not-checked');
+  });
+});
+
+describe('what a founder is told when there is no link', () => {
+  it('nothing, when it opens; the reason, when it did not; the plain fact, when it was not looked at', () => {
+    expect(whyNoLink({ url: 'x', state: 'opens' })).toBeNull();
+    expect(whyNoLink({ url: 'x', state: 'does-not-open', reason: 'it keeps redirecting' }))
+      .toBe('it did not open when the studio checked, because it keeps redirecting');
+    expect(whyNoLink({ url: 'x', state: 'not-checked' })).toBe('it has not been checked yet, so there is no link');
+  });
+});
+
+describe('no screen links a stored preview or door address directly', () => {
+  // Read from the screens themselves. An address is only ever linked through its check (`check.url`,
+  // `previewCheck.url`, `doors[id].url`); `href={…previewUrl}` and `href={…launch.url}` are the shapes
+  // every one of these screens had before.
+  const ROOT = join(import.meta.dirname, '..', '..');
+  const files = (dir: string): string[] => readdirSync(join(ROOT, dir)).flatMap((n) => {
+    const rel = join(dir, n);
+    if (n === '__tests__' || n === 'node_modules') return [];
+    return statSync(join(ROOT, rel)).isDirectory() ? files(rel) : rel.endsWith('.tsx') ? [rel] : [];
+  });
+  const screens = [...files('app'), ...files('components')];
+
+  it('reads the screens that offered these links', () => {
+    expect(screens).toEqual(expect.arrayContaining(['app/attention/page.tsx', 'components/WorkDetail.tsx', 'components/VentureBoard.tsx']));
+  });
+
+  it.each(screens)('%s', (rel) => {
+    const src = readFileSync(join(ROOT, rel), 'utf8');
+    expect(src).not.toMatch(/href=\{[^}]*previewUrl[^}]*\}/);
+    expect(src).not.toMatch(/href=\{[^}]*launch\.url[^}]*\}/);
   });
 });

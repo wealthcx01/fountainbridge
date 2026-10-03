@@ -20,7 +20,8 @@
     "branch": "arca-5-deck-sharing",
     "state": "open",
     "merged": false,
-    "ciStatus": "pending"
+    "ciStatus": "pending",
+    "previewUrl": "https://arca-pr-11.up.railway.app"
   },
   {
     "number": 9,
@@ -41,7 +42,8 @@
     "branch": "foundry/deck-export",
     "state": "open",
     "merged": false,
-    "ciStatus": "success"
+    "ciStatus": "success",
+    "previewUrl": "https://arca-pr-13.up.railway.app"
   },
   {
     "number": 14,

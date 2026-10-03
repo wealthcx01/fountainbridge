@@ -87,6 +87,9 @@ export default defineConfig({
       // (FB-051) but means the e2e would never exercise the attested path at all. The fixture
       // grants are signed with THIS value; regenerate them with `make sign-approval-fixtures`.
       FOUNDRY_APPROVAL_SECRET: 'e2e-approval-secret-not-for-production',
+      // FB-184: what the rig says each preview check found. The rig never opens an address; this
+      // lets the gate see a checked link drawn and a failed one withheld, not only "not checked".
+      PREVIEW_CHECK_FIXTURE: 'e2e/fixtures/preview-checks.json',
       // Pin "now" so staleness is deterministic against the fixed-date health fixtures (FB-032).
       // arca's last activity is 2026-07-21 → active; thereset-platform's is 2026-01-10 → stale.
       E2E_NOW: '2026-07-22T00:00:00Z',

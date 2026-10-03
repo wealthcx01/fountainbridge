@@ -55,6 +55,32 @@ test.describe('reading and accepting a piece of work', () => {
     await expect(page.getByTestId('work-accept')).toBeVisible();
   });
 
+  test('a preview and the product are links only when the studio opened them (FB-184)', async ({ page }) => {
+    // The rig answers checks from e2e/fixtures/preview-checks.json: #11's preview opens, and so does
+    // Build's door. #10 reports no preview at all, so it offers none.
+    await page.goto('/venture/arca/work/arca/11');
+    await expect(page.getByTestId('work-preview')).toHaveAttribute('href', 'https://arca-pr-11.up.railway.app');
+    await expect(page.getByTestId('work-launch')).toHaveAttribute('href', 'https://arca-production-4e99.up.railway.app');
+    await expect(page.getByTestId('work-preview-why')).toHaveCount(0);
+    await page.goto('/venture/arca/work/arca/10');
+    await expect(page.getByTestId('work-preview')).toHaveCount(0);
+    await expect(page.getByTestId('work-launch')).toBeVisible();
+  });
+
+  test('a preview the studio opened and found down is not a link, and says why (FB-184)', async ({ page }) => {
+    // #13's preview is in e2e/fixtures/preview-checks.json as "it is not answering". The review found
+    // this half had no test: the button could be drawn whatever the check said, and nothing failed.
+    await page.goto('/venture/arca/work/arca/13');
+    await expect(page.getByTestId('work-see-it')).toBeVisible();
+    await expect(page.getByTestId('work-preview')).toHaveCount(0);
+    await expect(page.getByTestId('work-preview-why')).toHaveText(
+      'The preview of this change: it did not open when the studio checked, because it is not answering.',
+    );
+    await expect(page.locator('a[href="https://arca-pr-13.up.railway.app"]')).toHaveCount(0);
+    // The product's own door still opens, so it is still a link.
+    await expect(page.getByTestId('work-launch')).toHaveAttribute('href', 'https://arca-production-4e99.up.railway.app');
+  });
+
   test('work whose checks are still running cannot, and says what to do', async ({ page }) => {
     await page.goto('/venture/arca/work/arca/11');
     await expect(page.getByTestId('work-accept')).toHaveCount(0);

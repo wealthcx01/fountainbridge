@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import type { PrApproval } from '@/lib/attention';
@@ -12,6 +13,8 @@ import { groupFailures, needsAction } from '@/lib/read-failures';
 import { CHECK_LABEL } from '@/lib/glossary';
 import { howLong } from '@/lib/when';
 import { Mark } from '@/components/Mark';
+import { checkedPreview } from '@/lib/preview-check';
+import { whyNoLink } from '@/lib/result-link';
 
 // The attention queue (FB-007): open PRs across every accessible venture, awaiting the human gate.
 // Scoping runs server-side in loadAccessibleAttention.
@@ -202,10 +205,11 @@ function ApprovalRow({
           {approval.ticketTitle ?? approval.title}
         </Link>
         {showChecks ? <CiDot status={approval.ciStatus} /> : null}
+        {/* FB-184: opened before it is offered. Streamed, so the queue never waits on a preview. */}
         {approval.previewUrl ? (
-          <a href={approval.previewUrl} target="_blank" rel="noreferrer" className="tag tag-accent" data-testid={`approval-preview-${approval.id}`}>
-            see it running
-          </a>
+          <Suspense fallback={null}>
+            <PreviewTag url={approval.previewUrl} id={approval.id} />
+          </Suspense>
         ) : null}
       </div>
       <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -245,6 +249,32 @@ function SendRow({ send, ventureName }: { send: WaitingSend; ventureName: string
       </div>
     </article>
   );
+}
+
+/**
+ * "see it running", only when the preview was opened and works (FB-184).
+ *
+ * A preview that was torn down, or that redirects to the live site, says so in a quiet line instead.
+ * One that has not been checked (only the test rig, which never opens an address) shows nothing: a
+ * list is no place for a sentence about a check that did not happen, and the work page says it.
+ */
+async function PreviewTag({ url, id }: { url: string; id: string }) {
+  const check = await checkedPreview(url);
+  if (check.state === 'opens') {
+    return (
+      <a href={check.url} target="_blank" rel="noreferrer" className="tag tag-accent" data-testid={`approval-preview-${id}`}>
+        see it running ↗
+      </a>
+    );
+  }
+  if (check.state === 'does-not-open') {
+    return (
+      <span className="muted" data-testid={`approval-preview-why-${id}`} style={{ fontSize: 'var(--fs-meta)' }}>
+        preview: {whyNoLink(check)}
+      </span>
+    );
+  }
+  return null;
 }
 
 /**
