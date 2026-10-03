@@ -1,6 +1,6 @@
 # FB-169 — the venture brain holds two of ARCA's seven corpus documents
 
-**Status:** Shipped in part · **Phase:** 3 · **Found by:** FB-165, on the ARCA box
+**Status:** Done · **Phase:** 3 · **Found by:** FB-165, on the ARCA box
 
 ## What is wrong
 
@@ -121,13 +121,23 @@ files. That is the honest answer until they are copied there.
 - **Put the new lane files on the ARCA box** and run a full sync, then search for each of the five
   documents. This also starts the Memory screen's count. Box deploys wait for John's approval.
 
-**Shipped in part:** the ARCA box still needs the new lane files and a full re-sync. Until then its
-brain has not been shown to find every document, and the Memory screen says the count is not yet
-checked.
+## Proven on ARCA (2026-10-02 and 2026-10-03)
+
+- **Searchable.** After ARCA's three Build documents moved to `context/product/` (ARCA PR #92) and
+  the box re-synced, its brain listed all five documents, and keyword searches for "demo data",
+  "auction aggregator" and "Kraken" each returned the right Build document.
+- **Counted.** With John's approval, FB-169's lane files (#358) were copied to the box (backups in
+  `state/backup-fb169b-20261002T235834`). The next sync wrote `corpus: 5, missingCount: 0`, and the
+  lane published it to `health/brain-corpus.json` on ARCA's state ref.
+- **On the screen.** ARCA's Memory screen, built from `main` reading ARCA's real data: *"Your team can
+  find all 5 of your documents when it looks up what ARCA knows (checked 3 October)."* 1,105px at
+  1440×1000 and 2,141px at 393×851. Its "Last used" column shows the Build document "Auction
+  aggregator v1" read for ARCA-072 on 3 October — a document the brain could not see before this
+  ticket.
 
 ## Acceptance criteria
 
-- [ ] All five of ARCA's corpus documents are findable in the index by keyword. (The ticket first
+- [x] All five of ARCA's corpus documents are findable in the index by keyword. (The ticket first
   said seven. Two of those are the folders' own README files, which the index skips on purpose.)
 - [x] Something fails, loudly, when a tracked corpus file is not indexed after a sync.
 - [x] The count is surfaced where a founder can see it, or the reason it cannot be is written down.
