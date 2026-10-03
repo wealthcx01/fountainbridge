@@ -1,0 +1,19 @@
+{
+  "title": "build: deck-export (Foundry lane)",
+  "author": "foundry-lane",
+  "createdAt": "2026-07-20T00:00:00Z",
+  "previewUrl": "https://arca-pr-13.up.railway.app",
+  "headSha": "sha-arca-13",
+  "state": "open",
+  "merged": false,
+  "mergeable": true,
+  "checks": "success",
+  "url": "https://github.com/wealthcx01/arca/pull/13",
+  "files": [
+    {
+      "path": "client/src/pages/DeckExport.tsx",
+      "added": 48,
+      "removed": 0
+    }
+  ]
+}

@@ -1023,3 +1023,52 @@ a local build of the branch, signed in as ARCA's founder, landing on `/venture/a
 
 ARCA's real data was not re-rendered: with no record from the box yet, it shows the "Nothing checks
 yet" sentence, which this change does not touch. The design was not reopened for this pass.
+
+## FB-184 second pass — "see it" links are opened first, 2026-10-02
+
+Signed in as an admin, local build of this branch. On the UI gate's fixtures: the cross-venture
+queue is **1,000px** at 1440×1000 and **1,104px** at 393×851; the desk **2,324px** and **2,658px**;
+the work page for pull request 11 **1,000px** and **1,021px**; Tickets with ARCA-3 open **1,359px**
+and **1,822px**. On ARCA's real data: the queue **1,436px** and **2,299px**, the desk **1,984px** and
+**2,548px**. Nothing scrolls sideways.
+
+Looked at as pictures. On the fixtures the queue shows "see it running ↗" on ARCA-5 (its preview
+opens), a quiet "preview: it did not open when the studio checked, because it is not answering" on
+Deck export, and nothing on ARCA-1 (never checked). The work page shows both buttons when both open.
+With every check set to fail (a second fixture, for the pictures only), the work page and the
+desk's Build column say why in a muted line and draw no link, and the Build line drops "preview of
+the app running". On real data the two previews ARCA has were opened live and both show their tag.
+
+The heights match the same screens before this change. Not compared with the Claude Design
+artifact: the change is one tag or one line inside existing rows, and this session had no signed-in
+claude.ai session to open the artifact. The live side is a local build on real data, not production.
+
+## FB-184 after review — beside the design, and with every check failing, 2026-10-02
+
+The review said the desk had not been put beside the design. It has now. The design artifact was
+read through the studio's artifact tool (the owner's own copy), opened in a browser, signed in with
+its "Continue with Google", and its desk captured at both sizes. The studio side is a local build of
+this branch on the UI gate's fixtures, signed in as ARCA's founder. It is not production: this
+session cannot sign in to production.
+
+Heights. Design desk: **1,922px** at 1440×1000. At 393×851 the design's desk is **7,115px**, because
+the design does not lay its desk out for a phone; its phone screen is the separate pocket studio, so
+that number is not a target. Studio desk: **2,188px** and **2,368px**. Work page for #13: **1,000px**
+and **1,014px**. Work page for #11: **1,000px** and **1,014px**. Cross-venture queue: **1,366px** and
+**2,231px**; with every check failing, **1,396px** and **2,245px** (one extra quiet line). Nothing
+scrolls sideways at either size.
+
+Looked at side by side. The design's Build column reads "14 tickets · preview of the app running
+from the venture VM", then "Open the app ↗". The studio's reads "6 tickets · preview of the app
+running from the venture machine", then "Open the terminal ↗" — the same line and the same link,
+with ARCA's own label. With every check set to fail, the studio's Build column drops "preview of the
+app running" and shows, in the muted colour, "Open the terminal: it did not open when the studio
+checked, because it is not answering." **The design has no failing state for a door.** Its rule for
+the ticket line is "render nothing when the link cannot be formed"; the studio draws no link, but
+does say why in one quiet line, because a founder who expects the button should not have to guess
+where it went (non-negotiable 10). That is a choice John may want to overrule. The design's second
+link, "changes on the VM ↗", is not in the studio; it needs the commit count FB-184 still leaves.
+
+The work page for #13 shows "Open the terminal ↗" and, under it, "The preview of this change: it did
+not open when the studio checked, because it is not answering." With every check failing, both are
+sentences and there is no button; on a phone they wrap to two lines each and nothing is cut off.

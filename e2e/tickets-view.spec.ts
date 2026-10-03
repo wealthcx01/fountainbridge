@@ -418,6 +418,15 @@ test.describe('follow it to the result (FB-184)', () => {
       .toBe('detail-decision');
   });
 
+  test('a preview the studio opened and found down says why, with no link (FB-184)', async ({ page }) => {
+    // ARCA-3's work (#13) has a preview the rig's fixture says is not answering.
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-3');
+    const follow = page.getByTestId('detail-follow');
+    await expect(follow).toContainText('it did not open when the studio checked, because it is not answering');
+    await expect(follow).toHaveAttribute('data-linked', 'false');
+    await expect(follow.locator('a')).toHaveCount(0);
+  });
+
   test('a ticket with nothing to look at says so', async ({ page }) => {
     await page.goto('/venture/arca/tickets?t=arca%2FARCA-6');
     await expect(page.getByTestId('detail-follow')).toHaveText('Nothing to follow yet');

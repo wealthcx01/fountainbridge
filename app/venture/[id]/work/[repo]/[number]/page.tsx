@@ -9,6 +9,7 @@ import { fixtureWorkSource } from '@/lib/work-fixture';
 import { WorkDetail } from '@/components/WorkDetail';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { ageMs } from '@/lib/when';
+import { checkedDoor, checkedPreview } from '@/lib/preview-check';
 
 /**
  * One piece of work, inside the studio (FB-064).
@@ -63,12 +64,21 @@ export default async function WorkPage({
   // founder actually decides on did not.
   const launch = venture.departments.find((d) => d.repo === repo)?.launch ?? null;
 
+  // FB-184: both doors are opened before they are drawn as links. A stored address is a claim: a
+  // preview that was torn down, or that quietly redirects to the live site, gets words, not a button.
+  // Remembered for five minutes per address, and opened in parallel, so this is at most one check
+  // of each per page.
+  const [previewCheck, launchCheck] = await Promise.all([
+    work.previewUrl ? checkedPreview(work.previewUrl) : Promise.resolve(null),
+    launch ? checkedDoor(launch.url) : Promise.resolve(null),
+  ]);
+
   return (
     <>
       <p style={{ fontSize: 'var(--fs-body-sm)' }}>
         <Link href={`/venture/${id}`} data-testid="work-back">← Back to {venture.name}</Link>
       </p>
-      <WorkDetail ventureId={id} work={work} launch={launch} waitingMs={ageMs(work.createdAt)} />
+      <WorkDetail ventureId={id} work={work} launch={launch} waitingMs={ageMs(work.createdAt)} previewCheck={previewCheck} launchCheck={launchCheck} />
     </>
   );
 }

@@ -19,7 +19,7 @@
  */
 
 import type { PrCiStatus } from './attention';
-import { isPreviewAddress } from './preview-check';
+import { isPreviewAddress } from './preview-address';
 
 /** What kind of change this is, from the founder's point of view — not the file extension's. */
 export type ChangeKind = 'description' | 'writing' | 'knowledge' | 'code' | 'settings';

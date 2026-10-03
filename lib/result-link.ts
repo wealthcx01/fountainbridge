@@ -126,3 +126,37 @@ export function sendForTicket(
   const newest = [...mine].sort((a, b) => (b.committedAt ?? '').localeCompare(a.committedAt ?? ''))[0];
   return { href: hrefFor(newest.repo, newest.id), status: newest.status };
 }
+
+/**
+ * Why a checked address is not drawn as a link, in words — or `null` when it opens (FB-184).
+ *
+ * The other places a founder is offered "see it" — the work page, the cross-venture queue and a
+ * surface's door on the desk — use this, so they say the same thing the "Follow it to…" line says
+ * and draw a link on exactly the same condition: the address was opened and it worked.
+ */
+export function whyNoLink(check: PreviewCheck): string | null {
+  switch (check.state) {
+    case 'opens':
+      return null;
+    case 'does-not-open':
+      return `it did not open when the studio checked, because ${check.reason}`;
+    case 'not-checked':
+      return 'it has not been checked yet, so there is no link';
+  }
+}
+
+/** What a screen draws for one checked address: a link, or the reason there is none. */
+export type Offer = { kind: 'link'; href: string } | { kind: 'why'; text: string };
+
+/**
+ * The one decision the work page and the desk's doors make (FB-184): a link only when the address
+ * was opened and it worked, and otherwise the reason in words. `null` when nothing was checked.
+ *
+ * A `why` carries no address at all, so a screen that draws from this cannot link an address the
+ * check did not pass.
+ */
+export function offerFor(check: PreviewCheck | null | undefined): Offer | null {
+  if (!check) return null;
+  if (check.state === 'opens') return { kind: 'link', href: check.url };
+  return { kind: 'why', text: whyNoLink(check) ?? '' };
+}
