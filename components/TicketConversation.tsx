@@ -59,8 +59,10 @@ export function TicketConversation({
     if (r.ok && r.thread) {
       setMessages(r.thread.messages);
       setDraft('');
-      // A message written just now must read as today, not as a date the page's clock has not reached.
-      setClock(Date.now());
+      // A message written just now must read as today, not as a date the page's clock has not
+      // reached. The server stamped it, so its own time moves the clock on; the browser's is not read.
+      const last = Date.parse(r.thread.messages[r.thread.messages.length - 1]?.at ?? '');
+      if (Number.isFinite(last)) setClock((c) => Math.max(c, last));
     } else {
       setError(r.message || 'Could not save that message — please try again.');
     }

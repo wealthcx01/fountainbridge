@@ -112,7 +112,10 @@ export async function appendToThread(
   if (typeof text !== 'string' || !text.trim()) return { ok: false, message: 'Nothing to add.' };
   // A browser can call this directly with any role it likes (a server action is a public endpoint).
   // Only the two roles the record knows are written.
+  // A person signed in to the studio speaks as themselves; only the studio's own tools speak as the
+  // composer. Otherwise a founder's browser could put words in the composer's mouth.
   if (role !== 'founder' && role !== 'composer') return { ok: false, message: 'That is not someone who can speak here.' };
+  if (role === 'composer' && !actor) return { ok: false, message: 'That is not someone who can speak here.' };
 
   const store = defaultThreadStore();
   if (!store.canWrite()) return { ok: false, message: 'Saving conversations is not set up on the studio yet.' };
