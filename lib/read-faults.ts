@@ -43,6 +43,8 @@ export const FAULTABLE = [
   'pipeline',
   // FB-169: whether the team can find every document, read by the Memory screen.
   'braincorpus',
+  // FB-209: the conversation on a ticket, read by the Tickets screen.
+  'threads',
 ] as const;
 
 export type FaultableRead = (typeof FAULTABLE)[number];

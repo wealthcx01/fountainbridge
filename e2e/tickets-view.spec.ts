@@ -432,3 +432,44 @@ test.describe('follow it to the result (FB-184)', () => {
     await expect(page.getByTestId('detail-follow')).toHaveText('Nothing to follow yet');
   });
 });
+
+test.describe('the conversation on a ticket (FB-209)', () => {
+  test.beforeEach(async ({ page }) => {
+    await testLogin(page, 'arca.founder@bruntsfield.capital');
+  });
+
+  test('a note left on a ticket is read on that ticket, above the decision', async ({ page }) => {
+    // ARCA-3's rig thread: a note from the composer, then the founder's answer.
+    await page.goto('/venture/arca/tickets?t=arca%2FARCA-3');
+    const rows = page.getByTestId('conversation-row');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('The composer');
+    await expect(rows.nth(0)).toContainText('cut off at 60 without saying so');
+    await expect(rows.nth(1)).toContainText('You');
+    await expect(rows.nth(1)).toContainText('Show the limit for now.');
+
+    // Above the decision, because it is context for it.
+    const decision = page.getByTestId('detail-decision');
+    await expect(decision).toBeVisible();
+    const said = await page.getByTestId('ticket-conversation').boundingBox();
+    const decide = await decision.boundingBox();
+    expect(said && decide && said.y + said.height <= decide.y).toBe(true);
+    await page.screenshot({ path: `${SHOTS}/21c-ticket-conversation.png`, fullPage: true });
+  });
+
+  test('an empty conversation invites, and what the founder adds lands in it', async ({ page }) => {
+    await page.goto('/venture/arca/tickets?filter=all&t=arca%2FARCA-2');
+    // Not "no comments": what the space is for.
+    await expect(page.getByTestId('conversation-empty')).toContainText('Ask a question');
+    await expect(page.getByTestId('conversation-row')).toHaveCount(0);
+
+    await page.getByTestId('conversation-input').fill('Does this cover searching by set name?');
+    await page.getByTestId('conversation-send').click();
+    await expect(page.getByTestId('conversation-row')).toHaveCount(1);
+    await expect(page.getByTestId('conversation-row').first()).toContainText('Does this cover searching by set name?');
+
+    // And it is the same thread the server holds, not a copy in the page.
+    await page.reload();
+    await expect(page.getByTestId('conversation-row').first()).toContainText('Does this cover searching by set name?');
+  });
+});

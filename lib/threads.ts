@@ -116,3 +116,37 @@ export function parseThread(raw: string | null | undefined): Thread | null {
     updated_at: t.updated_at ?? messages[messages.length - 1]?.at ?? new Date(0).toISOString(),
   };
 }
+
+/**
+ * Who said it, in the words the composer screen already uses (FB-209).
+ *
+ * The same two names as the composer's own turns, so a founder who has used the composer recognises
+ * the conversation on a ticket as the same conversation. A note left through the studio's tools is
+ * stored as the composer's, so it reads as the composer's here: the record does not say more than
+ * that, and this does not guess.
+ */
+export const THREAD_WHO: Record<ThreadRole, string> = {
+  founder: 'You',
+  composer: 'The composer',
+};
+
+export interface ThreadRow {
+  at: string;
+  who: string;
+  mine: boolean;
+  text: string;
+}
+
+/**
+ * The rows a ticket's conversation is drawn as, oldest first (FB-209).
+ *
+ * Oldest first, unlike the studio's records, because this is a conversation: a reply only makes
+ * sense under what it answers. Every message is kept, word for word; nothing is summarised or
+ * folded, because the thread is cited as the source of a revision.
+ */
+export function threadRows(messages: readonly ThreadMessage[]): ThreadRow[] {
+  // `sort` is stable, so two turns written in the same millisecond keep the order they were written in.
+  return [...messages]
+    .sort((a, b) => (Date.parse(a.at) || 0) - (Date.parse(b.at) || 0))
+    .map((m) => ({ at: m.at, who: THREAD_WHO[m.role], mine: m.role === 'founder', text: m.text }));
+}

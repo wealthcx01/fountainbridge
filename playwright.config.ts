@@ -64,6 +64,10 @@ export default defineConfig({
       // FB-169: whether the team can find every document. ARCA's machine cannot find the one filed
       // under library/build/ — the real fault, in miniature. No other venture has a record.
       BRAINCORPUS_FIXTURE_DIR: 'e2e/fixtures/brain-corpus',
+      // FB-209: the conversation on a ticket. ARCA-3 has a note from the composer and the founder's
+      // answer; every other ticket has none. Anything added during a run is kept in the server's
+      // memory and never written to these files.
+      THREADS_FIXTURE_DIR: 'e2e/fixtures/threads',
       // FB-137: which reads to fail on purpose, so the degraded half of every screen can be
       // checked by eye and in CI rather than only when a code host is having a bad day. Empty by
       // default; `e2e/degraded.spec.ts` runs a second server with it set.

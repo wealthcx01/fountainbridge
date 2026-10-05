@@ -34,7 +34,7 @@ vi.mock('@/lib/github', () => ({
 const { POST } = await import('../route');
 const { mintMcpTicket } = await import('@/lib/mcp');
 const { filePlan } = await import('@/app/actions/file-plan');
-const { readThread } = await import('@/app/actions/threads');
+const { readThread, appendToThread } = await import('@/app/actions/threads');
 const { requireVenture, toolActor } = await import('@/lib/venture-access');
 
 const SECRET = 'test-secret-for-the-tools';
@@ -224,7 +224,7 @@ describe('a tool credential for one venture is refused on every other venture', 
   it('refuses to read The Reset’s conversations with an ARCA actor', async () => {
     const r = await readThread('the-reset', 'the-reset', 'RESET-001', toolActor('arca'));
     expect(r.ok).toBe(false);
-    expect(getFileContent).not.toHaveBeenCalled();
+    expect(getFileWithSha).not.toHaveBeenCalled();
   });
 });
 
@@ -330,7 +330,7 @@ describe('an actor sent in a request is not believed', () => {
   it('refuses to read a ticket’s conversation for a forged tool actor', async () => {
     const r = await readThread('arca', 'arca', 'ARCA-001', { email: 'studio-tools@arca', scopedTo: 'arca' });
     expect(r.ok).toBe(false);
-    expect(getFileContent).not.toHaveBeenCalled();
+    expect(getFileWithSha).not.toHaveBeenCalled();
   });
 
   it('still lets a signed-in founder file with no actor at all', async () => {
@@ -338,5 +338,61 @@ describe('an actor sent in a request is not believed', () => {
     const r = await filePlan('arca', 'arca', plan(), 1);
     expect(r.ok, r.message).toBe(true);
     expect(written()).toHaveLength(1);
+  });
+});
+
+describe('a note left through the tools is read on the ticket, and the founder can answer it (FB-209)', () => {
+  /**
+   * A state ref that behaves like GitHub's: a file has a version, saving over an existing file
+   * without naming that version is refused, and saving gives the file a new version.
+   */
+  function wireStateRef() {
+    const files = new Map<string, { text: string; sha: string }>();
+    let n = 0;
+    getFileWithSha.mockImplementation(async (_repo: string, path: string) => files.get(path) ?? null);
+    putFile.mockImplementation(async (_repo: string, path: string, p: { content: string; sha?: string }) => {
+      const held = files.get(path);
+      if (held && p.sha !== held.sha) throw new Error('409: sha does not match');
+      const sha = `v${++n}`;
+      files.set(path, { text: p.content, sha });
+      return sha;
+    });
+    return files;
+  }
+
+  it('saves a note from comment_on_ticket with nobody signed in', async () => {
+    // The tool's actor passed the first check and was dropped before the second, so every note
+    // was refused as "You need to sign in".
+    wireStateRef();
+    const r = await call('comment_on_ticket', { repo: 'arca', id: 'ARCA-001', note: 'The setup step is missing a step.' });
+    expect(r.isError, r.text).toBe(false);
+    expect(putFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows that note to the founder, and saves the founder’s answer into the same thread', async () => {
+    const files = wireStateRef();
+    await call('comment_on_ticket', { repo: 'arca', id: 'ARCA-001', note: 'The setup step is missing a step.' });
+
+    // The founder opens the ticket in the studio.
+    auth.mockResolvedValue({ user: { email: VENTURE.founderEmail } });
+    const read = await readThread('arca', 'arca', 'ARCA-001');
+    expect(read.ok, read.message).toBe(true);
+    expect(read.thread?.messages.map((m) => [m.role, m.text])).toEqual([['composer', 'The setup step is missing a step.']]);
+
+    // And answers. The file exists now, so this save has to name the version it read.
+    const answer = await appendToThread('arca', 'arca', 'ARCA-001', 'founder', 'Which step?');
+    expect(answer.ok, answer.message).toBe(true);
+    const stored = JSON.parse(files.get('threads/arca/ARCA-001.json')!.text);
+    expect(stored.messages.map((m: { role: string; text: string }) => [m.role, m.text])).toEqual([
+      ['composer', 'The setup step is missing a step.'],
+      ['founder', 'Which step?'],
+    ]);
+  });
+
+  it('refuses a role the record does not know, from a browser that sent one', async () => {
+    auth.mockResolvedValue({ user: { email: VENTURE.founderEmail } });
+    const r = await appendToThread('arca', 'arca', 'ARCA-001', 'admin' as never, 'hello');
+    expect(r.ok).toBe(false);
+    expect(putFile).not.toHaveBeenCalled();
   });
 });

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
-  appendMessage, emptyThread, isSafeTicketId, parseThread, threadPath, THREADS_REF,
+  appendMessage, emptyThread, isSafeTicketId, parseThread, threadPath, threadRows, THREADS_REF,
   type Thread,
 } from '../threads';
 
@@ -122,5 +122,26 @@ describe('what may become a path', () => {
   it('keeps two repos in one venture apart', () => {
     // Two repos may share an id namespace, so the repo is part of the path or one overwrites the other.
     expect(threadPath('arca', 'X-1')).not.toBe(threadPath('arca-marketing', 'X-1'));
+  });
+});
+
+describe('the rows a ticket’s conversation is drawn as (FB-209)', () => {
+  it('names who said it in the composer’s own words, and keeps every word', () => {
+    const rows = threadRows([
+      { at: t0, role: 'composer', text: 'The setup step is missing a step.' },
+      { at: '2026-08-28T09:05:00.000Z', role: 'founder', text: 'Which step?' },
+    ]);
+    expect(rows).toEqual([
+      { at: t0, who: 'The composer', mine: false, text: 'The setup step is missing a step.' },
+      { at: '2026-08-28T09:05:00.000Z', who: 'You', mine: true, text: 'Which step?' },
+    ]);
+  });
+
+  it('puts an answer under what it answers, even when the file holds them out of order', () => {
+    const rows = threadRows([
+      { at: '2026-08-28T09:05:00.000Z', role: 'founder', text: 'second' },
+      { at: t0, role: 'composer', text: 'first' },
+    ]);
+    expect(rows.map((r) => r.text)).toEqual(['first', 'second']);
   });
 });

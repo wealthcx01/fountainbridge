@@ -1,0 +1,18 @@
+{
+  "venture_id": "arca",
+  "repo": "arca",
+  "ticket_id": "ARCA-3",
+  "messages": [
+    {
+      "at": "2026-07-21T09:12:00.000Z",
+      "role": "composer",
+      "text": "The export works for a deck of up to 60 cards. A bigger deck is cut off at 60 without saying so. Worth deciding whether that is a limit to show, or a bug to fix first."
+    },
+    {
+      "at": "2026-07-21T10:03:00.000Z",
+      "role": "founder",
+      "text": "Show the limit for now. Nobody plays with more than 60."
+    }
+  ],
+  "updated_at": "2026-07-21T10:03:00.000Z"
+}

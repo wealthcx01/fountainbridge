@@ -29,6 +29,8 @@ import { followLine, sendForTicket } from '@/lib/result-link';
 import { FollowIt } from '@/components/FollowIt';
 import { loadTrail } from '@/lib/trail-load';
 import { studioNow } from '@/lib/when';
+import { readThread } from '@/app/actions/threads';
+import { TicketConversation } from '@/components/TicketConversation';
 
 /**
  * Tickets (FB-129) — the list, the ticket, and the decision, on one screen.
@@ -261,6 +263,16 @@ export default async function TicketsPage({
           </Suspense>
         ) : null
       }
+      // FB-209: what has been said about this ticket. Streamed like the two above — one small read,
+      // and the ticket must not wait on it. Only for a row with a ticket file: a conversation is
+      // kept against a ticket id, and work tied to no ticket has none.
+      conversation={
+        selected?.item ? (
+          <Suspense fallback={<ConversationPending />}>
+            <ConversationFor ventureId={venture.id} row={selected} />
+          </Suspense>
+        ) : null
+      }
       refs={Object.fromEntries(refs)}
       filedBranches={Object.fromEntries(filedBranch)}
       org={process.env.GITHUB_ORG ?? 'wealthcx01'}
@@ -390,6 +402,39 @@ function TrailPending() {
       <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
         Reading what happened to this one…
       </p>
+    </section>
+  );
+}
+
+/**
+ * The selected ticket's conversation, read on the server (FB-209).
+ *
+ * `readThread` checks, again and for itself, that the person signed in may see this venture and that
+ * the ticket's repository is one of the venture's own (CLAUDE.md #6). The page has already refused an
+ * outsider by then; the second check is there so this read is safe whoever calls it.
+ */
+async function ConversationFor({ ventureId, row }: { ventureId: string; row: TicketRow }) {
+  const read = await readThread(ventureId, row.repo, row.id);
+  return (
+    <TicketConversation
+      ventureId={ventureId}
+      repo={row.repo}
+      ticketId={row.id}
+      start={read.ok && read.thread ? { ok: true, messages: read.thread.messages } : { ok: false, message: read.message }}
+      now={studioNow()}
+    />
+  );
+}
+
+/** A named state while the conversation is read, for the same reason as `TrailPending`. */
+function ConversationPending() {
+  return (
+    <section
+      data-testid="conversation-pending"
+      style={{ marginTop: '1.25rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}
+    >
+      <p className="eyebrow" style={{ marginTop: 0 }}>The conversation</p>
+      <p className="muted" style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>Reading what has been said…</p>
     </section>
   );
 }

@@ -49,6 +49,7 @@ export function TicketsView({
   opened = false,
   trail = null,
   follow = null,
+  conversation = null,
   refs,
   filedBranches = {},
   org,
@@ -97,6 +98,11 @@ export function TicketsView({
    * reason as `trail`: it opens the preview before it links to it, and that must not hold up the page.
    */
   follow?: ReactNode;
+  /**
+   * The selected ticket's conversation (FB-209), as a node for the same reason as `trail`: the
+   * server reads it, checking this person may see this venture, and it streams in behind the ticket.
+   */
+  conversation?: ReactNode;
   /** Each repo's default ref, so the "written down" link points at the branch the file is on. */
   refs: Record<string, string>;
   /**
@@ -315,6 +321,7 @@ export function TicketsView({
               onSelectId={(id) => go(filter, `${selected.repo}/${id}`)}
               trail={trail}
               follow={follow}
+              conversation={conversation}
               outcome={outcome?.id === rowKey(selected) ? outcome : null}
               next={next && rowKey(next) !== rowKey(selected) ? next : null}
               onDecided={(kind, message) => {
@@ -335,11 +342,12 @@ export function TicketsView({
 }
 
 function Detail({
-  row, ventureId, org, gitRef, position, knownIds, onSelectId, trail, follow, outcome, next, onDecided, onNext,
+  row, ventureId, org, gitRef, position, knownIds, onSelectId, trail, follow, conversation, outcome, next, onDecided, onNext,
 }: {
   row: TicketRow;
   trail: ReactNode;
   follow: ReactNode;
+  conversation: ReactNode;
   ventureId: string;
   org: string;
   gitRef: string;
@@ -471,6 +479,10 @@ function Detail({
           )}
         </p>
       ) : null}
+
+      {/* FB-209: what has been said about this ticket, above the decision, because it is context
+          for the decision. Below the ticket and its links, because it is about them. */}
+      {conversation}
 
       {/* FB-184: where to see the result, directly above "Your decision" (R-04). Before the decision
           rather than after it, because "can I see it?" is what a founder asks before saying yes. */}

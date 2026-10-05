@@ -128,14 +128,12 @@ export function trailSources(venture: VentureSummary, already: AlreadyRead): Tra
     async thread(): Promise<TrailInputs['thread']> {
       // Nothing yet.
       //
-      // `buildTrail` renders this hop and it is tested, but the studio has no surface that shows a
-      // stored conversation — `readThread` has no caller outside its own tests, and
-      // `/composer?about=` seeds a fresh box rather than opening the thread. So "this conversation
-      // is its source · read it →" would deliver an empty composer, which is the dead link the
-      // trail's whole claim forbids.
-      //
-      // Nothing writes thread files either, so reading one per ticket selection was a guaranteed
-      // 404 for a hop that could never appear. Wired when FB-144 gives a conversation a door.
+      // `buildTrail` renders this hop and it is tested. Since FB-209 the ticket itself shows its
+      // conversation, just above the decision, so the conversation is already on the page this hop
+      // would link from. The hop's link still goes to `/composer?about=`, which seeds a fresh box
+      // rather than opening the thread, so "this conversation is its source · read it →" would
+      // deliver an empty composer — the dead link the trail's whole claim forbids. Wired when
+      // FB-144 makes a conversation the source of a revision.
       return null;
     },
   };

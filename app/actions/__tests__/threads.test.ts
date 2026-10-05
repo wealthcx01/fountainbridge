@@ -10,14 +10,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const auth = vi.fn();
 const loadVentures = vi.fn();
-const getFileContent = vi.fn();
 const putFile = vi.fn();
+const getFileWithSha = vi.fn();
 
 vi.mock('@/auth', () => ({ auth: () => auth() }));
 vi.mock('@/lib/ventures', () => ({ loadVentures: () => loadVentures() }));
 vi.mock('@/lib/github', () => ({
   GitHubClient: class {
-    getFileContent = getFileContent;
+    getFileWithSha = getFileWithSha;
     putFile = putFile;
   },
 }));
@@ -38,7 +38,7 @@ beforeEach(() => {
   process.env.STUDIO_ADMIN_EMAILS = 'john.gallagher@wealthcx.com';
   auth.mockResolvedValue({ user: { email: VENTURE.founderEmail } });
   loadVentures.mockReturnValue([VENTURE]);
-  getFileContent.mockResolvedValue(null);
+  getFileWithSha.mockResolvedValue(null);
   putFile.mockResolvedValue(undefined);
 });
 afterEach(() => {
@@ -85,14 +85,14 @@ describe('who may reach a conversation', () => {
 describe('what a founder is told when it does not work', () => {
   it('a failed read is not shown as an empty conversation', async () => {
     // The dangerous one: showing an empty thread would tell a founder their conversation is gone.
-    getFileContent.mockRejectedValue(new Error('502'));
+    getFileWithSha.mockRejectedValue(new Error('502'));
     const r = await readThread('arca', 'arca', 'ARCA-068');
     expect(r.ok).toBe(false);
     expect(r.thread).toBeUndefined();
   });
 
   it('a stored-but-unreadable thread is reported, not written over', async () => {
-    getFileContent.mockResolvedValue('{ not json');
+    getFileWithSha.mockResolvedValue({ text: '{ not json', sha: 's1' });
     const r = await readThread('arca', 'arca', 'ARCA-068');
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/could not be read/i);

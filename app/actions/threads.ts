@@ -19,16 +19,13 @@
  * ticket, and tells no lane to do anything.
  */
 
-import { GitHubClient } from '@/lib/github';
 import { requireVentureRepo, type Actor } from '@/lib/venture-access';
-import { fullRepoName } from '@/lib/venture-repos';
+import { defaultThreadStore } from '@/lib/thread-store';
 import {
-  THREADS_REF,
   appendMessage,
   emptyThread,
   isSafeTicketId,
   parseThread,
-  threadPath,
   type Thread,
   type ThreadRole,
 } from '@/lib/threads';
@@ -48,24 +45,27 @@ async function guard(ventureId: string, repo: string, ticketId: string, actor?: 
   return access.ok ? { venture: access.venture, email: access.email } : { error: access.error };
 }
 
-/** The thread for a ticket, or an empty one. Never null: a conversation nobody has started is a real state. */
-export async function readThread(
-  ventureId: string, repo: string, ticketId: string, actor?: Actor,
-): Promise<ThreadResult> {
-  const g = await guard(ventureId, repo, ticketId, actor);
-  if ("error" in g && g.error) return { ok: false, message: g.error };
+type Loaded = { ok: true; thread: Thread; sha?: string } | { ok: false; message: string };
 
-  const client = new GitHubClient();
-  let raw: string | null = null;
+/**
+ * The stored thread and the version it was read at, AFTER the guard has passed.
+ *
+ * Shared by both actions so that appending does not go back through `readThread`. It used to, and
+ * dropped the caller's actor on the way: a note from the studio's tools passed the first check as
+ * the tool, then hit the second as nobody signed in, and was refused. No note left through
+ * `comment_on_ticket` had ever saved (FB-209).
+ */
+async function load(ventureId: string, repo: string, ticketId: string): Promise<Loaded> {
+  let stored: { text: string; sha?: string } | null;
   try {
-    raw = await client.getFileContent(fullRepoName(repo), threadPath(repo, ticketId), THREADS_REF);
+    stored = await defaultThreadStore().read(repo, ticketId);
   } catch {
     // A read that failed is not an empty conversation, and must not be shown as one.
     return { ok: false, message: 'Could not read this conversation — please try again.' };
   }
 
-  const parsed = parseThread(raw);
-  if (raw && !parsed) {
+  const parsed = parseThread(stored?.text);
+  if (stored && !parsed) {
     // Stored but unreadable. Said out loud rather than silently starting a new thread over the top of
     // a founder's own words.
     console.error('[threads] stored thread did not parse', { ventureId, repo, ticketId });
@@ -74,17 +74,29 @@ export async function readThread(
 
   return {
     ok: true,
-    message: '',
     thread: parsed ?? emptyThread(ventureId, repo, ticketId, new Date().toISOString()),
+    sha: stored?.sha,
   };
+}
+
+/** The thread for a ticket, or an empty one. Never null: a conversation nobody has started is a real state. */
+export async function readThread(
+  ventureId: string, repo: string, ticketId: string, actor?: Actor,
+): Promise<ThreadResult> {
+  const g = await guard(ventureId, repo, ticketId, actor);
+  if ("error" in g && g.error) return { ok: false, message: g.error };
+
+  const loaded = await load(ventureId, repo, ticketId);
+  return loaded.ok ? { ok: true, message: '', thread: loaded.thread } : { ok: false, message: loaded.message };
 }
 
 /**
  * Add one turn.
  *
- * Read-modify-write against the ref. Two founders in one venture typing about one ticket at the same
- * moment is not a thing yet, and if it becomes one the last write wins — which loses a message rather
- * than corrupting a thread. Said here rather than discovered later.
+ * Read-modify-write against the ref. Two people in one venture typing about one ticket at the same
+ * moment is not a thing yet. If it happens, the second save names a version that is no longer the
+ * latest, is refused, and that person is told their message did not save — so a message can be
+ * refused, but one already saved is never written over.
  */
 export async function appendToThread(
   ventureId: string,
@@ -97,25 +109,23 @@ export async function appendToThread(
 ): Promise<ThreadResult> {
   const g = await guard(ventureId, repo, ticketId, actor);
   if ("error" in g && g.error) return { ok: false, message: g.error };
-  if (!text.trim()) return { ok: false, message: 'Nothing to add.' };
+  if (typeof text !== 'string' || !text.trim()) return { ok: false, message: 'Nothing to add.' };
+  // A browser can call this directly with any role it likes (a server action is a public endpoint).
+  // Only the two roles the record knows are written.
+  if (role !== 'founder' && role !== 'composer') return { ok: false, message: 'That is not someone who can speak here.' };
 
-  const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
-  if (!writeToken) return { ok: false, message: 'Saving conversations is not set up on the studio yet.' };
+  const store = defaultThreadStore();
+  if (!store.canWrite()) return { ok: false, message: 'Saving conversations is not set up on the studio yet.' };
 
-  const existing = await readThread(ventureId, repo, ticketId);
-  if (!existing.ok || !existing.thread) return existing;
+  const existing = await load(ventureId, repo, ticketId);
+  if (!existing.ok) return { ok: false, message: existing.message };
 
   const at = new Date().toISOString();
   const next = appendMessage(existing.thread, { at, role, text });
   if (next === existing.thread) return { ok: true, message: '', thread: next }; // empty or duplicate turn
 
-  const writer = new GitHubClient({ token: writeToken });
   try {
-    await writer.putFile(fullRepoName(repo), threadPath(repo, ticketId), {
-      content: JSON.stringify(next, null, 2),
-      message: `thread: ${ticketId} (${role})`,
-      branch: THREADS_REF,
-    });
+    await store.write(repo, ticketId, JSON.stringify(next, null, 2), `thread: ${ticketId} (${role})`, existing.sha);
   } catch (err) {
     // Surfaced, not swallowed: a founder whose message did not save must not be shown a thread that
     // says it did. CLAUDE.md #10.
