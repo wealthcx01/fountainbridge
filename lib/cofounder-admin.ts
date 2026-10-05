@@ -66,7 +66,7 @@ export async function releaseVenture(deps: CofounderDeps, email: string | null, 
   const mem = await loadMemory(deps, venture);
   if (mem.unreadable) return { ok: false, message: 'Its memory file could not be read, so nothing was changed.' };
   if (!mem.memory.latch) return { ok: true, message: `It was not holding back on ${venture.name}.` };
-  const next: CofounderMemory = { ...releaseLatch(mem.memory), lastOutcome: `Released by ${email}. ${mem.memory.lastOutcome ?? ''}`.trim() };
+  const next: CofounderMemory = { ...mem.memory, lastOutcome: `Released by ${email}. ${mem.memory.lastOutcome ?? ''}`.trim() };
   await deps.writeMemory(venture, renderMemory(next), mem.sha, `cofounder: ${venture.id} released by a person`);
   return { ok: true, message: `Released. It will look at ${venture.name} again at its next wake.` };
 }
