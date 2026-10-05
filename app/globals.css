@@ -1719,3 +1719,34 @@ body:has(.rail) .main {
   color: var(--color-ink);
 }
 .budget-input:focus { outline: none; border-color: var(--color-accent); }
+
+/* FB-201: the studio's cofounder (/admin/cofounder). The same cards as the budgets page, with the
+ * dial inside each one: grouped checkboxes and small number boxes that wrap on a phone. */
+.cofounder-intro { font-size: var(--fs-body-sm); max-width: var(--content-narrow); }
+.cofounder-intro p { margin: 0 0 0.6rem; }
+.cofounder-stop { margin-top: 1rem; }
+.cofounder-form { display: grid; gap: 0.6rem; margin-top: 0.5rem; font-size: var(--fs-body-sm); }
+.cofounder-group {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 0;
+  padding: 0.6rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.cofounder-group legend { font-size: var(--fs-meta); color: var(--color-ink-muted); padding: 0; }
+.cofounder-check { display: flex; gap: 0.5rem; align-items: center; }
+.cofounder-field { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.cofounder-num, .cofounder-field select {
+  width: 4.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-paper-raised);
+  padding: 0.3rem 0.5rem;
+  font-family: inherit;
+  font-size: var(--fs-body-sm);
+  color: var(--color-ink);
+}
+.cofounder-field select { width: auto; }
+.cofounder-action { display: inline-grid; gap: 0.2rem; }
+.cofounder-look { border-top: 1px solid var(--color-border); margin-top: 0.75rem; padding-top: 0.6rem; }
