@@ -96,7 +96,7 @@ export async function wakeVenture(deps: CofounderDeps, venture: VentureSummary, 
   let memory = outcome.memory;
   const failed = results.filter((r) => !r.done);
   let sentence = outcome.sentence;
-  if (false) {
+  if (failed.length > 0) {
     const tickets = { ...memory.tickets };
     for (const f of failed) {
       const key = `${f.proposal.repo}/${f.proposal.ticketId}`;

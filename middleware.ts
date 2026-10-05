@@ -62,6 +62,10 @@ export const config = {
     // lane, a ticket machine and the clean-up timer call them, none with a session. Each route checks
     // its own key first — the venture's lane key, the run's token, or the reap key — and answers 401
     // otherwise (`lib/machine-service.ts`). Anchored to the whole segment.
-    '/((?!api/auth/|api/mcp$|api/health$|api/push/check$|api/machines$|api/machines/|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
+    //
+    // FB-201: `api/cofounder` is excluded for the same reason. The cofounder's timer calls it with the
+    // wake key and no session; the route checks that key before reading anything and answers 401
+    // otherwise (`lib/cofounder-service.ts`). Anchored.
+    '/((?!api/auth/|api/mcp$|api/health$|api/push/check$|api/machines$|api/machines/|api/cofounder$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
   ],
 };
