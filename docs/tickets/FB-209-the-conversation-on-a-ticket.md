@@ -1,6 +1,6 @@
 # FB-209 — the conversation on a ticket has nowhere to be read
 
-**Status:** filed · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-05) ·
+**Status:** Done · **Phase:** 3 · **Raised by:** Claude Design, 2026-09-08 (R-05) ·
 **Branch:** `fb-209-the-conversation-on-a-ticket` · One ticket = one branch = one PR.
 
 
@@ -41,7 +41,7 @@ non-negotiable 10 exists for: work happened and nothing surfaced it.
 
 ## Acceptance criteria
 
-- [ ] A comment written by `comment_on_ticket` is readable on that ticket in the studio.
-- [ ] A founder can add one from the ticket, and it lands in the same thread.
-- [ ] An empty thread reads as an invitation, not as an error.
-- [ ] The thread is above the decision, because it is context for it.
+- [x] A comment written by `comment_on_ticket` is readable on that ticket in the studio.
+- [x] A founder can add one from the ticket, and it lands in the same thread.
+- [x] An empty thread reads as an invitation, not as an error.
+- [x] The thread is above the decision, because it is context for it.

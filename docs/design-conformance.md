@@ -1072,3 +1072,32 @@ link, "changes on the VM ↗", is not in the studio; it needs the commit count F
 The work page for #13 shows "Open the terminal ↗" and, under it, "The preview of this change: it did
 not open when the studio checked, because it is not answering." With every check failing, both are
 sentences and there is no button; on a phone they wrap to two lines each and nothing is cut off.
+
+## FB-209 — the conversation on a ticket, 2026-10-05
+
+**What was compared.** The Claude Design artifact, opened from its saved page in a headless browser
+(the claude.ai address itself answers "Page not found" to a browser that is not signed in), signed in
+through "Continue with Google", Tickets screen, at both sizes. The studio side is a local build of
+this branch on the UI gate's fixtures, signed in as ARCA's founder. **It is not production**: this
+session cannot sign in to production, so the conversation has not been seen at ARCA's real size.
+
+**The design has no conversation on a ticket.** Its ticket detail goes straight from "see where this
+is written down" to "Your decision". FB-209 was raised by Claude Design as a gap (R-05), so there is
+no drawing to match. The studio puts the conversation exactly where the ticket says: under the
+ticket and its links, above "Your decision". Each turn is one row, the studio's usual shape: who said
+it and the day in small capitals ("THE COMPOSER · YESTERDAY", "YOU · YESTERDAY"), then the words.
+Then one text box and one button, "Add to the conversation", with "This starts no work and tells
+nobody." beside it. An empty ticket says "Nothing has been said about this ticket yet. Ask a
+question, or write down what should change, and it is kept here with the ticket, word for word."
+
+Heights. Design Tickets screen: **1,090px** at 1440×1000. At 393×851 the design's Tickets screen is
+**4,787px**, because the design does not lay this screen out for a phone; that number is not a
+target. Studio, ARCA-3 (two turns in the conversation): **1,431px** and **2,163px**. Studio, ARCA-2
+with an empty conversation, on the All tab: **1,595px** at 1440×1000. The conversation with two turns
+adds about 370px on a computer and 430px on a phone; empty, about 200px. Nothing scrolls sideways at
+either size.
+
+Looked at. On a computer the two rows read clearly, the composer's name in the accent green and the
+founder's in grey. The decision now starts about 940px down, just past the first screen. On a phone the rows
+wrap cleanly, the box takes the full width, and the button sits on its own line with the quiet
+sentence under it. After adding a message and reloading, it is still there.

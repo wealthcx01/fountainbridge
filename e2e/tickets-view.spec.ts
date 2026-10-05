@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { testLogin } from './helpers';
+import { inTopDownOrder, testLogin } from './helpers';
 
 /**
  * Tickets: master-detail, and deciding without leaving (FB-129).
@@ -449,11 +449,11 @@ test.describe('the conversation on a ticket (FB-209)', () => {
     await expect(rows.nth(1)).toContainText('Show the limit for now.');
 
     // Above the decision, because it is context for it.
-    const decision = page.getByTestId('detail-decision');
-    await expect(decision).toBeVisible();
-    const said = await page.getByTestId('ticket-conversation').boundingBox();
-    const decide = await decision.boundingBox();
-    expect(said && decide && said.y + said.height <= decide.y).toBe(true);
+    await inTopDownOrder([
+      ['the ticket', page.getByTestId('detail-title')],
+      ['the conversation', page.getByTestId('ticket-conversation')],
+      ['the decision', page.getByTestId('detail-decision')],
+    ]);
     await page.screenshot({ path: `${SHOTS}/21c-ticket-conversation.png`, fullPage: true });
   });
 

@@ -132,6 +132,8 @@ export const THREAD_WHO: Record<ThreadRole, string> = {
 
 export interface ThreadRow {
   at: string;
+  /** The day it was said, in the studio's usual words ("Yesterday", "Monday", "21 July"). */
+  when: string | null;
   who: string;
   mine: boolean;
   text: string;
@@ -143,10 +145,13 @@ export interface ThreadRow {
  * Oldest first, unlike the studio's records, because this is a conversation: a reply only makes
  * sense under what it answers. Every message is kept, word for word; nothing is summarised or
  * folded, because the thread is cited as the source of a revision.
+ *
+ * Worked out on the server, day labels included, and handed to the browser finished: the browser
+ * never reads the clock for itself (FB-241).
  */
-export function threadRows(messages: readonly ThreadMessage[]): ThreadRow[] {
+export function threadRows(messages: readonly ThreadMessage[], now: number): ThreadRow[] {
   // `sort` is stable, so two turns written in the same millisecond keep the order they were written in.
   return [...messages]
     .sort((a, b) => (Date.parse(a.at) || 0) - (Date.parse(b.at) || 0))
-    .map((m) => ({ at: m.at, who: THREAD_WHO[m.role], mine: m.role === 'founder', text: m.text }));
+    .map((m) => ({ at: m.at, when: relativeDay(m.at, now), who: THREAD_WHO[m.role], mine: m.role === 'founder', text: m.text }));
 }
