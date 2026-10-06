@@ -89,6 +89,31 @@ Where the plan and a ticket disagree, the ticket's **scope** section wins for wh
 - **Branding:** grassmarket / main Bruntsfield site design tokens — **do not invent a theme**; pull the existing tokens.
 - **CI:** lint + typecheck + test, plus a Playwright UI-gate (screenshot gallery per PR) once the app exists — mirroring the portfolio-wide CI pattern.
 
+## Checks
+
+The commands the factory's house workflow (`bruntsfield-ticket`) runs, in this order,
+from the repo root, before anything is pushed. One command per line. Keep this list
+true: the workflow runs exactly these and never guesses.
+
+```bash
+npm ci --no-audit --no-fund
+npm run lint
+npm run typecheck
+npm test
+make validate-manifests
+make parse-tickets
+AUTH_SECRET=build-time-placeholder-not-a-real-secret AUTH_TRUST_HOST=true npm run build
+make activegraph-test
+FB171_REQUIRE_ACTIVEGRAPH=1 npx vitest run deploy/executor/__tests__/executor-activegraph.e2e.test.mjs
+make design-lint
+make copy-lint
+make ticket-drift
+```
+
+Left out: the Playwright UI gate (`npm run test:e2e`, `test:e2e:degraded`, `test:e2e:scale`),
+because Chromium can't run on the planning box; and `make provision-lint`, because shellcheck is not
+installed there. CI still runs both. The build line uses the same throwaway `AUTH_SECRET` as CI.
+
 ## Architecture spine
 
 - **Git is the source of truth for work items.** The studio renders `docs/tickets/` from venture repos via the GitHub API. The dashboard is a view + write-path onto git, never a competing store.
