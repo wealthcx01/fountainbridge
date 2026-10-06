@@ -68,6 +68,33 @@ jobs:
             echo "No app yet — tests are a no-op until FB-005 adds the Next.js app."
           fi
 
+  e2e:
+    name: E2E + UI gate (Playwright)
+    runs-on: ubuntu-latest
+    # Studio arrives in FB-005; run the auth-scoping specs + capture the screenshot gallery only
+    # once the app (package.json) exists. Gallery uploaded as an artifact for PR review.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: E2E
+        run: |
+          if [ -f package.json ]; then
+            npm ci --no-audit --no-fund
+            npx playwright install --with-deps chromium
+            npm run e2e
+          else
+            echo "No app yet — E2E is a no-op until FB-005 adds the Next.js app."
+          fi
+      - name: Upload UI-gate gallery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-gate-gallery
+          path: e2e/__screenshots__/
+          if-no-files-found: ignore
+
   manifests:
     name: Validate manifests
     runs-on: ubuntu-latest

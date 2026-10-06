@@ -1,0 +1,36 @@
+{
+  "name": "fountainbridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foundry Studio — the fountainbridge vertical of Holy Corner (FB-005 studio shell).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "next": "15.5.20",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.2.0",
+    "@playwright/test": "^1.61.1",
+    "@testing-library/react": "16.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "22.13.0",
+    "@types/react": "19.1.0",
+    "@types/react-dom": "19.1.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "eslint": "9.18.0",
+    "eslint-config-next": "15.5.20",
+    "jsdom": "26.0.0",
+    "typescript": "5.7.3",
+    "vitest": "3.0.5"
+  }
+}
