@@ -187,3 +187,5 @@ Note that `/sync-gbrain`'s own orchestrator does not fix any of the three faults
 ## Current state
 
 Phase 0. FB-001 (this scaffold) in progress. Next in this lane after FB-001 merges: **FB-003** (FB-002 runs in parallel in the bcap-contracts lane). Ask before deviating from the dependency order.
+
+**Factory log:** when you start a ticket, open its PR, or come back after a crash, run `factory-log firm ticket.started|pr.opened|lane.recovered fountainbridge <ticket-id> [note]` (e.g. `factory-log firm ticket.started fountainbridge FB-270`); the manual is OPS.md in wealthcx01/cowgate.
