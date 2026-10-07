@@ -1,6 +1,6 @@
 # FB-172 — the graph, on screen
 
-**Status:** Open · **Phase:** 3 · **Depends on:** FB-171 · **Raised by:** John, 2026-09-02
+**Status:** Closed for now — it needs FB-171's switch to real ActiveGraph, which is built but off. Reopen when that is on and a founder asks for the view. Closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`). Was: Open · **Phase:** 3 · **Depends on:** FB-171 · **Raised by:** John, 2026-09-02
 
 ## Why
 

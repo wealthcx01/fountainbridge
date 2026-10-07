@@ -1,5 +1,7 @@
 # FB-002 — Extend bcap-contracts with Foundry Studio entities
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the studio types are in bcap-contracts 0.1.0, vendored and validated by `make validate-manifests`.
+
 **Phase:** 0 · **Depends on:** — (parallel with FB-001) · **Repo:** bcap-contracts
 **Branch:** `fb-002-fountainbridge-entities` · One ticket = one branch = one PR.
 

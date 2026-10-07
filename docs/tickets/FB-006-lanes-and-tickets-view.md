@@ -1,5 +1,7 @@
 # FB-006 — Venture lanes & tickets view (read-only)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — it became the Tickets screen.
+
 **Phase:** 1 · **Depends on:** FB-003, FB-004, FB-005 · **Repo:** fountainbridge
 **Branch:** `fb-006-lanes-tickets-view` · One ticket = one branch = one PR.
 

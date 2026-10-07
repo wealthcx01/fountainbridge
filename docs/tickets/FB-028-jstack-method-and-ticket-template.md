@@ -1,5 +1,7 @@
 # FB-028 — Bruntsfield Method (jstack) doc + plain-language ticket template
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the method is `docs/jstack-bruntsfield-method.md`; the template's job is done by the `write-ticket` skill and Cowgate's plain-English check on every plan.
+
 **Phase:** 1 · **Depends on:** — · **Repo:** fountainbridge
 **Branch:** `fb-028-jstack-method-and-ticket-template` · One ticket = one branch = one PR.
 

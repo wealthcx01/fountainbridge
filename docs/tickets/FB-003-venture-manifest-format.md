@@ -1,5 +1,7 @@
 # FB-003 — Venture manifest format + ARCA and the-reset manifests
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — `ventures/arca.yaml` (active) and `ventures/the-reset.yaml` (draft) exist and validate.
+
 **Phase:** 0 · **Depends on:** FB-001, FB-002 · **Repo:** fountainbridge
 **Branch:** `fb-003-venture-manifest` · One ticket = one branch = one PR.
 

@@ -1,5 +1,7 @@
 # FB-021 — Fix repo access: venture boards render empty ("repository not found")
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — venture boards show their tickets.
+
 **Phase:** 1 · **Depends on:** FB-020 · **Repo:** fountainbridge
 **Branch:** `fb-021-fix-repo-access-boards-empty` · One ticket = one branch = one PR.
 

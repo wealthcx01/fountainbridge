@@ -1,5 +1,7 @@
 # FB-020 — GitHub App authentication for repo reads
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — `lib/github.ts` reads with a token or the GitHub App.
+
 **Phase:** 1 · **Depends on:** FB-005 · **Repo:** fountainbridge
 **Branch:** `fb-020-github-app-auth` · One ticket = one branch = one PR.
 

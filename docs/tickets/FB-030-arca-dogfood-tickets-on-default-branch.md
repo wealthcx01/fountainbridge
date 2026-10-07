@@ -1,5 +1,7 @@
 # FB-030 — Merge ARCA's seeded ticket backlog to the default branch (dogfood)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the studio shows ARCA's tickets from its main branch.
+
 **Phase:** 1 · **Depends on:** FB-021 (fix repo access) · **Repo:** `wealthcx01/arca` (ticket
 tracked from fountainbridge) · **Branch:** `fb-030-arca-dogfood-tickets-on-default-branch`
 One ticket = one branch = one PR.

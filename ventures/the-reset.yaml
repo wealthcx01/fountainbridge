@@ -1,4 +1,5 @@
-# THE RESET — launch venture (Decision D5: in the studio from Phase 1 v0).
+# THE RESET — launch venture (Decision D5). PARKED since 2026-10-07 until ARCA runs cleanly on the
+# new setup; it then starts fresh on the new system (FB-010). Kept as `draft`: it never launched.
 # Validates against bcap-contracts 0.1.0 `Venture` (schema/Venture.schema.json).
 #
 # `founder` is the venture's PRODUCT founder (Ross). Bruntsfield's authority (John) is expressed

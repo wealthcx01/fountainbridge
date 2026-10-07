@@ -1,6 +1,21 @@
 # FB-201 — a cofounder that notices, and the dial you turn it with
 
-**Status:** Open · **Phase:** 3 · **Raised by:** John, 2026-09-07
+**Status:** Todo · **Phase:** 3 · **Raised by:** John, 2026-09-07 · **Rewritten** 2026-10-07 by the
+October re-baseline (`docs/status/2026-10-re-baseline.md`) · **Depends on:** FB-264's recommendation;
+Cowgate's runners (CG-0001 to CG-0004) · One ticket = one branch = one PR.
+
+> **What changed on 2026-10-07.** John confirmed the factory's split: **Archon works the tickets,
+> Cowgate runs the machines and the spending caps, and fountainbridge keeps the founder's screens, the
+> signed record and the approvals.** So the noticing pass is no longer a new scheduler we build. It
+> is **a scheduled Archon workflow that can only read and write proposals**, run on a Cowgate runner
+> within Cowgate's caps. Fountainbridge keeps everything a founder or John touches: the dial in the
+> admin view, the floor's test, the latch, and where its proposals land.
+>
+> Everything below about *what* it may and may not do is unchanged. Only *where it runs* and *what it
+> is built from* changed, in "Scope" and "Depends on" at the foot.
+>
+> A half-built branch exists from before the rewrite (`fb-201-a-cofounder-that-notices`, WIP, never
+> reviewed). Read it for what is reusable; do not merge it as it is.
 
 ## What John asked for
 
@@ -101,14 +116,22 @@ it should be rare enough that when it does, a founder reads it.
 
 ## Scope
 
-- A scheduled pass per venture that reads, compares against what it saw last time, and writes what it
-  found where the founder will see it.
-- The settings above, in the admin view, per venture, with a global kill switch.
-- The floor enforced in code, with a test that tries each forbidden action through the agent's own
-  path and is refused.
-- External text sanitised and wrapped before it reaches the model, with the wrapping tested against
-  text that tries to escape it.
-- Everything it proposes lands in the same places a founder's own proposals land — no private queue.
+- **The pass is an Archon workflow on a schedule**, one run per venture per wake. Its only steps are
+  read, compare against what it saw last time, and propose. It holds no credential that can send,
+  spend, merge or deploy, and Cowgate's caps bound how often and how long it runs.
+- **It proposes through the Foundry tool server** (FB-200): file a ticket, comment, raise an approval
+  for a founder to sign. Those are the same tools a founder's Claude uses, so nothing it proposes lands
+  in a private queue.
+- **The dial lives in the studio's admin view**, per venture, with one kill switch for every venture.
+  The studio passes the dial's settings to the workflow and refuses runs it has switched off.
+- **The floor is enforced twice**: by what the workflow is given (no such credentials), and by a test
+  that tries each forbidden action through the agent's own path and is refused.
+- **The latch is recorded where the studio can read it**, so a later run does nothing on a latched
+  venture until a person releases it.
+- **Text from outside** (tickets, pull request bodies, founder documents) is wrapped and treated as
+  data before it reaches the model, with the wrapping tested against text that tries to escape it.
+- **What stays on each venture's machine** is unchanged: the brain it reads from and the approval
+  record it never writes to.
 
 ## Acceptance criteria
 
@@ -126,6 +149,10 @@ it should be rare enough that when it does, a founder reads it.
 
 ## Depends on
 
-FB-170 and FB-174 for somewhere to keep memory and bytes; FB-200 for the tools it uses to propose,
-which are the same tools a founder's Claude uses. Building the proposing half twice would be how the
-studio ends up with two ways to file a ticket that drift apart.
+- **FB-264's recommendation**, on whether Archon replaces the studio's lane on venture machines. If it
+  says "not yet", this waits too, rather than becoming a second scheduler beside the lane.
+- **Cowgate's runners** (CG-0001 to CG-0004) for somewhere to run outside the planning box, and
+  **CG-0006** for the caps.
+- **FB-200** for the tools it uses to propose. Building the proposing half twice would be how the
+  studio ends up with two ways to file a ticket that drift apart.
+- FB-170 and FB-174 for somewhere to keep memory and bytes.
