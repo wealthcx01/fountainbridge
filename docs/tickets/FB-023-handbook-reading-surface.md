@@ -1,5 +1,7 @@
 # FB-023 — Handbook reading surface (/handbook index + chapter pages)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the handbook is at `/handbook`.
+
 **Phase:** 1 · **Depends on:** FB-015, FB-013 (content mechanism); handbook chapter content in
 `content/handbook/*.md` · **Repo:** fountainbridge
 **Branch:** `fb-023-handbook-reading-surface` · One ticket = one branch = one PR.

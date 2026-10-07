@@ -1,5 +1,7 @@
 # FB-026 — In-studio approvals (attention queue → Approve action)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — delivered by FB-046, FB-064 and FB-183 — approve and refuse are on every waiting item.
+
 **Phase:** 3 · **Depends on:** FB-007 (attention queue v0), FB-020 (repo reads), FB-021 (boards
 populate) · **Repo:** fountainbridge
 **Branch:** `fb-026-in-studio-approvals` · One ticket = one branch = one PR.

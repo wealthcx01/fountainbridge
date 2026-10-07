@@ -60,6 +60,18 @@ Fountainbridge is therefore **not** a Bruntsfield-wide operations dashboard (Hol
 
 **D5 (revised) — THE RESET launches in the studio; ARCA rides along as a fixture.** John's call: Reset does not wait in the workshop-only lane — it is the studio's launch venture from Phase 1 v0. This *is* still dogfooding: John is a Reset co-founder, so the first founder using the studio daily is us. ARCA remains a second manifest — useful as a lower-stakes fixture for testing scoping, parser tolerance, and breaking changes before they hit Reset's view. Holy Corner-style portfolio views stay out of scope (that's Holy Corner's job).
 
+> **D5 amendment (2026-10-07, John, on the October re-baseline):** THE RESET never launched — it has
+> no repository, no machine and no founder signed in — and it is now **parked** until ARCA runs
+> cleanly on the new setup. **ARCA is the factory's test bed** for the next few days. After that,
+> **ARCA's backlog is wiped** and **THE RESET starts fresh on the new system** (FB-010). "Wiped"
+> always means closed with a reason, never deleted, so history survives. THE RESET's old tickets and
+> plans are listed for John and stay open until he decides on each.
+>
+> **The new system, ruled the same day:** Archon works the tickets; Cowgate runs the machines and the
+> spending caps; fountainbridge keeps the founder's screens, the signed record and the approvals.
+> Whether Archon replaces the studio's own lane on venture machines is settled by FB-264's
+> comparison, and until then only one engine works ARCA (the lane is paused).
+
 **D6 — Stack mirrors Cofounder's; branding is ours.** Next.js + **Railway** + Supabase + GitHub (+ Stripe/Postmark when needed) — the same managed shape Cofounder builds on, so venture apps and the studio feel identical to operate and the Cofounder reference index maps 1:1 onto our build. Visual identity follows grassmarket / the main Bruntsfield website. Studio auth is **Google OAuth** (per the Holy Corner vertical-login pattern — founders sign in with the Gmail identity from D3).
 
 > **D6 amendment (2026-07-21, PR FB-009):** studio hosting moved **Vercel → Railway**. Two reasons: (1) the studio's read-caches (tickets/attention/health) are in-memory and want a long-running server — on Vercel serverless they reset on cold starts and over-fetch GitHub; (2) ventures already run one-per-Hetzner-VPS (D1), so a long-running host keeps one operational model instead of a serverless outlier. Trade-off: lose Vercel's turnkey per-PR preview URLs — recover via Railway PR environments / a preview step. Studio-on-Railway, ventures-on-Hetzner-VPS, both mediated by git (D2).

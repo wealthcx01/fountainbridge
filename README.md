@@ -13,7 +13,7 @@ The **Foundry Studio**: the vertical of Holy Corner through which Bruntsfield Ca
 | Briefing | Briefing Studio | TBD |
 | Equity | Equity Studio | TBD |
 
-**Launch venture:** THE RESET (in the studio from Phase 1). **Fixture venture:** ARCA.
+**Launch venture:** THE RESET — parked since 7 October 2026 until ARCA runs cleanly on the new setup, then started fresh on the new system (FB-010). **Test bed:** ARCA.
 
 ## Read first
 

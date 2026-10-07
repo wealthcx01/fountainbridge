@@ -1,5 +1,7 @@
 # FB-014 — Founder identity: shared Bruntsfield Workspace until spin-out (D3 amendment)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — founders sit on the shared Bruntsfield Workspace; D3 amended.
+
 **Phase:** 0 (config/decision) · **Depends on:** FB-003 · **Repo:** fountainbridge
 **Branch:** `fb-014-founder-identity-model` · One ticket = one branch = one PR.
 

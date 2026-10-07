@@ -126,3 +126,15 @@ cost that was on every screen; the desk's own remains.
       look at is not a machine that has stopped.
 - [x] No read repeats on a timer, and the cost does not grow with the number of ventures a viewer can
       see. It went down.
+
+## Taken in from FB-154 (2026-10-07)
+
+FB-154 (approvals are read whole on every ticket click) was merged into this ticket by the October
+re-baseline. Selecting a ticket walks **every** approval the venture has, three reads each, uncached,
+because nothing can answer "which approvals belong to this ticket?" without reading them all. The
+read model this ticket builds should answer that question directly.
+
+- [ ] Selecting a ticket costs reads in proportion to that ticket, not to the venture's approvals.
+- [ ] Measured on production, three selections, before and after, recorded here.
+- [ ] The desk's approval queue is unchanged in what it shows. A time-based cache on
+      `loadApprovals` does not count: it would hide the cost rather than remove it.

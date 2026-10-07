@@ -1,5 +1,7 @@
 # FB-029 — Modernisation Engine (Project Greyfriars Bobby): six-agent pipeline (phased)
 
+**Status:** Closed here — it is another venture's product and depended on an Archon version that no longer exists. If it is still wanted, it belongs in that venture's own repository (onboarded by FB-031). Closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`).
+
 **Phase:** — (separate venture/repo; phased) · **Depends on:** Archon V2 base ·
 **Repo:** `wealthcx01/modernisation-engine` (separate repo; ticket tracked from fountainbridge)
 **Branch:** `fb-029-modernisation-engine-pipeline` · One ticket = one branch = one PR (Phase 1 MVP).

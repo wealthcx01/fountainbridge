@@ -1,5 +1,7 @@
 # FB-017 — "How the Foundry works" pages (our system)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the pages are at `/how-it-works`; if Archon replaces the lane they need a refresh, which belongs to that move.
+
 **Phase:** 1 · **Depends on:** FB-005, FB-015 · **Repo:** fountainbridge
 **Branch:** `fb-017-how-it-works` · One ticket = one branch = one PR.
 

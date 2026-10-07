@@ -4,7 +4,7 @@
 *shape* — while the confidence number we would have had to lean on is measurably unreliable, and every
 judgement in the studio is already a rule we chose on purpose over a guess.
 
-**Status:** filed · **Phase:** 3 · **Raised by:** John, 2026-09-25 · **Branch:**
+**Status:** Closed — its deliverable was a verdict (decline), recorded in the phased plan as D9. Closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`). Was: filed · **Phase:** 3 · **Raised by:** John, 2026-09-25 · **Branch:**
 `fb-221-system-one-models-decline` · One ticket = one branch = one PR.
 
 **Sources read:** the launch post (`https://typesafe.ai/blog/introducing-system-one-models-and-jev`,

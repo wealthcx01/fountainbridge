@@ -1,6 +1,6 @@
 # FB-166 — the composer does not record what it reads
 
-**Status:** Open · **Phase:** 3 · **Split from:** FB-156
+**Status:** Closed — under D10 the composer becomes the plain front door, not the main workbench, so a new service holding a write token is not worth it. John chose "do it properly" on 2026-09-02, before D10; it reopens if he still wants it. Closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`). Was: Open · **Phase:** 3 · **Split from:** FB-156
 
 > **Decided 2026-09-02 by John: option 2 — do it properly with proper write access.** Not the MCP
 > tool (option 1), whose record would be as complete as the model's memory of calling it, and not by

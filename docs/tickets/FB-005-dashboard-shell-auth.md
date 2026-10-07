@@ -1,5 +1,7 @@
 # FB-005 — Studio shell: Next.js app + Google OAuth (venture-scoped)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the Next.js studio with Google sign-in is the studio in production.
+
 **Phase:** 1 · **Depends on:** FB-001, FB-003 · **Repo:** fountainbridge
 **Branch:** `fb-005-studio-shell` · One ticket = one branch = one PR.
 

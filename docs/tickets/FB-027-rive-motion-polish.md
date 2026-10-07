@@ -1,5 +1,7 @@
 # FB-027 — Motion & polish with Rive (hero + state transitions)
 
+**Status:** Closed — not started, and polish is not the constraint. Grassmarket's GRS-0206 covers Rive if the house style wants it later. Closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`).
+
 **Phase:** 1 (design polish) · **Depends on:** FB-021, FB-022, FB-023 (land the substance first) ·
 **Repo:** fountainbridge
 **Branch:** `fb-027-rive-motion-polish` · One ticket = one branch = one PR.

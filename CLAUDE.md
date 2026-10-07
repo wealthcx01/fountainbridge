@@ -2,7 +2,7 @@
 
 Fountainbridge is the **Foundry Studio** — Bruntsfield Capital's founder-facing platform for launching and running co-created ventures (a Cofounder-class founder dashboard on our own substrate). It is one vertical of **Holy Corner** (the Bruntsfield hub); **grassmarket** (Advisory Studio) is the sibling that already consumes the shared contracts. Ventures are **configured, never hard-coded**: everything venture-specific lives in `ventures/*.yaml` manifests validated against **bcap-contracts** (Pydantic v2 + JSON Schema → generated TS types). Git is the source of truth for work items — the studio is a view + write-path over `docs/tickets/` via the GitHub API, not a separate database of record.
 
-Launch venture: **the-reset** (B2C; in the studio from Phase 1 v0). Fixture venture: **arca**. Parity target (John): at least at par with cofounder.co, preferably better — the substrate is ahead, and the phased plan closes the founder-experience gap.
+Launch venture: **the-reset** (B2C) — **parked** since 2026-10-07 until ARCA runs cleanly on the new setup; it then starts fresh on the new system (FB-010, D5 amendment). Test bed: **arca**. Parity target (John): at least at par with cofounder.co, preferably better — the substrate is ahead, and the phased plan closes the founder-experience gap.
 
 ## Normative documents (read before any studio work)
 
