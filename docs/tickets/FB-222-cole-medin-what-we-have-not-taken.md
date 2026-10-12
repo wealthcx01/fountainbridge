@@ -1,9 +1,29 @@
 # FB-222 — Cole Medin: the four things we have not taken, and the one we already do
 
-**Status:** filed · **Phase:** 3 · **Raised by:** John, 2026-09-25 — *"look at Cole Medin and how we
+**Status:** Todo · **Rewritten** 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) · **Phase:** 3 · **Raised by:** John, 2026-09-25 — *"look at Cole Medin and how we
 have used him in other projects on this VM… That should help improve our memory and how we develop when
 we implement his principals."* · **Branch:** `fb-222-cole-medin-principles` ·
 One ticket = one branch = one PR.
+
+> **Rewritten 2026-10-07: Archon is Cole Medin's own project, and the factory now runs on it.** So we
+> are no longer choosing which of his ideas to take one by one; we have taken the biggest one whole — a
+> process written down as steps, with the AI filling in each step (Cowgate, CG-0009 and CG-0010). What
+> that does to the four takes below:
+>
+> - **Take 1, the fire budget, stays here.** It is a rule about how often the *studio* may say the same
+>   thing to a founder. Archon does not touch it.
+> - **Take 2, inverting the lane's 41 "do not" instructions, moves.** If FB-264 retires the lane, its
+>   prompts go with it. The same audit belongs on the prompts in Cowgate's house workflow
+>   (`bruntsfield-ticket`), as a Cowgate ticket.
+> - **Take 3, a composer with no tools, folds into FB-144**, which now decides what the composer is for.
+> - **Take 4, fix the system and not the bug, is already how we work.** A written workflow makes it
+>   cheaper: a lesson becomes one edit to one file and one test, instead of a change copied to every box.
+> - **The hold-out reviewer must survive the move.** In the lane, review is a fresh session that cannot
+>   see how the builder reasoned. Archon's house workflow must keep review as a separate session from
+>   implement, with a test in Cowgate that fails if they are ever joined.
+>
+> The analysis below is unchanged and is kept as the reasoning. Only "Scope", "Out of scope" and
+> "Acceptance criteria" at the foot were rewritten.
 
 > **Second citation for take 1, added 2026-09-29.** Buzz (FB-220) independently reached the same idea
 > as Cole Medin's fire budget: it makes **`NO_REPLY` a declared outcome** of a workflow step, so
@@ -154,41 +174,38 @@ answer it.
 ## Scope
 
 1. Write `docs/ideas-from-cole-medin.md` in the same three-part shape as `docs/ideas-from-meridian.md`:
-   **already doing** (gather/reason split, hold-out critic, fix-the-system), **worth taking** (the four
-   above), **explicitly not taking** (his memory stack, and RAG-is-dead as applied to developer search).
-   Every claim carries where it came from. Credit sd3's 2026-09-17 report rather than re-deriving it.
-2. Record the hold-out-critic property as a rule: the lane's stages must stay separate `claude -p`
-   invocations, and reusing a session to save tokens breaks the reviewer. This belongs next to
-   `claude_lane()` as a comment, and in the document.
-3. File the four takes as their own tickets, each on its own merits, smallest first. Do not implement
-   any of them here.
+   **already doing** (the gather/reason split, the hold-out reviewer, fix-the-system, and now Archon
+   itself), **worth taking** (the fire budget), **explicitly not taking** (his memory stack, and
+   "RAG is dead" as applied to developer search). Every claim carries where it came from. Credit sd3's
+   2026-09-17 report rather than re-deriving it.
+2. File **take 1, the fire budget,** as its own fountainbridge ticket: an observation carries how many
+   times it may be said and after what silence it may be said again, kept beside the observation and
+   not inside one screen. Cite Buzz's `NO_REPLY` (FB-220) as the second source.
+3. Write the **two Cowgate items** into the ideas document, ready for John to file in Cowgate: the
+   negative-instruction audit of `bruntsfield-ticket`'s prompts, and a test that review stays a
+   separate session from implement.
 4. Add the document to `README.md`'s read order.
 
 ## Out of scope
 
-- Implementing any of the four. This ticket produces a document and four ticket files, no behaviour
-  change.
-- Rewriting CLAUDE.md's negative clauses. Its audience includes a person, and its "never" clauses carry
-  their reasons. Only the lane's prompts are candidates, and that is take 2's own ticket.
-- Whether the lane should use structured lookup instead of semantic search in RESEARCH. Named above as
-  an open question, deliberately unanswered.
-- FB-028 and the `jstack-second-brain-requirement` note. Related, older, separate.
-- Anything requiring a new dependency or an external call.
+- Implementing any take.
+- Filing tickets in Cowgate. That is Cowgate's repository; this ticket hands John the wording.
+- Rewriting `CLAUDE.md`'s negative clauses. Its reader includes a person, and its "never" clauses
+  carry their reasons.
+- Whether the lane should use structured lookup instead of semantic search. If the lane retires, the
+  question moves with it.
 
 ## Acceptance criteria
 
-- [ ] `docs/ideas-from-cole-medin.md` exists and separates the three cases, so a reader can tell what
-      changes from what does not.
-- [ ] It states that the gather/reason split arrived here through sd3 and cyclops, with the quotes from
-      both `CLAUDE.md` files, so the lineage is not lost.
-- [ ] It records the two measured numbers (41 negative clauses in `supervisor.sh`, 22 in `CLAUDE.md`)
-      with the date they were measured, because both will drift.
-- [ ] It names the repeated-sentence bug as the concrete case for a fire budget, and says plainly that
-      the rule which allowed it was never written down.
-- [ ] It credits sd3's report by path rather than restating its research.
-- [ ] Four ticket files exist, one per take, each independently shippable.
-- [ ] The hold-out-critic property is recorded as a comment beside `claude_lane()`.
-- [ ] No behaviour change: `git diff --stat` touches markdown plus one shell comment.
+- [ ] `docs/ideas-from-cole-medin.md` exists and separates the three cases, and says that Archon is
+      his project and how it changes them.
+- [ ] It states that the gather/reason split arrived here through sd3 and cyclops, with the quotes
+      from both `CLAUDE.md` files.
+- [ ] It records the measured counts (41 negative clauses in `supervisor.sh`, 22 in `CLAUDE.md`,
+      2026-09-25) and says they matter only while the lane exists.
+- [ ] The fire-budget ticket exists, citing the repeated-sentence bug and Buzz's `NO_REPLY`.
+- [ ] The two Cowgate items are written out for John.
+- [ ] No behaviour change: the diff touches markdown only.
 
 ## Verification
 

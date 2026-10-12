@@ -1,22 +1,62 @@
-# FB-010 — Dogfood week on THE RESET (+ARCA) + retro → Phase 2 ticket set
+# FB-010 — The first outside founder: THE RESET starts fresh on the new system
 
-**Phase:** 1 (close-out) · **Depends on:** FB-009 · **Repo:** fountainbridge
-**Branch:** `fb-010-phase1-retro` · One ticket = one branch = one PR.
+**Status:** Todo · parked until ARCA runs cleanly on the new setup (John, 2026-10-07) · **Phase:** 3 ·
+**Depends on:** FB-264 and the move it recommends; Cowgate's runners (CG-0001 to CG-0004) ·
+**Rewritten** 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) ·
+One ticket = one branch = one PR.
 
-## Context
-Decision D5 (revised): THE RESET is the studio's launch venture — and since John is a Reset co-founder, running Reset daily through the studio *is* the dogfood. ARCA rides along as the lower-stakes fixture. One week of running both through fountainbridge instead of tmux + GitHub tabs, then a structured retro that produces the Phase 2 tickets.
+## What this was, and why it is rewritten
 
-## Scope
-- Dogfood protocol: for 5 working days, Reset's (and ARCA's) morning triage and PR review happen through the studio; every friction point logged as a `docs/tickets/` entry tagged `dogfood` (however small). Ross's venture-scoped view checked at least twice in the week (the Ross-test, live).
-- /retro at week's end covering: what still forced a fall-back to shell/GitHub tabs; data staleness pain; attention-queue signal-to-noise; mobile gaps; anything that would confuse a non-John founder (Ross-test: would Ross understand this screen cold?).
-- Deliverable in the PR: `docs/retro-phase1.md` + drafted Phase 2 ticket set (FB-013+) covering the write path (studio → ticket commit) and the per-venture VPS scheduler (systemd timers, standing orders, useful-work pre-check, RunReports) — scoped from retro evidence, one ticket = one branch = one PR.
+This ticket was the Phase 1 close-out: a week of running THE RESET and ARCA through the studio, then
+a retro. **It never ran, because THE RESET never started.** It has no repository, no machine, and
+no founder signed in. Its manifest still says `draft`. Every phase after this one assumed it had
+happened.
+
+So the studio has been built for founders, but it has had one user, who is also the person building
+it. A real founder using it for a week is the most valuable test it has not had. This ticket is now
+that test.
+
+## What John decided (2026-10-07)
+
+- **ARCA is the test bed** for the next few days, while the factory is ironed out on the new setup:
+  Archon works the tickets, and Cowgate runs the machines and the spending caps.
+- **After that, ARCA's backlog is wiped.** Wiped always means closed with a reason, never deleted,
+  so the history survives.
+- **THE RESET starts fresh on the new system** after that, not on the old lane.
+- **Until then, THE RESET is parked.** Its old tickets and plans are being listed for John. None is
+  closed until he says so.
+
+## Scope, when John unparks it
+
+1. **Start clean.** Use the list of THE RESET's old tickets and plans to decide, with John, what
+   carries over and what is closed with a reason. Nothing is deleted.
+2. **Set the venture up on the new system.** Its repositories, Archon registered against them, and
+   Cowgate runners for its tickets. Its own persistent machine holds what keeps state (the approval
+   record, the brain, the office, the composer), as D11 says. Its manifest moves from `draft` to
+   `active` only when all of that works.
+3. **Ross signs in** with his Bruntsfield Workspace account. A test must show he sees THE RESET and
+   nothing else (non-negotiable 6).
+4. **A week of real use.** Ross says what he wants, watches it get picked up, decides when asked, and
+   reads what happened, through the studio. Every place he gets stuck, or has to leave the studio, is
+   filed as a ticket the same day, however small.
+5. **A retro**, written for Ross as much as for us: `docs/retro-first-founder.md`, with the tickets
+   it implies.
 
 ## Out of scope
-Building any Phase 2 functionality; THE RESET onboarding (Phase 3, needs FB-011 + Phase 2).
+
+- Anything on THE RESET before John unparks it.
+- Deleting anything of THE RESET's or ARCA's. Closing with a reason is the only way work is removed.
+- Re-running the old lane for THE RESET. It starts on the new system or not at all.
 
 ## Acceptance criteria
-- [ ] ≥5 dogfood days logged; friction tickets filed.
-- [ ] Retro doc + Phase 2 tickets merged; sequencing agreed (dependencies declared per ticket).
+
+- [ ] THE RESET's old tickets and plans each have a decision: carried over, or closed with a reason.
+- [ ] THE RESET runs on the new system, and its manifest says `active`.
+- [ ] Ross can sign in, sees only THE RESET, and a cross-venture test proves he cannot read ARCA.
+- [ ] Five working days of Ross using the studio, with every friction point filed as a ticket.
+- [ ] `docs/retro-first-founder.md` exists, Ross has read it, and its follow-up tickets are filed.
 
 ## Verification
-/retro output reviewed via normal PR gate.
+
+Every screen Ross used is rendered at 1440×1000 and 393×851 beside its design and looked at
+(non-negotiable 11), on THE RESET's real data rather than ARCA's.

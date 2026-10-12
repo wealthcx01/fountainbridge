@@ -1,6 +1,6 @@
 # FB-228 — ephemeral per-ticket environments: most of it already exists, and the gap is one setting
 
-**Status:** filed · **Phase:** 3 · **Ruled by:** John, 2026-09-29 (D11, amending D1) ·
+**Status:** Closed — its first gap (no preview environments on ARCA) was fixed by FB-230; its second (each ticket on its own machine) became FB-239, which now belongs to Cowgate's runners (CG-0001 to CG-0004). Closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`). Was: filed · **Phase:** 3 · **Ruled by:** John, 2026-09-29 (D11, amending D1) ·
 One ticket = one branch = one PR.
 
 ## Why this ships no code

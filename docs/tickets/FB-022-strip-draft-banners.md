@@ -1,5 +1,7 @@
 # FB-022 — Strip DRAFT banners from rendered content (and guard against recurrence)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the banners are gone and a guard stops them returning.
+
 **Phase:** 1 · **Depends on:** FB-016, FB-017 · **Repo:** fountainbridge
 **Branch:** `fb-022-strip-draft-banners` · One ticket = one branch = one PR.
 

@@ -1,5 +1,7 @@
 # FB-008 — CI/lane-health + activity feed
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — it became "What happened".
+
 **Phase:** 1 · **Depends on:** FB-005, FB-006 · **Repo:** fountainbridge
 **Branch:** `fb-008-ci-activity` · One ticket = one branch = one PR.
 

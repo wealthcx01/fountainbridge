@@ -1,5 +1,7 @@
 # FB-007 — Attention queue v0: PRs awaiting the human gate
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — it became "Needs you".
+
 **Phase:** 1 · **Depends on:** FB-005, FB-006 · **Repo:** fountainbridge
 **Branch:** `fb-007-attention-queue` · One ticket = one branch = one PR.
 

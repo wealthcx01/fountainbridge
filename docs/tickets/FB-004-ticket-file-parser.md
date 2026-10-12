@@ -1,5 +1,7 @@
 # FB-004 — Ticket-file parser: docs/tickets markdown → Ticket contract
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the parser is `tools/ticket-parser`, run by `make parse-tickets`.
+
 **Phase:** 1 · **Depends on:** FB-002 · **Repo:** fountainbridge
 **Branch:** `fb-004-ticket-parser` · One ticket = one branch = one PR.
 

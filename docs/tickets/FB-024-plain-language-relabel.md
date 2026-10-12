@@ -1,5 +1,7 @@
 # FB-024 — Plain-language relabel of founder-facing UI
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the labels are plain English and `copy-lint` enforces the vocabulary.
+
 **Phase:** 1 · **Depends on:** FB-006, FB-007 · **Repo:** fountainbridge
 **Branch:** `fb-024-plain-language-relabel` · One ticket = one branch = one PR.
 

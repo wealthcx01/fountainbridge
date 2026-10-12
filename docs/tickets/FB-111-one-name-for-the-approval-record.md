@@ -1,6 +1,6 @@
 # FB-111 — One name for the approval record
 
-**Status:** Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-07, deciding the naming half of the
+**Status:** Merged into FB-171 — 2026-10-07, by the October re-baseline (`docs/status/2026-10-re-baseline.md`). When FB-171 switches the studio to the real ActiveGraph package, our home-made record stops being called ActiveGraph, so the naming is settled there rather than by a separate cross-repo rename. Was: Todo · **Phase:** 3 · **Asked for by:** John, 2026-08-07, deciding the naming half of the
 ActiveGraph question raised by FB-110 · **Repo:** fountainbridge **+ bcap-contracts** (see below) ·
 **Branch:** `fb-111-one-name-for-the-approval-record` · One ticket = one branch = one PR.
 

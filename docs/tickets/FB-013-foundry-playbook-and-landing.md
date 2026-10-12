@@ -1,5 +1,7 @@
 # FB-013 — Foundry Playbook + educational landing surface
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the playbook is at `/playbook`.
+
 **Phase:** 4a (content — ships early, no research dependency) · **Depends on:** FB-005 (app shell) · **Repo:** fountainbridge
 **Branch:** `fb-013-foundry-playbook` · One ticket = one branch = one PR.
 
