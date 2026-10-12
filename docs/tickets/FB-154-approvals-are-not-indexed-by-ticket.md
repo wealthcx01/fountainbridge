@@ -1,6 +1,6 @@
 # FB-154 — Approvals are read whole, on every ticket click
 
-**Status:** Todo · **Area:** Studio / performance · **Depends on:** FB-130
+**Status:** Merged into FB-164 — 2026-10-07, by the October re-baseline (`docs/status/2026-10-re-baseline.md`). It is one symptom of the same cause: the studio has no stored read model. Was: Todo · **Area:** Studio / performance · **Depends on:** FB-130
 
 ## What happens
 

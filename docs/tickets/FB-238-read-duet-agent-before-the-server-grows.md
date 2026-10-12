@@ -1,6 +1,6 @@
 # FB-238 — read `duet-agent` properly, before the MCP server grows
 
-**Status:** filed · **Phase:** 3 · **Raised by:** John, 2026-09-25 · **Related:** FB-200, FB-225, D9 ·
+**Status:** Closed — the question it guarded (which agent harness to build on) is answered for the whole factory: Archon. Closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`). Was: filed · **Phase:** 3 · **Raised by:** John, 2026-09-25 · **Related:** FB-200, FB-225, D9 ·
 One ticket = one branch = one PR.
 
 ## What it is, and why it is not an adoption

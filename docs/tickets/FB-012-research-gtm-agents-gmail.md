@@ -1,5 +1,7 @@
 # FB-012 — Research: agentic GTM on the founder's own Gmail + approval-gate best practices
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — `docs/research-gtm.md`, ratified.
+
 **Phase:** 0 (parallel; gates Phase 4) · **Depends on:** — · **Repo:** fountainbridge
 **Branch:** `fb-012-gtm-research` · One ticket = one branch = one PR (deliverable is a doc).
 

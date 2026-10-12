@@ -1,5 +1,7 @@
 # FB-009 — Mobile-usable pass + Railway deploy
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — production runs on Railway and every screen fits a phone.
+
 > D6 amended 2026-07-21 (this PR): deploy target is **Railway**, not Vercel. See the phased plan's D6 note.
 
 **Phase:** 1 · **Depends on:** FB-006, FB-007, FB-008 · **Repo:** fountainbridge

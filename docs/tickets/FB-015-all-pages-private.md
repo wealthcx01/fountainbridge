@@ -1,5 +1,7 @@
 # FB-015 — Make all Foundry pages private (revert public landing)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — signed-out visitors are sent to sign-in.
+
 **Phase:** 1 · **Depends on:** FB-005, FB-013 · **Repo:** fountainbridge
 **Branch:** `fb-015-all-pages-private` · One ticket = one branch = one PR.
 

@@ -1,5 +1,7 @@
 # FB-019 — ARCA dogfood readiness
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — ARCA renders in the studio with its real data.
+
 **Phase:** 1 · **Depends on:** FB-005, FB-006, FB-007, FB-008 · **Repo:** fountainbridge
 **Branch:** `fb-019-arca-dogfood` · One ticket = one branch = one PR.
 

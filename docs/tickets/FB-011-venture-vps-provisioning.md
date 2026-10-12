@@ -1,5 +1,7 @@
 # FB-011 — Venture VPS provisioning: runbook + script v0
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — done for ARCA (`scripts/provision-venture.sh`, `docs/provisioning.md`). THE RESET's machine was never built; it is now part of FB-010, which starts THE RESET fresh on the new system. Future ticket machines are Cowgate's runner image (CG-0001).
+
 **Phase:** 0 · **Depends on:** FB-003 · **Repo:** fountainbridge
 **Branch:** `fb-011-vps-provisioning` · One ticket = one branch = one PR.
 

@@ -1,5 +1,7 @@
 # FB-025 — Conversational composer (LibreChat prototype)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the composer shipped; what it becomes next is FB-144's question.
+
 **Phase:** 3 · **Depends on:** FB-005 (auth), FB-014 (founder identity), FB-020 (repo reads),
 FB-021 (boards populate) · **Repo:** fountainbridge (+ per-venture Hetzner VM)
 **Branch:** `fb-025-conversational-composer-librechat` · One ticket = one branch = one PR.

@@ -1,5 +1,7 @@
 # FB-016 — Foundry story pages (original copy)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the story pages are at `/foundry`.
+
 **Phase:** 1 · **Depends on:** FB-005, FB-015 · **Repo:** fountainbridge
 **Branch:** `fb-016-foundry-story` · One ticket = one branch = one PR.
 

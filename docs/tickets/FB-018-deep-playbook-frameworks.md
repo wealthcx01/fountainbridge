@@ -1,5 +1,7 @@
 # FB-018 — Deep playbook: Disciplined Entrepreneurship + 7 Powers (detailed)
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — `content/playbook` holds both frameworks in depth.
+
 **Phase:** 1 · **Depends on:** FB-013, FB-015 · **Repo:** fountainbridge
 **Branch:** `fb-018-deep-playbook` · One ticket = one branch = one PR.
 

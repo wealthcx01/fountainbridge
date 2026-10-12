@@ -1,5 +1,7 @@
 # FB-001 — Complete fountainbridge repo scaffold
 
+**Status:** Done · closed 2026-10-07 by the October re-baseline (`docs/status/2026-10-re-baseline.md`) — the repo, CI, `CLAUDE.md` and the tickets folder exist.
+
 **Phase:** 0 · **Depends on:** — (repo pre-created from the planning-pack push) · **Repo:** fountainbridge
 **Branch:** `fb-001-scaffold` · One ticket = one branch = one PR.
 

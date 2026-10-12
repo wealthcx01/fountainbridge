@@ -172,3 +172,22 @@ wrong choice for the reason already given: two writers.
       is refused. (The gate is `off` until switched on and can only ever add a no; the end-to-end test
       runs the real executor and shows a correctly signed grant file with nothing in ActiveGraph does
       not go out.)
+
+## Taken in from FB-111 (2026-10-07)
+
+FB-111 (one name for the approval record) was merged into this ticket by the October re-baseline.
+John decided on 2026-08-07 that "ActiveGraph" should mean the library, not our own signed record.
+This ticket's cut-over is the natural place to make that true.
+
+- When the studio switches to the real ActiveGraph package, whatever remains of our own record is
+  called **"the approval record"** in code, in prose and in anything a founder reads.
+- The manifest gate value is a contract change in bcap-contracts (non-negotiable 7), and grassmarket
+  consumes the same package. Add the new value **beside** `activegraph`, publish, then migrate. Never
+  break a manifest mid-way.
+- FB-111's file keeps the detail: the ~45 files outside `docs/tickets/`, the executor's rename, and
+  what is explicitly not renamed.
+
+- [ ] After the cut-over, "ActiveGraph" in this repo means only the library. FB-111's own
+      acceptance criteria are met: the contract accepts both gate values in one published version,
+      every manifest uses the new one, `copy-lint` bans the old name for our record, grassmarket is
+      confirmed unbroken, and `CLAUDE.md` records the rename.
