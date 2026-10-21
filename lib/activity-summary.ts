@@ -91,13 +91,15 @@ export function readableTitle(title: string): string {
   // Order matters. `ARCA-050-show-set-name-card-pages` is an id-prefixed *filename*, and it has to
   // be recognised as one BEFORE the "leading id" rule below — otherwise that rule eats `ARCA-050-`
   // and leaves `show-set-name-card-pages`, a slug pretending to be a sentence.
-  const slug = t.match(/^[A-Z]{2,}-\d+[a-z]?-([^\s]+)$/);
+  // Both rules take a hyphenated prefix (`THE-RESET-012`, FB-146's rule) but stay upper-case only, so
+  // a lower-case phrase in a free-text title, such as `step-2`, is never read as an id.
+  const slug = t.match(/^[A-Z][A-Z0-9]+(?:-[A-Z][A-Z0-9]*)*-\d+[a-z]?-([^\s]+)$/);
   if (slug) {
     t = slug[1].replace(/-/g, ' ');
   } else {
     // `ARCA-51 — Cards page crashes`: a real separator, so a bare hyphen does not count. Requiring
     // the spaces is what keeps this rule off the filename case above.
-    t = t.replace(/^[A-Z]{2,}-\d+[a-z]?(?:\s*[—–:]\s*|\s+-\s+)/, '');
+    t = t.replace(/^[A-Z][A-Z0-9]+(?:-[A-Z][A-Z0-9]*)*-\d+[a-z]?(?:\s*[—–:]\s*|\s+-\s+)/, '');
   }
 
   t = t.trim();

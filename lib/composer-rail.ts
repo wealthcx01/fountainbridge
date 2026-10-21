@@ -130,8 +130,9 @@ export function draftSections(blocks: ReplyBlock[]): DraftSections | null {
     if (heading) {
       const text = heading[1];
       // The first heading is the ticket's own title, with any id the filer has not yet replaced.
+      // The prefix may be hyphenated (`THE-RESET-NEW`): FB-146's rule, every prefix word starts with a letter.
       if (!title) {
-        title = text.replace(/^[A-Za-z]+-(?:NEW|\d+[a-z]?)\s*[—–-]\s*/, '').trim();
+        title = text.replace(/^[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z][A-Za-z0-9]*)*-(?:NEW|\d+[a-z]?)\s*[—–-]\s*/, '').trim();
         current = null;
         continue;
       }

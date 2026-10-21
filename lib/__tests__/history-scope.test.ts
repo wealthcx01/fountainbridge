@@ -156,6 +156,13 @@ describe('a ticket is named the way a person would say it', () => {
       .toBe('ARCA-061 — saved card lists not persisting');
   });
 
+  it('splits an id with a hyphenated prefix, as THE RESET has (FB-263)', async () => {
+    const { ticketInWords } = await import('../history-scope');
+    expect(ticketInWords('THE-RESET-012-onboarding')).toBe('THE-RESET-012 — onboarding');
+    // The id ends at the first number, so a number later in the words stays in the words.
+    expect(ticketInWords('ARCA-012-step-2-onboarding')).toBe('ARCA-012 — step 2 onboarding');
+  });
+
   it('leaves a name it cannot parse alone rather than mangling it', async () => {
     const { ticketInWords } = await import('../history-scope');
     // Better shown than swallowed.

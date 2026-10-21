@@ -55,6 +55,11 @@ describe('readableTitle', () => {
     );
   });
 
+  it('reads an id with a hyphenated prefix, as THE RESET has (FB-263)', () => {
+    expect(readableTitle('build: THE-RESET-012-onboarding-flow (Foundry lane)')).toBe('Onboarding flow');
+    expect(readableTitle('THE-RESET-12 — Cards page crashes')).toBe('Cards page crashes');
+  });
+
   it('leaves a sentence a human wrote alone', () => {
     expect(readableTitle('Add to venture knowledge: ARCA Brand Positioning')).toBe(
       'Add to venture knowledge: ARCA Brand Positioning',
