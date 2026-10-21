@@ -1097,5 +1097,9 @@ this machine had no GitHub key that session, so it could not read what productio
 
 **Not put beside the design this time.** The design link needs a claude.ai sign-in this session did
 not have, and no saved copy was on this machine. The design's heights from the scorecard are
-~1,000px for both screens; both readings sit close to them, and both are under the scorecard's last
-studio readings (1,236 / 2,547 and 1,096 / 1,142).
+~1,000px for both screens at desktop size. Against the scorecard's last studio readings:
+
+- "What happened" is lower at both sizes: 1,137px against 1,236px, and 2,203px against 2,547px.
+- The composer is lower at desktop size (1,000px against 1,096px) but **higher on a phone: 1,195px
+  against 1,142px, 53px more.** This ticket changes no layout and no styles, only how an id is
+  read, and the side panel showed no ids in this reading. The cause of the 53px was not looked into.
