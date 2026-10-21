@@ -17,11 +17,30 @@ Where the plan and a ticket disagree, the ticket's **scope** section wins for wh
 ## Non-negotiables
 
 1. **One ticket = one branch = one PR.** Tickets are markdown in `docs/tickets/` (`FB-XXX-slug.md`); branch names are `fb-XXX-slug`. Work only the ticket on the branch.
-2. **Merge on green; gate externally, not internally.** A PR merges once CI is green (lint + typecheck + test + the Playwright UI gate) and it has passed `/review`. For this solo-founder venture that review is John's or the lane's own `/review` pass — no separate code approver is required yet; the **D7 approval matrix** takes over as founders onboard and decides who approves which change classes. `main` stays branch-protected server-side: **PR + passing CI required** (0 required approvals).
-   *(Amended 2026-08-28 by John: the **Playwright UI gate is now a required check.** It was advisory,
-   and a red one merged itself — FB-124 shipped a studio with two navigations, a dead nav row 404-ing
-   on every page load, and a 250px rail on a 393px phone, while lint, typecheck, 1050 unit tests and
-   the build were all green. It is the only gate that sees a screen.)* Internal code merges are hygiene, not a human chokepoint. The absolute, never-bypassed gate is on **external actions** (email, social, CRM, payments, deploys) — those still require a recorded ActiveGraph approval (non-negotiable 4). *(Amended 2026-07-28 by PR from the earlier "never merge / human-merges-per-D7" rule, at John's direction: the single-account "require 1 review" gate blocked all merges — including his own — with no quality benefit; CI + `/review` is the real quality gate, and the approval matrix is what matters once there's more than one founder.)*
+2. **Nothing merges without a human yes.** A pull request merges only after a person has said yes
+   to it. Green checks and a passed `/review` come first, but they are what makes a pull request
+   ready to ask about. They are not the yes.
+   - **A founder's approval recorded in the studio counts as that yes.** When a founder approves a
+     piece of their venture's work in the studio ("Make it part of my product"), the approval is
+     recorded and the studio merges that work.
+   - **Otherwise John merges, in GitHub.** That covers every pull request to this repository and any
+     venture work not approved in the studio. No lane, agent or workflow merges its own pull request,
+     or anyone else's.
+   - **Before anyone is asked:** CI is green — lint, typecheck, test, and the Playwright UI gate — and
+     `/review` has passed.
+   - **Merging is not an external action.** Approving a pull request never approves an email, a post,
+     a payment or a deploy. Those still need their own recorded approval (non-negotiable 4).
+
+   GitHub does not enforce the human yes on its own. `main` is branch-protected (a pull request and
+   passing CI are required), but "required approvals" stays at 0, because GitHub will not let John
+   approve his own pull request. So the rule holds because nothing automated is allowed to merge:
+   Archon's house workflow has no merge step and the Claude inside it holds no GitHub credentials,
+   and the studio's own lane only opens pull requests.
+
+   *(Amended 2026-10-07 by John: one merge rule everywhere in the factory, replacing "merge on green"
+   of 2026-07-28. Kept from 2026-08-28: the **Playwright UI gate is a required check.** It was
+   advisory, and a red one merged itself — FB-124 shipped a studio with two navigations and a 250px
+   rail on a 393px phone while every other check was green. It is the only gate that sees a screen.)*
 3. **Respect ticket scope.** Discovered work becomes a new ticket file in the PR or a follow-up — never scope creep into the current PR.
 4. **Gates are absolute.** Engineering changes gate on PR review; external actions (email, social, CRM, payments) gate on **ActiveGraph** approval events. Nothing external ever executes without a recorded human approval (`approval.proposed` → `approval.granted`).
 5. **Venture-as-config.** Nothing venture-specific lives in the studio core. A venture is a manifest; the studio must stay generic enough that a B2B motion (bank-sponsored wealth product) is "just another manifest."
