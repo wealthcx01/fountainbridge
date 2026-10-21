@@ -1072,3 +1072,30 @@ link, "changes on the VM ↗", is not in the studio; it needs the commit count F
 The work page for #13 shows "Open the terminal ↗" and, under it, "The preview of this change: it did
 not open when the studio checked, because it is not answering." With every check failing, both are
 sentences and there is no button; on a phone they wrap to two lines each and nothing is cut off.
+
+## FB-263 — a hyphenated ticket prefix, 2026-10-21
+
+FB-263 changes how four places read a ticket id, so that THE RESET's ids (`THE-RESET-012`) are read
+as whole ids, the way ARCA's (`ARCA-012`) already were. Two screens show that text: "What happened"
+and the composer's side panel.
+
+**The fix itself cannot be seen on a screen yet.** THE RESET is parked and has no data, and no
+fixture has a hyphenated id. The fix is proved by unit tests instead: one per place, and each one
+fails when the old pattern is put back. The pictures below only show that ARCA did not change.
+
+Read on a local build of this branch, signed in as ARCA's founder, on the UI gate's scale fixture
+(73 tickets, 1,773 run reports: ARCA's real numbers). **Not production, and not ARCA's real data:**
+this machine had no GitHub key that session, so it could not read what production reads.
+
+- "What happened", landing on `/venture/arca/activity`: **1,137px** at 1440×1000 and **2,203px**
+  at 393×851. Twelve rows, ids such as "Worked ARCA-17 — …" read whole. No sideways scroll.
+- Composer, landing on `/venture/arca/composer`: **1,000px** at 1440×1000 and **1,195px** at
+  393×851. The side panel says "Nothing on the table", because no draft is being written. No
+  sideways scroll. On a phone the page scrolls down to the text box when it opens, so a full-page
+  picture draws the fixed top bar in the middle; a picture from the top shows the page laid out
+  correctly. That behaviour is older than this ticket.
+
+**Not put beside the design this time.** The design link needs a claude.ai sign-in this session did
+not have, and no saved copy was on this machine. The design's heights from the scorecard are
+~1,000px for both screens; both readings sit close to them, and both are under the scorecard's last
+studio readings (1,236 / 2,547 and 1,096 / 1,142).
