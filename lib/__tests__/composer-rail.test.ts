@@ -118,6 +118,13 @@ describe('the ticket taking shape', () => {
     expect(sections()?.title).toBe('Show how fresh each price is');
   });
 
+  it('reads the title when the id has a hyphenated prefix, as THE RESET does (FB-263)', () => {
+    for (const heading of ['# THE-RESET-NEW — Onboarding', '# THE-RESET-012 — Onboarding']) {
+      const draft = TICKET.replace('# ARCA-NEW — Show how fresh each price is', heading);
+      expect(draftSections(parseReply(replyWith(draft)))?.title).toBe('Onboarding');
+    }
+  });
+
   it('reads Why in the founder’s own words rather than re-summarising them', () => {
     // The rail's promise is "every line came from the conversation". A rail that paraphrased would
     // be a third rendering of one ticket, free to disagree with the markdown and the filed file.

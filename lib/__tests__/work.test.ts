@@ -339,3 +339,22 @@ describe('resolving the repo before it reaches GitHub', () => {
     expect(seen).toEqual(['someone/else']);
   });
 });
+
+describe('ticketIdFrom', () => {
+  it('reads an id with a hyphenated prefix whole, as THE RESET has (FB-263)', async () => {
+    const { ticketIdFrom } = await import('../work-load');
+    expect(ticketIdFrom('THE-RESET-012 — Onboarding')).toBe('THE-RESET-012');
+    expect(ticketIdFrom('build: THE-RESET-012-onboarding')).toBe('THE-RESET-012');
+  });
+
+  it('still reads a one-word prefix', async () => {
+    const { ticketIdFrom } = await import('../work-load');
+    expect(ticketIdFrom('ARCA-074 — Show set names')).toBe('ARCA-074');
+    expect(ticketIdFrom('build: ARCA-074-show-set-names (Foundry lane)')).toBe('ARCA-074');
+  });
+
+  it('gives nothing when the title has no id', async () => {
+    const { ticketIdFrom } = await import('../work-load');
+    expect(ticketIdFrom('Add to venture knowledge: brand positioning')).toBeNull();
+  });
+});

@@ -96,7 +96,9 @@ const plural = (n: number, one: string) => `${n.toLocaleString('en-GB')} ${n ===
  * better shown than swallowed.
  */
 export function ticketInWords(slug: string): string {
-  const m = slug.match(/^([A-Za-z]+-\d+)-(.+)$/);
+  // The prefix may be hyphenated (`THE-RESET-012-…`). FB-146's rule: every prefix word starts with a
+  // letter, so the id ends at the first number and `ARCA-012-step-2-onboarding` is still ticket 012.
+  const m = slug.match(/^([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z][A-Za-z0-9]*)*-\d+)-(.+)$/);
   if (!m) return slug;
   return `${m[1]} — ${m[2].replace(/-/g, ' ')}`;
 }

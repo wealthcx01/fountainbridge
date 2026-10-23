@@ -110,7 +110,9 @@ export function githubWorkSource(client: GitHubClient, org = process.env.GITHUB_
 export function ticketIdFrom(title: string, branch?: string): string | null {
   const fromBranch = branch?.match(/^foundry\/(.+)$/)?.[1];
   if (fromBranch) return fromBranch;
-  const m = title.match(/\b([A-Z]{2,}-\d+)\b/);
+  // The prefix may be hyphenated (FB-146's rule). The leftmost match wins, so `THE-RESET-012` is
+  // read from `THE`, not from `RESET`.
+  const m = title.match(/\b([A-Z][A-Z0-9]+(?:-[A-Z][A-Z0-9]*)*-\d+)\b/);
   return m ? m[1] : null;
 }
 
