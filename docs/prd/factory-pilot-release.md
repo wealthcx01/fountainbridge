@@ -96,8 +96,8 @@ another, each from `main` after the last has merged. No pull request sits on ano
 
 **While the design is made** (underneath only, no screen work):
 
-2. **Every Telegram message becomes a card** (cowgate, medium). Founder-safe parts are marked, and
-   the new factory's runs are read too.
+2. **Every Telegram message becomes a card** (cowgate, medium). Founder-safe parts are marked. (The
+   new factory's runs already send Telegram cards: cowgate CG-0056.)
 3. **Approve and Reject on Telegram's Needs-you cards,** for John only [FB-267] (cowgate, medium).
    A test proves an Approve grants nothing external.
 4. **Screenshots** (cowgate, medium). When a pull request's preview is up, the box takes before and
