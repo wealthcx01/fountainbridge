@@ -20,7 +20,9 @@ work shows inside each venture, where the founder already looks:
 - John gets the same cards and buttons in the studio as on Telegram. A press in one place goes
   through the same path as a press in the other, so the two never disagree.
 
-The demo runs on THE RESET, with its founder, Ross.
+The demo runs on ARCA, the test-bed venture. Its founder account,
+`arca.founder@bruntsfield.capital`, is in no admin list, so it sees ARCA only. John holds it.
+THE RESET follows later.
 
 ## Who it is for
 
@@ -29,15 +31,17 @@ Founders of Foundry ventures, and John. No page is public.
 ## Done, for this pilot
 
 - Every journey in `harness/END-TO-END.md` passes against a test copy.
-- John has clicked through staging as himself and as Ross.
-- One real piece of factory work on THE RESET has been reviewed by Ross on its Review screen, and
-  approved by John.
+- John has clicked through staging as himself and as ARCA's founder.
+- One real piece of factory work on ARCA has been signed off on its Review screen by ARCA's founder,
+  and approved by John.
 
 ## Always
 
 - **Only John approves a merge,** including a founder's own venture's work. This replaces the old
   `CLAUDE.md` rule 2, which let a founder's approval in the studio merge.
-- **A founder may Stop their own venture's run, and send a note.** Every other button is John's.
+- **A founder may Stop their own venture's run, send it back with a note, or Accept it.** Accept is
+  their sign-off: the card says "Signed off by <founder>, waiting for John", and it merges nothing.
+  Every other button is John's.
 - **A founder reads plain English.** No dollar figures, and none of the lines written for John.
 - **Venture isolation is checked on the server.** A founder's request for another venture's work
   gets nothing, by any route.

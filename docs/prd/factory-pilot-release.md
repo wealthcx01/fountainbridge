@@ -14,9 +14,10 @@ brackets.
 ## Done when
 
 - Every journey in `harness/END-TO-END.md` passes against a test copy.
-- John has clicked through staging as himself and as Ross.
-- One real piece of factory work on THE RESET has been reviewed by Ross and approved by John. Its
-  card showed the same state in Telegram and in the studio throughout.
+- John has clicked through staging as himself and as `arca.founder@bruntsfield.capital`.
+- One real piece of factory work on ARCA has been signed off on its Review screen by ARCA's founder
+  account and approved by John. Its card showed the same state in Telegram and in the studio
+  throughout.
 - Every new or changed screen has been looked at beside its design, at 1440×1000 and 393×851.
 
 ## Where factory work shows
@@ -51,9 +52,12 @@ Approving a send has its own card, `ApprovalCard.tsx`. Step 8 makes the one shar
 - **John** sees every card, with Telegram's words and costs. He has Approve and Reject on 🟡
   Needs-you cards, which are new on Telegram too, plus Try again, Split it and Stop.
 - **A founder** sees only their venture's cards, in plain English: no dollar figures, no "What to
-  do next" lines, no Archon links. They may press Stop, and Send back with a note, which is the Note.
-  Accept is theirs too; what it means is decision 1.
-- **Only John approves a merge.** Today's `CLAUDE.md` rule 2, and `acceptWork` in
+  do next" lines, no Archon links. They may press Stop, Send back and Accept:
+  - **Send back** is the Note. It goes to the box, John sees it on Telegram and in the studio, and
+    he passes it on with Reject or Try again.
+  - **Accept** is the founder's sign-off, kept in the signed record. The card then says "Signed off
+    by <founder>, waiting for John", in the studio and on Telegram. It merges nothing.
+- **Only John's Approve merges.** Today's `CLAUDE.md` rule 2, and `acceptWork` in
   `app/actions/work.ts`, let a founder's Accept merge their venture's work. Step 1 changes both.
 
 **What a press does.** The studio checks who pressed and records it. It never calls Archon or
@@ -88,7 +92,14 @@ another, each from `main` after the last has merged. No pull request sits on ano
      and that Chromium can't run on the box;
    - the README's Vercel corrected to Railway;
    - rule 2 rewritten, and `acceptWork` merging for John only;
-   - checks on staging: it deploys `main`, and Google sign-in works at its own address.
+   - **staging's database:** a Railway Postgres in foundry-studio's `staging` environment, with
+     `DATABASE_URL` set to it. It holds test data only, never real founder data;
+   - **checks on staging:** it deploys `main`, and `arca.founder@bruntsfield.capital` can sign in.
+     The code has two doors, Google and the password door (`STUDIO_PASSWORD_LOGINS`, FB-092). FB-092
+     was built because Google sign-in failed for this very account, so it uses the password door.
+     John mints its entry with `node scripts/mint-password-login.mjs arca.founder@bruntsfield.capital`,
+     and only the hash goes into staging's variables. John's own Google sign-in needs staging's
+     address added as a redirect in the Google client.
 
    Railway reports pull request environments as on for this project, but FB-230 says none were ever
    made. This step finds out which is true. In cowgate: fountainbridge's budgets and its
@@ -115,15 +126,21 @@ another, each from `main` after the last has merged. No pull request sits on ano
 9. **Cards in "Needs you" and "What happened"** [FB-266] (medium). **Proves:** journey 3.
 10. **The Review screen** (medium). **Proves:** journeys 4 and 5.
 11. **Down and stale** (small). **Proves:** journey 7. Journey 6 grows with steps 6, 7, 9 and 10.
-12. **The demo on THE RESET.** It needs:
-    - **THE RESET unparked.** FB-010 parks it "until ARCA runs cleanly on the new setup".
-    - **A repository.** The manifest names `thereset-platform` and `thereset-marketing`. Neither
-      exists on GitHub today. It needs its checks, the factory installed, a budget, its
-      `main`-watch, and both GitHub Apps.
-    - **Its app on Railway,** connected to GitHub, with preview environments on for pull requests
-      opened by bots. Those were FB-230's two traps on ARCA.
-    - **Its manifest** moved from `draft` to `active`.
-    - **Ross's sign-in on staging,** and one small first issue.
+12. **The demo on ARCA,** signed in as `arca.founder@bruntsfield.capital` (FB-090). That account
+    is in no admin list, so it sees ARCA only. John holds it. ARCA needs:
+    - **its lane kept paused** (FB-264), so the factory is the only engine on ARCA;
+    - **working previews.** FB-230 connected ARCA's Railway service to GitHub, with production's
+      auto-deploy off, but pull request environments still don't appear. Until they do, the Review
+      screen has no preview link. The message for Railway support is in FB-230;
+    - **the factory installed.** ARCA has a `## Checks` list, but no `factory/` folder, `MISSION.md`
+      or `harness/`;
+    - **in cowgate:** a budget for ARCA's issues (`archon/factory-budgets.json` has none), and
+      `factory-main-watch` watching ARCA. The watch reads `main`, and ARCA's default branch is
+      `master`;
+    - **the factory's GitHub App** installed on `wealthcx01/arca`, if it isn't already;
+    - **one small first issue.**
+
+    THE RESET follows later, when John starts it [FB-010].
 
 ## Rules every issue keeps
 
@@ -135,20 +152,15 @@ another, each from `main` after the last has merged. No pull request sits on ano
 
 ## Decisions for John
 
-1. **Decision for John: what a founder's Accept and Send back mean.** My proposal is below.
-   - **Accept** records the founder's sign-off in the signed record. The card then says "Signed off
-     by Ross, waiting for John", and Telegram says so too. John's Approve still merges.
-   - **Send back** goes to the box as the Note. John sees it on Telegram and in the studio, and
-     passes it on with Reject or Try again.
-2. **Decision for John: how THE RESET starts for the demo.** One option is FB-010's full start:
-   old tickets decided first, and a week of Ross's use. The other is a smaller setup, just for the
-   demo. A second question: does Ross click through himself?
-3. **Decision for John: staging's database.** Staging has no `DATABASE_URL`, and the cards need
-   one. Where should it live?
+1. **Decision for John: do ARCA's demo cards and screenshots count as test data on staging?**
+   Staging's database must never hold real founder data, but the demo puts real ARCA work there.
+   My recommendation is yes: ARCA's founder account is John's own. No other venture is connected to
+   staging.
 
 ## Not in this release
 
 - A new desk (D10).
-- Moving ARCA's work [FB-264, FB-268], and the machines handover [FB-269].
+- Retiring ARCA's lane for good [FB-268], and the machines handover [FB-269].
+- THE RESET's start [FB-010].
 - Decision times, a way out for old decisions, and speed work [FB-159, FB-265, FB-164].
 - Cards as phone notifications.
