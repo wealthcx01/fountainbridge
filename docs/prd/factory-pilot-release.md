@@ -93,7 +93,8 @@ another, each from `main` after the last has merged. No pull request sits on ano
    - the README's Vercel corrected to Railway;
    - rule 2 rewritten, and `acceptWork` merging for John only;
    - **staging's database:** a Railway Postgres in foundry-studio's `staging` environment, with
-     `DATABASE_URL` set to it. It holds test data only, never real founder data;
+     `DATABASE_URL` set to it. It holds test data only, never real founder data. ARCA's demo cards
+     and screenshots count as test data (John, 26 October);
    - **checks on staging:** it deploys `main`, and `arca.founder@bruntsfield.capital` can sign in.
      The code has two doors, Google and the password door (`STUDIO_PASSWORD_LOGINS`, FB-092). FB-092
      was built because Google sign-in failed for this very account, so it uses the password door.
@@ -150,12 +151,11 @@ another, each from `main` after the last has merged. No pull request sits on ano
 - **Nothing private in this public repository.** Screenshots of a venture live in the studio's
   database, never in git.
 
-## Decisions for John
+## Settled by John
 
-1. **Decision for John: do ARCA's demo cards and screenshots count as test data on staging?**
-   Staging's database must never hold real founder data, but the demo puts real ARCA work there.
-   My recommendation is yes: ARCA's founder account is John's own. No other venture is connected to
-   staging.
+- **ARCA's demo cards and screenshots count as test data on staging** (26 October). Staging's
+  database still never holds any other real founder data. ARCA's founder account is John's own,
+  and no other venture is connected to staging.
 
 ## Not in this release
 

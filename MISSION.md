@@ -3,8 +3,8 @@
 ## What it is
 
 Foundry Studio is where a founder runs a company that Bruntsfield Capital builds with them. Its
-codename is fountainbridge. It runs on Railway. Production is at its Railway address until
-foundry.bruntsfield.capital is back. Staging is at https://foundry-studio-staging.up.railway.app.
+codename is fountainbridge. It runs on Railway. Production is at its Railway address until its
+new address, thefoundry.bruntsfield.capital, is working. Staging is at https://foundry-studio-staging.up.railway.app.
 
 A founder signs in and lands on their venture's page, "the desk". It answers one question first:
 does anything need me? From there they decide on work, tell the studio what they want, and read what
