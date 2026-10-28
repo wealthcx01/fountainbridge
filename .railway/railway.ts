@@ -52,12 +52,19 @@ export default defineRailway(() => {
       OFFICE_SECRET_ARCA: preserve(),
       STUDIO_APPROVAL_GITHUB_TOKEN: preserve(),
       STUDIO_PASSWORD_LOGINS: preserve(),
+      // FB-282, staging (and previews) only: where the pre-deploy step loads the schema, and the
+      // studio role's password. Names only; the values live in Railway.
+      SCHEMA_ADMIN_URL: preserve(),
+      STUDIO_DB_PASSWORD: preserve(),
     },
     build: {
       builder: 'NIXPACKS',
     },
     deploy: {
       startCommand: 'npm run start',
+      // FB-282: before each deploy, load any new schema files. It does nothing unless
+      // SCHEMA_ADMIN_URL is set, which only staging (and previews, which copy staging) set.
+      preDeployCommand: ['node scripts/apply-schema.mjs'],
       // Without this, a deploy that starts but cannot serve a page is still marked healthy.
       healthcheckPath: '/api/health',
       healthcheckTimeout: 100,
