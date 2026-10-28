@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+// The server's settings live in one place, shared with the factory's test copy (FB-272).
+import { studioTestEnv } from './e2e/server-env.mjs';
 
 // FB-005 UI-gate: builds the app and drives the three authorization cases against a real server.
 // The server runs with E2E_TEST_LOGIN=1 so the credentials provider can sign in as any email
@@ -19,7 +21,13 @@ const PORT = 3100;
  * cannot be a per-test decision.
  */
 const SCALE = process.env.E2E_SCALE_FIXTURES?.trim();
-const backlog = (source: string, committed: string) => (SCALE ? `${SCALE}/${source}` : committed);
+
+/**
+ * FB-272: run the specs against a studio that is already running, such as a test copy started with
+ * `node scripts/test-copy.mjs start --port 3100`. When `E2E_BASE_URL` is set, Playwright builds and
+ * starts nothing, and talks to that address instead.
+ */
+const RUNNING = process.env.E2E_BASE_URL?.trim();
 
 export default defineConfig({
   testDir: './e2e',
@@ -29,7 +37,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: RUNNING || `http://localhost:${PORT}`,
     trace: 'on-first-retry',
   },
   projects: [
@@ -38,81 +46,11 @@ export default defineConfig({
     // the same browser CI installs (iPhone/WebKit would need a separate webkit install).
     { name: 'mobile', use: { ...devices['Pixel 5'] }, testMatch: /(mobile|pocket)\.spec\.ts/ },
   ],
-  webServer: {
+  webServer: RUNNING ? undefined : {
     command: `npm run build && npm run start -- --port ${PORT}`,
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
-    env: {
-      E2E_TEST_LOGIN: '1',
-      E2E_TEST_LOGIN_SECRET: 'e2e-playwright-shared-secret',
-      TICKETS_FIXTURE_DIR: backlog('tickets', 'e2e/fixtures/tickets'),
-      PRS_FIXTURE_DIR: backlog('prs', 'e2e/fixtures/prs'),
-      HEALTH_FIXTURE_DIR: 'e2e/fixtures/health',
-      APPROVALS_FIXTURE_DIR: 'e2e/fixtures/approvals',
-      // FB-042. The heartbeat fixture is dated relative to E2E_NOW below, so the engine reads as
-      // running rather than as stalled-for-six-months every time the real clock moves on.
-      RUNREPORTS_FIXTURE_DIR: backlog('runreports', 'e2e/fixtures/runreports'),
-      // FB-064. Gated on E2E_TEST_LOGIN at the call site as well — this surface can MERGE.
-      WORK_FIXTURE_DIR: backlog('work', 'e2e/fixtures/work'),
-      // FB-106: the venture's corpus, offline.
-      KNOWLEDGE_FIXTURE_DIR: 'e2e/fixtures/knowledge',
-      READINGS_FIXTURE_DIR: 'e2e/fixtures/readings',
-      // FB-206: each venture box's credential scan record, read by the admin ledger only. ARCA's
-      // has two findings, modernisation-engine's is clean but three weeks old, the-reset has none.
-      BOXSCAN_FIXTURE_DIR: 'e2e/fixtures/boxscan',
-      // FB-169: whether the team can find every document. ARCA's machine cannot find the one filed
-      // under library/build/ — the real fault, in miniature. No other venture has a record.
-      BRAINCORPUS_FIXTURE_DIR: 'e2e/fixtures/brain-corpus',
-      // FB-137: which reads to fail on purpose, so the degraded half of every screen can be
-      // checked by eye and in CI rather than only when a code host is having a bad day. Empty by
-      // default; `e2e/degraded.spec.ts` runs a second server with it set.
-      E2E_FAIL_READS: process.env.E2E_FAIL_READS ?? '',
-      // FB-133: the recurring work shown under the corpus on the Memory screen. Without this the
-      // gate would reach GitHub for it, which is both slow and a network dependency the UI gate is
-      // built to avoid — and it would render the "could not be read" state on every run.
-      ROUTINES_FIXTURE_DIR: 'e2e/fixtures/routines',
-      // FB-239: the monthly budgets for temporary machines, drawn without a database. Gated on
-      // E2E_TEST_LOGIN at the call site. John's address is the budget approver here, as in production.
-      MACHINE_BUDGETS_FIXTURE: 'e2e/fixtures/machine-budgets/overview.json',
-      BUDGET_APPROVER_EMAIL: 'john.gallagher@wealthcx.com',
-      // FB-235: the Sell pipeline. Invented people only — this repository is public.
-      CRM_FIXTURE_DIR: 'e2e/fixtures/crm',
-      // FB-065. A recorded stream off the real ARCA box, including the inconsistent tool-call
-      // indices the engine actually sends — so the UI gate proves the surface against what the
-      // engine does, not against what its format says it should do.
-      COMPOSER_FIXTURE: 'e2e/fixtures/composer/stream.sse',
-      // The gate's shared secret. Without it every fixture grant reads `unattested` and a granted
-      // spend silently reverts to "awaiting your OK" — which is the correct product behaviour
-      // (FB-051) but means the e2e would never exercise the attested path at all. The fixture
-      // grants are signed with THIS value; regenerate them with `make sign-approval-fixtures`.
-      FOUNDRY_APPROVAL_SECRET: 'e2e-approval-secret-not-for-production',
-      // FB-184: what the rig says each preview check found. The rig never opens an address; this
-      // lets the gate see a checked link drawn and a failed one withheld, not only "not checked".
-      PREVIEW_CHECK_FIXTURE: 'e2e/fixtures/preview-checks.json',
-      // Pin "now" so staleness is deterministic against the fixed-date health fixtures (FB-032).
-      // arca's last activity is 2026-07-21 → active; thereset-platform's is 2026-01-10 → stale.
-      E2E_NOW: '2026-07-22T00:00:00Z',
-      STUDIO_ADMIN_EMAILS: 'john.gallagher@wealthcx.com',
-      // FB-141: lets the notification card be drawn on a rig that has no database, so the browser
-      // test can see it. The public key is a throwaway point with no private half anywhere; the
-      // "private key" is a placeholder that could sign nothing. Pressing "Turn on" here fails, as it
-      // should, because there is nowhere to keep the phone.
-      PUSH_FIXTURE: '1',
-      VAPID_PUBLIC_KEY: 'BJgmT8afelTGKjHrRNGo0VPeq-GUZd3SFeqroUB_RTUuAqOIbhOvwphnEFlsaMyP6BoIpS65obJhfKKFhfOmRVc',
-      VAPID_PRIVATE_KEY: 'e2e-placeholder-not-a-key',
-      // FB-173: the test transcriber, so the record button is drawn and a voice note goes through
-      // without sending audio anywhere. It answers with a fixed sentence that says what it is.
-      TRANSCRIBER: 'test-double',
-      // FB-092: the email+password door, driven end to end by password-login.spec.ts. The hash is
-      // for 'e2e-founder-password-not-for-production' — minted with scripts/mint-password-login.mjs
-      // and safe to commit precisely because it is a hash of a test-only password.
-      STUDIO_PASSWORD_LOGINS:
-        'arca.founder@bruntsfield.capital=scrypt:16384:8:1:WOJHurNFM0_Pg9TJPpclNA:9hY2bijcoZlJ0eYUaNDtoQg-KLQ9v7ZyWjuX21SPIB8',
-      AUTH_SECRET: 'e2e-test-secret-not-for-production',
-      AUTH_TRUST_HOST: 'true',
-      GOOGLE_CLIENT_ID: 'e2e-dummy',
-      GOOGLE_CLIENT_SECRET: 'e2e-dummy',
-    },
+    env: studioTestEnv({ scale: SCALE, failReads: process.env.E2E_FAIL_READS ?? '' }),
   },
 });
