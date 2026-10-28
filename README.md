@@ -21,7 +21,8 @@ The **Foundry Studio**: the vertical of Holy Corner through which Bruntsfield Ca
 2. `docs/cofounder-reference-index.md` — the competitive baseline, fully scraped
 3. `docs/parity-critique.md` — honest scorecard vs Cofounder
 4. `docs/research-gtm.md` — verified GTM findings + ratified architecture
-5. `docs/tickets/` — FB-001…FB-012, one ticket = one branch = one PR
+5. `docs/tickets/` — FB-001 onward, one ticket = one branch = one PR
+6. `MISSION.md` and `docs/prd/factory-pilot-release.md` — what is being built now (the factory pilot)
 
 ## Running it locally
 
@@ -36,6 +37,50 @@ npm run dev                          # http://localhost:3000
 
 Before opening a PR, run what CI runs — `npm run lint`, `npm run typecheck`, `npm test`. The
 browser suite (`npm run test:e2e`) needs `npx playwright install chromium` once.
+
+## Running it for the factory
+
+The software factory builds and checks the studio the way it does the website. It starts a fresh
+**test copy** for each run, signs in to it, and looks at it.
+
+- **Build:** `npm ci`, then `npm run build`.
+- **Start:** `node scripts/test-copy.mjs start --port <port>` (argv
+  `["node","scripts/test-copy.mjs","start","--port","{port}"]`). It makes a throwaway Postgres
+  database on this machine for the run, named `fb_test_<time>_<random>`, applies every `db/*.sql`
+  file to it in order, and starts the built studio on `127.0.0.1` only. The studio reads the test
+  fixtures instead of GitHub, has the test sign-in door on, and uses the same settings as
+  Playwright's own server (`e2e/server-env.mjs`). It connects to the database as `foundry_studio`,
+  so row-level security applies as it does in production.
+- **Never a real database.** It refuses to start if `DATABASE_URL` is set to anything but a
+  throwaway database on this machine. Never Supabase, never staging, never production. It also
+  passes the studio only a short list of settings from your shell, so a real GitHub token there
+  cannot reach it.
+- **Stop:** Ctrl+C, or `node scripts/test-copy.mjs stop --state <folder>` (start prints the
+  folder). Stopping drops the database. A copy that is killed outright cannot drop its own, so every
+  start drops what earlier copies left behind, and `node scripts/test-copy.mjs sweep` does it on
+  demand. `node scripts/test-copy.mjs list` shows them.
+- **Health:** `GET /api/health` answers `{"status":"ok","service":"foundry-studio"}`.
+- **Build identity:** `GET /build-id` answers `FACTORY_RUNTIME_CANDIDATE` when it is set,
+  otherwise the Git commit.
+- **Signing in:** at `/login`, type the address in the "Test email" box and press "Test sign in".
+  ARCA's founder is `arca.founder@bruntsfield.capital`; John is `john.gallagher@wealthcx.com`.
+- **Journeys:** `harness/END-TO-END.md`. Journeys 1 and 2 are `e2e/journeys.spec.ts`; run it
+  against a running copy with `E2E_BASE_URL=http://127.0.0.1:<port> npx playwright test e2e/journeys.spec.ts`.
+- **Tests:** the commands under `## Checks` in `CLAUDE.md`.
+
+**What the machine needs.** The user that runs the test copy must be able to make databases on the
+local Postgres (`CREATEDB`) and act as `foundry_studio` (be a member of that role). A superuser can
+do both. The first run makes the `foundry_studio` role if it is missing, as `db/001_read_model.sql`
+does in every environment.
+
+**The factory's runtime host** copies only the files it is told to, and refuses a copy that holds a
+`node_modules` folder. So its setup installs the packages one folder above the copy (Node looks
+there too) and builds inside it. The host's own settings are operator files outside this
+repository, as for the website. Its copy needs at least `app`, `components`, `lib`, `db`, `e2e`,
+`scripts`, `tools`, `ventures`, `content`, `docs`, `library`, `public`, `schema`, `deploy`, and the
+root config files (`package.json`, `package-lock.json`, `tsconfig.json`, `next.config.mjs`,
+`next-env.d.ts`, `middleware.ts`, `auth.ts`, `auth.config.ts`, `.eslintrc.json`). The host ends a run
+by killing the copy, so its teardown should be followed by `node scripts/test-copy.mjs sweep`.
 
 ### Running against the real deployment
 
@@ -52,7 +97,7 @@ actually reach that venture's box.
 
 ## Conventions
 
-Tickets live in `docs/tickets/`; one ticket = one branch = one PR; nothing merges without a human yes — a founder's approval recorded in the studio, or John merging in GitHub — after CI is green and `/review` has passed (external actions still need their own recorded approval). gstack provides roles (/plan-ceo-review, /review, /qa, /ship, /retro); gbrain provides memory. Stack: Next.js + Vercel + Supabase, Google OAuth, grassmarket-aligned branding. See `CLAUDE.md`.
+Tickets live in `docs/tickets/`; one ticket = one branch = one PR; only John's yes merges — in GitHub, or with his Approve in the studio — after CI is green and `/review` has passed. A founder's Accept in the studio is their sign-off, and merges nothing (external actions still need their own recorded approval). gstack provides roles (/plan-ceo-review, /review, /qa, /ship, /retro); gbrain provides memory. Stack: Next.js + Railway + Supabase, Google OAuth, grassmarket-aligned branding. See `CLAUDE.md`.
 
 **Dependency order:** FB-001 ∥ FB-002 (bcap-contracts) → FB-003 → FB-004 ∥ FB-005 ∥ FB-011 → FB-006 → FB-007 ∥ FB-008 → FB-009 → FB-010 (retro → Phase 2 set). FB-012 ratified — Phase 4b tickets (FB-02x) to be drafted from `docs/research-gtm.md` §7.
 

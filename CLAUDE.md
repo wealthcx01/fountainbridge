@@ -10,37 +10,44 @@ Launch venture: **the-reset** (B2C) — **parked** since 2026-10-07 until ARCA r
 - `docs/parity-critique.md` — honest scorecard vs Cofounder; what "behind" means and where it is fixed.
 - `docs/research-gtm.md` — FB-012, **ratified**. The GTM architecture (interest-based sends, venture Workspace domains, ActiveGraph gate). Governs all of Phase 4b.
 - `docs/cofounder-reference-index.md` — the competitive baseline, fully scraped.
-- `docs/tickets/` — FB-001…FB-012. One ticket = one branch = one PR.
+- `docs/tickets/` — FB-001 onward. One ticket = one branch = one PR.
+- `MISSION.md` and `docs/prd/factory-pilot-release.md` — the release being built now: the factory
+  pilot (FB-271 to FB-280). `harness/END-TO-END.md` holds its journeys.
 
 Where the plan and a ticket disagree, the ticket's **scope** section wins for what ships in that PR; the plan wins on intent. Decisions change only by PR to the plan.
 
 ## Non-negotiables
 
 1. **One ticket = one branch = one PR.** Tickets are markdown in `docs/tickets/` (`FB-XXX-slug.md`); branch names are `fb-XXX-slug`. Work only the ticket on the branch.
-2. **Nothing merges without a human yes.** A pull request merges only after a person has said yes
-   to it. Green checks and a passed `/review` come first, but they are what makes a pull request
-   ready to ask about. They are not the yes.
-   - **A founder's approval recorded in the studio counts as that yes.** When a founder approves a
-     piece of their venture's work in the studio ("Make it part of my product"), the approval is
-     recorded and the studio merges that work.
-   - **Otherwise John merges, in GitHub.** That covers every pull request to this repository and any
-     venture work not approved in the studio. No lane, agent or workflow merges its own pull request,
-     or anyone else's.
-   - **Before anyone is asked:** CI is green — lint, typecheck, test, and the Playwright UI gate — and
+2. **Only John's yes merges.** A pull request merges only after John has approved it: in GitHub, or
+   with his Approve in the studio. That includes a founder's own venture's work. Green checks and a
+   passed `/review` come first, but they are what makes a pull request ready to ask about. They are
+   not the yes.
+   - **A founder's Accept is their sign-off, and merges nothing.** When a founder accepts a piece of
+     their venture's work in the studio, the studio writes "Signed off by <founder>, waiting for
+     John" on the pull request, and the work waits for John. `acceptWork` in `app/actions/work.ts`
+     merges only for an address in `STUDIO_ADMIN_EMAILS`, and
+     `app/actions/__tests__/work.test.ts` proves a founder's Accept merges nothing.
+   - **John merges every pull request to this repository, in GitHub.** No lane, agent or workflow
+     merges its own pull request, or anyone else's.
+   - **Before John is asked:** CI is green — lint, typecheck, test, and the Playwright UI gate — and
      `/review` has passed.
    - **Merging is not an external action.** Approving a pull request never approves an email, a post,
      a payment or a deploy. Those still need their own recorded approval (non-negotiable 4).
 
-   GitHub does not enforce the human yes on its own. `main` is branch-protected (a pull request and
+   GitHub does not enforce John's yes on its own. `main` is branch-protected (a pull request and
    passing CI are required), but "required approvals" stays at 0, because GitHub will not let John
    approve his own pull request. So the rule holds because nothing automated is allowed to merge:
    Archon's house workflow has no merge step and the Claude inside it holds no GitHub credentials,
-   and the studio's own lane only opens pull requests.
+   the studio's own lane only opens pull requests, and the studio merges only on John's Approve.
 
-   *(Amended 2026-10-07 by John: one merge rule everywhere in the factory, replacing "merge on green"
-   of 2026-07-28. Kept from 2026-08-28: the **Playwright UI gate is a required check.** It was
-   advisory, and a red one merged itself — FB-124 shipped a studio with two navigations and a 250px
-   rail on a 393px phone while every other check was green. It is the only gate that sees a screen.)*
+   *(Amended 2026-10-28, FB-272, as John settled for the factory pilot on 26 October
+   (`docs/prd/factory-pilot-release.md`): only John's Approve merges, and a founder's Accept is their
+   sign-off. This replaces the wording of 2026-10-07, which let a founder's approval in the studio
+   merge their venture's work. Kept from 2026-08-28: the **Playwright UI gate is a required check.**
+   It was advisory, and a red one merged itself — FB-124 shipped a studio with two navigations and a
+   250px rail on a 393px phone while every other check was green. It is the only gate that sees a
+   screen.)*
 3. **Respect ticket scope.** Discovered work becomes a new ticket file in the PR or a follow-up — never scope creep into the current PR.
 4. **Gates are absolute.** Engineering changes gate on PR review; external actions (email, social, CRM, payments) gate on **ActiveGraph** approval events. Nothing external ever executes without a recorded human approval (`approval.proposed` → `approval.granted`).
 5. **Venture-as-config.** Nothing venture-specific lives in the studio core. A venture is a manifest; the studio must stay generic enough that a B2B motion (bank-sponsored wealth product) is "just another manifest."
@@ -100,13 +107,17 @@ Where the plan and a ticket disagree, the ticket's **scope** section wins for wh
 
 ## Stack (Decision D6)
 
-- **App:** Next.js (App Router) + TypeScript, mirroring Cofounder's managed stack so venture apps and the studio feel identical to operate. **Arrives in FB-005** — until then this repo is docs + tickets + CI scaffold only.
+- **App:** Next.js (App Router) + TypeScript, mirroring Cofounder's managed stack so venture apps and the studio feel identical to operate. It arrived in FB-005 and is live: production and staging run on Railway (addresses in `MISSION.md`).
 - **Hosting / data:** **Railway** + Supabase. Deploy config lands in FB-009. *(D6 amended 2026-07-21, PR FB-009: Vercel → Railway — the studio's in-memory read-caches want a long-running server, and ventures already run on Hetzner VPS, D1. See the phased plan's D6 note.)*
 - **Auth:** **Google OAuth** (the Holy Corner vertical-login pattern). Venture scoping keys off `founder.workspace_email` in the manifest — a Bruntsfield-assigned Google Workspace account on the shared `@bruntsfield.capital` domain until spin-out (e.g. `ross@bruntsfield.capital`; D3 amended 2026-07-22), **never** a personal `@gmail.com`. John's account → all ventures; a founder's account → their venture only.
 - **Contracts:** `bcap-contracts` (Pydantic v2 + JSON Schema → TS), the same package grassmarket consumes.
 - **Source of truth:** GitHub API over the venture repos' `docs/tickets/` — no separate DB of record.
 - **Branding:** grassmarket / main Bruntsfield site design tokens — **do not invent a theme**; pull the existing tokens.
-- **CI:** lint + typecheck + test, plus a Playwright UI-gate (screenshot gallery per PR) once the app exists — mirroring the portfolio-wide CI pattern.
+- **CI:** lint + typecheck + test, plus the Playwright UI gate (screenshot gallery per PR) — mirroring the portfolio-wide CI pattern.
+- **The factory:** the software factory builds and checks the studio as it does the website
+  (FB-272). Its files are `factory/` and `harness/`; it starts a **test copy** for each run with
+  `node scripts/test-copy.mjs start --port <port>`, which has its own throwaway database on the
+  planning box and is deleted after the run. README, "Running it for the factory", has the detail.
 
 ## Checks
 
@@ -127,18 +138,24 @@ FB171_REQUIRE_ACTIVEGRAPH=1 npx vitest run deploy/executor/__tests__/executor-ac
 make design-lint
 make copy-lint
 make ticket-drift
+CI=1 npm run test:e2e
+CI=1 npm run test:e2e:degraded
+CI=1 npm run test:e2e:scale
 ```
 
-Left out: the Playwright UI gate (`npm run test:e2e`, `test:e2e:degraded`, `test:e2e:scale`),
-because Chromium can't run on the planning box; and `make provision-lint`, because shellcheck is not
-installed there. CI still runs both. The build line uses the same throwaway `AUTH_SECRET` as CI.
+The Playwright UI gate runs on the planning box now: Chromium works there, and on 28 October 2026
+(FB-272) every spec passed locally. `CI=1` makes Playwright start its own server and fail if
+something already holds port 3100, rather than quietly testing whatever is running there.
+
+Left out: `make provision-lint`, because shellcheck is not installed on the planning box. CI still
+runs it. The build line uses the same throwaway `AUTH_SECRET` as CI.
 
 ## Architecture spine
 
 - **Git is the source of truth for work items.** The studio renders `docs/tickets/` from venture repos via the GitHub API. The dashboard is a view + write-path onto git, never a competing store.
 - **Contracts through bcap-contracts** for every rendered entity. See non-negotiable 7.
 - **Venture isolation** is physical (one VPS per venture, D1) and enforced server-side (non-negotiable 6).
-- **Governance (D7):** each manifest carries an approval matrix — founder approves product-visible changes, Bruntsfield approves platform/infra/security, **dual-approve** for high-blast-radius (migrations, auth, payments, secrets, external sends). The attention queue routes each item to the right approver(s).
+- **Governance (D7):** each manifest carries an approval matrix — founder approves product-visible changes, Bruntsfield approves platform/infra/security, **dual-approve** for high-blast-radius (migrations, auth, payments, secrets, external sends). The attention queue routes each item to the right approver(s). For a pull request, a founder's approval is their sign-off and only John's merges (rule 2).
 - **Context & library (D8):** `context/` (durable background, department-tagged) and `library/` (artifacts/outputs) live in the *venture* repo; heavy binaries in object storage with pointers. gbrain indexes git.
 
 ## Layout
@@ -146,24 +163,29 @@ installed there. CI still runs both. The build line uses the same throwaway `AUT
 ```
 fountainbridge/
 ├── CLAUDE.md                 # this file — the non-negotiables
-├── README.md                 # read order + conventions
+├── MISSION.md                # what the studio is, and the pilot being built now
+├── README.md                 # read order, running it, running it for the factory
+├── app/ components/ lib/     # the Next.js studio
+├── db/                       # the database, in order: 001_…sql onward (FB-170)
+├── e2e/                      # Playwright UI gate, its fixtures, and the test settings (server-env.mjs)
+├── scripts/                  # tools, including the test copy (test-copy.mjs)
+├── ventures/                 # one YAML per venture (FB-003): the-reset, arca, modernisation-engine, example
+├── harness/                  # the factory's journeys (END-TO-END.md) and settings — protected
+├── factory/                  # the factory's installed files, as on the website — protected
 ├── docs/
 │   ├── fountainbridge-phased-plan.md   # v4, D1–D8 (normative)
-│   ├── parity-critique.md              # scorecard vs Cofounder
-│   ├── research-gtm.md                 # FB-012, ratified (Phase 4b)
-│   ├── cofounder-reference-index.md    # competitive baseline
+│   ├── prd/                            # release PRDs — protected
 │   └── tickets/                        # FB-XXX-slug.md
-├── .github/workflows/ci.yml  # lint + typecheck + test (trivially green until FB-005)
-├── ventures/                 # one YAML per venture (FB-003): the-reset, arca, example
-└── src/ (or app/)            # Next.js studio app — arrives FB-005
+└── .github/workflows/ci.yml  # CI: lint, typecheck, test, build, the Playwright UI gate and more
 ```
-
-`ventures/` and the app do not exist yet — FB-003 and FB-005 create them. Do not fabricate them ahead of their tickets.
 
 ## Build sequence (phases — see the phased plan)
 
+The plan's original order, kept for its reasoning. What is being built now is the factory pilot
+(see "Current state" below).
+
 0. **Foundations.** Repo scaffold + CI + branch protection (FB-001), bcap-contracts entities (FB-002, in that repo's lane), venture manifest format + the-reset/arca manifests (FB-003), VPS provisioning runbook→script (FB-011), GTM research (FB-012, ratified).
-1. **Studio v0 (read-only).** Next.js shell + Google OAuth venture-scoped (FB-005), ticket parser (FB-004), lanes/tickets view (FB-006), attention queue of open PRs (FB-007), CI/activity (FB-008), mobile + Vercel deploy (FB-009), dogfood week + retro → Phase 2 set (FB-010).
+1. **Studio v0 (read-only).** Next.js shell + Google OAuth venture-scoped (FB-005), ticket parser (FB-004), lanes/tickets view (FB-006), attention queue of open PRs (FB-007), CI/activity (FB-008), mobile + Railway deploy (FB-009), dogfood week + retro → Phase 2 set (FB-010).
 2. **Write path + per-venture scheduler.** Create/edit tickets from the studio; systemd timers waking lanes, RunReports written back. Scoped by FB-010's retro.
 3. **Founder experience.** Conversational composer, in-studio approvals, nothing-fails-silently, D8 context/library.
 4. **GTM departments.** 4a content/site (PR-gated, no research dependency); 4b interest-based sends (`docs/research-gtm.md` §7, ActiveGraph-gated).
@@ -230,6 +252,9 @@ Note that `/sync-gbrain`'s own orchestrator does not fix any of the three faults
 
 ## Current state
 
-Phase 0. FB-001 (this scaffold) in progress. Next in this lane after FB-001 merges: **FB-003** (FB-002 runs in parallel in the bcap-contracts lane). Ask before deviating from the dependency order.
+The studio is live on Railway, with ARCA as its test bed. The release being built now is the
+**factory pilot** (`MISSION.md`, `docs/prd/factory-pilot-release.md`): the studio's tickets FB-271
+to FB-280, one at a time, each from `main` after the last has merged. FB-272 made the studio ready
+for the factory: the test copy, `/build-id`, `harness/runtime.inputs.json`, and rule 2 above.
 
 **Factory log:** when you start a ticket, open its PR, or come back after a crash, run `factory-log firm ticket.started|pr.opened|lane.recovered fountainbridge <ticket-id> [note]` (e.g. `factory-log firm ticket.started fountainbridge FB-270`); the manual is OPS.md in wealthcx01/cowgate.

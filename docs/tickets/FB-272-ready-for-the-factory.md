@@ -1,6 +1,6 @@
 # FB-272 — The studio is ready for the factory
 
-**Status:** Todo · **Kind:** medium · **Budget:** $25 · **Rough date:** 30 October 2026 · **Pilot step:** 1 · **Raised by:** John, 28 October 2026 (the factory pilot, `docs/prd/factory-pilot-release.md`) · One ticket = one branch = one PR.
+**Status:** In review · **Kind:** medium · **Budget:** $25 · **Rough date:** 30 October 2026 · **Pilot step:** 1 · **Raised by:** John, 28 October 2026 (the factory pilot, `docs/prd/factory-pilot-release.md`) · One ticket = one branch = one PR.
 
 ## Why
 
@@ -33,11 +33,41 @@ studio's notes still describe a project that hasn't started.
 
 ## Done when
 
-- [ ] Journeys 1 and 2 in `harness/END-TO-END.md` pass against a test copy, started the way the
-  factory will start it.
-- [ ] A founder's Accept merges nothing; a test proves it. John's Approve still merges.
-- [ ] Staging runs `main`, has its own database, and ARCA's founder can sign in there.
-- [ ] Every command in `CLAUDE.md` `## Checks` passes.
+- [x] Journeys 1 and 2 in `harness/END-TO-END.md` pass against a test copy, started the way the
+  factory will start it. The factory's own runtime host (`factory/runtime_host.py`) started the
+  copy with `node scripts/test-copy.mjs start --port {port}`; `e2e/journeys.spec.ts` passed against
+  it, and `/build-id` answered the host's name for the copy.
+- [x] A founder's Accept merges nothing; a test proves it. John's Approve still merges.
+  `app/actions/__tests__/work.test.ts` failed on the old code (the founder's Accept merged) and
+  passes now.
+- [ ] Staging runs `main`, has its own database, and ARCA's founder can sign in there. Claude does
+  this on Railway (staging's database and deploying `main`). Needs John: the password entry's hash
+  in staging, and staging's address as a Google redirect.
+- [x] Every command in `CLAUDE.md` `## Checks` passes.
+
+## What was built
+
+- `/build-id` (`app/build-id/route.ts`), public like `/api/health`.
+- The test copy, `scripts/test-copy.mjs` (rules in `scripts/test-copy-lib.mjs`, tested in
+  `scripts/__tests__/test-copy-lib.test.mjs`). One run, one throwaway database on the planning
+  box, named `fb_test_<time>_<random>`, dropped when the copy stops. It refuses any other
+  `DATABASE_URL`, and connects the studio as `foundry_studio` so row-level security applies.
+- The test settings moved out of `playwright.config.ts` into `e2e/server-env.mjs`, so the test copy
+  and Playwright's own server use the same list.
+- The factory's files, as on the website: `factory/`, `harness/appproc.py`, `harness/ci.py`,
+  `harness/mutations/`, `harness/harness.config.json`, `harness/runtime.inputs.json`, `FACTORY.md`,
+  `FACTORY_RULES.md`, `engineering.md`, `.factory/holdout/HOLDOUT.md`.
+- `acceptWork` merges only for John. A founder's Accept writes "Signed off by <founder>, waiting
+  for John" on the pull request.
+- `CLAUDE.md` and the README brought up to date.
+
+## Left open
+
+- The factory's Postgres user (`factory`) needs `CREATEDB` and membership of `foundry_studio`
+  before the factory can start a test copy itself. Needs John.
+- The runtime host's own settings for the studio (operator files in `/home/factory/runtime/`).
+  README, "Running it for the factory", says what they need.
+- Whether Railway makes pull request environments for this project. Claude does this on Railway.
 
 ## Needs John
 
