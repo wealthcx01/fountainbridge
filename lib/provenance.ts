@@ -49,7 +49,7 @@
 
 import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
-import { attestationFor, refusalAttestationFor } from './approval-attestation';
+import { attestationFor, firstApprovalAttestationFor, refusalAttestationFor } from './approval-attestation';
 
 export type GrantProvenance = 'attested' | 'unattested' | 'none';
 
@@ -235,4 +235,45 @@ export function verifyRefusal(
   if (!equal(attestation, refusalAttestationFor(repo, id, proposalSha, canonical, secret, at, rawNote))) return null;
 
   return { refusedBy: canonical, at: at.trim() || null, note };
+}
+
+/**
+ * The first of the two approvals a dual decision needs (FB-271), once the studio has checked it.
+ *
+ * A dual decision (a send, a payment, a secret) needs the founder AND Bruntsfield. The first person
+ * to approve does not produce a grant; the studio writes this signed record instead, and only the
+ * second approval, from the other side, produces the grant the executor acts on.
+ */
+export interface FirstApproval {
+  /** Lowercased, as signed. */
+  approver: string;
+  approvedAt: string;
+}
+
+/**
+ * Read a first-approval record, believing it only if the studio signed it, for this exact proposal.
+ *
+ * Null for anything else: no file, a file with no signature, a signature that does not match, or a
+ * record pinned to a proposal that has since changed (a changed proposal voids the first half, so
+ * both people approve the version that will actually go out). A null here means "nobody has
+ * approved this yet", which is the safe direction: the worst a forged or stale file can do is make
+ * someone approve again.
+ */
+export function verifyFirstApproval(
+  kind: 'external-action' | 'plan-release',
+  repo: string,
+  id: string,
+  proposalSha: string,
+  record: unknown,
+  secret: string | undefined,
+): FirstApproval | null {
+  if (!secret || !record || typeof record !== 'object') return null;
+  const r = record as { approver?: unknown; approved_at?: unknown; proposal_sha?: unknown; attestation?: unknown };
+  const approver = typeof r.approver === 'string' ? r.approver.trim().toLowerCase() : '';
+  const at = typeof r.approved_at === 'string' ? r.approved_at : '';
+  const pinned = typeof r.proposal_sha === 'string' ? r.proposal_sha : null;
+  const attestation = typeof r.attestation === 'string' ? r.attestation : '';
+  if (!approver || !at || !attestation || pinned !== proposalSha) return null;
+  if (!equal(attestation, firstApprovalAttestationFor(kind, repo, id, proposalSha, approver, at, secret))) return null;
+  return { approver, approvedAt: at };
 }

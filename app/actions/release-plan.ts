@@ -31,13 +31,25 @@
  *
  * A lane can therefore start work it was told to pause on. It still cannot produce a record saying a
  * human agreed to it.
+ *
+ * ## Both must say go ahead (FB-271)
+ *
+ * A plan is held because the work is high-impact, and on a venture whose matrix makes that class
+ * `dual`, it needs the founder AND Bruntsfield — the same rule as a send. The first of the two gets a
+ * signed first-approval record on the state ref, at a path the lane never reads, and the lane is not
+ * released. Only the second, from the other side, writes the marker the lane reads. The first half is
+ * signed, unlike the marker, because the signed history names both people: a lane that could write a
+ * first half naming the founder would let one Bruntsfield click put the founder's name on the record.
  */
 
 import { auth } from '@/auth';
-import { loadVentures } from '@/lib/ventures';
+import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { GitHubClient } from '@/lib/github';
-import { approverRoleForDepartment, canApprove } from '@/lib/approval-attestation';
+import {
+  approverRoleForDepartment, canApprove, canDecide, firstApprovalAttestationFor, isDualPair, stillNeededAfter,
+} from '@/lib/approval-attestation';
+import { verifyFirstApproval, type FirstApproval } from '@/lib/provenance';
 import { appendEvent } from '@/lib/activegraph-log';
 import { STATE_REF } from '@/lib/runreports';
 import { fullRepoName } from '@/lib/venture-repos';
@@ -45,6 +57,8 @@ import { fullRepoName } from '@/lib/venture-repos';
 export interface ReleaseResult {
   ok: boolean;
   message: string;
+  /** True when this was the first of two go-aheads a dual plan needs (FB-271): nobody starts yet. */
+  waiting?: boolean;
 }
 
 /** The marker the lane reads. Deliberately small: who, when, and which ticket. */
@@ -57,6 +71,9 @@ export interface PlanRelease {
    * judge. A file that does not say what it is worth invites being read as more than it is.
    */
   note: string;
+  /** For a dual plan (FB-271): who said go ahead first. `approver` is the second. */
+  first_approver?: string;
+  first_approved_at?: string;
 }
 
 const SLUG = /^[A-Za-z0-9._-]+$/;
@@ -97,7 +114,7 @@ export async function releasePlan(
   // job, so they must not have two different answers.
   const department = venture.departments?.find((d) => d.repo === repoParam)?.id ?? 'general';
   const role = approverRoleForDepartment(venture, department);
-  if (!canApprove(email, role, venture, admins)) {
+  if (!canDecide(email, role, venture, admins)) {
     return {
       ok: false,
       message: `This is released by ${role === 'dual' ? 'the founder and Bruntsfield' : role}; you are not that approver.`,
@@ -105,6 +122,24 @@ export async function releasePlan(
   }
 
   const ghRepo = fullRepoName(repoParam);
+  const writer = new GitHubClient({ token: writeToken });
+  const secret = process.env.FOUNDRY_APPROVAL_SECRET;
+
+  let first: FirstApproval | null = null;
+  if (role === 'dual') {
+    if (!secret) {
+      return {
+        ok: false,
+        message: 'This needs the founder and Bruntsfield to say go ahead, and the studio cannot record the first of the two yet (no signing secret).',
+      };
+    }
+    const half = await halfOfDualRelease(writer, { ghRepo, ticketSlug, email, secret, venture, admins });
+    if (half.done) return half.result;
+    first = half.first;
+  } else if (!canApprove(email, role, venture, admins)) {
+    return { ok: false, message: `This is released by ${role}; you are not that approver.` };
+  }
+
   const at = new Date().toISOString();
   const release: PlanRelease = {
     ticket: ticketSlug,
@@ -114,13 +149,13 @@ export async function releasePlan(
       'Releases the lane to begin work it paused on. This marker is unsigned and lives on a ref the ' +
       'lane can write, so it is not evidence a human approved anything — the signed record is in the ' +
       'studio ActiveGraph. See FB-122.',
+    ...(first ? { first_approver: first.approver, first_approved_at: first.approvedAt } : {}),
   };
 
-  const writer = new GitHubClient({ token: writeToken });
   try {
     await writer.putFile(ghRepo, `approvals/plan-${ticketSlug}.json`, {
       content: JSON.stringify(release, null, 2),
-      message: `release plan ${ticketSlug} (${email})`,
+      message: `release plan ${ticketSlug} (${first ? `${first.approver} and ` : ''}${email})`,
       branch: STATE_REF,
     });
   } catch (err) {
@@ -132,7 +167,6 @@ export async function releasePlan(
 
   // The part a lane cannot produce. Best-effort by design: the release itself is already real, and
   // failing to write history must not tell the founder their click did nothing when it did.
-  const secret = process.env.FOUNDRY_APPROVAL_SECRET;
   if (secret) {
     const recorded = await appendEvent(
       writeToken,
@@ -145,7 +179,10 @@ export async function releasePlan(
         type: 'approval.granted',
         at,
         actor: { kind: 'human', id: email },
-        data: { kind: 'plan-release', ticket: ticketSlug },
+        data: {
+          kind: 'plan-release', ticket: ticketSlug,
+          ...(first ? { first_approver: first.approver, first_approved_at: first.approvedAt } : {}),
+        },
       },
       secret,
     );
@@ -166,5 +203,95 @@ export async function releasePlan(
     }
   }
 
-  return { ok: true, message: 'Released. Your team will pick it up on the next check-in.' };
+  return {
+    ok: true,
+    message: first
+      ? `Released by you and ${first.approver}. Your team will pick it up on the next check-in.`
+      : 'Released. Your team will pick it up on the next check-in.',
+  };
+}
+
+/**
+ * Where the first go-ahead on a dual plan is kept (FB-271). On the state ref, beside the marker, but
+ * in its own folder: the lane reads exactly `approvals/plan-<ticket>.json`, and a ticket slug cannot
+ * contain a `/`, so nothing here can ever be read as a release.
+ */
+function firstReleasePath(ticketSlug: string): string {
+  return `approvals/first-approvals/plan-${ticketSlug}.json`;
+}
+
+/**
+ * One half of a dual plan release (FB-271). The same four cases as `halfOfDual` in approvals.ts:
+ * first half (record it, release nothing), the same person again, the same side again, or the other
+ * side (the caller writes the marker).
+ *
+ * A plan has no proposal file and no sha, so the first half is pinned to the ticket alone (the id
+ * `plan-<ticket>` is in the signed string, and the proposal sha is empty). The lane writes a ticket's
+ * plan once, so there is no later version for it to be confused with.
+ */
+async function halfOfDualRelease(
+  writer: GitHubClient,
+  p: { ghRepo: string; ticketSlug: string; email: string; secret: string; venture: VentureSummary; admins: string[] },
+): Promise<{ done: true; result: ReleaseResult } | { done: false; first: FirstApproval }> {
+  const path = firstReleasePath(p.ticketSlug);
+  const id = `plan-${p.ticketSlug}`;
+  const existing = await writer.getFileWithSha(p.ghRepo, path, STATE_REF);
+  let parsed: unknown = null;
+  if (existing) {
+    try { parsed = JSON.parse(existing.text); } catch { parsed = null; }
+  }
+  const signed = verifyFirstApproval('plan-release', p.ghRepo, id, '', parsed, p.secret);
+  const first = signed && canDecide(signed.approver, 'dual', p.venture, p.admins) ? signed : null;
+  const me = p.email.trim().toLowerCase();
+
+  if (!first) {
+    const approvedAt = new Date().toISOString();
+    const record = {
+      id, repo: p.ghRepo, ticket: p.ticketSlug, decision: 'first-approval', approver: me,
+      proposal_sha: '', approved_at: approvedAt,
+      attestation: firstApprovalAttestationFor('plan-release', p.ghRepo, id, '', me, approvedAt, p.secret),
+      note: 'The first of two go-aheads. This does not release the plan: your team waits for the other side too. See FB-271.',
+    };
+    try {
+      await writer.putFile(p.ghRepo, path, {
+        content: JSON.stringify(record, null, 2),
+        message: `first go-ahead ${p.ticketSlug} (${me})`,
+        branch: STATE_REF,
+        ...(existing ? { sha: existing.sha } : {}),
+      });
+    } catch (err) {
+      console.error('[release-plan] first go-ahead write failed', { ticketSlug: p.ticketSlug, err });
+      return { done: true, result: { ok: false, message: 'Could not record your go-ahead on GitHub — please try again.' } };
+    }
+    return {
+      done: true,
+      result: {
+        ok: true,
+        waiting: true,
+        message: `You said go ahead. Your team starts once ${stillNeededAfter(me, p.venture, p.admins)} says go ahead too.`,
+      },
+    };
+  }
+
+  if (first.approver === me) {
+    return {
+      done: true,
+      result: {
+        ok: false,
+        message: `You have already said go ahead. Your team starts once ${stillNeededAfter(me, p.venture, p.admins)} says go ahead too.`,
+      },
+    };
+  }
+
+  if (!isDualPair(first.approver, me, p.venture, p.admins)) {
+    return {
+      done: true,
+      result: {
+        ok: false,
+        message: `${first.approver} has already said go ahead for Bruntsfield. It now needs ${stillNeededAfter(first.approver, p.venture, p.admins)} to say go ahead too.`,
+      },
+    };
+  }
+
+  return { done: false, first };
 }

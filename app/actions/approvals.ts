@@ -8,7 +8,9 @@
  *   2. verify the signed-in user is the D7 approver for this department's change class,
  *   3. read the proposal, pin its blob sha, refuse if it's already granted/executed,
  *   4. sign the grant (HMAC attestation the executor verifies) and write grant.json to the
- *      `foundry-approvals` ref with a WRITE-scoped credential (never the read App, never the lane),
+ *      `foundry-approvals` ref with a WRITE-scoped credential (never the read App, never the lane).
+ *      A DUAL decision (FB-271) is different: the first of its two approvers gets a signed
+ *      `first-approval.json` instead, and only the second, from the other side, gets the grant,
  *   5. record it in the ActiveGraph (FB-071): two signed events on the STUDIO's own ref, so the
  *      story of who asked and who agreed exists somewhere the proposing lane cannot author.
  * A recorded human act; the separate gated executor performs the action (never the studio, never the
@@ -16,19 +18,28 @@
  */
 
 import { auth } from '@/auth';
-import { loadVentures } from '@/lib/ventures';
+import { loadVentures, type VentureSummary } from '@/lib/ventures';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
 import { GitHubClient } from '@/lib/github';
 import { APPROVALS_REF, approvalRepos, type ApprovalProposal } from '@/lib/approvals';
 import { fullRepoName } from '@/lib/venture-repos';
-import { approverRoleForDepartment, attestationFor, canApprove, refusalAttestationFor } from '@/lib/approval-attestation';
-import { verifyGrant, verifyRefusal } from '@/lib/provenance';
+import {
+  approverRoleForDepartment, attestationFor, canApprove, canDecide, firstApprovalAttestationFor, isDualPair,
+  refusalAttestationFor, stillNeededAfter,
+} from '@/lib/approval-attestation';
+import { verifyFirstApproval, verifyGrant, verifyRefusal, type FirstApproval } from '@/lib/provenance';
 import { appendEvent } from '@/lib/activegraph-log';
 import { activeGraphGateMode, proposedEventData } from '@/lib/activegraph';
 
 export interface ApproveResult {
   ok: boolean;
   message: string;
+  /**
+   * True when this click was the first of the two approvals a dual decision needs (FB-271): it was
+   * recorded, and nothing goes out until the other side approves too. The card must not call that
+   * "approved".
+   */
+  waiting?: boolean;
 }
 
 export async function approveExternalAction(
@@ -143,20 +154,43 @@ export async function approveExternalAction(
 
   // D7: is this user the approver for the department's change class?
   const role = approverRoleForDepartment(venture, proposal.department ?? 'general');
-  if (!canApprove(email, role, venture, admins)) {
+  if (!canDecide(email, role, venture, admins)) {
     return { ok: false, message: `This change is approved by ${role === 'dual' ? 'the founder and Bruntsfield' : role}; you are not that approver.` };
+  }
+
+  const writer = new GitHubClient({ token: writeToken });
+
+  // FB-271: a dual decision needs the founder AND Bruntsfield. Before this, either of them alone got
+  // the signed grant below, and the executor sends on that grant — so one person could send.
+  let first: FirstApproval | null = null;
+  if (role === 'dual') {
+    const half = await halfOfDual(reader, writer, {
+      ghRepo, approvalId, proposalSha: proposalR.sha, email, secret, venture, admins,
+    });
+    if (half.done) return half.result;
+    first = half.first;
+  } else if (!canApprove(email, role, venture, admins)) {
+    return { ok: false, message: `This change is approved by ${role}; you are not that approver.` };
   }
 
   // Sign + write the grant (the executor verifies the attestation; a lane can't forge it).
   // The attestation is over the FULL name — the executor recomputes it with its REPO env, which is
   // `owner/slug`; signing over the bare slug produced grants it refused as forged (FB-094).
+  //
+  // For a dual decision the grant names the SECOND approver, signed exactly as any grant is, so the
+  // executor and its check are unchanged. The first approver rides along as `first_approver` — not
+  // covered by the grant's signature, but `first-approval.json` (which stays) and the signed
+  // `approval.granted` event below both carry it under a signature.
   const attestation = attestationFor(ghRepo, approvalId, proposalR.sha, email, secret);
-  const grant = { id: approvalId, repo: ghRepo, decision: 'granted', approver: email, proposal_sha: proposalR.sha, attestation, granted_at: new Date().toISOString() };
-  const writer = new GitHubClient({ token: writeToken });
+  const grant = {
+    id: approvalId, repo: ghRepo, decision: 'granted', approver: email, proposal_sha: proposalR.sha, attestation,
+    granted_at: new Date().toISOString(),
+    ...(first ? { first_approver: first.approver, first_approved_at: first.approvedAt } : {}),
+  };
   try {
     await writer.putFile(ghRepo, `approvals/${approvalId}/grant.json`, {
       content: JSON.stringify(grant, null, 2),
-      message: `grant ${approvalId} (approved by ${email})`,
+      message: `grant ${approvalId} (approved by ${first ? `${first.approver} and ` : ''}${email})`,
       branch: APPROVALS_REF,
     });
   } catch (err) {
@@ -189,7 +223,10 @@ export async function approveExternalAction(
         v: 1, seq: 2, venture: ventureId, repo, id: approvalId,
         type: 'approval.granted', at: grant.granted_at,
         actor: { kind: 'human', id: email },
-        data: { proposal_sha: proposalR.sha },
+        data: {
+          proposal_sha: proposalR.sha,
+          ...(first ? { first_approver: first.approver, first_approved_at: first.approvedAt } : {}),
+        },
       }, secret)
     : recorded;
 
@@ -214,7 +251,102 @@ export async function approveExternalAction(
     };
   }
 
-  return { ok: true, message: 'Approved. The action will run shortly, and you\'ll see it recorded here.' };
+  return {
+    ok: true,
+    message: first
+      ? `Approved by you and ${first.approver}. The action will run shortly, and you'll see it recorded here.`
+      : 'Approved. The action will run shortly, and you\'ll see it recorded here.',
+  };
+}
+
+/**
+ * One half of a dual decision (FB-271): the founder's, or Bruntsfield's.
+ *
+ * Reads the signed first approval, if there is one, and decides what this click is:
+ *
+ * - **The first half.** Nobody has approved this version yet. Write a signed `first-approval.json`
+ *   and stop. No grant, so nothing can go out.
+ * - **The same person again.** Say so, and write nothing.
+ * - **The same side again** (two people at Bruntsfield, neither the founder). Say who is still
+ *   needed, and write nothing.
+ * - **The other side.** Return the first approval, and the caller writes the grant.
+ *
+ * A first approval counts only if the studio signed it, for this exact proposal, and the person who
+ * gave it may still decide. A lane can write the file but cannot sign it, a changed proposal voids
+ * it, and someone removed from the admin list no longer counts as half. In each of those cases this
+ * click becomes the new first half and replaces the old file.
+ */
+async function halfOfDual(
+  reader: GitHubClient,
+  writer: GitHubClient,
+  p: {
+    ghRepo: string; approvalId: string; proposalSha: string; email: string; secret: string;
+    venture: VentureSummary; admins: string[];
+  },
+): Promise<{ done: true; result: ApproveResult } | { done: false; first: FirstApproval }> {
+  const path = `approvals/${p.approvalId}/first-approval.json`;
+  const existing = await reader.getFileWithSha(p.ghRepo, path, APPROVALS_REF);
+  let parsed: unknown = null;
+  if (existing) {
+    try { parsed = JSON.parse(existing.text); } catch { parsed = null; }
+  }
+  const signed = verifyFirstApproval('external-action', p.ghRepo, p.approvalId, p.proposalSha, parsed, p.secret);
+  const first = signed && canDecide(signed.approver, 'dual', p.venture, p.admins) ? signed : null;
+  const me = p.email.trim().toLowerCase();
+
+  if (!first) {
+    const approvedAt = new Date().toISOString();
+    const record = {
+      id: p.approvalId, repo: p.ghRepo, decision: 'first-approval', approver: me,
+      proposal_sha: p.proposalSha, approved_at: approvedAt,
+      attestation: firstApprovalAttestationFor('external-action', p.ghRepo, p.approvalId, p.proposalSha, me, approvedAt, p.secret),
+      note: 'The first of two approvals. This is not a grant: nothing goes out until the other side approves too. See FB-271.',
+    };
+    try {
+      await writer.putFile(p.ghRepo, path, {
+        content: JSON.stringify(record, null, 2),
+        message: `first approval ${p.approvalId} (approved by ${me})`,
+        branch: APPROVALS_REF,
+        // Replacing a void file needs its sha. It also means two first halves written at the same
+        // moment cannot both land: GitHub refuses the second, and that person tries again and finds
+        // the first.
+        ...(existing ? { sha: existing.sha } : {}),
+      });
+    } catch (err) {
+      console.error('[approve] first-approval write failed', { approvalId: p.approvalId, err });
+      return { done: true, result: { ok: false, message: 'Could not record your approval on GitHub — please try again.' } };
+    }
+    return {
+      done: true,
+      result: {
+        ok: true,
+        waiting: true,
+        message: `Approved by you. Waiting for ${stillNeededAfter(me, p.venture, p.admins)} to approve it too. Nothing goes out until they do.`,
+      },
+    };
+  }
+
+  if (first.approver === me) {
+    return {
+      done: true,
+      result: {
+        ok: false,
+        message: `You have already approved this. It is waiting for ${stillNeededAfter(me, p.venture, p.admins)} to approve it too. Nothing goes out until they do.`,
+      },
+    };
+  }
+
+  if (!isDualPair(first.approver, me, p.venture, p.admins)) {
+    return {
+      done: true,
+      result: {
+        ok: false,
+        message: `${first.approver} has already approved this for Bruntsfield. It now needs ${stillNeededAfter(first.approver, p.venture, p.admins)} to approve it.`,
+      },
+    };
+  }
+
+  return { done: false, first };
 }
 
 /**
@@ -305,8 +437,9 @@ export async function refuseExternalAction(
   const alreadyDone = await reader.getFileContent(ghRepo, `approvals/${approvalId}/execution.json`, APPROVALS_REF);
   if (alreadyDone) return { ok: false, message: 'This approval has already been actioned — it cannot be refused now.' };
 
+  // Either side of a dual decision may refuse alone: one "no" is enough to stop it (FB-271).
   const role = approverRoleForDepartment(venture, proposal.department ?? 'general');
-  if (!canApprove(email, role, venture, admins)) {
+  if (!canDecide(email, role, venture, admins)) {
     return { ok: false, message: `This change is decided by ${role === 'dual' ? 'the founder and Bruntsfield' : role}; you are not that approver.` };
   }
 

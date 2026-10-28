@@ -38,6 +38,9 @@ export function attestationFor(
     .digest('hex');
 }
 
+/** Who approves a change class, per the D7 approval matrix. */
+export type ApproverRole = 'founder' | 'bruntsfield' | 'dual';
+
 /** A department's gate — mirrors the manifest `departments[].gate`. */
 export type DepartmentGate = 'pr' | 'activegraph' | 'tbd-fb012';
 
@@ -47,37 +50,119 @@ export type DepartmentGate = 'pr' | 'activegraph' | 'tbd-fb012';
  * `high-blast-radius` approver (founder | bruntsfield | dual). Falls back to `founder` if the matrix
  * doesn't name it (a product-visible default), never to "anyone".
  */
-export function approverRoleForDepartment(venture: VentureSummary, departmentId: string): 'founder' | 'bruntsfield' | 'dual' {
+export function approverRoleForDepartment(venture: VentureSummary, departmentId: string): ApproverRole {
   const row = venture.approvalMatrix?.find((r) => r.changeClass === 'high-blast-radius');
   return row?.approver ?? 'founder';
 }
 
+function normalise(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function isFounderOf(email: string, venture: VentureSummary): boolean {
+  const e = normalise(email);
+  return Boolean(e && venture.founderEmail && venture.founderEmail.trim().toLowerCase() === e);
+}
+
+function isAdmin(email: string, adminEmails: string[]): boolean {
+  const e = normalise(email);
+  return Boolean(e) && adminEmails.map((a) => a.trim().toLowerCase()).includes(e);
+}
+
 /**
- * Is `email` authorised to grant for `role` on this venture? `founder` → the venture's founder email;
- * `bruntsfield` / `dual` → a studio admin (John / Bruntsfield). `dual` additionally needs the founder,
- * but v0 treats an admin as sufficient to *issue* the grant and records who; full dual-sign is a
- * follow-up. Deny by default.
+ * May `email` take part in deciding this? Deny by default.
+ *
+ * `founder` → the venture's founder, or a studio admin. `bruntsfield` → a studio admin.
+ * `dual` → the founder or a studio admin, but each of them is only HALF the decision (FB-271).
+ *
+ * This is the check for saying no: one refusal from either side of a dual decision closes it. It is
+ * NOT the check for saying yes — that is `canApprove` below, and for `dual` the yes needs two people.
  */
-export function canApprove(
-  email: string,
-  role: 'founder' | 'bruntsfield' | 'dual',
-  venture: VentureSummary,
-  adminEmails: string[],
-): boolean {
-  const e = email.trim().toLowerCase();
-  if (!e) return false;
-  const isFounder = Boolean(venture.founderEmail && venture.founderEmail.toLowerCase() === e);
-  const isAdmin = adminEmails.map((a) => a.toLowerCase()).includes(e);
+export function canDecide(email: string, role: ApproverRole, venture: VentureSummary, adminEmails: string[]): boolean {
+  if (!normalise(email)) return false;
+  const founder = isFounderOf(email, venture);
+  const admin = isAdmin(email, adminEmails);
   switch (role) {
     case 'founder':
-      return isFounder || isAdmin; // an admin can always act; the founder owns product-visible changes
+      return founder || admin; // an admin can always act; the founder owns product-visible changes
     case 'bruntsfield':
-      return isAdmin;
+      return admin;
     case 'dual':
-      return isAdmin || isFounder; // v0: either party may issue; the grant records the approver
+      return founder || admin;
     default:
       return false;
   }
+}
+
+/**
+ * Can `email`, alone, approve this — so that the studio may sign a grant on their word only?
+ *
+ * Always false for `dual` (FB-271). Until FB-271, `dual` let either the founder or an admin issue the
+ * grant alone, and the executor sends on a grant it can verify — so "both must approve" meant "either
+ * may approve". A dual decision is now granted only by `isDualPair`: two different people, one of them
+ * the founder and the other a studio admin.
+ */
+export function canApprove(email: string, role: ApproverRole, venture: VentureSummary, adminEmails: string[]): boolean {
+  if (role === 'dual') return false;
+  return canDecide(email, role, venture, adminEmails);
+}
+
+/**
+ * Do these two approvals, together, make a dual decision (FB-271)?
+ *
+ * They must come from two different addresses, and between them cover both sides: one the
+ * venture's founder, the other a studio admin. An address that is both the founder and an admin is
+ * ONE person: it fills one side, never both, so it still needs a second, different person.
+ *
+ * What this cannot see: one human signing in with two different addresses. The studio knows
+ * accounts, not people.
+ */
+export function isDualPair(first: string, second: string, venture: VentureSummary, adminEmails: string[]): boolean {
+  const a = normalise(first);
+  const b = normalise(second);
+  if (!a || !b || a === b) return false;
+  return (isFounderOf(a, venture) && isAdmin(b, adminEmails)) || (isAdmin(a, adminEmails) && isFounderOf(b, venture));
+}
+
+/**
+ * Who a dual decision is still waiting for, once `first` has approved, in words for the screen.
+ * The person who has not approved yet is named, so nobody has to guess whose turn it is.
+ */
+export function stillNeededAfter(first: string, venture: VentureSummary, adminEmails: string[]): string {
+  const founder = isFounderOf(first, venture);
+  const admin = isAdmin(first, adminEmails);
+  const founderName = venture.founderName?.trim() ? `${venture.founderName.trim()}, the founder,` : 'the founder';
+  if (founder && admin) return 'someone else at Bruntsfield';
+  if (founder) return 'Bruntsfield';
+  return founderName;
+}
+
+/**
+ * The signature over the FIRST of the two approvals a dual decision needs (FB-271).
+ *
+ * Its own formula, separated from the grant by the literal `first-approval` in the signed string —
+ * the same way FB-183 separates a refusal. If it shared the grant's formula, a signed first half
+ * could be renamed `grant.json` and the executor would verify it and send, on one person's word.
+ * The word in the string is what stops half a decision being replayed as a whole one.
+ *
+ * `kind` says what is being approved (`external-action`, or `plan-release` for a held plan), so a
+ * first half for one can never be copied across to the other. The approver and the time go in as
+ * one JSON array, as the refusal's fields do: nothing in one field can shift where the next begins.
+ * `proposalSha` pins the exact proposal approved; a changed proposal does not match, and the half
+ * is void.
+ */
+export function firstApprovalAttestationFor(
+  kind: 'external-action' | 'plan-release',
+  repo: string,
+  id: string,
+  proposalSha: string,
+  approver: string,
+  approvedAt: string,
+  secret: string,
+): string {
+  return createHmac('sha256', secret)
+    .update(`${repo}|${id}|${proposalSha}|first-approval|${JSON.stringify([kind, normalise(approver), approvedAt])}`)
+    .digest('hex');
 }
 
 /**
