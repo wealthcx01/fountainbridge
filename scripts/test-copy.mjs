@@ -30,7 +30,10 @@
  * databases.
  *
  * Settings: `--port` (or FACTORY_RUNTIME_PORT), `--state <folder>` (or FACTORY_RUNTIME_STATE; a new
- * temporary folder otherwise), and TEST_COPY_PG_SOCKET for a different socket folder.
+ * temporary folder otherwise), TEST_COPY_PG_SOCKET for a different socket folder, and
+ * TEST_COPY_PG_ADMIN_DB for the database it connects to first, to make and drop the throwaway ones
+ * (`postgres` by default; the factory's user may not connect there, so the factory names its own,
+ * `archon_factory`).
  *
  * The user running this needs to be able to make databases on the local Postgres (CREATEDB), and to
  * act as `foundry_studio` (membership in that role). A superuser can do both.
@@ -50,6 +53,7 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOCKET = process.env.TEST_COPY_PG_SOCKET || '/var/run/postgresql';
+const ADMIN_DB = process.env.TEST_COPY_PG_ADMIN_DB || 'postgres';
 const USER = userInfo().username;
 const STATE_FILE = 'test-copy.json';
 
@@ -77,7 +81,7 @@ function option(args, name) {
 }
 
 /** A connection as the person running this, to the database named, through the socket. */
-async function adminClient(database = 'postgres') {
+async function adminClient(database = ADMIN_DB) {
   const client = new pg.Client({ host: SOCKET, user: USER, database });
   try {
     await client.connect();

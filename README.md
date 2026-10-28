@@ -71,7 +71,9 @@ The software factory builds and checks the studio the way it does the website. I
 **What the machine needs.** The user that runs the test copy must be able to make databases on the
 local Postgres (`CREATEDB`) and act as `foundry_studio` (be a member of that role). A superuser can
 do both. The first run makes the `foundry_studio` role if it is missing, as `db/001_read_model.sql`
-does in every environment.
+does in every environment. The factory's user may not connect to the `postgres` database, so the factory's settings set
+`TEST_COPY_PG_ADMIN_DB=archon_factory`: the test copy connects there first to make and drop its
+throwaway databases.
 
 **The factory's runtime host** copies only the files it is told to, and refuses a copy that holds a
 `node_modules` folder. So its setup installs the packages one folder above the copy (Node looks
