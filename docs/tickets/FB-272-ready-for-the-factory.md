@@ -1,6 +1,6 @@
 # FB-272 — The studio is ready for the factory
 
-**Status:** In review · **Kind:** medium · **Budget:** $25 · **Rough date:** 30 October 2026 · **Pilot step:** 1 · **Raised by:** John, 28 October 2026 (the factory pilot, `docs/prd/factory-pilot-release.md`) · One ticket = one branch = one PR.
+**Status:** Shipped in part · **Shipped in part:** staging's own database and ARCA's founder sign-in there, previews copying staging, and the factory's database rights are left (see "Left open") · **Kind:** medium · **Budget:** $25 · **Rough date:** 30 October 2026 · **Pilot step:** 1 · **Raised by:** John, 28 October 2026 (the factory pilot, `docs/prd/factory-pilot-release.md`) · One ticket = one branch = one PR.
 
 ## Why
 
@@ -28,10 +28,13 @@ studio's notes still describe a project that hasn't started.
   `node scripts/mint-password-login.mjs arca.founder@bruntsfield.capital`; only the hash goes into
   staging's variables. John adds staging's address as a redirect in the Google client, for his own
   sign-in.
-- Pull request environments: answered on 28 October. Railway makes one for every pull request on
-  this project (#382, #383, #384), each built and health-checked. Find out which environment
-  a preview copies its settings from, write it down in `docs/deploy.md`, and make sure a preview can
-  never reach production's data.
+- **Pull request previews copy staging, never production** (John, 28 October). Railway makes one
+  for every pull request on this project (#382, #383, #384), but each was a copy of **production**:
+  production's database address, the approval-signing secret, the GitHub App key and the write
+  tokens, on a public address. John switched previews off the same day. Once staging has its own
+  database, previews are set to copy staging, checked on a real pull request (its variable names
+  match staging's, and none of production's secrets are there), and only then switched back on.
+  Written down in `docs/deploy.md`.
 
 ## Done when
 
@@ -69,7 +72,7 @@ studio's notes still describe a project that hasn't started.
   before the factory can start a test copy itself. Needs John.
 - The runtime host's own settings for the studio (operator files in `/home/factory/runtime/`).
   README, "Running it for the factory", says what they need.
-- Whether Railway makes pull request environments for this project. Claude does this on Railway.
+- Previews copying staging, then switched back on (see above). Claude does this on Railway.
 
 ## Needs John
 
