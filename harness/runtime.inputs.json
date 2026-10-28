@@ -8,7 +8,9 @@
     "health_path": "/api/health",
     "health_contains": "\"status\":\"ok\"",
     "boot_timeout_s": 120,
-    "env": {}
+    "env": {
+      "TEST_COPY_PG_ADMIN_DB": "archon_factory"
+    }
   },
   "cli": {
     "invoke": "",
