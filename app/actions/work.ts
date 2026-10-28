@@ -8,7 +8,12 @@
  *   1. verify the session and that this venture is theirs (server-side, CLAUDE.md #6),
  *   2. check the work is in this venture's repos — never take the client's word for a repo,
  *   3. re-read it and re-decide acceptability against what is CURRENTLY true,
- *   4. merge with the commit the founder was looking at pinned, using a write-scoped credential.
+ *   4. for John only: merge with the commit he was looking at pinned, using a write-scoped
+ *      credential. For a founder: write their sign-off on the work, and merge nothing.
+ *
+ * **Only John's Approve merges** (FB-272, CLAUDE.md rule 2). "John" is whoever `STUDIO_ADMIN_EMAILS`
+ * names. A founder's Accept is their sign-off: it says "Signed off by <founder>, waiting for John" on
+ * the pull request, where John reads it, and the work waits for him.
  */
 
 import { auth } from '@/auth';
@@ -22,6 +27,11 @@ import { githubWorkSource, loadWork } from '@/lib/work-load';
 export interface AcceptResult {
   ok: boolean;
   message: string;
+  /**
+   * True when a founder's Accept was recorded as their sign-off and nothing was merged (FB-272).
+   * The screens use it to say "signed off" rather than "accepted".
+   */
+  signedOff?: boolean;
 }
 
 /** How long a note may be. Long enough for a paragraph; short enough that it is a note. */
@@ -132,13 +142,32 @@ export async function acceptWork(
     return { ok: false, message: verdict.nextStep ? `${verdict.text} ${verdict.nextStep}` : verdict.text };
   }
 
+  // Same owner qualification as the read path — a short manifest name is not an API path.
+  const org = process.env.GITHUB_ORG ?? 'wealthcx01';
+  const full = repo.includes('/') ? repo : `${org}/${repo}`;
   const writer = new GitHubClient({ token: writeToken });
+
+  // A founder signs off; only John merges. `access.isAdmin` is true only for an address in
+  // STUDIO_ADMIN_EMAILS — being a venture's founder never makes it true.
+  if (!access.isAdmin) {
+    // The commit they read goes in the record, so John knows exactly what was signed off.
+    const body =
+      `**Signed off by ${email}, waiting for John.**\n\n` +
+      `They read commit \`${work.headSha.slice(0, 7)}\`. Nothing has been merged: only John's approval merges this.`;
+    try {
+      await writer.commentOnPullRequest(full, number, body);
+      return { ok: true, signedOff: true, message: 'Signed off by you, waiting for John. Nothing changes in your product until he approves it.' };
+    } catch (e) {
+      if (e instanceof GitHubError && e.status === 403) {
+        return { ok: false, message: 'The studio is not allowed to write to this repository. An admin needs to widen its access.' };
+      }
+      return { ok: false, message: 'Something went wrong recording your sign-off. Nothing was recorded — try again.' };
+    }
+  }
+
   try {
     // The sha is pinned server-side too: GitHub 409s if the branch moved between our read and this
     // call. The check above gives a good message; this makes the race impossible.
-    // Same owner qualification as the read path — a short manifest name is not an API path.
-    const org = process.env.GITHUB_ORG ?? 'wealthcx01';
-    const full = repo.includes('/') ? repo : `${org}/${repo}`;
     const res = await writer.mergePullRequest(full, number, { sha: work.headSha, method: 'squash', title: work.title });
     if (!res.merged) return { ok: false, message: 'GitHub did not accept the change. Nothing was merged.' };
     return { ok: true, message: 'Accepted. It is now part of your product.' };

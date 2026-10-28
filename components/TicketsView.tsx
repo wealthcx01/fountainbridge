@@ -111,7 +111,7 @@ export function TicketsView({
 }) {
   const router = useRouter();
   const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
-  const [outcome, setOutcome] = useState<{ id: string; kind: 'approved' | 'refused'; message: string } | null>(null);
+  const [outcome, setOutcome] = useState<{ id: string; kind: 'approved' | 'signed-off' | 'refused'; message: string } | null>(null);
 
   const counts = useMemo(() => countTickets(rows), [rows]);
   // FB-137: empty and unreadable are different sentences, and this screen said both.
@@ -346,9 +346,9 @@ function Detail({
   position: { n: number; of: number } | null;
   knownIds: ReadonlySet<string>;
   onSelectId: (id: string) => void;
-  outcome: { kind: 'approved' | 'refused'; message: string } | null;
+  outcome: { kind: 'approved' | 'signed-off' | 'refused'; message: string } | null;
   next: TicketRow | null;
-  onDecided: (kind: 'approved' | 'refused', message: string) => void;
+  onDecided: (kind: 'approved' | 'signed-off' | 'refused', message: string) => void;
   onNext: (row: TicketRow) => void;
 }) {
   const ticket = row.item?.ticket ?? null;
@@ -479,10 +479,12 @@ function Detail({
       {outcome ? (
         <div data-testid="detail-outcome" style={{ marginTop: '1.25rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
           <p className="eyebrow" style={{ marginTop: 0 }}>
-            {outcome.kind === 'approved' ? 'Approved and verified' : 'Sent back with your note'}
+            {outcome.kind === 'approved' ? 'Approved and verified'
+              : outcome.kind === 'signed-off' ? 'Signed off, waiting for John'
+              : 'Sent back with your note'}
           </p>
           <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
-            {outcome.kind === 'approved'
+            {outcome.kind !== 'refused'
               ? outcome.message
               : 'Nothing went out. Your team re-opens it, reads your note, and comes back with a revision.'}
           </p>
@@ -575,7 +577,8 @@ function Detail({
                   // since this page rendered — a founder deciding from a list, without opening the
                   // work, must not merge a change that landed after they looked.
                   const r = noteDecision(await acceptWork(ventureId, row.waiting!.repo, row.waiting!.number, row.waiting!.headSha ?? undefined));
-                  if (r.ok) onDecided('approved', r.message);
+                  // FB-272: a founder's yes is their sign-off; only John's merges.
+                  if (r.ok) onDecided(r.signedOff ? 'signed-off' : 'approved', r.message);
                   else setError(r.message);
                 })}
               >

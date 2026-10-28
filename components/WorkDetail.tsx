@@ -248,7 +248,7 @@ export function WorkDetail({
   launchCheck?: PreviewCheck | null;
 }) {
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; message: string; signedOff?: boolean } | null>(null);
 
   // Decided here from what was rendered, and decided AGAIN server-side against what is current —
   // this one gives the founder a reason, the server one makes a stale accept impossible.
@@ -368,7 +368,9 @@ export function WorkDetail({
       <div data-testid="work-decision"
            style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
         {done ? (
-          <span className="tag tag-accent" data-testid="work-state">accepted</span>
+          // FB-272: a founder's Accept is their sign-off and merges nothing, so it must not say
+          // "accepted" as if the work were already part of the product.
+          <span className="tag tag-accent" data-testid="work-state">{result?.signedOff ? 'signed off' : 'accepted'}</span>
         ) : (
           <>
             {verdict.ok ? (

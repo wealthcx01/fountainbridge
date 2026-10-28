@@ -78,3 +78,18 @@ library/launch-video/frames/
 # FB-171: the local ActiveGraph used by `make activegraph-test`, and its Python caches.
 .ag-venv/
 __pycache__/
+
+# The factory's own local files (FB-272), as on the website. Never committed.
+*.pyc
+*.pyo
+.factory/consumer.json
+.factory/backup/
+.factory/STOP
+.factory/PAUSE
+.factory/schedule.log
+.factory/schedule-task.xml
+.factory/trigger.json
+.factory/gate.json
+.factory/*.lock
+harness/.results/
+.factory/holdout/.results/

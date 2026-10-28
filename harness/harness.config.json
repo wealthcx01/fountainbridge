@@ -1,0 +1,8 @@
+{
+  "static": "npx --no-install tsc --noEmit -p .",
+  "unit": "npm test",
+  "unit_count_pattern": "Tests\\s+(\\d+) passed",
+  "required_checks": "Lint,Typecheck,Test,Validate manifests,Parse tickets,Build,ActiveGraph gate,Playwright UI gate,Design contract,Plain English,Tickets match the history,Provision scripts",
+  "protected_paths": "MISSION.md,FACTORY.md,FACTORY_RULES.md,engineering.md,CLAUDE.md,harness/**,.factory/**,factory/**,docs/prd/**,railway.json,.github/**",
+  "description": "Ordinary project checks only. Configure real commands. Runtime environment and scenarios are separate inputs. required_checks names the CI checks a merge needs (comma-separated, or \"none\"); the merge queue reads it where GitHub cannot report branch protection, as on free private repositories. protected_paths lists root-anchored path patterns (* within a segment, ** across segments) that only a human may change; the merge queue holds any pull request that touches one."
+}
