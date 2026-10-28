@@ -1,6 +1,6 @@
 # FB-267 — Approve an Archon plan from the studio
 
-**Status:** Blocked until FB-266 is done · **Phase:** 3 · **Kind:** a medium build · **Raised by:**
+**Status:** Replaced by cowgate CG-0064 (the factory pilot, 28 October 2026) · **Phase:** 3 · **Kind:** a medium build · **Raised by:**
 the October re-baseline (section 5, ticket 5), filed 2026-10-21 at John's request · One ticket = one
 branch = one PR.
 

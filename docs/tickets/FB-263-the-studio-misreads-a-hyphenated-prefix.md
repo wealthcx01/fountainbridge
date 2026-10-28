@@ -1,6 +1,6 @@
 # FB-263 — The studio misreads a ticket id whose prefix has a hyphen in it
 
-**Status:** Todo · **Phase:** 3 · **Raised by:** review of FB-146, 2026-10-02 ·
+**Status:** Done · shipped in #371 (4864980) · **Phase:** 3 · **Raised by:** review of FB-146, 2026-10-02 ·
 **Depends on:** FB-146 · One ticket = one branch = one PR.
 
 ## What happens
