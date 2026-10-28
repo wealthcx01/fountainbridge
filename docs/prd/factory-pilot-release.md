@@ -105,8 +105,8 @@ Dates are rough. They assume John reviews each pull request within a day.
 | CG-0065 | Screenshots: when a pull request's preview is up, the box takes before and after pictures at both sizes, and sends them with the card. | medium | $25 | 2 Nov |
 | CG-0066 | The listener's second inbox: it collects studio presses as it collects Telegram taps. | medium | $25 | 3 Nov |
 
-All fifteen add up to $330. **Demo-ready: about 10 November.** The dates move if ARCA's preview
-environments still don't appear (FB-230), or a review takes longer than a day.
+All fifteen add up to $330. **Demo-ready: about 10 November.** The dates move if a review takes
+longer than a day. (ARCA's and Foundry's pull request previews work: FB-230, closed 28 October.)
 
 Journeys: 1 and 2 by step 1; 4 and 5 by step 3; 3 by step 6; 7 by step 7. Journey 6 grows with
 steps 4, 5, 6 and 3.
