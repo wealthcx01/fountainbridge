@@ -5,6 +5,9 @@
   },
   "deploy": {
     "startCommand": "npm run start",
+    "preDeployCommand": [
+      "node scripts/apply-schema.mjs"
+    ],
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",

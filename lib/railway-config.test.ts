@@ -16,12 +16,14 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const IAC_FILE = `${root}.railway/railway.ts`;
 const LEGACY_FILE = `${root}railway.json`;
 
-// The five settings, as they were in railway.json on the day of the move. Changing one of these is a
-// deploy change, and it belongs in its own pull request with its own staging deploy (FB-229, "Out of
+// The settings, as they were in railway.json on the day of the move, plus the pre-deploy step
+// (FB-282). Changing one of these is a deploy change, and it belongs in its own pull request with its own staging deploy (FB-229, "Out of
 // scope"). Do not edit this list to make the test pass.
 const EXPECTED = {
   builder: 'NIXPACKS',
   startCommand: 'npm run start',
+  // FB-282 (its own pull request): load any new schema files before each deploy.
+  preDeployCommand: ['node scripts/apply-schema.mjs'],
   healthcheckPath: '/api/health',
   healthcheckTimeout: 100,
   restartPolicyType: 'ON_FAILURE',
@@ -84,6 +86,10 @@ describe('.railway/railway.ts keeps the studio deploy settings (FB-229)', () => 
 
   it('keeps the start command', () => {
     expect((studioService().deploy as Plain).startCommand).toBe(EXPECTED.startCommand);
+  });
+
+  it('loads any new schema files before each deploy (FB-282)', () => {
+    expect((studioService().deploy as Plain).preDeployCommand).toEqual(EXPECTED.preDeployCommand);
   });
 
   it('keeps the health check path and its timeout', () => {
