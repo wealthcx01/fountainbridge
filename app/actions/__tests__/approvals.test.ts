@@ -34,7 +34,7 @@ vi.mock('@/lib/github', () => ({
 }));
 
 const { approveExternalAction, refuseExternalAction } = await import('../approvals');
-const { verifyRefusal } = await import('@/lib/provenance');
+const { verifyGrant, verifyRefusal } = await import('@/lib/provenance');
 const { attestationFor } = await import('@/lib/approval-attestation');
 
 const VENTURE = {
@@ -335,5 +335,210 @@ describe('refusing a send', () => {
     const r = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', WHY);
     expect(r.ok).toBe(false);
     expect(putFile).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * FB-271: "both must approve" means both.
+ *
+ * Before this ticket a dual decision — a send, a payment, a secret — was granted by whichever of the
+ * founder or Bruntsfield clicked first. The executor sends on a grant it can verify, so one person
+ * alone could send. These tests drive the real action against a small in-memory GitHub, so a file
+ * written by one click is the file the next click reads, as on the real approvals ref.
+ */
+describe('a dual decision needs the founder and Bruntsfield (FB-271)', () => {
+  const FOUNDER = 'ross@bruntsfield.capital';
+  const ADMIN = 'john@bruntsfield.capital';
+  const OTHER_ADMIN = 'second.admin@bruntsfield.capital';
+  const REPO = 'wealthcx01/thereset-marketing';
+  const DUAL = {
+    ...VENTURE,
+    founderName: 'Ross',
+    approvalMatrix: [{ changeClass: 'high-blast-radius', approver: 'dual' }],
+  };
+
+  // The approvals ref and the studio's record, as one map: `repo:path` → { text, sha }.
+  let files: Map<string, { text: string; sha: string }>;
+  let blob = 0;
+  const key = (repo: string, path: string) => `${repo}:${path}`;
+  const read = (path: string) => files.get(key(REPO, path))?.text ?? null;
+  const grantWritten = () => putFile.mock.calls.some((c) => c[0] === REPO && String(c[1]).endsWith('grant.json'));
+  const as = (email: string) => auth.mockResolvedValue({ user: { email } });
+  const approve = () => approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current');
+
+  beforeEach(() => {
+    files = new Map();
+    files.set(key(REPO, 'approvals/send-1/proposal.json'), { text: JSON.stringify(PROPOSAL), sha: 'sha-current' });
+    process.env.STUDIO_ADMIN_EMAILS = `${ADMIN},${OTHER_ADMIN}`;
+    loadVentures.mockReturnValue([DUAL]);
+    getFileWithSha.mockImplementation(async (repo: string, path: string) => files.get(key(repo, path)) ?? null);
+    getFileContent.mockImplementation(async (repo: string, path: string) => files.get(key(repo, path))?.text ?? null);
+    putFile.mockImplementation(async (repo: string, path: string, p: { content: string; sha?: string }) => {
+      const k = key(repo, path);
+      // GitHub refuses to replace a file unless you name the version you are replacing.
+      if (files.has(k) && p.sha !== files.get(k)!.sha) throw new Error('422 sha does not match');
+      files.set(k, { text: p.content, sha: `blob-${++blob}` });
+      return files.get(k)!.sha;
+    });
+  });
+
+  afterEach(() => {
+    process.env.STUDIO_ADMIN_EMAILS = 'john@bruntsfield.capital';
+  });
+
+  it('the founder alone does not produce a grant, and is told Bruntsfield must approve too', async () => {
+    as(FOUNDER);
+    const r = await approve();
+    expect(r.ok).toBe(true);
+    expect(r.waiting).toBe(true);
+    expect(r.message).toBe('Approved by you. Waiting for Bruntsfield to approve it too. Nothing goes out until they do.');
+    expect(grantWritten(), 'one person produced a grant the executor would send on').toBe(false);
+    expect(JSON.parse(read('approvals/send-1/first-approval.json')!)).toMatchObject({
+      approver: FOUNDER, proposal_sha: 'sha-current', decision: 'first-approval',
+    });
+  });
+
+  it('Bruntsfield alone does not produce a grant, and is told the founder must approve too', async () => {
+    as(ADMIN);
+    const r = await approve();
+    expect(r.ok).toBe(true);
+    expect(r.message).toBe('Approved by you. Waiting for Ross, the founder, to approve it too. Nothing goes out until they do.');
+    expect(grantWritten()).toBe(false);
+  });
+
+  it('someone who is both the founder and an admin counts once, not twice', async () => {
+    // One address in both roles is one person. They fill one half, and a second click from them
+    // must not fill the other.
+    loadVentures.mockReturnValue([{ ...DUAL, founderEmail: ADMIN }]);
+    as(ADMIN);
+    const first = await approve();
+    expect(first.message).toContain('Waiting for someone else at Bruntsfield');
+    const again = await approve();
+    expect(again.ok).toBe(false);
+    expect(grantWritten()).toBe(false);
+    // A different admin completes it.
+    as(OTHER_ADMIN);
+    expect((await approve()).ok).toBe(true);
+    expect(grantWritten()).toBe(true);
+  });
+
+  it('the same person approving twice does not produce a grant', async () => {
+    as(FOUNDER);
+    await approve();
+    const r = await approve();
+    expect(r.ok).toBe(false);
+    expect(r.message).toBe('You have already approved this. It is waiting for Bruntsfield to approve it too. Nothing goes out until they do.');
+    expect(grantWritten()).toBe(false);
+  });
+
+  it('two people from Bruntsfield are still only one side', async () => {
+    as(ADMIN);
+    await approve();
+    as(OTHER_ADMIN);
+    const r = await approve();
+    expect(r.ok).toBe(false);
+    expect(r.message).toBe(`${ADMIN} has already approved this for Bruntsfield. It now needs Ross, the founder, to approve it.`);
+    expect(grantWritten()).toBe(false);
+  });
+
+  for (const [firstWho, secondWho] of [[FOUNDER, ADMIN], [ADMIN, FOUNDER]]) {
+    it(`grants once both have approved: ${firstWho} first, then ${secondWho}`, async () => {
+      as(firstWho);
+      await approve();
+      as(secondWho);
+      const r = await approve();
+      expect(r.ok).toBe(true);
+      expect(r.waiting).toBeUndefined();
+      expect(r.message).toContain(`Approved by you and ${firstWho}.`);
+
+      // The grant is the one the executor already knows how to check: unchanged format, signed for
+      // the second approver, and it verifies.
+      const grant = JSON.parse(read('approvals/send-1/grant.json')!);
+      expect(verifyGrant(REPO, 'send-1', 'sha-current', grant, 'test-secret')).toMatchObject({
+        provenance: 'attested', approver: secondWho,
+      });
+      expect(grant.first_approver).toBe(firstWho);
+      // And the signed record names both people.
+      const granted = [...files.entries()].find(([k]) => k.endsWith('approval.granted.json'));
+      expect(granted, 'no approval.granted event was written').toBeDefined();
+      const event = JSON.parse(granted![1].text);
+      expect(event.actor.id).toBe(secondWho);
+      expect(event.data.first_approver).toBe(firstWho);
+    });
+  }
+
+  it('a first approval a lane wrote (no real signature) does not count as half', async () => {
+    files.set(key(REPO, 'approvals/send-1/first-approval.json'), {
+      sha: 'blob-lane',
+      text: JSON.stringify({
+        approver: FOUNDER, proposal_sha: 'sha-current', approved_at: '2026-10-28T09:00:00Z', attestation: 'f'.repeat(64),
+      }),
+    });
+    as(ADMIN);
+    const r = await approve();
+    expect(r.waiting).toBe(true);
+    expect(grantWritten()).toBe(false);
+    // The forged file was replaced with Bruntsfield's real first half.
+    expect(JSON.parse(read('approvals/send-1/first-approval.json')!).approver).toBe(ADMIN);
+  });
+
+  it('a first approval renamed to grant.json does not verify as a grant, here or in the executor', async () => {
+    as(FOUNDER);
+    await approve();
+    const half = JSON.parse(read('approvals/send-1/first-approval.json')!);
+    // The studio's own check.
+    expect(verifyGrant(REPO, 'send-1', 'sha-current', half, 'test-secret').provenance).toBe('unattested');
+    // The executor's formula, recomputed exactly as executor.mjs does.
+    const { createHmac } = await import('node:crypto');
+    // @ts-expect-error — the executor is untyped .mjs, loaded as-is so this checks the real formula
+    const { expectedAttestation } = await import('../../../deploy/executor/executor-lib.mjs');
+    expect(expectedAttestation(createHmac, 'test-secret', REPO, 'send-1', 'sha-current', half.approver)).not.toBe(half.attestation);
+    // And the studio does not treat it as "already approved" either: Bruntsfield can still decide.
+    files.set(key(REPO, 'approvals/send-1/grant.json'), { text: JSON.stringify(half), sha: 'blob-renamed' });
+    files.delete(key(REPO, 'approvals/send-1/first-approval.json'));
+    as(ADMIN);
+    const r = await approve();
+    expect(r.waiting).toBe(true);
+  });
+
+  it('a changed proposal voids the first approval: both approve the version that goes out', async () => {
+    as(FOUNDER);
+    await approve();
+    files.set(key(REPO, 'approvals/send-1/proposal.json'), { text: JSON.stringify(PROPOSAL), sha: 'sha-rewritten' });
+    as(ADMIN);
+    const r = await approveExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-rewritten');
+    expect(r.waiting).toBe(true);
+    expect(grantWritten()).toBe(false);
+  });
+
+  it('one "no" is enough: either side may refuse alone, and that closes it', async () => {
+    as(FOUNDER);
+    await approve();
+    as(ADMIN);
+    const refused = await refuseExternalAction('the-reset', 'send-1', 'thereset-marketing', 'sha-current', 'Not this list.');
+    expect(refused.ok).toBe(true);
+    as(FOUNDER);
+    const r = await approve();
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain(`refused by ${ADMIN}`);
+    expect(grantWritten()).toBe(false);
+  });
+
+  it('a Bruntsfield-only decision is still granted by one admin, as before', async () => {
+    loadVentures.mockReturnValue([{ ...DUAL, approvalMatrix: [{ changeClass: 'high-blast-radius', approver: 'bruntsfield' }] }]);
+    as(ADMIN);
+    const r = await approve();
+    expect(r.ok).toBe(true);
+    expect(r.waiting).toBeUndefined();
+    expect(grantWritten()).toBe(true);
+    expect(read('approvals/send-1/first-approval.json')).toBeNull();
+  });
+
+  it('a founder-only decision is still granted by the founder alone, as before', async () => {
+    loadVentures.mockReturnValue([{ ...DUAL, approvalMatrix: [{ changeClass: 'high-blast-radius', approver: 'founder' }] }]);
+    as(FOUNDER);
+    const r = await approve();
+    expect(r.ok).toBe(true);
+    expect(grantWritten()).toBe(true);
   });
 });

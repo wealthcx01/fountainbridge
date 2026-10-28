@@ -179,6 +179,13 @@ describe('telling the founder what happened', () => {
       .toBe('ross@bruntsfield.capital approved it.');
   });
 
+  it('names both people when a dual decision needed two (FB-271)', () => {
+    expect(narrate(ev({
+      seq: 2, type: 'approval.granted', actor: human('john@bruntsfield.capital'),
+      data: { proposal_sha: 'sha', first_approver: 'ross@bruntsfield.capital' },
+    }))).toBe('ross@bruntsfield.capital and john@bruntsfield.capital approved it.');
+  });
+
   it('says who asked, without naming the machinery', () => {
     expect(narrate(ev({ seq: 1, type: 'approval.proposed', data: { summary: 'email 40 people' } })))
       .toBe('Your team asked for your OK: email 40 people.');

@@ -62,7 +62,7 @@ export function ApprovalCard({
   // surface quietly conditional on no venture ever having that collision. Same key as the React one.
   const tid = `${approval.repo}/${approval.id}`;
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; message: string; waiting?: boolean } | null>(null);
   const [refusing, setRefusing] = useState(false);
   const [note, setNote] = useState('');
   const failing = approval.checks.filter((c) => !c.passed).length;
@@ -182,7 +182,11 @@ export function ApprovalCard({
               ? { color: toneColor('blocked') }
               : undefined}
           >
-            {result?.ok ? (result.message.startsWith('Refused') ? 'refused' : 'approved') : STATE_LABEL[approval.status] ?? approval.status}
+            {/* FB-271: the first of two approvals on a dual decision is not "approved" — nothing goes
+                out until the other side approves too, and the tag must not say otherwise. */}
+            {result?.ok
+              ? (result.waiting ? 'needs one more approval' : result.message.startsWith('Refused') ? 'refused' : 'approved')
+              : STATE_LABEL[approval.status] ?? approval.status}
           </span>
         ) : (
           <button

@@ -131,7 +131,8 @@ function approvalText(e: ActiveGraphEvent): string {
     case 'approval.proposed':
       return 'Your team finished it and put it up for your decision';
     case 'approval.granted':
-      return `Approved by ${who}`;
+      // FB-271: a dual decision is granted by two people, and the record names both.
+      return e.data?.first_approver ? `Approved by ${e.data.first_approver} and ${who}` : `Approved by ${who}`;
     case 'approval.rejected':
       return `Sent back by ${who}, with a note`;
     case 'action.executing':

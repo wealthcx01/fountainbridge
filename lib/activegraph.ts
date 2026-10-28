@@ -180,7 +180,8 @@ export function narrate(e: ActiveGraphEvent): string {
     case 'approval.proposed':
       return `${who} asked for your OK${e.data?.summary ? `: ${e.data.summary}` : ''}.`;
     case 'approval.granted':
-      return `${who} approved it.`;
+      // FB-271: a dual decision is granted by two people, and the record names both.
+      return e.data?.first_approver ? `${e.data.first_approver} and ${who} approved it.` : `${who} approved it.`;
     case 'approval.rejected':
       return `${who} turned it down${e.data?.reason ? `: ${e.data.reason}` : ''}.`;
     case 'action.executing':
