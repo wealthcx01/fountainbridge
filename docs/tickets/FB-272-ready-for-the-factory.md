@@ -28,8 +28,10 @@ studio's notes still describe a project that hasn't started.
   `node scripts/mint-password-login.mjs arca.founder@bruntsfield.capital`; only the hash goes into
   staging's variables. John adds staging's address as a redirect in the Google client, for his own
   sign-in.
-- Find out whether Railway really makes pull request environments for this project (Railway says
-  yes; FB-230 says none ever appeared). Write down which is true.
+- Pull request environments: answered on 28 October. Railway makes one for every pull request on
+  this project (#382, #383, #384), each built and health-checked. Find out which environment
+  a preview copies its settings from, write it down in `docs/deploy.md`, and make sure a preview can
+  never reach production's data.
 
 ## Done when
 

@@ -1,6 +1,6 @@
 # FB-230 — PR environments enabled on the arca project, and the one step it still needs
 
-**Status:** Shipped in part · **Slice 2 2026-09-30** · **Phase:** 3 · **Approved by:** John, 2026-09-29 — *"yes enable PR
+**Status:** Done · closed 2026-10-28 on John's word (see the last section) · **Slice 2 2026-09-30** · **Phase:** 3 · **Approved by:** John, 2026-09-29 — *"yes enable PR
 environments on arca"* · **Follows:** FB-228 (D11) · One ticket = one branch = one PR.
 
 ## What was changed on the live Railway account
@@ -427,3 +427,19 @@ it is *done*.
 disproved by experiment and the conclusion still went to the wrong place, because the search never
 left the set of things it already knew to look at. The support message drafted in slice 4 would have
 asked Railway to explain a problem we had caused.
+
+## Closed (2026-10-28): pull request environments work, on ARCA and on Foundry Studio
+
+John asked, on 28 October: check whether pull request previews now work, and if they do, close this
+ticket. They do. Checked from GitHub's own deployment records, without opening any environment:
+
+- **ARCA:** every pull request since slice 6's fix made its own environment, and each one built and
+  went live (`success`), then went `inactive` when its pull request closed: `arca-pr-105`,
+  `arca-pr-106`, `arca-pr-107` (8 October) and `arca-pr-108` (9 October).
+- **Foundry Studio:** `fountainbridge-pr-382`, `-pr-383` and `-pr-384` (28 October) did the same.
+  The last #382 preview reached `success` at 16:13 UTC, after its health check, and was removed when
+  the pull request merged at 16:16.
+
+So the open criterion, "a lane-opened PR on arca produces an environment", is met. Its second half,
+the preview link shown to the founder, is the Review screen's job now (FB-274), and no longer this
+ticket's.

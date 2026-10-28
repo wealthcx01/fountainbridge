@@ -13,9 +13,9 @@ Signed in as `arca.founder@bruntsfield.capital` (FB-090), which is in no admin l
 only. John holds it. ARCA needs:
 
 - **its lane kept paused** (FB-264), so the factory is the only engine on ARCA;
-- **working preview environments.** FB-230 connected ARCA's Railway service to GitHub, but pull
-  request environments still don't appear. Until they do, the Review screen has no preview link.
-  The message for Railway support is in FB-230;
+- **working preview environments.** These work: every ARCA pull request since 8 October has had
+  its own environment (FB-230, closed 28 October). The Review screen takes its preview link from
+  there;
 - **the factory installed:** a `factory/` folder, `MISSION.md` and `harness/` (it already has a
   `## Checks` list);
 - **in cowgate (CG-0067):** a budget for ARCA's issues, and `factory-main-watch` watching ARCA's
