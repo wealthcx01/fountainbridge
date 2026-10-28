@@ -89,9 +89,10 @@ describe('every decision counts as one', () => {
       }
     }
     expect(offenders).toEqual([]);
-    // Nine on the work, send and routine screens, plus releasing a held plan and filing a plan:
-    // eleven today. A scan that found nothing would pass for the wrong reason.
-    expect(seen).toBeGreaterThanOrEqual(11);
+    // Accept and Send back (drawn once, in Decision.tsx, since FB-273), approving and refusing a
+    // send, deciding a routine, releasing a held plan and filing a plan: seven today. A scan that
+    // found nothing would pass for the wrong reason.
+    expect(seen).toBeGreaterThanOrEqual(7);
   });
 });
 

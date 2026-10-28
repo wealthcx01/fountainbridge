@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useState } from 'react';
 import { panelState } from '@/lib/read-failures';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,7 +10,6 @@ import { STATUS_LABEL } from '@/lib/glossary';
 import { showAngleBrackets, splitTicketBody, withoutStatusClaim, withoutTitleHeading } from '@/lib/markdown';
 import { toneColor } from '@/lib/status';
 import { howLongMs } from '@/lib/when';
-import { acceptWork, sendBackWork } from '@/app/actions/work';
 import { isUnnumbered } from '@/lib/ticket-ids';
 import type { ReactNode } from 'react';
 import {
@@ -19,7 +18,7 @@ import {
   type TicketRow,
 } from '@/lib/tickets-view';
 import { Mark } from './Mark';
-import { noteDecision } from '@/lib/decided';
+import { Decision, decisionOutcome, type DecisionResult } from './Decision';
 
 /**
  * Tickets: master-detail, and deciding without leaving (FB-129).
@@ -111,7 +110,7 @@ export function TicketsView({
 }) {
   const router = useRouter();
   const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
-  const [outcome, setOutcome] = useState<{ id: string; kind: 'approved' | 'signed-off' | 'refused'; message: string } | null>(null);
+  const [outcome, setOutcome] = useState<{ id: string; result: DecisionResult } | null>(null);
 
   const counts = useMemo(() => countTickets(rows), [rows]);
   // FB-137: empty and unreadable are different sentences, and this screen said both.
@@ -315,11 +314,11 @@ export function TicketsView({
               onSelectId={(id) => go(filter, `${selected.repo}/${id}`)}
               trail={trail}
               follow={follow}
-              outcome={outcome?.id === rowKey(selected) ? outcome : null}
+              outcome={outcome?.id === rowKey(selected) ? outcome.result : null}
               next={next && rowKey(next) !== rowKey(selected) ? next : null}
-              onDecided={(kind, message) => {
+              onDecided={(result) => {
                 setDecided((d) => new Set([...d, rowKey(selected)]));
-                setOutcome({ id: rowKey(selected), kind, message });
+                setOutcome({ id: rowKey(selected), result });
               }}
               onNext={(r) => go(filter, rowKey(r))}
             />
@@ -346,17 +345,13 @@ function Detail({
   position: { n: number; of: number } | null;
   knownIds: ReadonlySet<string>;
   onSelectId: (id: string) => void;
-  outcome: { kind: 'approved' | 'signed-off' | 'refused'; message: string } | null;
+  outcome: DecisionResult | null;
   next: TicketRow | null;
-  onDecided: (kind: 'approved' | 'signed-off' | 'refused', message: string) => void;
+  onDecided: (result: DecisionResult) => void;
   onNext: (row: TicketRow) => void;
 }) {
   const ticket = row.item?.ticket ?? null;
   const warnings = row.item?.warnings ?? [];
-  const [note, setNote] = useState('');
-  const [refusing, setRefusing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
 
   const repoPath = row.repo.includes('/') ? row.repo : `${org}/${row.repo}`;
   const fileUrl = ticket ? `https://github.com/${repoPath}/blob/${gitRef}/${ticket.path}` : null;
@@ -478,16 +473,8 @@ function Detail({
 
       {outcome ? (
         <div data-testid="detail-outcome" style={{ marginTop: '1.25rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
-          <p className="eyebrow" style={{ marginTop: 0 }}>
-            {outcome.kind === 'approved' ? 'Approved and verified'
-              : outcome.kind === 'signed-off' ? 'Signed off, waiting for John'
-              : 'Sent back with your note'}
-          </p>
-          <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>
-            {outcome.kind !== 'refused'
-              ? outcome.message
-              : 'Nothing went out. Your team re-opens it, reads your note, and comes back with a revision.'}
-          </p>
+          <p className="eyebrow" style={{ marginTop: 0 }}>{decisionOutcome(outcome).heading}</p>
+          <p style={{ fontSize: 'var(--fs-body-sm)', margin: 0 }}>{decisionOutcome(outcome).text}</p>
           <p style={{ margin: '0.75rem 0 0', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
             {next ? (
               <button type="button" className="btn btn-primary" data-testid="detail-next" onClick={() => onNext(next)}>
@@ -521,74 +508,7 @@ function Detail({
             </Link>
           </p>
 
-          {error ? (
-            <p data-testid="detail-error" style={{ fontSize: 'var(--fs-body-sm)', color: toneColor('attention') }}>
-              <Mark />{error}
-            </p>
-          ) : null}
-
-          {refusing ? (
-            <div>
-              <label htmlFor="detail-note" style={{ fontSize: 'var(--fs-body-sm)', display: 'block', marginBottom: '0.3rem' }}>
-                What should change? Your team reads this.
-              </label>
-              <textarea
-                id="detail-note"
-                data-testid="detail-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                style={{
-                  width: '100%', maxWidth: 'var(--content-narrow)', padding: '0.6rem', fontFamily: 'inherit',
-                  fontSize: 'var(--fs-body-sm)', border: '1px solid var(--color-border)',
-                  background: 'var(--color-paper-raised)', color: 'var(--color-ink)',
-                }}
-              />
-              <p style={{ margin: '0.6rem 0 0', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  data-testid="detail-send-back"
-                  disabled={pending || !note.trim()}
-                  onClick={() => startTransition(async () => {
-                    setError(null);
-                    const r = noteDecision(await sendBackWork(ventureId, row.waiting!.repo, row.waiting!.number, note));
-                    if (r.ok) onDecided('refused', r.message);
-                    else setError(r.message);
-                  })}
-                >
-                  Send it back
-                </button>
-                <button type="button" className="btn" data-testid="detail-never-mind" onClick={() => { setRefusing(false); setNote(''); }}>
-                  Never mind
-                </button>
-              </p>
-            </div>
-          ) : (
-            <p style={{ margin: 0, display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="detail-approve"
-                disabled={pending}
-                onClick={() => startTransition(async () => {
-                  setError(null);
-                  // The commit they were shown. `acceptWork` refuses if something has been pushed
-                  // since this page rendered — a founder deciding from a list, without opening the
-                  // work, must not merge a change that landed after they looked.
-                  const r = noteDecision(await acceptWork(ventureId, row.waiting!.repo, row.waiting!.number, row.waiting!.headSha ?? undefined));
-                  // FB-272: a founder's yes is their sign-off; only John's merges.
-                  if (r.ok) onDecided(r.signedOff ? 'signed-off' : 'approved', r.message);
-                  else setError(r.message);
-                })}
-              >
-                {pending ? 'Working…' : 'Make it part of my product'}
-              </button>
-              <button type="button" className="btn" data-testid="detail-refuse" onClick={() => setRefusing(true)}>
-                Refuse, and say why
-              </button>
-            </p>
-          )}
+          <Decision look="tickets" ventureId={ventureId} work={row.waiting} onDecided={onDecided} />
 
           <p className="muted" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0.6rem 0 0' }}>
             You never leave the studio. Nothing goes outside your company from here.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,9 +8,8 @@ import type { TicketStatusGroup, TicketWithMeta } from '@/lib/tickets';
 import { STATUS_LABEL } from '@/lib/glossary';
 import { showAngleBrackets, withoutStatusClaim, withoutTitleHeading } from '@/lib/markdown';
 import { toneColor } from '@/lib/status';
-import { acceptWork, sendBackWork } from '@/app/actions/work';
 import { Mark } from './Mark';
-import { noteDecision } from '@/lib/decided';
+import { Decision } from './Decision';
 
 /**
  * Ticket detail drawer (FB-006): the whole ticket, rendered, with the decision on it (FB-105).
@@ -62,10 +61,6 @@ export function TicketDrawer({
   onClose: () => void;
 }) {
   const { ticket, warnings } = item;
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [note, setNote] = useState('');
-  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -173,64 +168,7 @@ export function TicketDrawer({
                 Read what your team built →
               </Link>
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="drawer-accept"
-                disabled={pending || result?.ok}
-                onClick={() =>
-                  startTransition(async () => {
-                    // No `seenHeadSha`: the founder read the ASK here, not the work, so there is no
-                    // rendered commit to bind to. The server still re-reads and re-decides against
-                    // what is currently true, which is the check that matters.
-                    setResult(noteDecision(await acceptWork(ventureId, waiting.repo, waiting.number)));
-                  })
-                }
-              >
-                {pending ? 'Working…' : 'Accept this work'}
-              </button>
-              <button type="button" className="btn" data-testid="drawer-sendback-open" onClick={() => setNoteOpen((v) => !v)}>
-                Send it back with a note
-              </button>
-            </div>
-            {noteOpen ? (
-              <div style={{ marginTop: '0.5rem' }}>
-                <label htmlFor="drawer-note" style={{ fontSize: 'var(--fs-body-sm)', display: 'block', marginBottom: '0.3rem' }}>
-                  What needs changing? Your team reads this on its next wake.
-                </label>
-                <textarea
-                  id="drawer-note"
-                  data-testid="drawer-note"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={3}
-                  style={{ width: '100%', fontFamily: 'inherit', fontSize: 'var(--fs-body-sm)', padding: '0.5rem',
-                           border: '1px solid var(--color-border)' }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  data-testid="drawer-sendback"
-                  disabled={pending || !note.trim()}
-                  style={{ marginTop: '0.4rem' }}
-                  onClick={() =>
-                    startTransition(async () => {
-                      setResult(noteDecision(await sendBackWork(ventureId, waiting.repo, waiting.number, note)));
-                    })
-                  }
-                >
-                  {pending ? 'Sending…' : 'Send this back'}
-                </button>
-              </div>
-            ) : null}
-            {result ? (
-              <p data-testid="drawer-msg"
-                 style={{ fontSize: 'var(--fs-body-sm)', marginTop: '0.5rem',
-                          color: result.ok ? undefined : toneColor('attention') }}>
-                {result.message}
-              </p>
-            ) : null}
+            <Decision look="drawer" ventureId={ventureId} work={waiting} />
           </div>
         ) : null}
 
