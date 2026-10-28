@@ -88,6 +88,7 @@ Dates are rough. They assume John reviews each pull request within a day.
 | 1 | FB-272 | Ready for the factory: a test copy with a throwaway database per run, `/build-id`, `harness/runtime.inputs.json`, `CLAUDE.md` and rule 2, staging's own database and ARCA's founder sign-in. Built by Claude directly, because the factory can't build the studio before it. | medium | $25 | 30 Oct |
 | 2 | FB-273 | One Decision component, from the three copies. | small | $15 | 31 Oct |
 | 3 | FB-274 | The Review screen, from the "Studios, aligned" canvas (its design is ready, John, 28 October). Reads the fixtures until step 4. | medium | $25 | 3 Nov |
+| 3a | FB-281 | Sending work back no longer says "accepted". Since FB-273 it is one line in `components/Decision.tsx` (John, 28 October). | small | $10 | 3 Nov |
 | 4 | FB-275 | The door and the card store, by venture. | medium | $25 | 4 Nov |
 | 5 | FB-276 | Presses, checked on the server. | medium | $25 | 5 Nov |
 | 6 | FB-277 | Cards in "Needs you" and "What happened" [replaces FB-266]. | medium | $25 | 6 Nov |
@@ -105,7 +106,7 @@ Dates are rough. They assume John reviews each pull request within a day.
 | CG-0065 | Screenshots: when a pull request's preview is up, the box takes before and after pictures at both sizes, and sends them with the card. | medium | $25 | 2 Nov |
 | CG-0066 | The listener's second inbox: it collects studio presses as it collects Telegram taps. | medium | $25 | 3 Nov |
 
-All fifteen add up to $330. **Demo-ready: about 10 November.** The dates move if a review takes
+All sixteen add up to $340. **Demo-ready: about 10 November.** The dates move if a review takes
 longer than a day. (ARCA's and Foundry's pull request previews work: FB-230, closed 28 October.)
 
 Journeys: 1 and 2 by step 1; 4 and 5 by step 3; 3 by step 6; 7 by step 7. Journey 6 grows with

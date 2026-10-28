@@ -1,6 +1,6 @@
 # FB-281 — Sending work back also labels it "accepted"
 
-**Status:** Todo · **Kind:** small · **Phase:** 3 · **Raised by:** John, 28 October 2026 (found while building FB-272) · One ticket = one branch = one PR.
+**Status:** Todo · **Kind:** small · **Budget:** $10 · **Rough date:** 3 November 2026 · **Pilot step:** 3a, after FB-274 · **Raised by:** John, 28 October 2026 (found while building FB-272; budget 28 October) · One ticket = one branch = one PR.
 
 ## Why
 
@@ -10,10 +10,10 @@ opposite. A founder reading that would think the work went into their product.
 
 ## What happens today
 
-`components/WorkDetail.tsx` keeps one result for both decisions. `SendBack` reports into the same
-`setResult` as Accept (`onDone={setResult}`), and the page then counts any successful result as
-done (`const done = result?.ok || work.merged`). Done always draws the same tag: "accepted", or
-"signed off" for a founder's Accept (FB-272). Nothing records which button was pressed.
+Since FB-273, one component draws Accept and Send back on every screen: `components/Decision.tsx`.
+It already records which button was pressed (`result.decided` is `'accept'` or `'send-back'`), but
+the tag ignores it. `stateLabel()` answers "signed off" for a founder's Accept and "accepted" for
+everything else, Send back included. A comment above it names this ticket.
 
 ## What to do
 
@@ -23,9 +23,9 @@ Remember which decision was made, and say it:
 - **Accept, by a founder:** "signed off" (FB-272).
 - **Send back:** "sent back", with the note's own confirmation line, as today.
 
-Check `components/TicketsView.tsx` and `components/TicketDrawer.tsx` for the same mistake; FB-273
-(one Decision component) will replace all three, so if FB-273 is already under way, fix it there
-instead and close this ticket.
+Only the work page is wrong. The Tickets screen already says "Sent back with your note"
+(`decisionOutcome()`, in the same file). Remove the FB-281 comment above `stateLabel()` once it is
+fixed.
 
 ## Done when
 
