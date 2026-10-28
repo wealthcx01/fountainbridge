@@ -93,6 +93,39 @@ raw App token pasted into `GITHUB_TOKEN` would stop working after ~1 hour) — s
 Do **not** set `E2E_TEST_LOGIN`, `*_FIXTURE_DIR`, or `E2E_TEST_LOGIN_SECRET` in production — those
 are test-only seams and the app treats them as such.
 
+### Staging's own database, and every preview's (FB-282)
+
+Staging has its own Postgres, in its own environment, holding test data only. Production's database
+(Supabase) is never touched by any of this.
+
+**Before each deploy, Railway runs `node scripts/apply-schema.mjs`** (the pre-deploy command, in
+`railway.json` and `.railway/railway.ts`). It runs inside Railway's private network, so the database
+never needs a public address. It loads every `db/*.sql` file the database hasn't had yet, in name
+order, records each in a table called `schema_files`, and gives the `foundry_studio` role a sign-in
+with the password in `STUDIO_DB_PASSWORD`. A schema change is always a new file: a file that changed
+after it was loaded is reported and never run again. If loading fails, the deploy stops and the old
+one keeps running.
+
+**It does nothing unless `SCHEMA_ADMIN_URL` is set,** and it refuses any database that is not on
+Railway's private network (`*.railway.internal`). Production doesn't set it, and its database is on
+Supabase, so production is skipped twice over.
+
+**Staging's three variables** (in the `foundry-studio` service, staging environment). Railway fills in
+the parts in `${{ }}` from the Postgres service, so no address or password is typed anywhere:
+
+| Variable | Value |
+|---|---|
+| `STUDIO_DB_PASSWORD` | a long random value, made in Railway's variable editor; never written down elsewhere |
+| `SCHEMA_ADMIN_URL` | `${{Postgres.DATABASE_URL}}` (the database's owner, used only to load the schema) |
+| `DATABASE_URL` | `postgresql://foundry_studio:${{STUDIO_DB_PASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/${{Postgres.PGDATABASE}}` |
+
+The studio signs in as `foundry_studio`, never as the owner: row-level security binds that role,
+and the owner would read straight past it (FB-170).
+
+**Previews copy staging** (John, 28 October 2026), never production. Each preview gets its own copy of
+staging's Postgres, and these same variables point at it, so the pre-deploy step loads the schema
+into the preview's own empty database too.
+
 ### Onboarding a venture repo (so its board isn't empty) — FB-021
 
 A venture board reads tickets from `docs/tickets/` on the repo's **default branch**, via the GitHub
