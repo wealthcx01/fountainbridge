@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import type { PreviewCheck } from '@/lib/result-link';
 import { SeeIt } from './SeeIt';
 import ReactMarkdown from 'react-markdown';
@@ -12,9 +12,8 @@ import { CHECK_LABEL } from '@/lib/glossary';
 import { readEvidence } from '@/lib/work-evidence';
 import { showAngleBrackets } from '@/lib/markdown';
 import { howLongMs } from '@/lib/when';
-import { acceptWork, sendBackWork } from '@/app/actions/work';
 import { Mark } from './Mark';
-import { noteDecision } from '@/lib/decided';
+import { Decision } from './Decision';
 
 /**
  * A piece of work, as the founder reads and accepts it (FB-064, reordered by FB-107).
@@ -166,65 +165,6 @@ function TheRecord({ body }: { body: string }) {
   );
 }
 
-/** 5b. Send it back with a note — the other half of a decision (FB-107). */
-function SendBack({
-  ventureId, work, suggestion, onDone,
-}: {
-  ventureId: string;
-  work: WorkItem;
-  /** A first line already written, for the case the page itself named the required action. */
-  suggestion: string | null;
-  onDone: (r: { ok: boolean; message: string }) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [note, setNote] = useState(suggestion ?? '');
-  const [pending, startTransition] = useTransition();
-
-  if (!open) {
-    return (
-      <button type="button" className="btn" data-testid="work-sendback-open" onClick={() => setOpen(true)}>
-        Send it back with a note
-      </button>
-    );
-  }
-  return (
-    <div style={{ width: '100%', maxWidth: 'var(--content-narrow)' }}>
-      <label htmlFor="work-note" style={{ fontSize: 'var(--fs-body-sm)', display: 'block', marginBottom: '0.3rem' }}>
-        What needs changing? Your team reads this on its next wake.
-      </label>
-      <textarea
-        id="work-note"
-        data-testid="work-note"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        rows={3}
-        style={{ width: '100%', fontFamily: 'inherit', fontSize: 'var(--fs-body-sm)', padding: '0.5rem',
-                 border: '1px solid var(--color-border)' }}
-      />
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
-        <button
-          type="button"
-          className="btn btn-primary"
-          data-testid="work-sendback"
-          disabled={pending || !note.trim()}
-          onClick={() =>
-            startTransition(async () => {
-              const r = noteDecision(await sendBackWork(ventureId, work.repo, work.number, note));
-              onDone(r);
-              if (r.ok) setOpen(false);
-            })
-          }
-        >
-          {pending ? 'Sending…' : 'Send this back'}
-        </button>
-        <button type="button" className="btn" data-testid="work-sendback-cancel" onClick={() => setOpen(false)}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function WorkDetail({
   ventureId,
   work,
@@ -247,14 +187,10 @@ export function WorkDetail({
   /** What opening `launch.url` found (FB-184). Linked only when it opens. */
   launchCheck?: PreviewCheck | null;
 }) {
-  const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ ok: boolean; message: string; signedOff?: boolean } | null>(null);
-
   // Decided here from what was rendered, and decided AGAIN server-side against what is current —
   // this one gives the founder a reason, the server one makes a stale accept impossible.
   const verdict = acceptability(work, { seenHeadSha: work.headSha, configured: true });
   const waiting = waitingMs === null ? null : howLongMs(waitingMs);
-  const done = result?.ok || work.merged;
   const checkTone = work.checks === 'failure' || work.checks === 'unavailable' ? 'blocked'
     : work.checks === 'success' ? 'ok' : 'working';
 
@@ -365,50 +301,23 @@ export function WorkDetail({
       {/* 5. The decision. Two ways out of this page, and the page must offer both: before FB-107 a
           founder who did not want the work could only leave it sitting there.
           Same shape as the approve card, on purpose — one pattern for agreeing to something. */}
-      <div data-testid="work-decision"
-           style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        {done ? (
-          // FB-272: a founder's Accept is their sign-off and merges nothing, so it must not say
-          // "accepted" as if the work were already part of the product.
-          <span className="tag tag-accent" data-testid="work-state">{result?.signedOff ? 'signed off' : 'accepted'}</span>
-        ) : (
-          <>
-            {verdict.ok ? (
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="work-accept"
-                disabled={pending}
-                onClick={() =>
-                  startTransition(async () => {
-                    setResult(noteDecision(await acceptWork(ventureId, work.repo, work.number, work.headSha)));
-                  })
-                }
-              >
-                {pending ? 'Accepting…' : 'Accept this work'}
-              </button>
-            ) : (
-              <p
-                data-testid="work-blocked"
-                data-reason={verdict.reason}
-                style={{ fontSize: 'var(--fs-body-sm)', margin: 0, maxWidth: 'var(--content-narrow)', color: toneColor('attention') }}
-              >
-                {verdict.text}
-                {verdict.nextStep ? <> <strong>What to do:</strong> {verdict.nextStep}</> : null}
-              </p>
-            )}
-            <SendBack ventureId={ventureId} work={work} suggestion={suggestion} onDone={setResult} />
-          </>
-        )}
-        {result ? (
-          <span
-            data-testid="work-msg"
-            style={{ fontSize: 'var(--fs-body-sm)', color: result.ok ? undefined : toneColor('attention') }}
+      <Decision
+        look="work"
+        ventureId={ventureId}
+        work={work}
+        merged={work.merged}
+        suggestion={suggestion}
+        blocked={verdict.ok ? null : (
+          <p
+            data-testid="work-blocked"
+            data-reason={verdict.reason}
+            style={{ fontSize: 'var(--fs-body-sm)', margin: 0, maxWidth: 'var(--content-narrow)', color: toneColor('attention') }}
           >
-            {result.message}
-          </span>
-        ) : null}
-      </div>
+            {verdict.text}
+            {verdict.nextStep ? <> <strong>What to do:</strong> {verdict.nextStep}</> : null}
+          </p>
+        )}
+      />
 
       {/* 6. The record. */}
       {work.description ? <TheRecord body={work.description} /> : null}
