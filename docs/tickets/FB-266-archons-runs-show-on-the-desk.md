@@ -1,6 +1,6 @@
 # FB-266 — Archon's runs show on the desk
 
-**Status:** Blocked until FB-264 recommends Archon for venture tickets · **Phase:** 3 · **Kind:**
+**Status:** Replaced by FB-277 (the factory pilot, 28 October 2026) · **Phase:** 3 · **Kind:**
 a medium build · **Raised by:** the October re-baseline (section 5, ticket 4), filed 2026-10-21 at
 John's request · One ticket = one branch = one PR.
 

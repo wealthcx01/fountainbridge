@@ -17,6 +17,7 @@ work shows inside each venture, where the founder already looks:
   separate factory page.
 - Each finished piece of work gets a **Review screen**: a live preview, before and after screenshots
   at desktop and phone size, a plain-English summary, and a place to leave feedback on the picture.
+- A founder gets a short message on their phone when one of their cards needs them (FB-279).
 - John gets the same cards and buttons in the studio as on Telegram. A press in one place goes
   through the same path as a press in the other, so the two never disagree.
 

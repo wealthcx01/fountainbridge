@@ -1,6 +1,6 @@
 # PRD: Foundry Studio, the factory pilot release
 
-**Owner:** John · **Written:** 26 October 2026, revised the same day with John's answers ·
+**Owner:** John · **Written:** 26 October 2026, revised the same day with John's answers, and published as tickets on 28 October ·
 **Design:** new screens come from the "Studios, aligned" Claude Design canvas, in the Bruntsfield
 Studios design system. Existing screens follow the prototype named in `CLAUDE.md`, rule 11.
 
@@ -45,7 +45,7 @@ The nearest thing today is the work page, `components/WorkDetail.tsx`.
 **There is no shared Decision component.** Nothing in `components/` has that name. Accept and Send
 back are drawn three times, in `WorkDetail.tsx`, `TicketsView.tsx` and `TicketDrawer.tsx`. Each
 calls `acceptWork` and `sendBackWork` and shares only the `noteDecision` helper (`lib/decided.ts`).
-Approving a send has its own card, `ApprovalCard.tsx`. Step 8 makes the one shared component.
+Approving a send has its own card, `ApprovalCard.tsx`. FB-273 makes the one shared component.
 
 ## Who may press what (settled by John, 26 October)
 
@@ -58,7 +58,7 @@ Approving a send has its own card, `ApprovalCard.tsx`. Step 8 makes the one shar
   - **Accept** is the founder's sign-off, kept in the signed record. The card then says "Signed off
     by <founder>, waiting for John", in the studio and on Telegram. It merges nothing.
 - **Only John's Approve merges.** Today's `CLAUDE.md` rule 2, and `acceptWork` in
-  `app/actions/work.ts`, let a founder's Accept merge their venture's work. Step 1 changes both.
+  `app/actions/work.ts`, let a founder's Accept merge their venture's work. FB-272 changes both.
 
 **What a press does.** The studio checks who pressed and records it. It never calls Archon or
 GitHub. The planning box's listener (`factory-alerts listen`) collects the press as it collects a
@@ -76,72 +76,40 @@ answered elsewhere loses its buttons and shows what happened.
 
 ## The release, in order
 
-Steps in different repositories merge in any order. Steps in one repository are worked one after
-another, each from `main` after the last has merged. No pull request sits on another.
+Two tracks run side by side: the studio's tickets (FB) one at a time, each from `main` after the
+last has merged, and cowgate's (CG) one at a time on their own. No pull request sits on another.
+Dates are rough. They assume John reviews each pull request within a day.
 
-0. **First: "both must approve" means both** (small). `canApprove` in
-   `lib/approval-attestation.ts` lets either person alone grant a "dual" item: a send, a payment, a
-   secret. It goes first because it is a live gap in production's gate today, and every later step
-   adds approvals on top of this code. **Proves:** one person alone can't grant a dual item.
-1. **Ready for the factory** (medium):
-   - `/build-id`;
-   - a test copy on a given port, from the fixtures, with the test sign-in door and a throwaway
-     database on the box for each run, never Supabase;
-   - `harness/runtime.inputs.json`;
-   - `CLAUDE.md` brought up to date: it still says "Phase 0", that the app "does not exist yet",
-     and that Chromium can't run on the box;
-   - the README's Vercel corrected to Railway;
-   - rule 2 rewritten, and `acceptWork` merging for John only;
-   - **staging's database:** a Railway Postgres in foundry-studio's `staging` environment, with
-     `DATABASE_URL` set to it. It holds test data only, never real founder data. ARCA's demo cards
-     and screenshots count as test data (John, 26 October);
-   - **checks on staging:** it deploys `main`, and `arca.founder@bruntsfield.capital` can sign in.
-     The code has two doors, Google and the password door (`STUDIO_PASSWORD_LOGINS`, FB-092). FB-092
-     was built because Google sign-in failed for this very account, so it uses the password door.
-     John mints its entry with `node scripts/mint-password-login.mjs arca.founder@bruntsfield.capital`,
-     and only the hash goes into staging's variables. John's own Google sign-in needs staging's
-     address added as a redirect in the Google client.
+**The studio (fountainbridge)**
 
-   Railway reports pull request environments as on for this project, but FB-230 says none were ever
-   made. This step finds out which is true. In cowgate: fountainbridge's budgets and its
-   `main`-watch. **Proves:** journeys 1 and 2.
+| Step | Ticket | What | Size | Budget | Rough date |
+|---|---|---|---|---|---|
+| 0 | FB-271 | Both must approve means both: `canApprove` let either person alone grant a "dual" item (a send, a payment, a secret). A live gap in production, and every later step adds approvals on top of it. Built by Claude directly. | small | $15 | 28 Oct |
+| 1 | FB-272 | Ready for the factory: a test copy with a throwaway database per run, `/build-id`, `harness/runtime.inputs.json`, `CLAUDE.md` and rule 2, staging's own database and ARCA's founder sign-in. Built by Claude directly, because the factory can't build the studio before it. | medium | $25 | 30 Oct |
+| 2 | FB-273 | One Decision component, from the three copies. | small | $15 | 31 Oct |
+| 3 | FB-274 | The Review screen, from the "Studios, aligned" canvas (its design is ready, John, 28 October). Reads the fixtures until step 4. | medium | $25 | 3 Nov |
+| 4 | FB-275 | The door and the card store, by venture. | medium | $25 | 4 Nov |
+| 5 | FB-276 | Presses, checked on the server. | medium | $25 | 5 Nov |
+| 6 | FB-277 | Cards in "Needs you" and "What happened" [replaces FB-266]. | medium | $25 | 6 Nov |
+| 7 | FB-278 | Down and stale. | small | $15 | 7 Nov |
+| 8 | FB-279 | Founders get a message on their phone (John, 28 October). John chooses the channel first. | medium | $25 | 9 Nov |
+| 9 | FB-280 | The demo on ARCA. | medium | $25 | 10 Nov |
 
-**While the design is made** (underneath only, no screen work):
+**The factory (cowgate)**
 
-2. **Every Telegram message becomes a card** (cowgate, medium). Founder-safe parts are marked. (The
-   new factory's runs already send Telegram cards: cowgate CG-0056.)
-3. **Approve and Reject on Telegram's Needs-you cards,** for John only [FB-267] (cowgate, medium).
-   A test proves an Approve grants nothing external.
-4. **Screenshots** (cowgate, medium). When a pull request's preview is up, the box takes before and
-   after pictures at both sizes, and sends them with the card.
-5. **The listener's second inbox** (cowgate, medium).
-6. **The door and the card store** (medium). Cards, heartbeats, screenshots and preview links,
-   stored by venture. Preview links are checked by `lib/preview-check.ts`.
-7. **Presses, on the server** (medium). Checked and recorded. A founder's other presses are
-   refused.
+| Ticket | What | Size | Budget | Rough date |
+|---|---|---|---|---|
+| CG-0063 | Every Telegram message becomes a card. Founder-safe parts are marked. (The new factory's runs already send Telegram cards: CG-0056.) | medium | $25 | 29 Oct |
+| CG-0064 | Approve and Reject on Telegram's Needs-you cards, for John only [replaces FB-267]. A test proves an Approve grants nothing external. | medium | $25 | 30 Oct |
+| CG-0067 | Foundry and ARCA on the factory: budgets, and `factory-main-watch` for both (ARCA's default branch is `master`). | small | $10 | 30 Oct |
+| CG-0065 | Screenshots: when a pull request's preview is up, the box takes before and after pictures at both sizes, and sends them with the card. | medium | $25 | 2 Nov |
+| CG-0066 | The listener's second inbox: it collects studio presses as it collects Telegram taps. | medium | $25 | 3 Nov |
 
-**Design, in parallel:** John's Claude drafts the Review screen and the three card states in
-"Studios, aligned". The steps below are built only against it.
+All fifteen add up to $330. **Demo-ready: about 10 November.** The dates move if ARCA's preview
+environments still don't appear (FB-230), or a review takes longer than a day.
 
-8. **One Decision component** (small), from the three copies.
-9. **Cards in "Needs you" and "What happened"** [FB-266] (medium). **Proves:** journey 3.
-10. **The Review screen** (medium). **Proves:** journeys 4 and 5.
-11. **Down and stale** (small). **Proves:** journey 7. Journey 6 grows with steps 6, 7, 9 and 10.
-12. **The demo on ARCA,** signed in as `arca.founder@bruntsfield.capital` (FB-090). That account
-    is in no admin list, so it sees ARCA only. John holds it. ARCA needs:
-    - **its lane kept paused** (FB-264), so the factory is the only engine on ARCA;
-    - **working previews.** FB-230 connected ARCA's Railway service to GitHub, with production's
-      auto-deploy off, but pull request environments still don't appear. Until they do, the Review
-      screen has no preview link. The message for Railway support is in FB-230;
-    - **the factory installed.** ARCA has a `## Checks` list, but no `factory/` folder, `MISSION.md`
-      or `harness/`;
-    - **in cowgate:** a budget for ARCA's issues (`archon/factory-budgets.json` has none), and
-      `factory-main-watch` watching ARCA. The watch reads `main`, and ARCA's default branch is
-      `master`;
-    - **the factory's GitHub App** installed on `wealthcx01/arca`, if it isn't already;
-    - **one small first issue.**
-
-    THE RESET follows later, when John starts it [FB-010].
+Journeys: 1 and 2 by step 1; 4 and 5 by step 3; 3 by step 6; 7 by step 7. Journey 6 grows with
+steps 4, 5, 6 and 3.
 
 ## Rules every issue keeps
 
@@ -163,4 +131,3 @@ another, each from `main` after the last has merged. No pull request sits on ano
 - Retiring ARCA's lane for good [FB-268], and the machines handover [FB-269].
 - THE RESET's start [FB-010].
 - Decision times, a way out for old decisions, and speed work [FB-159, FB-265, FB-164].
-- Cards as phone notifications.
