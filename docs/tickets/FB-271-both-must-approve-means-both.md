@@ -1,6 +1,6 @@
 # FB-271 — "Both must approve" means both
 
-**Status:** In review · **Phase:** 3 · **Kind:** a security fix · **Raised by:** John, 28 October
+**Status:** Done · **Phase:** 3 · **Kind:** a security fix · **Raised by:** John, 28 October
 2026 · One ticket = one branch = one PR.
 
 ## Why
