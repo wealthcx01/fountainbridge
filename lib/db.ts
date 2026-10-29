@@ -63,13 +63,35 @@ export async function withVenture<T>(
   env: Record<string, string | undefined> = process.env,
 ): Promise<T> {
   if (!VENTURE_ID.test(ventureId)) throw new Error(`not a venture id: ${JSON.stringify(ventureId)}`);
+  return inTransaction(ventureId, fn, env);
+}
+
+/**
+ * Run some queries as no venture at all (FB-275), for the few rows that belong to no venture: when
+ * the planning box last reported.
+ *
+ * Nothing is set, so every table scoped by venture shows nothing and accepts nothing here. It is the
+ * same as forgetting `withVenture`, on purpose, and fails the same safe way.
+ */
+export async function withoutVenture<T>(
+  fn: (client: PoolClient) => Promise<T>,
+  env: Record<string, string | undefined> = process.env,
+): Promise<T> {
+  return inTransaction(null, fn, env);
+}
+
+async function inTransaction<T>(
+  ventureId: string | null,
+  fn: (client: PoolClient) => Promise<T>,
+  env: Record<string, string | undefined>,
+): Promise<T> {
   const db = studioDatabase(env);
   if (!db) throw new NoDatabaseError('This studio has no database configured (DATABASE_URL).');
 
   const client = await db.connect();
   try {
     await client.query('begin');
-    await client.query('select set_config($1, $2, true)', ['app.venture_id', ventureId]);
+    if (ventureId !== null) await client.query('select set_config($1, $2, true)', ['app.venture_id', ventureId]);
     const out = await fn(client);
     await client.query('commit');
     return out;

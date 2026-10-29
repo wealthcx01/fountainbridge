@@ -1,29 +1,47 @@
 {
+  "kind": "card",
+  "repo": "arca",
+  "number": 20,
+  "runId": "test-arca-20",
+  "state": "finished",
+  "sentAt": "2026-07-20T15:40:00Z",
   "ref": "ARCA-070",
   "title": "The auctions view",
-  "state": "finished",
   "finishedAt": "2026-07-20T15:40:00Z",
   "headSha": "sha-arca-20",
   "demo": true,
   "summary": "Your team built one new screen and changed none of the others.",
   "changes": [
-    { "label": "New", "text": "an Auctions tab, beside Watchlist." },
-    { "label": "New", "text": "every listing shows ARCA's price for the same card and grade." },
-    { "label": "Honest", "text": "thin history says so, rather than inventing a number." }
+    {
+      "label": "New",
+      "text": "an Auctions tab, beside Watchlist."
+    },
+    {
+      "label": "New",
+      "text": "every listing shows ARCA's price for the same card and grade."
+    },
+    {
+      "label": "Honest",
+      "text": "thin history says so, rather than inventing a number."
+    }
   ],
   "reaches": "Anyone who opens Auctions on ARCA",
-  "checks": { "passed": 3, "total": 3 },
-  "previewUrl": "https://arca-pr-20.up.railway.app",
-  "picturesTakenAt": "2026-07-20T15:40:00Z",
-  "pictures": {
-    "before-computer": { "width": 1440, "height": 1000 },
-    "after-computer": { "width": 1440, "height": 1000 },
-    "before-phone": { "width": 393, "height": 851 },
-    "after-phone": { "width": 393, "height": 851 }
+  "checks": {
+    "passed": 3,
+    "total": 3
   },
+  "previewUrl": "https://arca-pr-20.up.railway.app",
   "trail": [
-    { "at": "2026-07-02T10:00:00Z", "tone": "ok", "text": "Filed with four others from one conversation about live auctions." },
-    { "at": "2026-07-20T15:40:00Z", "tone": "ok", "text": "Your team finished it and checked it three ways. The checks ran for $0.40." }
+    {
+      "at": "2026-07-02T10:00:00Z",
+      "tone": "ok",
+      "text": "Filed with four others from one conversation about live auctions."
+    },
+    {
+      "at": "2026-07-20T15:40:00Z",
+      "tone": "ok",
+      "text": "Your team finished it and checked it three ways. The checks ran for $0.40."
+    }
   ],
   "forJohn": {
     "cost": "$3.40 so far, of a $25 budget",

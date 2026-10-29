@@ -66,6 +66,11 @@ export const config = {
     // FB-272: `build-id` is excluded so the factory can ask which commit is answering before anyone
     // has signed in, as it does on the website. It answers one line: a commit of this public
     // repository, or the factory's own name for the copy it started. Anchored, like `api/health$`.
-    '/((?!api/auth/|api/mcp$|api/health$|build-id$|api/push/check$|api/machines$|api/machines/|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
+    //
+    // FB-275: `api/factory` is excluded for the same reason as `api/machines`. The planning box
+    // sends cards, pictures, preview links and heartbeats there, with no session. The route checks
+    // the box's signature (FACTORY_DOOR_SECRET) before it reads anything, and answers as a missing
+    // address while no secret is set. Anchored: it has no subpaths.
+    '/((?!api/auth/|api/mcp$|api/health$|build-id$|api/push/check$|api/machines$|api/machines/|api/factory$|login$|login/|not-authorized$|not-authorized/|manifest.webmanifest$|sw.js$|icon-192.png$|icon-512.png$|apple-touch-icon.png$|venture/[^/]+/office$|venture/[^/]+/office/|_next/static|_next/image|favicon.ico).*)',
   ],
 };

@@ -27,7 +27,13 @@ export function pictureWords(name: PictureName): string {
   return `the "${when}" picture, ${size === 'phone' ? 'on a phone' : 'on a computer'}`;
 }
 
-/** One finished card as the factory sends it. Until FB-275 these come from the test rig's files. */
+/**
+ * One finished card, as the Review screen reads it.
+ *
+ * The parts named in `PLAIN_PARTS` are the card's own words, as the factory sent them. The preview,
+ * the pictures and `forJohn` are filled in by the card store (`lib/card-store.ts`) from what the box
+ * sent through the door: the preview after it was checked, the pictures as the box took them.
+ */
 export interface ReviewCardFile {
   /** The ticket it was built for, e.g. ARCA-070. */
   ref: string;
@@ -138,6 +144,27 @@ export function founderSafe(text: string): string {
     .trim();
 }
 
+/**
+ * The parts of a card anyone looking at its venture may read, by name (FB-275).
+ *
+ * The one list. The door keeps these as the card's plain parts and everything else it carried as
+ * John's (`lib/factory-door.ts`), and `reviewFor` below reads a card only through it. So a part the
+ * factory adds later reaches nobody but John until it is named here: the rule cowgate marks its
+ * cards by (CG-0063, "anything not marked founder-safe is treated as John's").
+ *
+ * Not the last lock. A founder still reads every one of these through `founderSafe`.
+ */
+export const PLAIN_PARTS = ['ref', 'title', 'finishedAt', 'headSha', 'demo', 'summary', 'changes', 'reaches', 'checks', 'trail'] as const;
+export type PlainPart = (typeof PLAIN_PARTS)[number];
+export type PlainParts = Pick<ReviewCardFile, PlainPart>;
+
+export const isPlainPart = (key: string): key is PlainPart => (PLAIN_PARTS as readonly string[]).includes(key);
+
+/** Only the parts named in `PLAIN_PARTS`, copied by name. */
+export function plainParts(card: PlainParts): PlainParts {
+  return Object.fromEntries(PLAIN_PARTS.filter((k) => k in card).map((k) => [k, card[k]])) as unknown as PlainParts;
+}
+
 /** The parts of a card a viewer may see. The one place a card is turned into what a screen gets. */
 export function reviewFor(
   card: ReviewCardFile,
@@ -155,6 +182,7 @@ export function reviewFor(
   const john = at.viewer.isJohn;
   // John reads the card as the factory wrote it. A founder reads it through `founderSafe`.
   const say = (text: string) => (john ? text : founderSafe(text));
+  const plain = plainParts(card);
   const base = `/venture/${at.ventureId}/review/${at.repo}/${at.number}`;
   const state = john ? at.state : founderSafeState(at.state);
 
@@ -163,24 +191,24 @@ export function reviewFor(
     ventureName: at.ventureName,
     repo: at.repo,
     number: at.number,
-    ref: card.ref,
-    title: say(card.title) || 'Finished work',
-    finishedAt: card.finishedAt,
-    headSha: card.headSha,
-    demo: Boolean(card.demo),
-    summary: say(card.summary),
-    changes: card.changes
+    ref: plain.ref,
+    title: say(plain.title) || 'Finished work',
+    finishedAt: plain.finishedAt,
+    headSha: plain.headSha,
+    demo: Boolean(plain.demo),
+    summary: say(plain.summary),
+    changes: plain.changes
       .map((c) => ({ label: say(c.label), text: say(c.text) }))
       .filter((c) => c.text),
-    reaches: say(card.reaches),
-    checks: { passed: card.checks.passed, total: card.checks.total },
+    reaches: say(plain.reaches),
+    checks: { passed: plain.checks.passed, total: plain.checks.total },
     preview: at.preview,
     picturesTakenAt: card.picturesTakenAt,
     pictures: PICTURES.flatMap((name) => {
       const p = card.pictures[name];
       return p ? [{ name, width: p.width, height: p.height, src: `${base}/picture/${name}` }] : [];
     }),
-    trail: card.trail
+    trail: plain.trail
       .map((t) => ({ at: t.at, tone: t.tone, text: say(t.text) }))
       .filter((t) => t.text),
     state,
