@@ -6,10 +6,10 @@ import { join } from 'node:path';
 /**
  * FB-274: Accept and Send back on a finished card, in a test copy.
  *
- * Until the card store and the press door land (FB-275, FB-276), a press on a factory card in a test
- * copy is written as one line to the copy's state folder and never reaches GitHub. These tests use
- * the real card files and the real record; only the sign-in and GitHub are stand-ins, so they can
- * show that nothing was merged or written there.
+ * Until the press door lands (FB-276), a press on a factory card in a test copy is written as one
+ * line to the copy's state folder and never reaches GitHub. These tests use the real card store
+ * (the rig's, in memory, filled as the door fills it: FB-275) and the real record; only the sign-in
+ * and GitHub are stand-ins, so they can show that nothing was merged or written there.
  */
 
 const auth = vi.fn();
@@ -34,11 +34,12 @@ vi.mock('@/lib/work-load', () => ({
 
 const { acceptWork, sendBackWork } = await import('../work');
 const { OUT_OF_DATE } = await import('@/lib/review');
+const { cardStore } = await import('@/lib/card-store-live');
+const { putTestCards } = await import('@/lib/__tests__/review-fixtures');
 
 const JOHN = 'john.gallagher@wealthcx.com';
 const FOUNDER = 'arca.founder@bruntsfield.capital';
 const ROSS = 'ross@bruntsfield.capital';
-const FIXTURES = join(import.meta.dirname, '..', '..', '..', 'e2e', 'fixtures', 'review');
 
 let state: string;
 const lines = () => {
@@ -47,21 +48,22 @@ const lines = () => {
 };
 const as = (email: string) => auth.mockResolvedValue({ user: { email } });
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   state = mkdtempSync(join(tmpdir(), 'fb274-'));
   Object.assign(process.env, {
     E2E_TEST_LOGIN: '1',
     FACTORY_RUNTIME_STATE: state,
-    REVIEW_FIXTURE_DIR: FIXTURES,
     STUDIO_ADMIN_EMAILS: JOHN,
     STUDIO_APPROVAL_GITHUB_TOKEN: 'test-token',
   });
+  delete process.env.DATABASE_URL;
+  await putTestCards(cardStore()!);
 });
 
 afterEach(() => {
   rmSync(state, { recursive: true, force: true });
-  for (const k of ['E2E_TEST_LOGIN', 'FACTORY_RUNTIME_STATE', 'REVIEW_FIXTURE_DIR', 'STUDIO_ADMIN_EMAILS', 'STUDIO_APPROVAL_GITHUB_TOKEN']) {
+  for (const k of ['E2E_TEST_LOGIN', 'FACTORY_RUNTIME_STATE', 'STUDIO_ADMIN_EMAILS', 'STUDIO_APPROVAL_GITHUB_TOKEN']) {
     delete process.env[k];
   }
 });

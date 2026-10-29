@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/auth';
 import { loadVentures } from '@/lib/ventures';
-import { authorizeVentures, canAccessVenture, parseAdminEmails } from '@/lib/authz';
+import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
+import { requireVenture } from '@/lib/venture-access';
+import { cardStore } from '@/lib/card-store-live';
 import { loadReview } from '@/lib/review-load';
 import { ReviewScreen } from '@/components/ReviewScreen';
 import { VentureForbidden } from '@/components/VentureForbidden';
@@ -16,12 +18,11 @@ import { studiosFonts } from '@/app/fonts/studios';
  * parts added (what it cost, what to do next, the run itself) and makes the decision that counts.
  *
  * Isolation is decided here, on the server, before anything is read (CLAUDE.md #6): the venture must
- * be this person's, and the card must be one of this venture's. A card that is not yours gets the
- * same page as one that does not exist. The parts meant for John are removed in `reviewFor`
- * (`lib/review.ts`) before the screen is handed anything, so they never reach a founder's browser.
- *
- * Until the card store lands (FB-275) the cards come from the test rig's files, so outside a test
- * copy every address here answers "That work isn't here".
+ * pass `requireVenture`, and the card must be one of this venture's, read from the card store scoped
+ * to this venture alone (FB-275), so the database refuses any other venture's. A card that is not
+ * yours gets the same page as one that does not exist. The parts meant for John are removed in
+ * `reviewFor` (`lib/review.ts`) before the screen is handed anything, so they never reach a
+ * founder's browser.
  */
 export default async function ReviewPage({
   params,
@@ -34,15 +35,13 @@ export default async function ReviewPage({
   const email = session?.user?.email;
   if (!email) redirect('/login');
 
-  const admins = parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS);
   const ventures = loadVentures();
-  const access = authorizeVentures(email, ventures, admins);
-  const venture = ventures.find((v) => v.id === id);
-  if (!venture || !canAccessVenture(access, id)) {
-    return <VentureForbidden ventureId={id} exists={Boolean(venture)} />;
-  }
+  const access = await requireVenture(id);
+  if (!access.ok) return <VentureForbidden ventureId={id} exists={ventures.some((v) => v.id === id)} />;
 
-  const view = await loadReview(venture, repo, Number(number), { email, isJohn: access.isAdmin, admins });
+  const admins = parseAdminEmails(process.env.STUDIO_ADMIN_EMAILS);
+  const isJohn = authorizeVentures(access.email, ventures, admins).isAdmin;
+  const view = await loadReview(access.venture, repo, Number(number), { email: access.email, isJohn, admins }, cardStore());
   if (!view) return <NotHere ventureId={id} />;
 
   return (

@@ -43,9 +43,10 @@ export function studioTestEnv({ scale, failReads = '' } = {}) {
     RUNREPORTS_FIXTURE_DIR: backlog(scale, 'runreports', 'e2e/fixtures/runreports'),
     // FB-064. Gated on E2E_TEST_LOGIN at the call site as well — this surface can MERGE.
     WORK_FIXTURE_DIR: backlog(scale, 'work', 'e2e/fixtures/work'),
-    // FB-274: the factory's finished cards, for the Review screen, until the card store (FB-275).
-    // Invented work on invented screens; the pictures are drawn by the studio, never stored here.
-    REVIEW_FIXTURE_DIR: 'e2e/fixtures/review',
+    // FB-275: the planning box's door. The tests put the Review screen's cards and pictures in
+    // through it, signed with this (`e2e/review-cards.ts`), as the box will with its own secret.
+    // A test value only: production and staging each get their own, set by John.
+    FACTORY_DOOR_SECRET: 'e2e-factory-door-secret-not-for-production',
     // FB-106: the venture's corpus, offline.
     KNOWLEDGE_FIXTURE_DIR: 'e2e/fixtures/knowledge',
     READINGS_FIXTURE_DIR: 'e2e/fixtures/readings',

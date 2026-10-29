@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { founderSafe, noteFrom, reviewFor, stateAfter, type ReviewCardFile } from '../review';
+import { toReviewCard } from '../card-store';
 import type { PressLine } from '../press-record';
+import { storedCard, withPictures } from './review-fixtures';
 
 /**
  * FB-274: what the Review screen is handed, for a founder and for John.
@@ -12,9 +12,8 @@ import type { PressLine } from '../press-record';
  * none of it is in what `reviewFor` returns, none of it is in the browser.
  */
 
-const CARD: ReviewCardFile = JSON.parse(
-  readFileSync(join(import.meta.dirname, '..', '..', 'e2e', 'fixtures', 'review', 'arca', '20.json'), 'utf8'),
-);
+// ARCA's #20, as the door stores it and the store hands it back (FB-275).
+const CARD: ReviewCardFile = toReviewCard(withPictures(storedCard('arca', 20)));
 
 const at = (isJohn: boolean) => ({
   ventureId: 'arca',
@@ -50,6 +49,7 @@ describe("a founder's Review screen", () => {
   it('never passes on a part of the card it does not know', () => {
     const odd = { ...CARD, budgetLeft: '$21.60', archonRun: 'run-20' } as ReviewCardFile;
     expect(JSON.stringify(reviewFor(odd, at(false)))).not.toMatch(/21\.60|run-20/);
+    expect(JSON.stringify(reviewFor(odd, at(true)))).not.toMatch(/21\.60|run-20/);
   });
 
   it('a note John wrote is read through the same lock', () => {
