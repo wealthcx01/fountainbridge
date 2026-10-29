@@ -121,6 +121,9 @@ function AsFounderStrip({ ventureName }: { ventureName: string }) {
   return (
     <div
       data-testid="as-founder-strip"
+      // The Review screen hides this for John (FB-274, in app/globals.css): there he sees his own
+      // decision, with his own parts, which is not what the founder sees.
+      className="as-founder-strip"
       style={{
         display: 'flex',
         alignItems: 'baseline',

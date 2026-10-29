@@ -1,6 +1,7 @@
+import { mkdirSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 // The server's settings live in one place, shared with the factory's test copy (FB-272).
-import { studioTestEnv } from './e2e/server-env.mjs';
+import { stateFolder, studioTestEnv } from './e2e/server-env.mjs';
 
 // FB-005 UI-gate: builds the app and drives the three authorization cases against a real server.
 // The server runs with E2E_TEST_LOGIN=1 so the credentials provider can sign in as any email
@@ -29,6 +30,11 @@ const SCALE = process.env.E2E_SCALE_FIXTURES?.trim();
  */
 const RUNNING = process.env.E2E_BASE_URL?.trim();
 
+/** FB-274: where the studio writes each press as one line, as a test copy does (`stateFolder`). */
+const STATE = stateFolder();
+
+mkdirSync(STATE, { recursive: true });
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -51,6 +57,6 @@ export default defineConfig({
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
-    env: studioTestEnv({ scale: SCALE, failReads: process.env.E2E_FAIL_READS ?? '' }),
+    env: { ...studioTestEnv({ scale: SCALE, failReads: process.env.E2E_FAIL_READS ?? '' }), FACTORY_RUNTIME_STATE: STATE },
   },
 });

@@ -31,6 +31,7 @@ export const SIGNED_IN = [
   '/venture/arca/handbook/how-to-start',
   '/venture/arca/sell',
   '/venture/arca/work/arca/10',
+  '/venture/arca/review/arca/20',
   '/venture/arca/approvals/arca/free-post',
   '/venture/the-reset',
   '/venture/the-reset/knowledge',

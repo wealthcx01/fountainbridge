@@ -1103,3 +1103,38 @@ not have, and no saved copy was on this machine. The design's heights from the s
 - The composer is lower at desktop size (1,000px against 1,096px) but **higher on a phone: 1,195px
   against 1,142px, 53px more.** This ticket changes no layout and no styles, only how an id is
   read, and the side panel showed no ids in this reading. The cause of the 53px was not looked into.
+
+## FB-274 — the Review screen, a new screen, 2026-10-29
+
+The design is the "Studios, aligned" canvas's three Review artboards (`foundry-review`,
+`foundry-review-phone`, `foundry-review-cards`), not the prototype named in `CLAUDE.md` rule 11.
+They were rendered with the canvas's own runtime, served from a saved copy, signed in as nobody.
+The build was read on a test copy of this branch (`scripts/test-copy.mjs`), on the rig's two ARCA
+cards, as ARCA's founder and as John, before and after each press. **Not production:** until
+FB-275 there are no cards outside a test copy.
+
+| Screen | Design, 1440×1000 | Build, 1440×1000 | Design, 393×851 | Build, 393×851 |
+| --- | --- | --- | --- | --- |
+| Founder, waiting | 1,648px | 1,357px | 851px (fixed screen) | 1,626px |
+| Founder, notes pinned | 1,648px (3 notes) | 1,545px (2 notes) | 851px | 1,729px |
+| Founder, signed off | 1,554px | 1,319px | 851px | 1,595px |
+| John, after the sign-off | 1,706px | 1,427px | — | 1,802px |
+| Sent back | — | 1,517px | — | 1,604px |
+| Part of the product | — | 1,361px | — | 1,529px |
+
+The build is shorter at desktop size because its test pictures are plain, and taller on a phone
+because a whole phone screenshot is taller than the design's drawn one, and because it keeps the
+summary and the notes box, which the phone artboard leaves out.
+
+Where it differs from the canvas, and why:
+
+- **The rail is the studio's own.** The canvas draws a forest-green rail; changing the rail changes
+  every screen, which this ticket rules out ("the desk's layout doesn't change").
+- **Notes can be pinned on all four pictures.** The canvas says notes go on the computer picture
+  only; journey 4 pins one on the phone "after" picture.
+- **John reads the founder's notes as text,** not as pins on his picture. Pins are kept with the card
+  once the card store exists (FB-275).
+- **No "Take my sign-off back".** There is no press for it yet. "Decision 9 of 11" and "builds on
+  ARCA-069" are not shown: nothing records them yet.
+- **The pictures are test drawings,** drawn by the studio from the card's words. Real pictures come
+  from the planning box (cowgate CG-0065) and live in the studio's database, never in git.

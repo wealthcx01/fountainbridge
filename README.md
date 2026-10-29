@@ -66,6 +66,10 @@ The software factory builds and checks the studio the way it does the website. I
   ARCA's founder is `arca.founder@bruntsfield.capital`; John is `john.gallagher@wealthcx.com`.
 - **Journeys:** `harness/END-TO-END.md`. Journeys 1 and 2 are `e2e/journeys.spec.ts`; run it
   against a running copy with `E2E_BASE_URL=http://127.0.0.1:<port> npx playwright test e2e/journeys.spec.ts`.
+  Journeys 4 and 5 (the Review screen) are `e2e/review.spec.ts`; run it the same way, with
+  `FACTORY_RUNTIME_STATE` set to the copy's state folder.
+- **Presses:** each Accept and Send back on a finished card is written as one line to
+  `presses.jsonl` in the state folder, and never reaches GitHub (FB-274).
 - **Tests:** the commands under `## Checks` in `CLAUDE.md`.
 
 **What the machine needs.** The user that runs the test copy must be able to make databases on the
