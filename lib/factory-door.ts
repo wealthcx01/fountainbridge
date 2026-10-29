@@ -5,6 +5,7 @@ import { isPreviewAddress } from './preview-check';
 import { CARD_STATES, type CardKind, type CardStore, type StoredCard } from './card-store';
 import { isPictureName, isPlainPart, type PlainParts, type Tone } from './review';
 import { COLLECT_LIMIT, isOutcome, isPressAction, type Outcome, type StoredPress } from './presses';
+import { FACTORY_REPO, FACTORY_VENTURE } from './factory-work';
 
 /**
  * The planning box's door into the studio (FB-275): cards, pictures, preview links and heartbeats;
@@ -27,7 +28,8 @@ import { COLLECT_LIMIT, isOutcome, isPressAction, type Outcome, type StoredPress
  *
  * **The venture is never taken from the box.** It is worked out from the card's repository and the
  * manifests' `repos`. A repository no venture lists is refused, and so is a request that names a
- * venture its repository does not belong to.
+ * venture its repository does not belong to. The one exception is the factory's own repository,
+ * cowgate, whose cards are kept under `_factory`, a venture id no manifest can have (FB-277).
  *
  * Nothing here logs the secret, a signature or a body. Each answer is a short sentence for whoever
  * reads the box's log, and none of them repeats what the card said.
@@ -167,6 +169,14 @@ export function whose(
   const named = m.repo.trim();
   const [owner, name] = named.includes('/') ? named.split('/', 2) : [null, named];
   const repo = owner === null || owner.toLowerCase() === deps.org.toLowerCase() ? name : null;
+  // The factory's own work (FB-277). Always kept as the factory's, whatever a manifest says, so no
+  // venture's founder can ever be handed it: only John's pages read `_factory`.
+  if (repo === FACTORY_REPO) {
+    if (m.venture !== undefined && m.venture !== FACTORY_VENTURE) {
+      return { ok: false, status: 422, message: 'The venture named does not match the repository\'s. Nothing was kept.' };
+    }
+    return { ok: true, ventureId: FACTORY_VENTURE, repo, number: m.number as number };
+  }
   const owners = repo ? deps.ventures.filter((v) => approvalRepos(v).includes(repo)) : [];
   if (!repo || owners.length === 0) return { ok: false, status: 422, message: 'No venture lists that repository. Nothing was kept.' };
   if (owners.length > 1) return { ok: false, status: 422, message: 'More than one venture lists that repository, so the studio cannot tell whose it is. Nothing was kept.' };
@@ -327,6 +337,9 @@ async function preview(deps: DoorDeps, store: CardStore, ventureId: string, repo
   return say(200, m.url === null ? 'Preview link removed.' : 'Preview link kept.', true);
 }
 
+/** Every venture's cards, and the factory's own: where the box's presses may be. */
+const everyStore = (deps: Pick<DoorDeps, 'ventures'>) => [...deps.ventures.map((v) => v.id), FACTORY_VENTURE];
+
 /** The most a collect's answer may be, so it stays inside the door's 64 KB with room to spare. */
 export const MAX_COLLECT_BYTES = 56 * 1024;
 
@@ -344,7 +357,7 @@ export function pressForBox(p: StoredPress) {
  * never reach Archon. What is handed out is marked collected, and is not handed out again.
  */
 async function collect(deps: DoorDeps, store: CardStore): Promise<DoorReply> {
-  const got = await store.collect(deps.ventures.map((v) => v.id), {
+  const got = await store.collect(everyStore(deps), {
     limit: COLLECT_LIMIT,
     bytes: MAX_COLLECT_BYTES,
     size: (p) => Buffer.byteLength(JSON.stringify(pressForBox(p))) + 1,
@@ -376,7 +389,7 @@ async function pressResult(deps: DoorDeps, store: CardStore, m: Record<string, u
   } catch (e) {
     return refuse(deps, 400, `${(e as Error).message} Nothing was kept.`);
   }
-  const kept = await store.answer(deps.ventures.map((v) => v.id), id, m.outcome, message);
+  const kept = await store.answer(everyStore(deps), id, m.outcome, message);
   deps.log(`press-result for ${id}: ${kept}`);
   if (kept === 'no-press') return say(409, 'There is no press with that id. Nothing was kept.');
   if (kept === 'sign-off') return say(409, 'That is a sign-off. It needs no answer, and none was kept.');

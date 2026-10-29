@@ -187,7 +187,9 @@ export function loadVentures(dir: string = DEFAULT_DIR): VentureSummary[] {
   for (const file of files) {
     try {
       const summary = toSummary(yaml.load(readFileSync(join(dir, file), 'utf8')) as RawManifest);
-      if (summary) out.push(summary);
+      // An id starting with `_` is reserved: `_factory` holds the factory's own cards (FB-277), and a
+      // manifest of that name would hand them to its founder.
+      if (summary && !summary.id.startsWith('_')) out.push(summary);
     } catch {
       // skip a manifest that fails to parse; CI's manifest-validate is the gate that fails loud
     }

@@ -34,7 +34,8 @@ export async function loadLedgerRow(venture: VentureSummary, nowMs: number = stu
   };
 
   const [rail, approvals, tickets] = await Promise.all([
-    loadRailData(venture, nowMs).catch(fell<Awaited<ReturnType<typeof loadRailData>> | null>(null)),
+    // The ledger is John's, so it counts what waits on him (FB-277).
+    loadRailData(venture, nowMs, true).catch(fell<Awaited<ReturnType<typeof loadRailData>> | null>(null)),
     ventureApprovals(venture).catch(fell<Awaited<ReturnType<typeof ventureApprovals>> | null>(null)),
     loadVentureTickets(venture).catch(fell<Awaited<ReturnType<typeof loadVentureTickets>> | null>(null)),
   ]);

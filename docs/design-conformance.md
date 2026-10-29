@@ -1167,3 +1167,46 @@ Where it differs from before, and why:
   factory" and the panel "The factory makes it part of the product next."
 - **John's Reject, Try again, Split it and Stop have no buttons.** The canvas draws none, so they are
   built on the server and in the door only. Pressed on Telegram, they show on the card.
+
+## FB-277 — factory cards in "Needs you" and "What happened", 2026-10-29
+
+No new section and no new layout. The factory's cards are rows of lists that already exist: the
+desk's "Waiting on you", the Tickets screen's "Needs you", "What happened", and for John the
+cross-venture "Needs you" (`/attention`) and "What has been happening" (`/activity`). The design is
+the "Studios, aligned" canvas's desk, tickets, activity and phone boards, rendered with the canvas's
+own runtime. The build was read on Playwright's own studio, this branch beside `main` (6290e56), with
+the stand-in's journey 3 cards sent through the door: ARCA finished (two), ARCA stuck, THE RESET
+finished and cowgate done. As ARCA's founder and as John. **Not production:** there are no cards
+outside a test copy yet.
+
+| Screen | Design, 1440×1000 | `main`, 1440×1000 | Build, 1440×1000 | Design, 393×851 | `main`, 393×851 | Build, 393×851 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Desk, founder | 1,671px | 2,206px | 2,233px | 851px (fixed screen) | 2,368px | 2,396px |
+| Desk, John | — | 2,342px | 2,370px | — | 2,658px | 2,704px |
+| Tickets "Needs you", founder | 1,216px | 1,391px | 1,695px | 2,255px | 1,790px | 2,104px |
+| Tickets "Needs you", John | — | 1,428px | 1,788px | — | 1,880px | 2,249px |
+| What happened, founder | 1,084px | 1,000px | 1,079px | 1,539px | 1,929px | 2,264px |
+| What happened, John | — | 1,039px | 1,218px | — | 2,071px | 2,426px |
+| `/attention`, John | — | 1,366px | 1,783px | — | 2,231px | 2,958px |
+| `/activity`, John | — | 1,477px | 1,812px | — | 2,178px | 2,758px |
+
+Each page grows by its new rows and nothing else: three card rows on Tickets (about 100px each),
+three lines on "What happened", four on `/activity`, and three cards on `/attention`. The desk grows
+by 27px, because the stuck line now names a third ticket and wraps to two lines. No sentence is
+repeated, and no piece of work appears twice: where GitHub and the factory both know a pull
+request, only the card's row is shown.
+
+Where it differs from the canvas, and why:
+
+- **The desk shows one card, not three.** The canvas folds every send into one row ("Five things
+  wait for a yes"); the studio still lists sends one by one, as it did before this ticket, so with
+  four rows on the desk the sends take three. The rest are one press away in "Needs you". Folding
+  the sends is a desk change, which this ticket rules out.
+- **"finished, waiting for your OK" on Tickets too.** The canvas says "needs your OK" there and
+  "finished, waiting for your OK" on the desk. One phrase for one state, everywhere.
+- **A finished card's detail on Tickets points at its Review screen** rather than drawing the
+  canvas's decision panel. The Review screen is where a card is decided (FB-274).
+- **John reads the cost on each row**, after the state, and the next step on Tickets and
+  `/attention`. The canvas has no John boards for these lists; nothing new was added for it.
+- **"What happened" keeps its twelve rows for the record and gives the factory's newest six lines
+  room of their own**, so a busy factory never pushes a founder's own decisions off the page.

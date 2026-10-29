@@ -1,5 +1,6 @@
 import 'server-only';
 import { Pool, type PoolClient } from 'pg';
+import { FACTORY_VENTURE } from './factory-work';
 
 /**
  * The studio's connection to its own database (FB-170's remaining half).
@@ -62,7 +63,8 @@ export async function withVenture<T>(
   fn: (client: PoolClient) => Promise<T>,
   env: Record<string, string | undefined> = process.env,
 ): Promise<T> {
-  if (!VENTURE_ID.test(ventureId)) throw new Error(`not a venture id: ${JSON.stringify(ventureId)}`);
+  // `_factory` is the factory's own cards (FB-277): a scope of its own that no manifest can name.
+  if (!VENTURE_ID.test(ventureId) && ventureId !== FACTORY_VENTURE) throw new Error(`not a venture id: ${JSON.stringify(ventureId)}`);
   return inTransaction(ventureId, fn, env);
 }
 

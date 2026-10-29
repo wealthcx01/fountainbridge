@@ -12,6 +12,12 @@ CG-0066) is built against. The studio's side is `lib/factory-door.ts` (FB-275, F
 - **The venture is never yours to say.** The studio works it out from the card's `repo` and the
   venture manifests' `repos`. A repository no venture lists is refused. You may send `venture` as a
   check; if it does not match the repository's venture, the request is refused.
+- **The factory's own work is the one exception (FB-277).** Cards for `cowgate` (or
+  `wealthcx01/cowgate`) are kept under `_factory`, a venture id no manifest can have, whatever any
+  manifest lists. If you send `venture` with one, it must be `_factory`. No founder can list, open
+  or press these cards: only John sees them, on his cross-venture pages (`/attention` while one
+  waits, and `/activity`). They have no Review screen in the studio, so press them on Telegram.
+  `collect` and `press-result` cover `_factory` like any venture.
 - **Anything not marked founder-safe is John's.** A card's founder-safe parts are the fields listed
   under "Plain parts" below, by name. Every other field on a card is kept for John only and never
   reaches a founder's browser. So a new field is safe to add: it stays John's until the studio names
@@ -91,6 +97,16 @@ the one the studio has).
 
 `state` is one of `finished`, `stuck`, `sent-back`, `done`, `failed`, `needs-you`. Only a `finished`
 card has a Review screen.
+
+**Where a card shows (FB-277).** There is no factory page. A card is a row in the lists a founder
+already has: the desk's "Waiting on you", the Tickets screen's "Needs you", the rail's count, and
+"What happened". `finished`, `stuck` and `sent-back` cards wait on whoever looks at the venture, and
+are counted in "Needs you". A card a founder has signed off, or one you send as `needs-you`, waits
+on John alone. `done` and `failed` cards, and every press and its answer, are lines in "What
+happened". A `stuck` card is also named on the desk's stuck line. When a card and a pull request
+the studio reads from GitHub are the same work (same repository and number, or the same `ref` in
+the same repository), only the card's row is shown, and it is counted once. A founder reads only
+the plain parts; John also reads `forJohn.cost` and `forJohn.nextStep` on the rows.
 
 **Plain parts** (founder-safe, by name): `ref` (up to 40 characters), `title` (needed, up to 300),
 `finishedAt`, `headSha` (the commit the work and its pictures are of), `demo` (true for made-up
@@ -255,5 +271,5 @@ adds `presses`, `signOffs` and `more`.
 | 409 | a newer card is already here; or a picture, preview or tap for a card not sent yet, or a picture of another version; or a press id that is not a press, is a sign-off, or already has a different answer | send the card first, or drop it |
 | 413 | too big | send less |
 | 415 | the picture is not a PNG | send a PNG |
-| 422 | no venture lists that repository, two do, the `venture` sent does not match, or the address is not a preview address | fix the manifest or the sender |
+| 422 | no venture lists that repository (cowgate is the factory's, never refused for this), two do, the `venture` sent does not match, or the address is not a preview address | fix the manifest or the sender |
 | 500, 503 | the studio could not keep it, or has no database | try again later; tell John if it lasts |

@@ -16,6 +16,8 @@ import { historyIsPartial, historyScope } from '@/lib/history-scope';
 import { VentureForbidden } from '@/components/VentureForbidden';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { Mark } from '@/components/Mark';
+import { CARDS_UNREAD, ventureCardRows, viewerOf } from '@/lib/factory-work-load';
+import { cardEvents } from '@/lib/factory-work';
 
 /**
  * What happened (FB-132) — everything this venture did, newest first.
@@ -58,7 +60,7 @@ export default async function VentureActivityPage({
 
   return (
     <Suspense fallback={<ActivityWaiting ventureName={venture.name} />}>
-      <Record venture={venture} isAdmin={access.isAdmin} refreshing={refresh === '1'} />
+      <Record venture={venture} isAdmin={access.isAdmin} email={session.user.email} refreshing={refresh === '1'} />
     </Suspense>
   );
 }
@@ -94,10 +96,12 @@ function ActivityWaiting({ ventureName }: { ventureName: string }) {
 async function Record({
   venture,
   isAdmin,
+  email,
   refreshing,
 }: {
   venture: VentureSummary;
   isAdmin: boolean;
+  email: string;
   refreshing: boolean;
 }) {
   // Three reads, in parallel, each already bounded by its own loader (FB-123). This screen adds no
@@ -110,7 +114,8 @@ async function Record({
   // with nothing to show it could not see (CLAUDE.md #10). A log that quietly drops failures is
   // worse than no log — including when what it drops is its own.
   const unreadable: string[] = [];
-  const [health, runs, approvals] = await Promise.all([
+  const viewer = viewerOf(email, venture);
+  const [health, runs, approvals, cards] = await Promise.all([
     loadVentureHealth(venture, { refresh: refreshing }),
     // One line per stretch of work on one ticket (FB-180), not the newest reports the desk reads.
     ventureStory(venture).catch(() => {
@@ -121,6 +126,8 @@ async function Record({
       unreadable.push('the decisions you have made');
       return [];
     }),
+    // FB-277: the factory's cards and what was pressed on them, in this viewer's words.
+    ventureCardRows(venture, viewer),
   ]);
 
   // Dedupe, THEN filter. `health.activity` carries a merged pull request with its paths and a paired
@@ -133,8 +140,9 @@ async function Record({
   // FB-180: the meta column names the surface a founder owns, not the repository git happens to
   // keep it in. Built here because the manifest is the only place that knows the mapping.
   const surfaces = Object.fromEntries((venture.departments ?? []).map((d) => [d.repo, d.name]));
-  const { items: feed, truncated } = buildFeed({
+  const { items: feed, truncated, cardsTruncated } = buildFeed({
     activity, runs: runs.reports, approvals, limit: FEED_LIMIT, surfaces, ventureName: venture.name,
+    cards: cards.cards.flatMap((c) => cardEvents(c, viewer, venture.name)), cardLimit: CARD_FEED_LIMIT,
     departments: Object.fromEntries((venture.departments ?? []).map((d) => [d.id, d.name])),
   });
   // Composed from the SAME list the rows come from. `lib/activity-summary.ts` states that invariant
@@ -156,13 +164,15 @@ async function Record({
   // collapse can hide anything: each stretch is its own row. The page is showing less than the
   // whole record when either (a) it read fewer stretches than exist, or (b) it had more rows than
   // it shows and dropped the oldest. Either one, and it says so.
+  const record = feed.filter((i) => i.source !== 'card');
   const bounded = historyIsPartial(truncated, runs.reports.length, runs.stretches ?? runs.total);
   const scope = historyScope({
     ventureName: venture.name,
-    shown: feed.length,
+    // The run record's own rows: the factory's lines have their own allowance and their own dates.
+    shown: record.length,
     total: runs.total,
     earliest: runs.earliest,
-    oldestShown: feed.length ? feed[feed.length - 1].at : null,
+    oldestShown: record.length ? record[record.length - 1].at : null,
     busiest: runs.busiest,
     bounded,
     byStretch: typeof runs.stretches === 'number',
@@ -190,13 +200,24 @@ async function Record({
         appear the moment they are made.
       </p>
 
-      <ActivityFeed items={feed} couldNotRead={unreadable.length > 0 || failures.length > 0} />
+      <ActivityFeed items={feed} couldNotRead={unreadable.length > 0 || failures.length > 0 || cards.unread} />
+
+      {cards.unread ? (
+        <p className="card muted" data-testid="activity-cards-unread" style={{ fontSize: 'var(--fs-body-sm)', maxWidth: 'var(--content-narrow)' }}>
+          <Mark />{CARDS_UNREAD}
+        </p>
+      ) : null}
 
       {/* Fires on the bound that matters — the record being larger than the page — not on whether
           the last step happened to drop a row. */}
       {bounded ? (
         <p className="muted" data-testid="activity-capped" style={{ fontSize: 'var(--fs-meta-lg)' }}>
           Older entries are still in your venture’s records. Nothing here has been deleted.
+        </p>
+      ) : cardsTruncated ? (
+        // FB-277: the factory's lines have their own allowance, so they say so on their own.
+        <p className="muted" data-testid="activity-cards-capped" style={{ fontSize: 'var(--fs-meta-lg)' }}>
+          Older lines about your team’s finished work are still kept. Nothing here has been deleted.
         </p>
       ) : null}
 
@@ -247,3 +268,9 @@ async function Record({
  * on ARCA is back to 26 August: the last month of the venture, on about one and a half screens.
  */
 const FEED_LIMIT = 12;
+
+/**
+ * The factory's newest card lines, shown beside those twelve rather than instead of them (FB-277).
+ * Six is about a week of one venture's finished, stuck and decided work.
+ */
+const CARD_FEED_LIMIT = 6;

@@ -29,6 +29,9 @@ import { VentureForbidden } from '@/components/VentureForbidden';
 import { DeskWaiting } from '@/components/DeskWaiting';
 import { readiness } from '@/lib/readiness';
 import { timed } from '@/lib/timing';
+import { CARDS_UNREAD, ventureCardRows, viewerOf } from '@/lib/factory-work-load';
+import { cardHref, metaLine, stuckNames, withoutCarded, type CardRow } from '@/lib/factory-work';
+import type { WaitingItem } from '@/components/WaitingQueue';
 
 // Venture lanes & tickets (FB-006). Scoping is enforced HERE, server-side: a session that can't
 // access this venture never triggers a ticket fetch (CLAUDE.md #6 — isolation is not UI-only).
@@ -154,7 +157,7 @@ async function Desk({
       .map(async (d) => [d.id, await checkedDoor(d.launch!.url)] as const),
   ).then((pairs) => Object.fromEntries(pairs));
 
-  const [data, health, approvalsRead, runsRead] = await Promise.all([
+  const [data, health, approvalsRead, runsRead, cardsRead] = await Promise.all([
     timed('desk: your backlog', () => loadVentureTickets(venture, { refresh: refreshing }), venture.id),
     timed('desk: repository health', () => loadVentureHealth(venture, { refresh: refreshing }), venture.id),
     // Shared with the rail around this page (FB-157). These were two full reads per request each,
@@ -164,7 +167,10 @@ async function Desk({
     timed('desk: what your team did', () => ventureRuns(venture), venture.id)
       .then((r) => ({ runs: r, degraded: false }))
       .catch(() => ({ runs: noRuns, degraded: true })),
+    // FB-277: the factory's cards, as this viewer may read them. Shared with the rail.
+    timed('desk: the factory\'s cards', () => ventureCardRows(venture, viewerOf(email, venture)), venture.id),
   ]);
+  const cardRows: CardRow[] = cardsRead.rows;
   const runs = runsRead.runs;
   const runsDegraded = runsRead.degraded;
 
@@ -235,7 +241,26 @@ async function Desk({
   // reads them, against the real clock and possibly minutes ago from cache; the engine sentence uses
   // `now` above. Under the pinned test clock those two said "10 minutes" and "79 days" about one
   // venture. Re-aged here, against the same `now`, so every age on this page shares one instant.
-  const queue = attention.approvals.map((a) => ({ ...a, ageMs: Math.max(0, ageMs(a.createdAt, now.getTime()) ?? a.ageMs) }));
+  //
+  // FB-277: only the pull requests no factory card stands for. Where both are the same work, the
+  // card's row is the one shown and counted, never both.
+  const openPrs = withoutCarded(attention.approvals, cardRows);
+  const queue = openPrs.map((a) => ({ ...a, ageMs: Math.max(0, ageMs(a.createdAt, now.getTime()) ?? a.ageMs) }));
+  const waitingCards = cardRows.filter((c) => c.waits);
+  const cardAgeMs = (c: CardRow) => Math.max(0, ageMs(c.at, now.getTime()) ?? 0);
+  // The cards waiting on this viewer, as rows of "Waiting on you". Built here, on the server, so a
+  // founder's page is never handed John's words.
+  const surfaceName = (repo: string) => venture.departments.find((d) => d.repo === repo)?.name ?? null;
+  const cardItems: WaitingItem[] = waitingCards.map((c) => ({
+    key: `card ${c.key}`,
+    testId: `card-${c.repo}-${c.number}`,
+    ref: c.ref || c.key,
+    title: c.title,
+    meta: metaLine(c, surfaceName(c.repo) ?? 'Your venture'),
+    waitingMs: cardAgeMs(c),
+    href: cardHref(c),
+    external: false,
+  }));
 
   // Both lists (FB-139): a run report is a check-in, and heartbeats are only written when a wake
   // finds nothing to work — so heartbeats alone read a busy machine as one that never started.
@@ -268,7 +293,7 @@ async function Desk({
   // FB-105: the work waiting on each ticket, keyed the same way the status inference is — so the
   // drawer's Accept button and the column the card sits in cannot disagree about the same ticket.
   const openWork: Record<string, { repo: string; number: number }> = {};
-  for (const pr of attention.approvals) {
+  for (const pr of openPrs) {
     if (pr.linkedTicketId) openWork[`${pr.repo} ${pr.linkedTicketId}`] = { repo: pr.repo, number: pr.number };
   }
 
@@ -300,7 +325,7 @@ async function Desk({
     [...filedByRepo].flatMap(([repo, fs]) => fs.map((f) => `${repo} ${f.prNumber}`)),
   );
   const unmatchedWork: Record<string, Array<{ number: number; title: string }>> = {};
-  for (const pr of attention.approvals) {
+  for (const pr of openPrs) {
     if (pr.linkedTicketId && onBoard.has(pr.linkedTicketId)) continue;
     if (filedPrs.has(`${pr.repo} ${pr.number}`)) continue;
     (unmatchedWork[pr.repo] ??= []).push({ number: pr.number, title: pr.title });
@@ -312,7 +337,12 @@ async function Desk({
     sendsAlreadyTried: sendsAlreadyTried(approvals),
     // The queue itself, not a count of it: the brief says how long the oldest has waited, and a
     // number cannot be asked that.
-    openWork: queue.map((a) => ({ ticketId: a.linkedTicketId, ageMs: a.ageMs })),
+    openWork: [
+      ...queue.map((a) => ({ ticketId: a.linkedTicketId, ageMs: a.ageMs })),
+      ...waitingCards.map((c) => ({ ticketId: c.ref || null, ageMs: cardAgeMs(c) })),
+    ],
+    // FB-277: a stuck card joins the stuck line, beside the tickets the runs say are stuck.
+    stuckCards: stuckNames(cardRows),
     runs: runs.reports,
     engine,
     ticketTitles,
@@ -341,6 +371,7 @@ async function Desk({
     ...attention.errors.map((message) => ({ where: null, message })),
     ...(runsDegraded ? [{ where: null, message: 'The studio could not read what your team has been doing.' }] : []),
     ...(budgetsError ? [{ where: null, message: budgetsError }] : []),
+    ...(cardsRead.unread ? [{ where: null, message: CARDS_UNREAD }] : []),
   ];
   const readFailures = failures.map((f) => f.message);
 
@@ -350,12 +381,12 @@ async function Desk({
   // badge uses. Three renderings of one number is how a badge comes to say 15 over columns saying 0
   // (FB-099), and the acceptance criterion for this ticket is that they cannot.
   const waiting = {
-    openWork: attention.approvals.length,
+    openWork: openPrs.length + waitingCards.length,
     awaitingApproval: sendsWaitingOnFounder(approvals).length,
     sendsAlreadyTried: sendsAlreadyTried(approvals),
   };
-  const oldestMs = attention.approvals.length
-    ? Math.max(...queue.map((a) => a.ageMs ?? 0))
+  const oldestMs = openPrs.length + waitingCards.length
+    ? Math.max(...queue.map((a) => a.ageMs ?? 0), ...waitingCards.map(cardAgeMs))
     : null;
   // Work the engine is actually on, not work that has been filed. A ticket sitting in `todo` is not
   // a team "on" anything, and saying so would be the most flattering possible reading of an idle
@@ -400,7 +431,7 @@ async function Desk({
     approvalCount: approvals.length,
     // Anything a repo has already done — a commit, a merged PR, a build. A venture with a failing
     // build and nothing else is not brand new, and must not be greeted as though it were.
-    historyCount: health.repos.reduce((n, r) => n + r.activity.length + (r.latestRun ? 1 : 0), 0),
+    historyCount: health.repos.reduce((n, r) => n + r.activity.length + (r.latestRun ? 1 : 0), 0) + cardRows.length,
     readFailures,
   });
   // FB-203, item 6 removed the desk's link to the box's own chat, so the URL is no longer rendered
@@ -465,6 +496,7 @@ async function Desk({
       org={org}
       brief={brief}
       openWorkQueue={queue}
+      cardItems={cardItems}
       summary={summarySentence}
       blocker={blocker}
       degraded={degraded}

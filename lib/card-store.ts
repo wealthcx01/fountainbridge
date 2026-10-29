@@ -1,5 +1,6 @@
 import { PICTURES, type PictureName, type PlainParts, type ReviewCardFile } from './review';
-import { memoryPressStore, sqlPressStore, type PressStore } from './press-store';
+import { memoryPressStore, pressFromRow, sqlPressStore, PRESS_SQL, type PressStore } from './press-store';
+import type { StoredPress } from './presses';
 
 /**
  * The factory's cards and their pictures, as the studio keeps them (FB-275, `db/008_factory_cards.sql`).
@@ -67,6 +68,12 @@ export interface CardStore extends PressStore {
   /** Keep this card, unless a newer version of it is already here. */
   putCard(ventureId: string, card: StoredCard): Promise<'stored' | 'older'>;
   card(ventureId: string, repo: string, number: number): Promise<CardWithPictures | null>;
+  /**
+   * The venture's newest cards, at most `limit`, newest first, each with the presses on the version
+   * of the work it is about now (FB-277). For the lists a founder already has: one read, not one
+   * per card.
+   */
+  newest(ventureId: string, limit: number): Promise<{ card: StoredCard; presses: StoredPress[] }[]>;
   /** Every finished card of the venture's, in any of the repositories given. */
   finished(ventureId: string, repos: string[]): Promise<{ repo: string; number: number }[]>;
   /** Keep a picture of a card's work. Only of the version the card is about. */
@@ -107,6 +114,9 @@ export const SQL = {
            from factorystore.cards where repo = $1 and number = $2`,
   pictureInfo: `select name, width, height, taken_at from factorystore.pictures where repo = $1 and number = $2`,
   finished: `select repo, number from factorystore.cards where state = 'finished' and repo = any($1::text[])`,
+  // FB-277. Bounded, because a list is: the newest first, and never more than the caller asks for.
+  newest: `select repo, number, run_id, state, sent_at, head_sha, preview_url, plain, for_john
+             from factorystore.cards order by sent_at desc, repo, number limit $1`,
   headOf: 'select head_sha from factorystore.cards where repo = $1 and number = $2',
   putPicture: `insert into factorystore.pictures (venture_id, repo, number, name, head_sha, width, height, taken_at, bytes)
                values (current_setting('app.venture_id', true), $1, $2, $3, $4, $5, $6, $7, $8)
@@ -127,6 +137,20 @@ const json = (v: unknown) => (typeof v === 'string' ? JSON.parse(v) : v);
 
 /** Postgres's `bytea` arrives as a Buffer from pg and a Uint8Array from PGlite. */
 const bytesOf = (v: unknown) => (v instanceof Uint8Array ? v : new Uint8Array(v as ArrayBuffer));
+
+function cardFromRow(r: Record<string, unknown>): StoredCard {
+  return {
+    repo: String(r.repo),
+    number: Number(r.number),
+    runId: (r.run_id as string | null) ?? null,
+    state: r.state as CardKind,
+    sentAt: iso(r.sent_at),
+    headSha: String(r.head_sha ?? ''),
+    previewUrl: (r.preview_url as string | null) ?? null,
+    plain: json(r.plain) as PlainParts,
+    forJohn: (json(r.for_john) ?? {}) as Record<string, unknown>,
+  };
+}
 
 /**
  * The store over the studio's database.
@@ -157,15 +181,7 @@ export function sqlCardStore(run: {
         if (!r) return null;
         const pics = await q.query<Record<string, unknown>>(SQL.pictureInfo, [repo, number]);
         return {
-          repo: String(r.repo),
-          number: Number(r.number),
-          runId: (r.run_id as string | null) ?? null,
-          state: r.state as CardKind,
-          sentAt: iso(r.sent_at),
-          headSha: String(r.head_sha ?? ''),
-          previewUrl: (r.preview_url as string | null) ?? null,
-          plain: json(r.plain) as PlainParts,
-          forJohn: (json(r.for_john) ?? {}) as Record<string, unknown>,
+          ...cardFromRow(r),
           pictures: pics.rows.map((p) => ({
             name: p.name as PictureName,
             width: Number(p.width),
@@ -173,6 +189,17 @@ export function sqlCardStore(run: {
             takenAt: iso(p.taken_at),
           })),
         };
+      }),
+
+    newest: (ventureId, limit) =>
+      run.asVenture(ventureId, async (q) => {
+        // Both in one transaction, so the presses are of exactly the cards read.
+        const cards = (await q.query<Record<string, unknown>>(SQL.newest, [limit])).rows.map(cardFromRow);
+        const presses = (await q.query<Record<string, unknown>>(PRESS_SQL.onNewest, [limit])).rows.map(pressFromRow);
+        return cards.map((card) => ({
+          card,
+          presses: presses.filter((p) => p.repo === card.repo && p.number === card.number),
+        }));
       }),
 
     finished: (ventureId, repos) =>
@@ -233,8 +260,9 @@ export function memoryCardStore(now: () => Date = () => new Date()): CardStore {
       return p ? [p] : [];
     });
 
+  const pressStore = memoryPressStore((v, repo, number) => cards.get(key(v, repo, number))?.headSha ?? null, now);
   return {
-    ...memoryPressStore((v, repo, number) => cards.get(key(v, repo, number))?.headSha ?? null, now),
+    ...pressStore,
 
     async putCard(v, c) {
       const was = cards.get(key(v, c.repo, c.number));
@@ -250,6 +278,14 @@ export function memoryCardStore(now: () => Date = () => new Date()): CardStore {
         ...structuredClone(c),
         pictures: picsOf(v, repo, number).map(({ name, width, height, takenAt }) => ({ name, width, height, takenAt })),
       };
+    },
+    async newest(v, limit) {
+      const mine = [...cards.entries()]
+        .filter(([k]) => JSON.parse(k)[0] === v)
+        .map(([, c]) => c)
+        .sort((a, b) => Date.parse(b.sentAt) - Date.parse(a.sentAt) || a.repo.localeCompare(b.repo) || a.number - b.number)
+        .slice(0, limit);
+      return Promise.all(mine.map(async (c) => ({ card: structuredClone(c), presses: await pressStore.presses(v, c.repo, c.number) })));
     },
     async finished(v, repos) {
       return [...cards.entries()]

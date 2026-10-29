@@ -20,7 +20,7 @@ import { OfficeLedger } from './OfficeLedger';
 import { OfficeEmbed } from './OfficeEmbed';
 import type { Office } from '@/lib/office';
 import { lastSend, outboxUrl } from '@/lib/sends';
-import { WaitingQueue, externalWaitingItem, prWaitingItem } from './WaitingQueue';
+import { WaitingQueue, externalWaitingItem, prWaitingItem, type WaitingItem } from './WaitingQueue';
 import { PromptBar } from './PromptBar';
 import { describe as describeBudget, type BudgetDisclosure } from '@/lib/budgets';
 import { surfaceOutcome, type DegradedGroup } from '@/lib/desk';
@@ -128,6 +128,7 @@ export function VentureBoard({
   org,
   openWork = {},
   openWorkQueue = [],
+  cardItems = [],
   filedRefs = {},
   unmatchedWork = {},
   viewerIsFounder = false,
@@ -152,6 +153,12 @@ export function VentureBoard({
   budgets?: (BudgetDisclosure | null)[];
   /** Finished work waiting to be read, newest-waiting first — the desk's section 7 (FB-128). */
   openWorkQueue?: PrApproval[];
+  /**
+   * The factory's cards waiting on this viewer, as rows (FB-277). Built on the server, which is
+   * where a founder's rows lose John's words. Pull requests a card stands for are already gone from
+   * `openWorkQueue`, so one piece of work is one row.
+   */
+  cardItems?: WaitingItem[];
   /** The venture in a paragraph (FB-042) — composed server-side so the ordering has one owner. */
   brief?: Brief | null;
   /** The desk's one sentence (FB-128). Composed server-side from the same count the banner uses. */
@@ -276,6 +283,9 @@ export function VentureBoard({
   const waitingItems = [
     // FB-149: a send names its own department; the repository it was proposed from is only a fallback.
     ...pendingApprovals.map((a) => externalWaitingItem(a, venture.id, sendSurface(departments, a))),
+    // FB-277: the factory's cards, after the sends and before the work read from GitHub. They are
+    // the newest finished work, and the design's queue is made of them.
+    ...cardItems,
     ...openWorkQueue.map((a) => prWaitingItem(a, venture.id, surfaceOf(a.repo)?.name)),
   ];
 

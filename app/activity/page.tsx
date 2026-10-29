@@ -12,7 +12,9 @@ import { ciRunTone, toneColor } from '@/lib/status';
 import { loadVentures } from '@/lib/ventures';
 import { authorizeVentures, parseAdminEmails } from '@/lib/authz';
 import { groupFailures, needsAction } from '@/lib/read-failures';
-import { ago } from '@/lib/when';
+import { ago, studioNow } from '@/lib/when';
+import { factoryCardsForJohn, ventureCardRows, viewerOf } from '@/lib/factory-work-load';
+import { FACTORY_NAME, FACTORY_VENTURE, cardEvents, type CardEvent } from '@/lib/factory-work';
 import { Mark } from '@/components/Mark';
 
 /**
@@ -61,6 +63,33 @@ export default async function ActivityPage({
   const deduped = dedupeActivity(repoFilter ? activity.filter((e) => e.repo === repoFilter) : activity);
   const events = isAdmin ? deduped : deduped.filter((e) => isFounderVisible(classifyActivity(e)));
   const hidden = deduped.length - events.length;
+
+  // FB-277: what the factory's cards said, for every venture this person passed the check for, in
+  // their words. John also reads the factory's own cards, cowgate's, which no founder ever sees.
+  // Kept to the same window as the rest of the page.
+  const windowStart = studioNow() - ACTIVITY_WINDOW_DAYS * 86_400_000;
+  const email = session.user.email;
+  const cardLines: (CardEvent & { ventureName: string })[] = [];
+  for (const v of ventures) {
+    const summary = ventureSummaries.find((x) => x.id === v.id);
+    if (!summary) continue;
+    const viewer = viewerOf(email, summary);
+    const read = await ventureCardRows(summary, viewer);
+    for (const c of read.cards) cardLines.push(...cardEvents(c, viewer, summary.name).map((e) => ({ ...e, ventureName: summary.name })));
+  }
+  if (isAdmin) {
+    const viewer = viewerOf(email, null);
+    const read = await factoryCardsForJohn(viewer);
+    for (const c of read.cards) cardLines.push(...cardEvents(c, viewer, FACTORY_NAME).map((e) => ({ ...e, ventureName: FACTORY_NAME })));
+  }
+  const shownCards = cardLines
+    .filter((c) => Date.parse(c.at) >= windowStart && (!repoFilter || c.repo === repoFilter))
+    .sort((a, b) => b.at.localeCompare(a.at));
+  // One list, newest first: the repositories' events and the cards' lines by their own times.
+  const feed = [
+    ...events.map((e, i) => ({ at: e.at, key: `e-${e.url}-${i}`, event: e, card: null })),
+    ...shownCards.map((c, i) => ({ at: c.at, key: `c-${c.ventureId}-${c.repo}-${c.number}-${i}`, event: null, card: c })),
+  ].sort((x, y) => Date.parse(y.at) - Date.parse(x.at));
 
   // FB-108. Built from `events` — the same list, already deduplicated and already filtered to what
   // this reader may see — so the paragraph counts exactly the rows underneath it. Passing the raw
@@ -133,16 +162,18 @@ export default async function ActivityPage({
         </p>
       )}
 
-      {events.length === 0 ? (
+      {feed.length === 0 ? (
         <p className="card muted" data-testid="activity-empty">
           Nothing has happened in the last {ACTIVITY_WINDOW_DAYS} days. When your team builds something, or a check
           fails, it appears here.
         </p>
       ) : (
         <div className="stack" data-testid="activity-feed" style={{ gap: '0.4rem' }}>
-          {events.map((e, i) => (
-            <ActivityRow key={`${e.url}-${i}`} event={e} parked={isParked(e, parked)} />
-          ))}
+          {feed.map(({ key, event, card }) => event ? (
+            <ActivityRow key={key} event={event} parked={isParked(event, parked)} />
+          ) : card ? (
+            <CardActivityRow key={key} line={card} />
+          ) : null)}
         </div>
       )}
 
@@ -290,6 +321,33 @@ function isParked(event: ActivityEvent, parked: ReadonlySet<string>): boolean {
   if (classifyActivity(event) !== 'ticket-filed') return false;
   const id = filedTicketId(event);
   return !!id && parked.has(id);
+}
+
+/**
+ * One line from a factory card (FB-277), in the same look as the rows around it. The cost is on it
+ * only for John: `cost` is null for anyone else, on the server.
+ */
+function CardActivityRow({ line }: { line: CardEvent & { ventureName: string } }) {
+  const id = `${line.ventureId === FACTORY_VENTURE ? 'factory' : line.ventureId}-${line.repo}-${line.number}`;
+  const body = (
+    <>
+      <span className="tag mono" style={{ minWidth: '5.5rem', textAlign: 'center' }}>your team</span>
+      {/* The meta goes under the sentence, not beside it: it is longer than a repository's name, and
+          beside it on a phone it squeezed the sentence to one word a line. */}
+      <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-body-sm)' }}>
+        {line.text}
+        <span className="muted mono" style={{ display: 'block', fontSize: 'var(--fs-meta)', marginTop: '0.15rem' }}>
+          {[line.ventureName, line.ref, line.cost, ago(line.at)].filter(Boolean).join(' · ')}
+        </span>
+      </span>
+    </>
+  );
+  const style = { padding: '0.5rem 0.8rem', display: 'flex', gap: '0.6rem', alignItems: 'baseline' } as const;
+  return line.href ? (
+    <Link className="card card-link" href={line.href} data-testid={`activity-card-${id}`} style={style}>{body}</Link>
+  ) : (
+    <div className="card" data-testid={`activity-card-${id}`} style={style}>{body}</div>
+  );
 }
 
 function ActivityRow({ event, parked = false }: { event: ActivityEvent; parked?: boolean }) {

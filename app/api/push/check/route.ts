@@ -7,6 +7,8 @@ import type { SoleItem } from '@/lib/push';
 import { withVenture } from '@/lib/db';
 import { checkQueue } from '@/lib/push-send';
 import { vapidFromEnv } from '@/lib/webpush';
+import { ventureCards } from '@/lib/factory-work-load';
+import { cardRows, withoutCarded } from '@/lib/factory-work';
 
 /**
  * The heartbeat that turns "a founder became the blocker" into a buzz (FB-141).
@@ -69,14 +71,21 @@ async function waitingNow(
   venture: Parameters<typeof loadVentureAttention>[0],
 ): Promise<{ waiting: number | null; sole: SoleItem | null }> {
   try {
-    const [attention, approvals] = await Promise.all([
+    const [attention, approvals, cards] = await Promise.all([
       loadVentureAttention(venture, { refresh: true }),
       ventureApprovals(venture),
+      ventureCards(venture.id),
     ]);
-    if (attention.errors.length > 0) return { waiting: null, sole: null };
-    const waiting = needsYouCount(attention.approvals.length, approvals);
-    if (waiting !== 1) return { waiting, sole: null };
-    const [pr] = attention.approvals;
+    if (attention.errors.length > 0 || cards.unread) return { waiting: null, sole: null };
+    // FB-277: the factory's cards wait on the founder too, counted as the rail counts them: one per
+    // piece of work, and a card a founder has signed off waits on John, not on them.
+    const rows = cardRows(cards.cards, { isJohn: false, name: (e) => e }, () => venture.name);
+    const open = withoutCarded(attention.approvals, rows);
+    const waitingCards = rows.filter((r) => r.waits);
+    const waiting = needsYouCount(open.length + waitingCards.length, approvals);
+    // A lone card has no work page; the push opens the desk, whose first row is that card.
+    if (waiting !== 1 || waitingCards.length > 0) return { waiting, sole: null };
+    const [pr] = open;
     const [send] = sendsWaitingOnFounder(approvals);
     const sole: SoleItem | null = pr
       // Its own work page, not its ticket: this read has no ticket list to check the id against, and

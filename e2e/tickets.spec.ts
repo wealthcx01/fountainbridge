@@ -205,7 +205,13 @@ test.describe('one number for what is waiting (FB-099)', () => {
     await page.goto('/venture/arca/tickets');
     const filter = Number((await page.getByTestId('tickets-filter-needs').innerText()).match(/\d+/)?.[0] ?? '-1');
     await page.goto('/attention');
-    const badge = Number(await page.getByTestId('attention-count').innerText());
+    // FB-277: once THE RESET has a factory card waiting, ARCA is no longer the only venture with
+    // work, and the page states each venture's own number beside its total. ARCA's is the one this
+    // screen's filter must equal.
+    const perVenture = page.getByTestId('attention-per-venture-arca');
+    const badge = (await perVenture.count())
+      ? Number(((await perVenture.innerText()).match(/\d+/) ?? ['-1'])[0])
+      : Number(await page.getByTestId('attention-count').innerText());
     expect(filter).toBe(badge);
   });
 

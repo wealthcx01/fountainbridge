@@ -40,8 +40,8 @@ Everything under `/venture/[id]` is scoped to one venture, server-side, by the s
 | `/venture/[id]/routines` | work that happens on a schedule |
 | `/venture/[id]/composer` | the conversational composer |
 | `/venture/[id]/handbook`, `…/handbook/[slug]` | the handbook, per venture |
-| `/attention` | everything waiting on the founder, across ventures |
-| `/activity`, `/lanes` | cross-venture reads |
+| `/attention` | everything waiting on the founder, across ventures. For John, also the factory's own cards that wait on him (FB-277) |
+| `/activity`, `/lanes` | cross-venture reads. `/activity` carries each venture's factory cards, and for John the factory's own (FB-277) |
 | `/handbook`, `/handbook/[slug]` | nine chapters. Ch. 9 is the founder's practical guide |
 | `/playbook`, `/how-it-works`, `/foundry` | the method, and what the Foundry is |
 | `/login`, `/not-authorized` | the two doors and the refusal |
@@ -113,7 +113,7 @@ means editing an assertion that says you must not.
 | `public.ventures`, `public.run_reports` | a read cache | **yes** — rebuildable from git |
 | `public.documents` | the record of a handed-over file | yes — the pointer is in git |
 | `docstore.blobs` | **the file itself** | **no. It exists nowhere else** |
-| `factorystore.cards`, `factorystore.pictures` | the factory's cards and their screenshots, by venture (FB-275) | no: the box resends a card when it changes, but not its pictures |
+| `factorystore.cards`, `factorystore.pictures` | the factory's cards and their screenshots, by venture (FB-275). The factory's own (cowgate's) are kept under `_factory`, a scope no manifest can name, read only for John (FB-277) | no: the box resends a card when it changes, but not its pictures |
 | `factorystore.heartbeats` | when the planning box last reported. No venture's data | yes |
 | `factorystore.presses` | who pressed what on a factory card, and what the box said happened, by venture (FB-276) | **no: it is the record of who decided what** |
 

@@ -9,6 +9,8 @@ import { ventureApprovals, ventureLiveness } from './venture-reads';
 import { timed } from './timing';
 import { needsYouCount } from './needs-you';
 import { studioNow } from './when';
+import { ventureCards } from './factory-work-load';
+import { cardRows, cardsWaiting, withoutCarded } from './factory-work';
 
 /**
  * What the rail needs, loaded once per request (FB-124).
@@ -51,7 +53,10 @@ export interface RailData {
    * the number widened with it, and they cannot disagree.
    */
   needsYou: number;
-  /** Open pull requests alone — the half of `needsYou` that is finished work. The ledger wants it. */
+  /**
+   * Finished work alone — the half of `needsYou` that is not a send. The ledger wants it. Since
+   * FB-277 that is the open pull requests no factory card stands for, plus the cards waiting.
+   */
   openWork: number;
   /**
    * Per-department budgets. `null` **inside** the array where a department declares no envelope;
@@ -73,10 +78,14 @@ export interface RailData {
  * situation it would be reporting on, a venture whose reads are failing, is exactly when a founder
  * most needs the page to still render (CLAUDE.md #10).
  */
-export const loadRailData = cache(async (venture: VentureSummary, nowMs: number = studioNow()): Promise<RailData> =>
-  timed('rail: everything', () => railData(venture, nowMs), venture.id));
+export const loadRailData = cache(async (venture: VentureSummary, nowMs: number = studioNow(), isJohn: boolean = false): Promise<RailData> =>
+  timed('rail: everything', () => railData(venture, nowMs, isJohn), venture.id));
 
-async function railData(venture: VentureSummary, nowMs: number): Promise<RailData> {
+/**
+ * `isJohn`: a card a founder has signed off waits on John, not on them (FB-277), so whose rail this
+ * is changes the count by exactly those cards.
+ */
+async function railData(venture: VentureSummary, nowMs: number, isJohn: boolean): Promise<RailData> {
   let degraded = false;
   const fell = <T,>(fallback: T) => (): T => {
     degraded = true;
@@ -86,7 +95,7 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
   // Timed individually (FB-151). The three run in parallel, so their sum is not the wall clock —
   // what these readings answer is WHICH of them the wall clock is waiting on, which is the question
   // two rounds of optimisation have now got wrong by reasoning instead of measuring.
-  const [attention, approvals, runs] = await Promise.all([
+  const [attention, approvals, runs, cards] = await Promise.all([
     timed('rail: open work', () => loadVentureAttention(venture), venture.id)
       .catch(fell<Awaited<ReturnType<typeof loadVentureAttention>> | null>(null)),
     // Shared with the page inside this layout (FB-157) — these were two full reads per request.
@@ -98,7 +107,13 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
     // content arrives in 279ms.
     timed('rail: is your team alive', () => ventureLiveness(venture), venture.id)
       .catch(fell<Awaited<ReturnType<typeof ventureLiveness>> | null>(null)),
+    // FB-277: the factory's cards. Shared with the page, once per request.
+    timed('rail: the factory\'s cards', () => ventureCards(venture.id), venture.id),
   ]);
+  if (cards.unread) degraded = true;
+  // One row per piece of work: a pull request a card stands for is counted as the card.
+  const rows = cardRows(cards.cards, { isJohn, name: (e) => e }, () => venture.name);
+  const openWork = withoutCarded(attention?.approvals ?? [], rows).length + cardsWaiting(rows);
 
   // Envelopes are read from disk in this repo, not over the network — cheap, and synchronous.
   const { envelopes } = loadEnvelopes(venture.id);
@@ -124,8 +139,8 @@ async function railData(venture: VentureSummary, nowMs: number): Promise<RailDat
 
   return {
     // A failed read is `degraded`, and the badge is then a floor, not a claim of zero.
-    needsYou: needsYouCount(attention?.approvals.length ?? 0, approvals),
-    openWork: attention?.approvals.length ?? 0,
+    needsYou: needsYouCount(openWork, approvals),
+    openWork,
     budgets: spendUnread ? null : budgets,
     engine: { state: engine.state, text: engine.text, ageMinutes: engine.ageMinutes },
     degraded,

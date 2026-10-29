@@ -1,0 +1,25 @@
+{
+  "kind": "card",
+  "repo": "arca",
+  "number": 22,
+  "runId": "test-arca-22",
+  "state": "stuck",
+  "sentAt": "2026-07-21T12:00:00Z",
+  "ref": "ARCA-074",
+  "title": "Graded card photos on every listing",
+  "headSha": "sha-arca-22",
+  "demo": true,
+  "summary": "Your team tried three times to show the grading company's photo beside each listing, and stopped.",
+  "trail": [
+    {
+      "at": "2026-07-21T12:00:00Z",
+      "tone": "attention",
+      "text": "Your team stopped after three tries. It needs a person."
+    }
+  ],
+  "forJohn": {
+    "cost": "$6.80, of a $15 budget",
+    "nextStep": "What to do next: Tell the lane which photo service to use, or split it.",
+    "runUrl": "https://archon.example.invalid/runs/arca-22"
+  }
+}

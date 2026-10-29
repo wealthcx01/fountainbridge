@@ -93,6 +93,32 @@ export interface TicketRow {
    * address. The Tickets screen links to it and never draws an approve control for it.
    */
   send?: SendPointer | null;
+  /**
+   * Set when this row is, or carries, one of the factory's cards (FB-277).
+   *
+   * A card is a pull request the factory finished, so a ticket with a card is one row, the card's,
+   * and its pull request is not listed again. A card that names no ticket the venture has is a row
+   * of its own.
+   */
+  card?: CardPointer | null;
+}
+
+/** A factory card on the Tickets screen: where it stands, and where it is decided. */
+export interface CardPointer {
+  /** True when it waits on this viewer, so it is in "Needs you" and counted there. */
+  waits: boolean;
+  standing: string;
+  /** Its state, for the meta line: "finished, waiting for your OK". */
+  words: string;
+  /** What it means, in a sentence, for the detail. */
+  sentence: string;
+  /** How long it has been in this state, worked out on the server. */
+  ageMs: number;
+  /** Its Review screen, when it has one. Only a finished card does. */
+  href: string | null;
+  /** John's parts: null for anyone else, so a founder's page is never sent them. */
+  cost: string | null;
+  nextStep: string | null;
 }
 
 /** An external send on the Tickets screen: where it is decided, and what state it is in. */
@@ -188,7 +214,7 @@ export const FILTER_LABEL: Record<TicketFilter, string> = {
  * only it stays true: a ticket can be moved between columns by anything, and a decision is waiting
  * or it is not.
  */
-export const needsFounder = (r: TicketRow): boolean => r.waiting !== null || Boolean(r.send);
+export const needsFounder = (r: TicketRow): boolean => r.waiting !== null || Boolean(r.send) || Boolean(r.card?.waits);
 
 /**
  * Work in flight: started, not finished, and not waiting on anyone.
@@ -227,7 +253,9 @@ export const countTickets = (rows: TicketRow[]): TicketCounts => ({
   //
   // A send is one item (FB-149). The badge counts sends as well, so leaving them out here would put
   // the two numbers apart again by exactly the number of sends.
-  needs: rows.reduce((n, r) => n + (r.waiting ? 1 + (r.waiting.also ?? 0) : r.send ? 1 : 0), 0),
+  //
+  // A factory card waiting on the founder is one item (FB-277), and the rail counts it the same way.
+  needs: rows.reduce((n, r) => n + (r.waiting ? 1 + (r.waiting.also ?? 0) : r.send ? 1 : r.card?.waits ? 1 : 0), 0),
   underway: rows.filter(isUnderway).length,
   settled: rows.filter(isSettled).length,
 });
@@ -280,7 +308,7 @@ export function ticketsSummary(c: TicketCounts, surfaceName?: string | null): st
 export function decisionOrder(rows: TicketRow[]): TicketRow[] {
   // Sends first, the same order the desk's list uses: nothing leaves the company without one, and a
   // send carries no age of its own to sort by (a proposal is a file with no timestamp).
-  const rank = (r: TicketRow) => (r.send ? Number.POSITIVE_INFINITY : r.waiting?.ageMs ?? 0);
+  const rank = (r: TicketRow) => (r.send ? Number.POSITIVE_INFINITY : r.waiting?.ageMs ?? r.card?.ageMs ?? 0);
   return rows
     .filter(needsFounder)
     .slice()

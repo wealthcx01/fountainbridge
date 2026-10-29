@@ -3,6 +3,7 @@ import { approvalRepos } from './venture-repos';
 import { checkedPreview } from './preview-check';
 import { reviewFor, stateFrom, type ReviewCardFile, type ReviewView } from './review';
 import { toReviewCard, type CardStore } from './card-store';
+import { namer } from './factory-work';
 
 /**
  * Where the Review screen's cards come from: the card store (FB-275), which the planning box fills
@@ -28,17 +29,6 @@ export async function cardOf(venture: VentureSummary, repo: string, number: numb
   return card && card.state === 'finished' ? toReviewCard(card) : null;
 }
 
-/** Who pressed, in the words this viewer reads. */
-function namer(viewerEmail: string, admins: string[], venture: VentureSummary) {
-  return (email: string) => {
-    const e = email.toLowerCase();
-    if (e === viewerEmail.toLowerCase()) return 'you';
-    if (admins.includes(e)) return 'John';
-    if (venture.founderEmail && e === venture.founderEmail.toLowerCase()) return venture.founderName ?? 'the founder';
-    return email;
-  };
-}
-
 /** Everything the Review screen shows for one card, for one viewer. Null when it is not theirs to see. */
 export async function loadReview(
   venture: VentureSummary,
@@ -52,7 +42,10 @@ export async function loadReview(
   if (!card || !store) return null;
 
   // Where it stands: the presses on it, from the press store, with the box's answers (FB-276).
-  const state = stateFrom(await store.presses(venture.id, repo, number), namer(viewer.email, viewer.admins, venture));
+  const state = stateFrom(
+    await store.presses(venture.id, repo, number),
+    namer(viewer.email, viewer.admins, { email: venture.founderEmail, name: venture.founderName }),
+  );
 
   // "1 of 6 pieces of finished work": every card of the venture's still waiting on someone, in the
   // order of the venture's repositories, lowest number first.

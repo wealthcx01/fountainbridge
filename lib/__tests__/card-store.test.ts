@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { SQL, sqlCardStore, type CardStore, type Querier } from '../card-store';
+import { PRESS_SQL } from '../press-store';
 import { loadReview } from '../review-load';
 import type { VentureSummary } from '../ventures';
 import { putTestCards, storedCard, testPng } from './review-fixtures';
@@ -151,7 +152,7 @@ describe('the store keeps what the door hands it', () => {
   });
 
   it('the statements name no venture except through the scope', () => {
-    for (const sql of Object.values(SQL)) expect(sql).not.toMatch(/venture_id\s*=\s*\$/);
+    for (const sql of [...Object.values(SQL), ...Object.values(PRESS_SQL)]) expect(sql).not.toMatch(/venture_id\s*=\s*\$/);
   });
 });
 
@@ -186,5 +187,60 @@ describe('the Review screen, from the store', () => {
   it("John sees his parts on THE RESET's card", async () => {
     const view = await loadReview(RESET, 'thereset-platform', 5, { email: 'john.gallagher@wealthcx.com', isJohn: true, admins: ['john.gallagher@wealthcx.com'] }, store, RIG);
     expect(view?.forJohn).toEqual({ cost: '$1.20', nextStep: 'What to do next: wait for Ross.', runUrl: 'https://archon.example.invalid/runs/thereset-5' });
+  });
+});
+
+describe("a venture's newest cards, for the lists (FB-277)", () => {
+  it('come newest first, with the presses on the version each is about, and only that venture\'s', async () => {
+    await store.putCard('arca', { ...storedCard('arca', 22), sentAt: '2026-12-02T00:00:00.000Z' });
+    await store.press('arca', { repo: 'arca', number: 21, action: 'accept', by: 'arca.founder@bruntsfield.capital', byJohn: false, note: '', seenHeadSha: null });
+    const got = await store.newest('arca', 50);
+    expect(got.map((c) => `${c.card.repo}#${c.card.number}`)).toEqual(['arca#22', 'arca#20', 'arca#21']);
+    expect(got.find((c) => c.card.number === 21)?.presses.map((p) => p.action)).toEqual(['accept']);
+    expect(got.find((c) => c.card.number === 22)?.presses).toEqual([]);
+    expect(got.every((c) => c.card.repo === 'arca')).toBe(true);
+    expect((await store.newest('arca', 1)).map((c) => c.card.number)).toEqual([22]);
+    expect((await store.newest('the-reset', 50)).map((c) => `${c.card.repo}#${c.card.number}`)).not.toContain('arca#22');
+  });
+
+  it('read nothing with no scope', async () => {
+    expect(await scoped(null, (q) => q.query(SQL.newest, [50]))).toMatchObject({ rows: [] });
+    expect(await scoped(null, (q) => q.query(PRESS_SQL.onNewest, [50]))).toMatchObject({ rows: [] });
+  });
+});
+
+describe("the factory's own cards, under _factory (FB-277)", () => {
+  const cowgate = () => ({ ...storedCard('cowgate', 40), repo: 'cowgate' });
+
+  beforeAll(async () => {
+    await store.putCard('_factory', cowgate());
+  });
+
+  it('are kept and read under _factory alone', async () => {
+    expect((await store.card('_factory', 'cowgate', 40))?.plain.title).toBe("The listener's second inbox");
+    expect((await store.newest('_factory', 50)).map((c) => c.card.repo)).toEqual(['cowgate']);
+  });
+
+  it("no venture's scope can list, open or press one, by any key", async () => {
+    for (const v of ['arca', 'the-reset']) {
+      expect(await store.card(v, 'cowgate', 40)).toBeNull();
+      expect((await store.newest(v, 500)).some((c) => c.card.repo === 'cowgate')).toBe(false);
+      expect(await store.press(v, { repo: 'cowgate', number: 40, action: 'stop', by: 'arca.founder@bruntsfield.capital', byJohn: false, note: '', seenHeadSha: null })).toBe('no-card');
+      const raw = await scoped(v, (q) => q.query<{ venture_id: string }>("select venture_id from factorystore.cards where repo = 'cowgate' union all select venture_id from factorystore.presses where repo = 'cowgate'"));
+      expect(raw.rows).toEqual([]);
+    }
+    expect(await store.presses('_factory', 'cowgate', 40)).toEqual([]);
+  });
+
+  it("a venture's scope cannot write under _factory, and _factory's cannot write under a venture", async () => {
+    await expect(scoped('arca', (q) => q.query(
+      "insert into factorystore.cards (venture_id, repo, number, state, sent_at, plain) values ('_factory', 'cowgate', 41, 'finished', now(), '{}')",
+    ))).rejects.toThrow(/row-level security/);
+    await expect(scoped('_factory', (q) => q.query(
+      "insert into factorystore.cards (venture_id, repo, number, state, sent_at, plain) values ('arca', 'arca', 41, 'finished', now(), '{}')",
+    ))).rejects.toThrow(/row-level security/);
+    // And _factory's scope sees no venture's cards.
+    const raw = await scoped('_factory', (q) => q.query<{ venture_id: string }>('select distinct venture_id from factorystore.cards'));
+    expect(raw.rows).toEqual([{ venture_id: '_factory' }]);
   });
 });

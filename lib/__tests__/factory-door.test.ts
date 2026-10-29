@@ -159,14 +159,14 @@ describe('whose card it is comes from its repository, never from the box', () =>
   });
 
   it.each([
-    ['a repository no venture lists', { repo: 'cowgate' }],
+    ['a repository no venture lists', { repo: 'nobodys-repo' }],
     ['the same name in another organisation', { repo: 'someone-else/arca' }],
     ["a venture named that is not the repository's", { venture: 'the-reset' }],
     ['a venture named that does not exist', { venture: 'nobody' }],
   ])('refuses %s, and keeps nothing anywhere', async (_why, patch) => {
     const { deps, store } = setUp();
     expect(status(await send(deps, card(patch)))).toBe(422);
-    for (const v of ['arca', 'the-reset', 'nobody']) expect(await store.finished(v, ['arca', 'cowgate'])).toEqual([]);
+    for (const v of ['arca', 'the-reset', 'nobody']) expect(await store.finished(v, ['arca', 'nobodys-repo'])).toEqual([]);
   });
 
   it("a venture named that is the repository's own is fine", async () => {
@@ -325,7 +325,7 @@ describe('what the door writes in the log', () => {
     const { deps, logged } = setUp();
     await send(deps, card());
     await send(deps, card(), { secret: 'wrong' });
-    await send(deps, card({ repo: 'cowgate' }));
+    await send(deps, card({ repo: 'nobodys-repo' }));
     const all = logged.join('\n');
     expect(all).not.toContain(SECRET);
     expect(all).not.toMatch(/sha256=|[0-9a-f]{64}/);
@@ -493,7 +493,7 @@ describe('presses, through the door (FB-276)', () => {
     it('for a card not here is 409; for a repository no venture lists, 422', async () => {
       const { deps } = await withCards();
       expect(status(await send(deps, tap({ number: 99 })))).toBe(409);
-      expect(status(await send(deps, tap({ repo: 'cowgate' })))).toBe(422);
+      expect(status(await send(deps, tap({ repo: 'nobodys-repo' })))).toBe(422);
       expect(status(await send(deps, tap({ venture: 'the-reset' })))).toBe(422);
     });
 
@@ -502,5 +502,48 @@ describe('presses, through the door (FB-276)', () => {
       expect(status(await send(deps, tap(), { secret: 'wrong' }))).toBe(401);
       expect(await store.presses('arca', 'arca', 21)).toEqual([]);
     });
+  });
+});
+
+describe("the factory's own cards (FB-277)", () => {
+  const cowgate = (patch: Record<string, unknown> = {}) => card({ repo: 'cowgate', number: 40, ref: 'CG-0066', title: 'The second inbox', state: 'done', ...patch });
+
+  it('are kept under _factory, by the short name or the full one, and under no venture', async () => {
+    const { deps, store } = setUp();
+    expect(status(await send(deps, cowgate()))).toBe(200);
+    expect(status(await send(deps, cowgate({ repo: 'wealthcx01/cowgate', number: 41 })))).toBe(200);
+    expect((await store.card('_factory', 'cowgate', 40))?.plain.title).toBe('The second inbox');
+    expect(await store.card('_factory', 'cowgate', 41)).not.toBeNull();
+    for (const v of ['arca', 'the-reset']) {
+      expect(await store.card(v, 'cowgate', 40)).toBeNull();
+      expect(await store.newest(v, 50)).toEqual([]);
+    }
+  });
+
+  it('stay the factory\'s even when a manifest lists cowgate', async () => {
+    const ventures = [...VENTURES, { id: 'greedy', name: 'Greedy', repos: ['cowgate'], departments: [] }] as unknown as VentureSummary[];
+    const { deps, store } = setUp({ ventures });
+    expect(status(await send(deps, cowgate()))).toBe(200);
+    expect(await store.card('greedy', 'cowgate', 40)).toBeNull();
+    expect(await store.card('_factory', 'cowgate', 40)).not.toBeNull();
+  });
+
+  it('refuse a venture named that is not _factory, and cowgate in another organisation', async () => {
+    const { deps, store } = setUp();
+    expect(status(await send(deps, cowgate({ venture: 'arca' })))).toBe(422);
+    expect(status(await send(deps, cowgate({ repo: 'someone-else/cowgate' })))).toBe(422);
+    expect(await store.newest('_factory', 50)).toEqual([]);
+    expect(await store.newest('arca', 50)).toEqual([]);
+  });
+
+  it("are collected and answered like any venture's", async () => {
+    const { deps, store } = setUp();
+    await send(deps, cowgate({ state: 'finished' }));
+    await store.press('_factory', { repo: 'cowgate', number: 40, action: 'approve', by: JOHN, byJohn: true, note: '', seenHeadSha: null });
+    const got = await send(deps, { kind: 'collect' });
+    const presses = ('closed' in got ? [] : got.body.presses) as { id: string; venture: string }[];
+    expect(presses.map((p) => p.venture)).toEqual(['_factory']);
+    expect(status(await send(deps, { kind: 'press-result', id: presses[0].id, outcome: 'done', message: 'Merged.' }))).toBe(200);
+    expect((await store.presses('_factory', 'cowgate', 40))[0].answer?.outcome).toBe('done');
   });
 });
