@@ -3,6 +3,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { testLogin } from './helpers';
 import { stateFolder } from './server-env.mjs';
+import { putReviewCards, sendToDoor } from './review-cards';
 
 /**
  * FB-274: the Review screen, and journeys 4 and 5 of `harness/END-TO-END.md`.
@@ -13,7 +14,9 @@ import { stateFolder } from './server-env.mjs';
  * is what "recorded once" means.
  *
  * The cards are the rig's (`e2e/fixtures/review`): ARCA's #20 (the auctions view) and #21 (prices
- * in pounds), and THE RESET's #5, which ARCA's founder must never reach.
+ * in pounds), and THE RESET's #5, which ARCA's founder must never reach. Since FB-275 they reach the
+ * studio only through the planning box's door, signed, with their pictures, before these tests run
+ * (`e2e/review-cards.ts`). The screen reads them from the card store.
  */
 
 const FOUNDER = 'arca.founder@bruntsfield.capital';
@@ -45,7 +48,10 @@ const JOHN_ONLY_READ = [/\$\s?\d/, /what to do next/i, /archon/i];
 test.describe.configure({ mode: 'serial' });
 
 // Each run starts with no presses, so a retry sees the cards as the factory sent them.
-test.beforeAll(() => rmSync(PRESSES, { force: true }));
+test.beforeAll(async ({ browser }, info) => {
+  rmSync(PRESSES, { force: true });
+  await putReviewCards(browser, String(info.project.use.baseURL));
+});
 test.afterAll(() => rmSync(PRESSES, { force: true }));
 
 async function pictureSize(page: Page) {
@@ -151,12 +157,14 @@ test.describe('journey 5: a founder signs off, John approves', () => {
 test.describe("a founder sees only their own venture's work", () => {
   test("THE RESET's card, typed in under ARCA, gets the same answer as a card that does not exist", async ({ page }) => {
     await testLogin(page, FOUNDER);
-    await page.goto('/venture/arca/review/thereset-platform/5');
-    const theirs = await page.getByTestId('review-not-here').innerText();
-    await page.goto('/venture/arca/review/arca/999');
-    const nothing = await page.getByTestId('review-not-here').innerText();
-    expect(theirs).toBe(nothing);
+    const theirs = await page.goto('/venture/arca/review/thereset-platform/5');
+    const theirsSaid = await page.getByTestId('review-not-here').innerHTML();
+    const nothing = await page.goto('/venture/arca/review/arca/999');
+    const nothingSaid = await page.getByTestId('review-not-here').innerHTML();
+    expect(theirs?.status()).toBe(nothing?.status());
+    expect(theirsSaid).toBe(nothingSaid);
     await expect(page.getByTestId('review-screen')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('check-in screen');
   });
 
   test("THE RESET's own address is refused, and its pictures answer like missing ones", async ({ page }) => {
@@ -170,6 +178,23 @@ test.describe("a founder sees only their own venture's work", () => {
     const missing = await page.request.get('/venture/arca/review/arca/999/picture/after-phone');
     expect([theirs.status(), crossed.status(), missing.status()]).toEqual([404, 404, 404]);
     expect(await crossed.text()).toBe(await missing.text());
+  });
+});
+
+test.describe("the planning box's door", () => {
+  test('is outside the sign-in gate, and keeps nothing unsigned or wrongly signed', async ({ request }) => {
+    const card = JSON.stringify({ kind: 'card', repo: 'arca', number: 20, state: 'finished', sentAt: new Date().toISOString(), title: 'Not from the box' });
+    const unsigned = await request.post('/api/factory', { data: card, headers: { 'content-type': 'application/json' }, maxRedirects: 0 });
+    expect(unsigned.status()).toBe(401);
+    const forged = await sendToDoor(request, card, 'not-the-secret');
+    expect(forged.status()).toBe(401);
+    expect(await forged.json()).toEqual({ ok: false, message: 'The signature does not match. Nothing was kept.' });
+  });
+
+  test('refuses a card that names a venture its repository does not belong to', async ({ request }) => {
+    const card = JSON.stringify({ kind: 'card', venture: 'arca', repo: 'thereset-platform', number: 5, state: 'finished', sentAt: new Date().toISOString(), title: 'Moved' });
+    const r = await sendToDoor(request, card);
+    expect(r.status()).toBe(422);
   });
 });
 

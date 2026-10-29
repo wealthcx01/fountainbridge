@@ -1,20 +1,38 @@
 {
+  "kind": "card",
+  "repo": "thereset-platform",
+  "number": 5,
+  "runId": "test-thereset-platform-5",
+  "state": "finished",
+  "sentAt": "2026-07-19T12:00:00Z",
   "ref": "RESET-012",
   "title": "The first check-in screen",
-  "state": "finished",
   "finishedAt": "2026-07-19T12:00:00Z",
   "headSha": "sha-thereset-platform-5",
   "demo": true,
   "summary": "THE RESET's first screen: a member checks in for the day in one tap.",
-  "changes": [{ "label": "New", "text": "a check-in screen with one button." }],
+  "changes": [
+    {
+      "label": "New",
+      "text": "a check-in screen with one button."
+    }
+  ],
   "reaches": "Every member of THE RESET",
-  "checks": { "passed": 2, "total": 2 },
-  "previewUrl": null,
-  "picturesTakenAt": "2026-07-19T12:00:00Z",
-  "pictures": {
-    "after-computer": { "width": 1440, "height": 1000 },
-    "after-phone": { "width": 393, "height": 851 }
+  "checks": {
+    "passed": 2,
+    "total": 2
   },
-  "trail": [{ "at": "2026-07-19T12:00:00Z", "tone": "ok", "text": "Your team finished it." }],
-  "forJohn": { "cost": "$1.20", "nextStep": "What to do next: wait for Ross.", "runUrl": "https://archon.example.invalid/runs/thereset-5" }
+  "previewUrl": null,
+  "trail": [
+    {
+      "at": "2026-07-19T12:00:00Z",
+      "tone": "ok",
+      "text": "Your team finished it."
+    }
+  ],
+  "forJohn": {
+    "cost": "$1.20",
+    "nextStep": "What to do next: wait for Ross.",
+    "runUrl": "https://archon.example.invalid/runs/thereset-5"
+  }
 }

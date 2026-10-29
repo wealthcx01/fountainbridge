@@ -24,7 +24,8 @@ import { approvalRepos } from '@/lib/venture-repos';
 import { acceptability } from '@/lib/work';
 import { githubWorkSource, loadWork } from '@/lib/work-load';
 import { pressRecordFile, pressesFor, recordPress, type PressLine } from '@/lib/press-record';
-import { cardOf, cardSource } from '@/lib/review-load';
+import { cardOf } from '@/lib/review-load';
+import { cardStore } from '@/lib/card-store-live';
 import { isSettled, OUT_OF_DATE, stateAfter } from '@/lib/review';
 import type { VentureSummary } from '@/lib/ventures';
 
@@ -81,7 +82,7 @@ export async function sendBackWork(
     return { ok: false, message: 'That work is not part of this venture.' };
   }
 
-  const card = cardInTestCopy(venture, repo, number);
+  const card = await cardInTestCopy(venture, repo, number);
   if (card) return pressCard(card, { venture: venture.id, repo, number, by: email, decision: 'sent-back', note: text, seen: null });
 
   const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
@@ -142,7 +143,7 @@ export async function acceptWork(
     return { ok: false, message: 'That work is not part of this venture.' };
   }
 
-  const card = cardInTestCopy(venture, repo, number);
+  const card = await cardInTestCopy(venture, repo, number);
   if (card) {
     return pressCard(card, {
       venture: venture.id, repo, number, by: email,
@@ -225,21 +226,21 @@ export async function acceptWork(
 /**
  * A finished card from the factory, in a test copy (FB-274).
  *
- * The Review screen's cards exist only in the test rig until the card store lands (FB-275), and a
- * press on one never reaches GitHub: it is written as one line to the test copy's state folder
- * (`lib/press-record.ts`), as `harness/END-TO-END.md` says. FB-276 replaces this with the press
- * door, where the planning box collects it. Null for everything else, so every other Accept and
- * Send back works exactly as before, and in production this is always null.
+ * The card comes from the card store (FB-275), but until presses have their own door (FB-276) a
+ * press on one never reaches GitHub, and is only recorded in a test copy: as one line in its state
+ * folder (`lib/press-record.ts`), as `harness/END-TO-END.md` says. FB-276 replaces this with the
+ * press door, where the planning box collects it. Null for everything else, so every other Accept
+ * and Send back works exactly as before, and in production this is always null.
  */
-function cardInTestCopy(venture: VentureSummary, repo: string, number: number) {
+async function cardInTestCopy(venture: VentureSummary, repo: string, number: number) {
   const file = pressRecordFile();
-  const card = file ? cardOf(venture, repo, number, cardSource()) : null;
+  const card = file ? await cardOf(venture, repo, number, cardStore()) : null;
   return file && card ? { file, card } : null;
 }
 
 /** Record one press on a card, once. The first press that settles a card wins. */
 function pressCard(
-  at: NonNullable<ReturnType<typeof cardInTestCopy>>,
+  at: NonNullable<Awaited<ReturnType<typeof cardInTestCopy>>>,
   press: Omit<PressLine, 'at'>,
 ): AcceptResult {
   const state = stateAfter(pressesFor(at.file, press.repo, press.number));

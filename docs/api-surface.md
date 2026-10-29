@@ -57,6 +57,7 @@ and fewer sections (FB-160).
 | `GET /api/health` | none | for the uptime monitor and Railway. Excluded from the gate |
 | `GET /api/readiness` | admin session | whether every venture is reachable, whether the approval record is writable, and whether documents have somewhere to live. `?probe=1` does real writes rather than trusting configuration |
 | `POST /api/mcp` | **a studio-issued ticket** in `Authorization: Bearer` | the tool surface (§4). Excluded from the gate so it can answer `401` in words — a machine cannot follow a redirect to a login page |
+| `POST /api/factory` | **the planning box's signature** (`FACTORY_DOOR_SECRET`) | the factory's cards, pictures, preview links and heartbeats (FB-275, `docs/factory-cards.md`). Excluded from the gate. With no secret set it answers `404` to everything |
 | `GET /api/composer/[id]`, `…/document` | session | the composer's stream and deposits |
 | `/api/auth/[...nextauth]` | — | Google and password sign-in |
 
@@ -111,9 +112,12 @@ means editing an assertion that says you must not.
 | `public.ventures`, `public.run_reports` | a read cache | **yes** — rebuildable from git |
 | `public.documents` | the record of a handed-over file | yes — the pointer is in git |
 | `docstore.blobs` | **the file itself** | **no. It exists nowhere else** |
+| `factorystore.cards`, `factorystore.pictures` | the factory's cards and their screenshots, by venture (FB-275) | no: the box resends a card when it changes, but not its pictures |
+| `factorystore.heartbeats` | when the planning box last reported. No venture's data | yes |
 
 Every table has row-level security **enabled and forced**, scoped by a per-transaction setting the
-server sets and a browser cannot influence. A connection naming no venture sees nothing.
+server sets and a browser cannot influence. A connection naming no venture sees nothing. The one
+exception is `factorystore.heartbeats`, which holds no venture's data and is open to any scope.
 
 Documents are addressed `<venture>/<sha256 of the bytes>`, and a check constraint means a row whose
 object sits under another venture's prefix cannot be written at all. The studio holds `insert` and

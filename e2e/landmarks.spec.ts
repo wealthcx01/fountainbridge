@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { testLogin } from './helpers';
 import { REFUSED, SIGNED_IN, SIGNED_OUT } from './landmark-pages';
+import { putReviewCards } from './review-cards';
 
 /**
  * FB-168 — every page has exactly one main region.
@@ -21,6 +22,8 @@ import { REFUSED, SIGNED_IN, SIGNED_OUT } from './landmark-pages';
  */
 const JOHN = 'john.gallagher@wealthcx.com';
 
+// The Review screen is one of the pages, and it is only drawn once its card is in the store (FB-275).
+test.beforeAll(async ({ browser }, info) => putReviewCards(browser, String(info.project.use.baseURL)));
 
 const SIZES = [
   ['desktop', 1440, 1000],
