@@ -91,7 +91,7 @@ export default async function VentureLayout({
     // away, and a 250px rail sat on a 390px phone.
     <div className="venture-shell">
       <Suspense fallback={<Rail {...shell} data={null} />}>
-        <RailWithNumbers venture={venture} shell={shell} />
+        <RailWithNumbers venture={venture} shell={shell} isJohn={access.isAdmin} />
       </Suspense>
       <div className="venture-pane">
         {asFounder ? <AsFounderStrip ventureName={venture.name} /> : null}
@@ -138,7 +138,7 @@ function AsFounderStrip({ ventureName }: { ventureName: string }) {
       <Link href="/" data-testid="as-founder-back">← All ventures</Link>
       {/* copy-lint-ok: admin-only — a founder never sees this strip */}
       <span className="muted">
-        You are seeing exactly what {ventureName}&rsquo;s founder sees.
+        You are seeing what {ventureName}&rsquo;s founder sees, and the factory&rsquo;s costs and next steps, which only you see.
       </span>
     </div>
   );
@@ -153,13 +153,16 @@ function AsFounderStrip({ ventureName }: { ventureName: string }) {
 async function RailWithNumbers({
   venture,
   shell,
+  isJohn,
 }: {
   venture: VentureSummary;
+  /** Whose rail: a card a founder signed off waits on John, so it is in his count, not theirs. */
+  isJohn: boolean;
   shell: { ventureId: string; ventureName: string; ventureStatus: string; departments: { id: string; name: string }[] };
 }) {
   // No clock argument: `loadRailData` uses the studio's one clock. Passing `Date.now()` here was
   // FB-240 — the rail then read a different "now" from the desk's, and the two said 70 days and 10
   // minutes about the same heartbeat.
-  const data = await loadRailData(venture);
+  const data = await loadRailData(venture, undefined, isJohn);
   return <Rail {...shell} data={data} />;
 }

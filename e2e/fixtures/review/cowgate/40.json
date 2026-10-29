@@ -1,0 +1,18 @@
+{
+  "kind": "card",
+  "repo": "wealthcx01/cowgate",
+  "number": 40,
+  "runId": "test-cowgate-40",
+  "state": "done",
+  "sentAt": "2026-07-21T14:00:00Z",
+  "ref": "CG-0066",
+  "title": "The listener's second inbox",
+  "headSha": "sha-cowgate-40",
+  "demo": true,
+  "summary": "The planning box now collects studio presses as it collects Telegram taps.",
+  "forJohn": {
+    "cost": "$4.10, of a $25 budget",
+    "nextStep": "What to do next: nothing. It is merged.",
+    "runUrl": "https://archon.example.invalid/runs/cowgate-40"
+  }
+}

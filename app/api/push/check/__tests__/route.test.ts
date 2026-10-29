@@ -8,12 +8,15 @@ const loadVentureAttention = vi.fn();
 const withVenture = vi.fn();
 const checkQueue = vi.fn();
 const ventureApprovals = vi.fn();
+const ventureCards = vi.fn();
 
 vi.mock('@/lib/ventures', () => ({ loadVentures: () => loadVentures() }));
 vi.mock('@/lib/attention', () => ({ loadVentureAttention: (...a: unknown[]) => loadVentureAttention(...a) }));
 vi.mock('@/lib/db', () => ({ withVenture: (id: string, fn: (q: unknown) => unknown) => withVenture(id, fn) }));
 vi.mock('@/lib/venture-reads', () => ({ ventureApprovals: (...a: unknown[]) => ventureApprovals(...a) }));
 vi.mock('@/lib/push-send', () => ({ checkQueue: (...a: unknown[]) => checkQueue(...a) }));
+// FB-277: the factory's cards are a reader like the others, so they are stood in for like the others.
+vi.mock('@/lib/factory-work-load', () => ({ ventureCards: (...a: unknown[]) => ventureCards(...a) }));
 
 const { POST } = await import('../route');
 
@@ -31,6 +34,7 @@ beforeEach(() => {
   withVenture.mockImplementation(async (_id, fn) => fn({}));
   checkQueue.mockResolvedValue({ sent: 0 });
   ventureApprovals.mockResolvedValue([]);
+  ventureCards.mockResolvedValue({ cards: [], unread: false });
 });
 afterEach(() => {
   delete process.env.PUSH_CHECK_SECRET;
@@ -70,6 +74,25 @@ describe('what it counts', () => {
     expect((await POST(req(`Bearer ${SECRET}`))).status).toBe(200);
     expect(withVenture.mock.calls[0][0]).toBe('arca');
     expect(checkQueue.mock.calls[0][2]).toBe(5);
+  });
+
+  it("counts the factory's cards that wait on the founder, once per piece of work (FB-277)", async () => {
+    const card = (number: number, state: string, ref = '') => ({
+      ventureId: 'arca', presses: [],
+      card: { repo: 'arca', number, state, sentAt: '2026-07-21T00:00:00.000Z', headSha: 'x', runId: null, previewUrl: null, forJohn: {}, plain: { ref, title: 't', finishedAt: '2026-07-21T00:00:00.000Z', headSha: 'x', summary: '', changes: [], reaches: '', checks: { passed: 0, total: 0 }, trail: [] } },
+    });
+    // arca#93 is open on GitHub and also a card: one piece of work. A done card waits on nobody.
+    loadVentureAttention.mockResolvedValue({ approvals: [{ repo: 'arca', number: 93 }, { repo: 'arca', number: 94 }], errors: [] });
+    ventureCards.mockResolvedValue({ cards: [card(93, 'finished'), card(95, 'stuck'), card(96, 'done')], unread: false });
+    await POST(req(`Bearer ${SECRET}`));
+    expect(checkQueue.mock.calls[0][2]).toBe(3);
+  });
+
+  it('passes "unknown", not zero, when the cards could not be read', async () => {
+    loadVentureAttention.mockResolvedValue({ approvals: [], errors: [] });
+    ventureCards.mockResolvedValue({ cards: [], unread: true });
+    await POST(req(`Bearer ${SECRET}`));
+    expect(checkQueue.mock.calls[0][2]).toBeNull();
   });
 
   it('passes "unknown", not zero, when the queue could not be read', async () => {

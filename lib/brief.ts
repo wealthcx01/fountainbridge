@@ -53,6 +53,11 @@ export interface BriefInput {
   engine: { state: EngineState; text: string; ageMinutes: number | null };
   /** Ticket id → its human title, so a stuck ticket reads by name rather than by number. */
   ticketTitles?: Record<string, string>;
+  /**
+   * The factory's stuck cards, by ticket id and name (FB-277). They join the same stuck line as the
+   * tickets the runs say are stuck: one line, one name per ticket, whichever told the studio first.
+   */
+  stuckCards?: { id: string; title: string }[];
   /** Departments over their spend limit, by name. */
   overBudget: string[];
   /** True when a read failed — the difference between "nothing to report" and "cannot tell". */
@@ -160,6 +165,11 @@ function needsYou(input: BriefInput): BriefLine | null {
 /** 2. What is stuck? One line, deduplicated by ticket, named — never the machine's own prose. */
 function stuck(input: BriefInput): BriefLine | null {
   const ids = stuckTickets(input.runs);
+  const titles = { ...(input.ticketTitles ?? {}) };
+  for (const c of input.stuckCards ?? []) {
+    if (!ids.includes(c.id)) ids.push(c.id);
+    titles[c.id] ??= c.title;
+  }
   if (ids.length === 0) return null;
   const n = ids.length;
   return {
@@ -168,7 +178,7 @@ function stuck(input: BriefInput): BriefLine | null {
     // beside that attempt — quoting it up into the summary is what turned the brief into a log.
     text: `${plural(n, 'ticket')} ${n === 1 ? 'is' : 'are'} stuck and ${
       n === 1 ? 'needs' : 'need'
-    } a human: ${names(ids.map((id) => titleOf(id, input.ticketTitles ?? {})))}.`,
+    } a human: ${names(ids.map((id) => titleOf(id, titles)))}.`,
     href: ACTIVITY_ANCHOR,
   };
 }

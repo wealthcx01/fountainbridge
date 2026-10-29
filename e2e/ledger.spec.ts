@@ -95,7 +95,7 @@ test.describe('the ledger (FB-136)', () => {
     await expect(page).toHaveURL(/\/venture\/arca$/);
     // The founder's own desk — same board, same rail — with the strip saying whose it is.
     await expect(page.getByTestId('rail')).toHaveCount(1);
-    await expect(page.getByTestId('as-founder-strip')).toContainText('exactly what');
+    await expect(page.getByTestId('as-founder-strip')).toContainText('what ARCA’s founder sees, and the factory’s costs and next steps, which only you see');
     // Persistent: still there three screens deep into someone else's venture.
     await page.goto('/venture/arca/handbook');
     await expect(page.getByTestId('as-founder-strip')).toBeVisible();

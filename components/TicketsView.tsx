@@ -265,6 +265,9 @@ export function TicketsView({
                     {/* FB-149: a send says it is one, on the row. It is something leaving the company,
                         not work to read, and a founder must tell the two apart before opening it. */}
                     {r.send ? <> · <span data-testid={`tickets-send-${r.id}`}>{r.send.state}</span></> : null}
+                    {/* FB-277: a factory card says where it stands, and for John what it cost. */}
+                    {r.card ? <> · <span data-testid={`tickets-card-${r.id}`}>{r.card.words}</span></> : null}
+                    {r.card?.cost ? <> · <span data-testid={`tickets-card-cost-${r.id}`}>{r.card.cost}</span></> : null}
                     {r.waiting?.also ? <> · {r.waiting.also + 1} pieces of work on this one</> : null}
                   </span>
                 </span>
@@ -275,6 +278,8 @@ export function TicketsView({
                   <span className="ticket-row-when">waiting {howLongMs(r.waiting.ageMs)}</span>
                 ) : r.send ? (
                   <span className="ticket-row-when">waiting on you</span>
+                ) : r.card?.waits ? (
+                  <span className="ticket-row-when">waiting {howLongMs(r.card.ageMs)}</span>
                 ) : null}
               </button>
             </li>
@@ -362,7 +367,7 @@ function Detail({
         <span className="mono eyebrow-id" data-testid="detail-id">
           {row.send ? (row.send.ref ? `send · ${row.send.ref}` : 'send') : isUnnumbered(row.id) ? 'unnumbered' : row.id}
         </span>
-        {row.surface ? <> · {row.surface}</> : null} · {row.send ? 'something leaving your company' : STATUS_LABEL[row.group]}
+        {row.surface ? <> · {row.surface}</> : null} · {row.send ? 'something leaving your company' : row.card ? row.card.words : STATUS_LABEL[row.group]}
         {/* FB-098's "is anything happening to the thing I asked for", moved here from the row by
             FB-208. On the row it was one clause of five on a line that wrapped to three; here it is
             beside the status it qualifies, on the screen a founder opened to find out. */}
@@ -410,7 +415,29 @@ function Detail({
       {/* Work that is tied to no ticket at all. Said out loud rather than left as an empty page: a
           founder looking at something their team built which matches nothing they asked for needs
           to know that is what they are looking at. */}
-      {!ticket && !row.send ? (
+      {/* FB-277: one of the factory's cards. A finished one is decided on its Review screen, with the
+          pictures and the preview, so this panel points there and draws no control of its own. */}
+      {row.card ? (
+        <div data-testid="detail-card" data-standing={row.card.standing} style={{ marginTop: '0.25rem' }}>
+          <p data-testid="detail-card-what" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.75rem', maxWidth: 'var(--content-narrow)' }}>
+            {row.card.sentence}
+          </p>
+          {row.card.cost || row.card.nextStep ? (
+            <p className="muted" data-testid="detail-card-john" style={{ fontSize: 'var(--fs-meta-lg)', margin: '0 0 0.75rem', maxWidth: 'var(--content-narrow)' }}>
+              {[row.card.cost, row.card.nextStep].filter(Boolean).join(' · ')}
+            </p>
+          ) : null}
+          {row.card.href ? (
+            <p style={{ margin: 0 }}>
+              <Link className="btn btn-primary" href={row.card.href} data-testid="detail-open-card">
+                Look at it and decide →
+              </Link>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!ticket && !row.send && !row.card ? (
         <p className="muted" data-testid="detail-no-ticket" style={{ fontSize: 'var(--fs-body-sm)' }}>
           There is no ticket for this. Your team finished work that is not tied to anything you asked
           for — read it, then decide.

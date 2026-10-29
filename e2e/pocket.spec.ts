@@ -55,8 +55,10 @@ test.describe('the pocket studio (FB-138)', () => {
     // was written and the only one worth pinning.
     await expect(decide).toHaveText(/waiting/);
     await decide.click();
-    await expect(page).toHaveURL(/\/venture\/arca\/work\/[^/]+\/\d+$/);
-    await expect(page.getByTestId('work-decision')).toBeVisible();
+    // FB-277: a factory card's row is finished work too, and its decision is made on its Review
+    // screen rather than on the work page. Either way the row lands on the decision.
+    await expect(page).toHaveURL(/\/venture\/arca\/(work|review)\/[^/]+\/\d+$/);
+    await expect(page.locator('[data-testid="work-decision"], [data-testid="review-decision"]').first()).toBeVisible();
   });
 
   test('a founder can approve from a phone, through the same signed path', async ({ page }) => {

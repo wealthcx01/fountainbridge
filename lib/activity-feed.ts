@@ -27,6 +27,7 @@ import { collapseRepeats, describeRun } from './runreports';
 import { founderSentence, readableSlugs } from './founder-sentence';
 import { classifyActivity } from './activity-kind';
 import { approvalTone, type Tone } from './status';
+import type { CardEvent } from './factory-work';
 
 export interface FeedItem {
   /** ISO-8601. The feed is ordered by this and nothing else. */
@@ -37,7 +38,7 @@ export interface FeedItem {
   meta: string;
   tone: Tone;
   /** Which record it came out of, so a reader can tell what they are looking at. */
-  source: 'repo' | 'run' | 'decision';
+  source: 'repo' | 'run' | 'decision' | 'card';
   /** Absolute or studio-relative. Never rendered when absent, never rendered dead. */
   href?: string;
   /** Survives the render cap. For entries that must never be orderable out of sight. */
@@ -87,6 +88,17 @@ export interface FeedInput {
   runs: RunReport[];
   /** External actions and their state — including the founder's own decisions. */
   approvals: ActiveGraphApproval[];
+  /**
+   * What the factory's cards said, and what was pressed on them (FB-277), already in this viewer's
+   * words (`cardEvents`, lib/factory-work.ts): plain for a founder, with the cost for John.
+   */
+  cards?: CardEvent[];
+  /**
+   * The most card lines shown, newest first (FB-277). Counted apart from `limit`, so a busy factory
+   * never pushes a founder's own decisions, or a forged grant, off the page, and the record never
+   * pushes the factory's newest news off it either.
+   */
+  cardLimit?: number;
   /** Rendered at most this many. Bounded because the page is, not because the truth is. */
   limit?: number;
   /**
@@ -240,8 +252,9 @@ function runTone(r: RunReport): Tone {
  * in the same second do not shuffle between renders — a feed that reorders itself on refresh is one
  * a founder stops believing.
  */
-export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boolean } {
+export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boolean; cardsTruncated: boolean } {
   const items: FeedItem[] = [];
+  const cardItems: FeedItem[] = [];
 
   // Where a repository sits in the venture, in the founder's words rather than in git's.
   const surfaceOf = (repo: string): string =>
@@ -305,15 +318,33 @@ export function buildFeed(input: FeedInput): { items: FeedItem[]; truncated: boo
     }
   }
 
-  items.sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
-  if (typeof input.limit !== 'number') return { items, truncated: false };
+  for (const c of input.cards ?? []) {
+    const at = iso(c.at);
+    if (!at) continue;
+    cardItems.push({
+      at,
+      text: c.text,
+      // As the design writes it: the ticket, then the surface. John's cost after both.
+      meta: [c.ref, surfaceOf(c.repo), c.cost].filter(Boolean).join(' · '),
+      tone: c.tone,
+      source: 'card',
+      href: c.href ?? undefined,
+    });
+  }
+
+  const newestFirst = (x: FeedItem, y: FeedItem) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0);
+  items.sort(newestFirst);
+  cardItems.sort(newestFirst);
+  const cards = typeof input.cardLimit === 'number' ? cardItems.slice(0, Math.max(0, input.cardLimit)) : cardItems;
+  const cardsTruncated = cards.length < cardItems.length;
+  if (typeof input.limit !== 'number') return { items: [...items, ...cards].sort(newestFirst), truncated: false, cardsTruncated };
 
   // Pinned entries survive the cap. Everything else takes what is left, newest first — so a forged
   // grant cannot choose a timestamp that sorts itself off the page.
   const pinned = items.filter((i) => i.pinned);
   const rest = items.filter((i) => !i.pinned).slice(0, Math.max(0, input.limit - pinned.length));
-  const kept = [...pinned, ...rest].sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0));
-  return { items: kept, truncated: kept.length < items.length };
+  const kept = [...pinned, ...rest].sort(newestFirst);
+  return { items: [...kept, ...cards].sort(newestFirst), truncated: kept.length < items.length, cardsTruncated };
 }
 
 function iso(raw: string | null | undefined): string | null {

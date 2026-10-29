@@ -15,6 +15,7 @@ import { howLong } from '@/lib/when';
 import { Mark } from '@/components/Mark';
 import { checkedPreview } from '@/lib/preview-check';
 import { whyNoLink } from '@/lib/result-link';
+import type { CardRow } from '@/lib/factory-work';
 
 // The attention queue (FB-007): open PRs across every accessible venture, awaiting the human gate.
 // Scoping runs server-side in loadAccessibleAttention.
@@ -50,9 +51,15 @@ export default async function AttentionPage({
     refresh: refresh === '1',
     ticketsFor: (venture) => ticketsByRepo(venture, { refresh: refresh === '1' }),
   });
-  const { work: approvals, sends, ventureNames, errors } = needs;
-  const couldNotRead = errors.length > 0 || needs.sendsUnread.length > 0;
-  const empty = approvals.length === 0 && sends.length === 0;
+  const { work: approvals, sends, ventureNames, errors, cards } = needs;
+  const couldNotRead = errors.length > 0 || needs.sendsUnread.length > 0 || needs.cardsUnread.length > 0;
+  const empty = approvals.length === 0 && sends.length === 0 && cards.length === 0;
+  // FB-277: the factory's cards are finished work too, so they are rows of the same list, oldest
+  // first with the rest. A pull request a card stands for is already gone from `approvals`.
+  const finished = [
+    ...approvals.map((a) => ({ at: a.createdAt, key: `pr-${a.id}`, pr: a, card: null })),
+    ...cards.map((c) => ({ at: c.at, key: `card-${c.ventureId}-${c.key}`, pr: null, card: c })),
+  ].sort((x, y) => x.at.localeCompare(y.at) || x.key.localeCompare(y.key));
   // Each venture's own number, as its desk states it. Only when more than one venture has
   // something: one venture's number is the heading's number, and saying it twice is noise.
   const busy = mine.filter((v) => (needs.perVenture[v.id] ?? 0) > 0);
@@ -122,7 +129,7 @@ export default async function AttentionPage({
               </div>
             </>
           ) : null}
-          {approvals.length > 0 ? (
+          {finished.length > 0 ? (
             <>
               {sends.length > 0 ? (
                 <h2 className="eyebrow" style={{ margin: '0 0 0.5rem' }}>Finished work, oldest first</h2>
@@ -137,14 +144,16 @@ export default async function AttentionPage({
                 </p>
               ) : null}
               <div className="stack" data-testid="attention-queue" style={{ gap: '0.75rem' }}>
-                {approvals.map((a) => (
+                {finished.map(({ key, pr, card }) => pr ? (
                   <ApprovalRow
-                    key={a.id}
-                    approval={a}
-                    ventureName={ventureNames[a.ventureId] ?? a.ventureId}
+                    key={key}
+                    approval={pr}
+                    ventureName={ventureNames[pr.ventureId] ?? pr.ventureId}
                     showChecks={!sharedCheckState(approvals)}
                   />
-                ))}
+                ) : card ? (
+                  <CardWaitingRow key={key} card={card} ventureName={ventureNames[card.ventureId] ?? card.ventureId} />
+                ) : null)}
               </div>
             </>
           ) : null}
@@ -219,6 +228,35 @@ function ApprovalRow({
             uses is the one that works. */}
         <span>· waiting {howLong(approval.createdAt) ?? 'a while'} for you</span>
         <Link href={here} data-testid={`approval-open-${approval.id}`}>· Read it and decide</Link>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * A factory card waiting on this person (FB-277), in the same look as the finished work beside it.
+ *
+ * The meta line is where John reads his parts: what the run cost and what to do next, in the words
+ * Telegram uses. A founder's row never carries them: `john` is null for anyone else, on the server.
+ */
+function CardWaitingRow({ card, ventureName }: { card: CardRow; ventureName: string }) {
+  const id = `${card.ventureId}-${card.repo}-${card.number}`;
+  return (
+    <article className="card card-link" data-testid={`attention-card-${id}`} data-standing={card.standing} style={{ padding: '0.85rem 1rem' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
+        {card.href ? (
+          <Link href={card.href} style={{ fontWeight: 500 }} data-testid={`attention-card-primary-${id}`}>{card.title}</Link>
+        ) : (
+          <span style={{ fontWeight: 500 }} data-testid={`attention-card-primary-${id}`}>{card.title}</span>
+        )}
+      </div>
+      <div className="muted" style={{ fontSize: 'var(--fs-meta)', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+        <span>{ventureName}</span>
+        {card.ref ? <span>· {card.ref}</span> : null}
+        <span data-testid={`attention-card-state-${id}`}>· {card.words}</span>
+        {card.john?.cost ? <span data-testid={`attention-card-cost-${id}`}>· {card.john.cost}</span> : null}
+        {card.john?.nextStep ? <span data-testid={`attention-card-next-${id}`}>· {card.john.nextStep}</span> : null}
+        {card.href ? <Link href={card.href}>· Look at it and decide</Link> : null}
       </div>
     </article>
   );

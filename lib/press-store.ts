@@ -110,11 +110,18 @@ export const PRESS_SQL = {
   telegramFind: `select outcome, message from factorystore.presses
                   where source = 'telegram' and repo = $1 and number = $2 and action = $3 and pressed_at = $4`,
   headOf: 'select head_sha from factorystore.cards where repo = $1 and number = $2',
+  // FB-277: the presses on the newest cards of a venture, each on the version of the work its card
+  // is about now. The same cards, in the same order, as `CARD_SQL.newest` reads them.
+  onNewest: `select ${COLUMNS} from factorystore.presses p
+              where exists (select 1 from (select repo, number, head_sha from factorystore.cards
+                                            order by sent_at desc, repo, number limit $1) c
+                             where c.repo = p.repo and c.number = p.number and c.head_sha = p.seen_head_sha)
+              order by pressed_at, seq`,
 } as const;
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : new Date(String(v)).toISOString());
 
-function fromRow(r: Record<string, unknown>): StoredPress {
+export function pressFromRow(r: Record<string, unknown>): StoredPress {
   return {
     id: String(r.id),
     ventureId: String(r.venture_id),
@@ -168,8 +175,8 @@ export function sqlPressStore(run: { asVenture<T>(ventureId: string, fn: (q: Que
       bytes,
       size,
       alwaysOne,
-      (v, n) => run.asVenture(v, async (q) => (await q.query<Record<string, unknown>>(PRESS_SQL.waiting, [signOffs, n])).rows.map(fromRow)),
-      (v, ids) => run.asVenture(v, async (q) => (await q.query<Record<string, unknown>>(PRESS_SQL.markCollected, [ids])).rows.map(fromRow)),
+      (v, n) => run.asVenture(v, async (q) => (await q.query<Record<string, unknown>>(PRESS_SQL.waiting, [signOffs, n])).rows.map(pressFromRow)),
+      (v, ids) => run.asVenture(v, async (q) => (await q.query<Record<string, unknown>>(PRESS_SQL.markCollected, [ids])).rows.map(pressFromRow)),
     );
 
   return {
@@ -188,7 +195,7 @@ export function sqlPressStore(run: { asVenture<T>(ventureId: string, fn: (q: Que
       }),
 
     presses: (ventureId, repo, number) =>
-      run.asVenture(ventureId, async (q) => (await q.query<Record<string, unknown>>(PRESS_SQL.presses, [repo, number])).rows.map(fromRow)),
+      run.asVenture(ventureId, async (q) => (await q.query<Record<string, unknown>>(PRESS_SQL.presses, [repo, number])).rows.map(pressFromRow)),
 
     async collect(ventureIds, room) {
       const presses = await collectOf(false, ventureIds, room.limit, room.bytes, room.size, true);

@@ -186,3 +186,29 @@ describe('notes with an Accept, outside a test copy', () => {
     expect(mergePullRequest).not.toHaveBeenCalled();
   });
 });
+
+describe("the factory's own cards can never be pressed or opened from the studio (FB-277)", () => {
+  it('by a founder or by John, by any address', async () => {
+    const { pressFactoryCard } = await import('../press');
+    const { loadReview } = await import('@/lib/review-load');
+    const { storedCard } = await import('@/lib/__tests__/review-fixtures');
+    const store = cardStore()!;
+    await store.putCard('_factory', { ...storedCard('cowgate', 40), repo: 'cowgate', state: 'finished' });
+    for (const who of [FOUNDER, JOHN]) {
+      as(who);
+      for (const action of ['stop', 'accept', 'approve']) {
+        expect((await pressFactoryCard('_factory', 'cowgate', 40, action)).ok).toBe(false);
+        // Through a venture of theirs, naming cowgate: not one of that venture's repositories.
+        expect((await pressFactoryCard('arca', 'cowgate', 40, action)).ok).toBe(false);
+      }
+      expect((await acceptWork('_factory', 'cowgate', 40, 'sha-cowgate-40')).ok).toBe(false);
+      expect((await sendBackWork('_factory', 'cowgate', 40, 'no')).ok).toBe(false);
+    }
+    // The Review screen's loader, handed ARCA with cowgate added to its repositories: the database
+    // scope still hands nothing over.
+    const arca = { id: 'arca', name: 'ARCA', repos: ['arca', 'cowgate'], departments: [], founderEmail: FOUNDER } as never;
+    expect(await loadReview(arca, 'cowgate', 40, { email: FOUNDER, isJohn: false, admins: [JOHN] }, store, { E2E_TEST_LOGIN: '1' })).toBeNull();
+    expect(await store.presses('_factory', 'cowgate', 40)).toEqual([]);
+    expect(lines()).toHaveLength(0);
+  });
+});

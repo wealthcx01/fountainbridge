@@ -28,7 +28,9 @@ import { checkedPreview } from '@/lib/preview-check';
 import { followLine, sendForTicket } from '@/lib/result-link';
 import { FollowIt } from '@/components/FollowIt';
 import { loadTrail } from '@/lib/trail-load';
-import { studioNow } from '@/lib/when';
+import { ageMs, studioNow } from '@/lib/when';
+import { CARDS_UNREAD, ventureCardRows, viewerOf } from '@/lib/factory-work-load';
+import { cardGroup, cardSentence, cardTicketId, withoutCarded } from '@/lib/factory-work';
 
 /**
  * Tickets (FB-129) — the list, the ticket, and the decision, on one screen.
@@ -65,6 +67,9 @@ export default async function TicketsPage({
   }
 
   const refreshing = refresh === '1';
+  const viewer = viewerOf(session.user.email, venture);
+  // FB-277: the factory's cards, read beside the backlog. Shared with the rail, once per request.
+  const cardsRead = ventureCardRows(venture, viewer);
   const data = await loadVentureTickets(venture, { refresh: refreshing });
   const attention = await loadVentureAttention(venture, {
     refresh: refreshing,
@@ -72,6 +77,9 @@ export default async function TicketsPage({
   });
 
   const inferred = data.lanes.map((lane) => applyStatusInference(lane, attention.ticketStatus));
+  const cards = await cardsRead;
+  // One row per piece of work (FB-277): a pull request a card stands for is listed as the card.
+  const openPrs = withoutCarded(attention.approvals, cards.rows);
   // FB-120: work filed minutes ago is not on the default branch yet, and a founder who just pressed
   // "File all" must find it here. Degrades to none rather than blanking a list that was fine.
   const filedByRepo = await loadFiledForLanes(inferred, attention.perRepo, defaultBranchFileReader())
@@ -85,7 +93,7 @@ export default async function TicketsPage({
   // other from the list while the rail's badge went on counting it. Every waiting item is still
   // counted; they are just gathered under the ticket they belong to.
   const waitingFor = new Map<string, { repo: string; number: number; ageMs: number; also: number; headSha: string | null; ciStatus: PrCiStatus | null }>();
-  for (const pr of attention.approvals) {
+  for (const pr of openPrs) {
     if (!pr.linkedTicketId) continue;
     const key = `${pr.repo} ${pr.linkedTicketId}`;
     const held = waitingFor.get(key);
@@ -103,7 +111,7 @@ export default async function TicketsPage({
   // ticket does not join the backlog until it is merged (CLAUDE.md #2) — and the rail's badge counts
   // it. Excluding it here would have fixed the duplicate row and reopened the badge/filter
   // disagreement in the same change.
-  const ageOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.ageMs]));
+  const ageOfPr = new Map(openPrs.map((pr) => [`${pr.repo}#${pr.number}`, pr.ageMs]));
   const shaOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.headSha]));
   const ciOfPr = new Map(attention.approvals.map((pr) => [`${pr.repo}#${pr.number}`, pr.ciStatus]));
   const filedPrs = new Set(
@@ -162,7 +170,7 @@ export default async function TicketsPage({
   // over a filter showing 2: the badge counted what was waiting, the screen counted what happened
   // to have a ticket file.
   const onBoard = new Set(rows.map((r) => `${r.repo} ${r.id}`));
-  for (const pr of attention.approvals) {
+  for (const pr of openPrs) {
     if (pr.linkedTicketId && onBoard.has(`${pr.repo} ${pr.linkedTicketId}`)) continue;
     if (filedPrs.has(`${pr.repo}#${pr.number}`)) continue;
     rows.push({
@@ -176,6 +184,28 @@ export default async function TicketsPage({
       progress: null,
       waiting: { repo: pr.repo, number: pr.number, ageMs: pr.ageMs, headSha: pr.headSha, ciStatus: pr.ciStatus },
       surface: surfaceOf.get(pr.repo) ?? null,
+    });
+  }
+
+  // FB-277: the factory's cards. A card for a ticket the venture has is that ticket's row; any other
+  // card is a row of its own, under its ticket's name or its pull request's. Built here, on the
+  // server, so John's words reach John alone.
+  const nowMs = studioNow();
+  for (const c of cards.rows) {
+    const id = cardTicketId(c);
+    const card = {
+      waits: c.waits, standing: c.standing, words: c.words, sentence: cardSentence(c, viewer.isJohn),
+      ageMs: Math.max(0, ageMs(c.at, nowMs) ?? 0), href: c.href,
+      cost: c.john?.cost ?? null, nextStep: c.john?.nextStep ?? null,
+    };
+    const own = rows.find((r) => r.repo === c.repo && r.id === id && !r.card);
+    if (own) {
+      own.card = card;
+      continue;
+    }
+    rows.push({
+      id, title: c.title, repo: c.repo, group: cardGroup(c), item: null, progress: null, waiting: null,
+      surface: surfaceOf.get(c.repo) ?? null, card,
     });
   }
 
@@ -268,6 +298,7 @@ export default async function TicketsPage({
         ...data.lanes.filter((l) => l.error).map((l) => l.error as string),
         ...attention.errors,
         ...(approvalsRead.error ? [approvalsRead.error] : []),
+        ...(cards.unread ? [CARDS_UNREAD] : []),
       ]}
     />
   );
