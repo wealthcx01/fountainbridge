@@ -138,7 +138,7 @@ function AsFounderStrip({ ventureName }: { ventureName: string }) {
       <Link href="/" data-testid="as-founder-back">← All ventures</Link>
       {/* copy-lint-ok: admin-only — a founder never sees this strip */}
       <span className="muted">
-        You are seeing exactly what {ventureName}&rsquo;s founder sees.
+        You are seeing what {ventureName}&rsquo;s founder sees, and the factory&rsquo;s costs and next steps, which only you see.
       </span>
     </div>
   );
