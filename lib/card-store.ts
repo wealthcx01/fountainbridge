@@ -1,4 +1,5 @@
 import { PICTURES, type PictureName, type PlainParts, type ReviewCardFile } from './review';
+import { memoryPressStore, sqlPressStore, type PressStore } from './press-store';
 
 /**
  * The factory's cards and their pictures, as the studio keeps them (FB-275, `db/008_factory_cards.sql`).
@@ -61,7 +62,8 @@ export interface Heartbeat {
   receivedAt: string;
 }
 
-export interface CardStore {
+/** The cards, their pictures, the box's heartbeat, and the presses on the cards (FB-276). */
+export interface CardStore extends PressStore {
   /** Keep this card, unless a newer version of it is already here. */
   putCard(ventureId: string, card: StoredCard): Promise<'stored' | 'older'>;
   card(ventureId: string, repo: string, number: number): Promise<CardWithPictures | null>;
@@ -137,6 +139,8 @@ export function sqlCardStore(run: {
   asNobody<T>(fn: (q: Querier) => Promise<T>): Promise<T>;
 }): CardStore {
   return {
+    ...sqlPressStore(run),
+
     putCard: (ventureId, c) =>
       run.asVenture(ventureId, async (q) => {
         await q.query(SQL.dropOldPictures, [c.repo, c.number, c.sentAt, c.headSha]);
@@ -230,6 +234,8 @@ export function memoryCardStore(now: () => Date = () => new Date()): CardStore {
     });
 
   return {
+    ...memoryPressStore((v, repo, number) => cards.get(key(v, repo, number))?.headSha ?? null, now),
+
     async putCard(v, c) {
       const was = cards.get(key(v, c.repo, c.number));
       if (was && Date.parse(was.sentAt) > Date.parse(c.sentAt)) return 'older';

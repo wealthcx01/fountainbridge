@@ -4,9 +4,12 @@ import { approvalRepos } from './venture-repos';
 import { isPreviewAddress } from './preview-check';
 import { CARD_STATES, type CardKind, type CardStore, type StoredCard } from './card-store';
 import { isPictureName, isPlainPart, type PlainParts, type Tone } from './review';
+import { COLLECT_LIMIT, isOutcome, isPressAction, type Outcome, type StoredPress } from './presses';
 
 /**
- * The planning box's door into the studio (FB-275): cards, pictures, preview links and heartbeats.
+ * The planning box's door into the studio (FB-275): cards, pictures, preview links and heartbeats;
+ * and since FB-276, the presses made on the cards: the box collects them, says what happened to
+ * each, and reports the taps made on Telegram.
  *
  * Only the planning box holds `FACTORY_DOOR_SECRET`, and every request must be signed with it:
  * HMAC-SHA256 over the timestamp, a full stop, and the exact bytes of the body. The format, with a
@@ -59,11 +62,14 @@ export interface DoorDeps {
   org: string;
   now: () => number;
   log: (line: string) => void;
+  /** Whose a tap on Telegram is: John's address, the first in `STUDIO_ADMIN_EMAILS`. */
+  john: string;
 }
 
 export interface DoorReply {
   status: number;
-  body: { ok: boolean; message: string };
+  /** A collect also carries what it collected. */
+  body: { ok: boolean; message: string; [more: string]: unknown };
 }
 
 /** `closed`: answer as an address that does not exist. The route turns it into Next's own 404. */
@@ -111,8 +117,17 @@ export async function handleDoor(deps: DoorDeps, headers: Headers, readBody: (ma
   const kind = message.kind;
   if (kind !== 'screenshot' && body.byteLength > MAX_CARD_BYTES) return refuse(deps, 413, 'That is too big. Anything but a picture may be 64 KB.');
   if (kind === 'heartbeat') return heartbeat(deps, message, timestamp);
-  if (kind !== 'card' && kind !== 'screenshot' && kind !== 'preview') {
-    return refuse(deps, 400, '`kind` must be "card", "screenshot", "preview" or "heartbeat".');
+  if (kind === 'collect' || kind === 'press-result') {
+    if (!deps.store) return refuse(deps, 503, 'This studio has nowhere to keep presses yet (it has no database).');
+    try {
+      return kind === 'collect' ? await collect(deps, deps.store) : await pressResult(deps, deps.store, message);
+    } catch (e) {
+      deps.log(`${kind} could not be done: ${(e as Error)?.message ?? 'unknown fault'}`);
+      return say(500, 'The studio could not do this just now. Try again in a minute.');
+    }
+  }
+  if (kind !== 'card' && kind !== 'screenshot' && kind !== 'preview' && kind !== 'answered-elsewhere') {
+    return refuse(deps, 400, '`kind` must be "card", "screenshot", "preview", "heartbeat", "collect", "press-result" or "answered-elsewhere".');
   }
 
   const where = whose(deps, message);
@@ -122,6 +137,7 @@ export async function handleDoor(deps: DoorDeps, headers: Headers, readBody: (ma
   try {
     if (kind === 'card') return await card(deps, deps.store, where.ventureId, where.repo, message);
     if (kind === 'screenshot') return await screenshot(deps, deps.store, where.ventureId, where.repo, where.number, message);
+    if (kind === 'answered-elsewhere') return await answeredElsewhere(deps, deps.store, where.ventureId, where.repo, where.number, message);
     return await preview(deps, deps.store, where.ventureId, where.repo, where.number, message);
   } catch (e) {
     deps.log(`${kind} for ${where.repo}#${where.number} could not be kept: ${(e as Error)?.message ?? 'unknown fault'}`);
@@ -309,6 +325,88 @@ async function preview(deps: DoorDeps, store: CardStore, ventureId: string, repo
   deps.log(`preview for ${repo}#${number} ${kept}`);
   if (kept === 'no-card') return say(409, 'There is no card for that pull request yet. Send the card first.');
   return say(200, m.url === null ? 'Preview link removed.' : 'Preview link kept.', true);
+}
+
+/** The most a collect's answer may be, so it stays inside the door's 64 KB with room to spare. */
+export const MAX_COLLECT_BYTES = 56 * 1024;
+
+/** One press, as the box reads it. */
+export function pressForBox(p: StoredPress) {
+  return {
+    id: p.id, venture: p.ventureId, repo: p.repo, number: p.number, action: p.action,
+    by: p.by, byJohn: p.byJohn, note: p.note, seenHeadSha: p.seenHeadSha, pressedAt: p.pressedAt,
+  };
+}
+
+/**
+ * The presses the box has not collected yet, oldest first, across every venture in the manifests.
+ * Founders' sign-offs come back in their own list: they are for Telegram's card text, and must
+ * never reach Archon. What is handed out is marked collected, and is not handed out again.
+ */
+async function collect(deps: DoorDeps, store: CardStore): Promise<DoorReply> {
+  const got = await store.collect(deps.ventures.map((v) => v.id), {
+    limit: COLLECT_LIMIT,
+    bytes: MAX_COLLECT_BYTES,
+    size: (p) => Buffer.byteLength(JSON.stringify(pressForBox(p))) + 1,
+  });
+  deps.log(`collect: ${got.presses.length} presses, ${got.signOffs.length} sign-offs${got.more ? ', more waiting' : ''}`);
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: `${got.presses.length} ${got.presses.length === 1 ? 'press' : 'presses'}, ${got.signOffs.length} ${got.signOffs.length === 1 ? 'sign-off' : 'sign-offs'}.`,
+      presses: got.presses.map(pressForBox),
+      signOffs: got.signOffs.map(pressForBox),
+      more: got.more,
+    },
+  };
+}
+
+const PRESS_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** The box's answer: what happened to one press it collected. The same answer again is fine. */
+async function pressResult(deps: DoorDeps, store: CardStore, m: Record<string, unknown>): Promise<DoorReply> {
+  const id = typeof m.id === 'string' ? m.id.trim().toLowerCase() : '';
+  if (!PRESS_ID.test(id)) return refuse(deps, 400, '`id` must be the id of a press, as collect gave it.');
+  if (!isOutcome(m.outcome)) return refuse(deps, 400, '`outcome` must be "done", "out-of-date" or "refused".');
+  let message: string;
+  try {
+    message = text(m.message, 'message', 1000).trim();
+    if (!message) throw new Error('`message` is missing.');
+  } catch (e) {
+    return refuse(deps, 400, `${(e as Error).message} Nothing was kept.`);
+  }
+  const kept = await store.answer(deps.ventures.map((v) => v.id), id, m.outcome, message);
+  deps.log(`press-result for ${id}: ${kept}`);
+  if (kept === 'no-press') return say(409, 'There is no press with that id. Nothing was kept.');
+  if (kept === 'sign-off') return say(409, 'That is a sign-off. It needs no answer, and none was kept.');
+  if (kept === 'different') return say(409, 'That press already has a different answer. Nothing was changed.');
+  return say(200, kept === 'same' ? 'That answer was already kept.' : 'Answer kept.', true);
+}
+
+/** A tap on Telegram, for a card the studio has. Kept as a press of its own, already answered. */
+async function answeredElsewhere(deps: DoorDeps, store: CardStore, ventureId: string, repo: string, number: number, m: Record<string, unknown>): Promise<DoorReply> {
+  if (!isPressAction(m.action) || m.action === 'accept') {
+    return refuse(deps, 400, '`action` must be "stop", "send-back", "approve", "reject", "try-again" or "split".');
+  }
+  const outcome: Outcome | null = m.outcome === undefined ? 'done' : isOutcome(m.outcome) ? m.outcome : null;
+  if (!outcome) return refuse(deps, 400, '`outcome` must be "done", "out-of-date" or "refused".');
+  let at: string;
+  let message: string;
+  try {
+    at = when(m.at, 'at');
+    if (Date.parse(at) > deps.now() + WINDOW_SECONDS * 1000) throw new Error('`at` is in the future.');
+    message = m.message === undefined ? '' : text(m.message, 'message', 1000).trim();
+  } catch (e) {
+    return refuse(deps, 400, `${(e as Error).message} Nothing was kept.`);
+  }
+  if (!message) message = outcome === 'done' ? 'Done on Telegram.' : 'Nothing was done.';
+
+  const kept = await store.telegram(ventureId, { repo, number, action: m.action, at, by: deps.john, outcome, message });
+  deps.log(`answered-elsewhere for ${repo}#${number}: ${kept}`);
+  if (kept === 'no-card') return say(409, 'There is no card for that pull request yet. Send the card first.');
+  if (kept === 'different') return say(409, 'That tap was already reported with a different answer. Nothing was changed.');
+  return say(200, kept === 'same' ? 'That tap was already kept.' : 'Kept.', true);
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {

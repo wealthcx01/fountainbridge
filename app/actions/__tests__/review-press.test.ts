@@ -4,12 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /**
- * FB-274: Accept and Send back on a finished card, in a test copy.
+ * FB-274, FB-276: Accept and Send back on a finished card, in a test copy.
  *
- * Until the press door lands (FB-276), a press on a factory card in a test copy is written as one
- * line to the copy's state folder and never reaches GitHub. These tests use the real card store
- * (the rig's, in memory, filled as the door fills it: FB-275) and the real record; only the sign-in
- * and GitHub are stand-ins, so they can show that nothing was merged or written there.
+ * A press on a factory card is recorded in the press store for the planning box to collect, and
+ * never reaches GitHub. In a test copy it is also written as one line to the copy's state folder.
+ * These tests use the real card store (the rig's, in memory, filled as the door fills it: FB-275)
+ * and the real record; only the sign-in and GitHub are stand-ins, so they can show that nothing was
+ * merged or written there.
  */
 
 const auth = vi.fn();
@@ -58,6 +59,8 @@ beforeEach(async () => {
     STUDIO_APPROVAL_GITHUB_TOKEN: 'test-token',
   });
   delete process.env.DATABASE_URL;
+  // A new rig store for each test, so no test sees another's presses.
+  delete (globalThis as Record<symbol, unknown>)[Symbol.for('foundry-studio.rig-card-store')];
   await putTestCards(cardStore()!);
 });
 

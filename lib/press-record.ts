@@ -1,4 +1,4 @@
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -10,8 +10,11 @@ import { join } from 'node:path';
  *
  * Only in the test rig: `E2E_TEST_LOGIN=1`, and a state folder named by `FACTORY_RUNTIME_STATE`
  * (the test copy sets it; so does Playwright's own server). Outside the rig there is no file and
- * nothing here runs. The card store (FB-275) and the box's listener (FB-276) replace it for real
- * presses.
+ * nothing here runs.
+ *
+ * Since FB-276 the record that counts is the press store (`db/009_factory_presses.sql`): the card's
+ * state is read from it, and the planning box collects from it. This file is written as well, once
+ * for each press the store recorded, and is read by nothing in the studio.
  */
 
 /** One press, as one line of the file. */
@@ -23,7 +26,7 @@ export interface PressLine {
   /** Who pressed: the address they signed in with. */
   by: string;
   /** A founder's Accept is a sign-off. Only John's Accept is an approval. */
-  decision: 'signed-off' | 'approved' | 'sent-back';
+  decision: 'signed-off' | 'approved' | 'sent-back' | 'rejected' | 'try-again' | 'split' | 'stopped';
   /** The note that went with it, in full. Empty when there was none. */
   note: string;
   /** The version of the work they were shown, when the screen said. */
@@ -41,25 +44,4 @@ export function pressRecordFile(env: Record<string, string | undefined> = proces
 
 export function recordPress(file: string, line: PressLine): void {
   appendFileSync(file, `${JSON.stringify(line)}\n`);
-}
-
-/** Every press on one piece of work, oldest first. A missing file is no presses yet. */
-export function pressesFor(file: string, repo: string, number: number): PressLine[] {
-  let text = '';
-  try {
-    text = readFileSync(file, 'utf8');
-  } catch {
-    return [];
-  }
-  const out: PressLine[] = [];
-  for (const raw of text.split('\n')) {
-    if (!raw.trim()) continue;
-    try {
-      const line = JSON.parse(raw) as PressLine;
-      if (line.repo === repo && line.number === number) out.push(line);
-    } catch {
-      // A torn last line from a copy that was killed mid-write. The others still count.
-    }
-  }
-  return out;
 }

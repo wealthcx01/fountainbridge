@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from 'react';
 import { acceptWork, sendBackWork, type AcceptResult } from '@/app/actions/work';
+import { pressFactoryCard } from '@/app/actions/press';
 import { noteDecision } from '@/lib/decided';
 import { toneColor } from '@/lib/status';
 import { OUT_OF_DATE } from '@/lib/review';
@@ -53,8 +54,15 @@ export interface DecisionWork {
  * Press one of the two buttons. The only place any screen calls `acceptWork` or `sendBackWork`.
  *
  * A press that went through counts as a decision (`noteDecision`, FB-141), whichever screen it was on.
+ *
+ * `factoryCard`: the Review screen's work is always a factory card, so its presses go to the press
+ * door (`pressFactoryCard`, FB-276), which records them for the planning box and never calls GitHub.
  */
-export async function press(ventureId: string, work: DecisionWork, decided: Decided, note = ''): Promise<DecisionResult> {
+export async function press(ventureId: string, work: DecisionWork, decided: Decided, note = '', factoryCard = false): Promise<DecisionResult> {
+  if (factoryCard) {
+    const r = noteDecision(await pressFactoryCard(ventureId, work.repo, work.number, decided, note, work.headSha ?? undefined));
+    return { ...r, decided };
+  }
   const r = decided === 'accept'
     // The commit they were shown, when the screen showed one. `acceptWork` refuses if something
     // has been pushed since, so nobody accepts a change that landed after they looked. A note goes
@@ -147,7 +155,7 @@ export function Decision({
     const text = look === 'review' ? (reviewNotes?.text ?? '') : decided === 'send-back' ? note : '';
     startTransition(async () => {
       setError(null);
-      const r = await press(ventureId, work, decided, text);
+      const r = await press(ventureId, work, decided, text, look === 'review');
       setResult(r);
       if (r.ok) onDecided?.(r);
       else setError(r.message);

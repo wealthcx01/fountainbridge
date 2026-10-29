@@ -14,6 +14,7 @@ import { sentCard, testPng } from './review-fixtures';
  */
 
 const SECRET = 'door-test-secret';
+const JOHN = 'john.gallagher@wealthcx.com';
 const NOW = Date.parse('2026-11-04T09:00:00Z');
 const VENTURES = [
   { id: 'arca', name: 'ARCA', repos: ['arca', 'arca-marketing'], departments: [] },
@@ -23,7 +24,7 @@ const VENTURES = [
 function setUp(patch: Partial<DoorDeps> = {}) {
   const store = memoryCardStore(() => new Date(NOW));
   const logged: string[] = [];
-  const deps: DoorDeps = { secret: SECRET, ventures: VENTURES, store, org: 'wealthcx01', now: () => NOW, log: (l) => logged.push(l), ...patch };
+  const deps: DoorDeps = { secret: SECRET, ventures: VENTURES, store, org: 'wealthcx01', now: () => NOW, log: (l) => logged.push(l), john: JOHN, ...patch };
   return { deps, store: (patch.store === undefined ? store : patch.store) as CardStore, logged };
 }
 
@@ -329,5 +330,177 @@ describe('what the door writes in the log', () => {
     expect(all).not.toContain(SECRET);
     expect(all).not.toMatch(/sha256=|[0-9a-f]{64}/);
     expect(all).not.toMatch(/Prices in pounds|\$2\.10|archon/i);
+  });
+});
+
+describe('presses, through the door (FB-276)', () => {
+  const FOUNDER = 'arca.founder@bruntsfield.capital';
+
+  /** The door with ARCA's #21 and THE RESET's #5 already sent, as the box sends them. */
+  async function withCards() {
+    const set = setUp();
+    await send(set.deps, card());
+    await send(set.deps, { ...sentCard('thereset-platform', 5), sentAt: '2026-11-04T08:59:00Z' });
+    return set;
+  }
+  const press = (store: CardStore, action: 'accept' | 'approve' | 'stop', by: string, byJohn: boolean, venture = 'arca', repo = 'arca', number = 21) =>
+    store.press(venture, { repo, number, action, by, byJohn, note: '', seenHeadSha: null });
+  const body = (a: DoorAnswer) => ('closed' in a ? null : a.body);
+
+  describe('collect', () => {
+    it('hands out the presses not yet collected, oldest first, across ventures, and sign-offs on their own', async () => {
+      const { deps, store } = await withCards();
+      await press(store, 'accept', FOUNDER, false);
+      await press(store, 'stop', 'ross@bruntsfield.capital', false, 'the-reset', 'thereset-platform', 5);
+      await press(store, 'approve', JOHN, true);
+
+      const got = await send(deps, { kind: 'collect' });
+      expect(status(got)).toBe(200);
+      const b = body(got)!;
+      expect((b.presses as { venture: string; action: string }[]).map((p) => [p.venture, p.action])).toEqual([['the-reset', 'stop'], ['arca', 'approve']]);
+      expect(b.signOffs).toEqual([expect.objectContaining({ venture: 'arca', repo: 'arca', number: 21, action: 'accept', by: FOUNDER, byJohn: false })]);
+      expect(Object.keys((b.presses as object[])[0]).sort()).toEqual(['action', 'by', 'byJohn', 'id', 'note', 'number', 'pressedAt', 'repo', 'seenHeadSha', 'venture']);
+      expect(b.more).toBe(false);
+    });
+
+    it("a founder's sign-off is never a press: the box collects no press for it", async () => {
+      const { deps, store } = await withCards();
+      await press(store, 'accept', FOUNDER, false);
+      const b = body(await send(deps, { kind: 'collect' }))!;
+      expect(b.presses).toEqual([]);
+      expect(b.signOffs).toHaveLength(1);
+    });
+
+    it('sent again, even the very same signed request, hands out nothing twice', async () => {
+      const { deps, store } = await withCards();
+      await press(store, 'approve', JOHN, true);
+      expect((body(await send(deps, { kind: 'collect' }))!.presses as unknown[])).toHaveLength(1);
+      expect(body(await send(deps, { kind: 'collect' }))).toMatchObject({ ok: true, presses: [], signOffs: [], more: false });
+    });
+
+    it('stays inside the door’s 64 KB, and says when more are waiting', async () => {
+      const { deps, store } = await withCards();
+      const long = 'é'.repeat(2000);
+      for (let n = 100; n < 130; n++) {
+        await send(deps, card({ number: n }));
+        await store.press('arca', { repo: 'arca', number: n, action: 'stop', by: FOUNDER, byJohn: false, note: long, seenHeadSha: null });
+      }
+      const first = await send(deps, { kind: 'collect' });
+      expect(Buffer.byteLength(JSON.stringify(body(first)))).toBeLessThan(MAX_CARD_BYTES);
+      expect(body(first)!.more).toBe(true);
+      let all = (body(first)!.presses as unknown[]).length;
+      for (let i = 0; i < 5 && all < 30; i++) all += (body(await send(deps, { kind: 'collect' }))!.presses as unknown[]).length;
+      expect(all).toBe(30);
+    });
+
+    it('unsigned or wrongly signed, collects nothing', async () => {
+      const { deps, store } = await withCards();
+      await press(store, 'approve', JOHN, true);
+      expect(status(await send(deps, { kind: 'collect' }, { secret: 'wrong' }))).toBe(401);
+      expect(status(await send(deps, { kind: 'collect' }, { headers: { [SIGNATURE_HEADER]: '' } }))).toBe(401);
+      expect((body(await send(deps, { kind: 'collect' }))!.presses as unknown[])).toHaveLength(1);
+    });
+
+    it('a studio with nowhere to keep presses says so', async () => {
+      const { deps } = setUp({ store: null });
+      expect(status(await send(deps, { kind: 'collect' }))).toBe(503);
+    });
+  });
+
+  describe('press-result', () => {
+    async function collected() {
+      const set = await withCards();
+      await press(set.store, 'approve', JOHN, true);
+      const [p] = body(await send(set.deps, { kind: 'collect' }))!.presses as { id: string }[];
+      return { ...set, id: p.id };
+    }
+
+    it('keeps what happened, and the card shows it', async () => {
+      const { deps, store, id } = await collected();
+      expect(await send(deps, { kind: 'press-result', id, outcome: 'done', message: 'Made part of ARCA.' })).toEqual({ status: 200, body: { ok: true, message: 'Answer kept.' } });
+      expect((await store.presses('arca', 'arca', 21))[0].answer).toMatchObject({ outcome: 'done', message: 'Made part of ARCA.' });
+    });
+
+    it('the same answer again is fine; a different one is 409 and changes nothing', async () => {
+      const { deps, store, id } = await collected();
+      const answer = { kind: 'press-result', id, outcome: 'done', message: 'Made part of ARCA.' };
+      await send(deps, answer);
+      expect(status(await send(deps, answer))).toBe(200);
+      expect(status(await send(deps, { ...answer, outcome: 'out-of-date' }))).toBe(409);
+      expect(status(await send(deps, { ...answer, message: 'Something else.' }))).toBe(409);
+      expect((await store.presses('arca', 'arca', 21))[0].answer?.outcome).toBe('done');
+    });
+
+    it.each([
+      ['no id', { id: undefined }],
+      ['an id that is not one', { id: "1' or '1'='1" }],
+      ['an outcome it does not know', { outcome: 'merged' }],
+      ['no message', { message: '' }],
+      ['a message too long', { message: 'x'.repeat(1001) }],
+    ])('with %s is refused', async (_why, patch) => {
+      const { deps, store, id } = await collected();
+      expect(status(await send(deps, { kind: 'press-result', id, outcome: 'done', message: 'Done.', ...patch }))).toBe(400);
+      expect((await store.presses('arca', 'arca', 21))[0].answer).toBeNull();
+    });
+
+    it('for a press that is not there, or a sign-off, is 409', async () => {
+      const { deps, store } = await withCards();
+      expect(status(await send(deps, { kind: 'press-result', id: '00000000-0000-4000-8000-000000000000', outcome: 'done', message: 'Done.' }))).toBe(409);
+      await press(store, 'accept', FOUNDER, false);
+      const [s] = body(await send(deps, { kind: 'collect' }))!.signOffs as { id: string }[];
+      expect(status(await send(deps, { kind: 'press-result', id: s.id, outcome: 'done', message: 'Done.' }))).toBe(409);
+    });
+
+    it('signed with another secret, keeps nothing', async () => {
+      const { deps, store, id } = await collected();
+      expect(status(await send(deps, { kind: 'press-result', id, outcome: 'done', message: 'Done.' }, { secret: 'wrong' }))).toBe(401);
+      expect((await store.presses('arca', 'arca', 21))[0].answer).toBeNull();
+    });
+  });
+
+  describe('answered-elsewhere', () => {
+    const tap = (patch: Record<string, unknown> = {}) => ({ kind: 'answered-elsewhere', repo: 'arca', number: 21, action: 'approve', at: '2026-11-04T08:58:00Z', ...patch });
+
+    it("keeps a tap on Telegram as John's, done, and the card's buttons go", async () => {
+      const { deps, store } = await withCards();
+      expect(await send(deps, tap())).toEqual({ status: 200, body: { ok: true, message: 'Kept.' } });
+      const [p] = await store.presses('arca', 'arca', 21);
+      expect(p).toMatchObject({ source: 'telegram', action: 'approve', by: JOHN, byJohn: true, answer: { outcome: 'done', message: 'Done on Telegram.' } });
+      expect(await press(store, 'accept', FOUNDER, false)).toBe('out-of-date');
+      expect(body(await send(deps, { kind: 'collect' }))).toMatchObject({ presses: [], signOffs: [] });
+    });
+
+    it('reported twice is kept once; with a different answer, 409', async () => {
+      const { deps, store } = await withCards();
+      await send(deps, tap({ message: 'Approved on Telegram.' }));
+      expect(await send(deps, tap({ message: 'Approved on Telegram.' }))).toEqual({ status: 200, body: { ok: true, message: 'That tap was already kept.' } });
+      expect(status(await send(deps, tap({ outcome: 'refused', message: 'No.' })))).toBe(409);
+      expect(await store.presses('arca', 'arca', 21)).toHaveLength(1);
+    });
+
+    it.each([
+      ['an Accept: Telegram has no sign-off', { action: 'accept' }],
+      ['an action it does not know', { action: 'merge' }],
+      ['an outcome it does not know', { outcome: 'merged' }],
+      ['no time', { at: undefined }],
+      ['a time in the future', { at: '2026-11-05T09:00:00Z' }],
+    ])('with %s is refused', async (_why, patch) => {
+      const { deps, store } = await withCards();
+      expect(status(await send(deps, tap(patch)))).toBe(400);
+      expect(await store.presses('arca', 'arca', 21)).toEqual([]);
+    });
+
+    it('for a card not here is 409; for a repository no venture lists, 422', async () => {
+      const { deps } = await withCards();
+      expect(status(await send(deps, tap({ number: 99 })))).toBe(409);
+      expect(status(await send(deps, tap({ repo: 'cowgate' })))).toBe(422);
+      expect(status(await send(deps, tap({ venture: 'the-reset' })))).toBe(422);
+    });
+
+    it('unsigned, keeps nothing', async () => {
+      const { deps, store } = await withCards();
+      expect(status(await send(deps, tap(), { secret: 'wrong' }))).toBe(401);
+      expect(await store.presses('arca', 'arca', 21)).toEqual([]);
+    });
   });
 });

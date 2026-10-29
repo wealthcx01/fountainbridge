@@ -57,7 +57,7 @@ and fewer sections (FB-160).
 | `GET /api/health` | none | for the uptime monitor and Railway. Excluded from the gate |
 | `GET /api/readiness` | admin session | whether every venture is reachable, whether the approval record is writable, and whether documents have somewhere to live. `?probe=1` does real writes rather than trusting configuration |
 | `POST /api/mcp` | **a studio-issued ticket** in `Authorization: Bearer` | the tool surface (§4). Excluded from the gate so it can answer `401` in words — a machine cannot follow a redirect to a login page |
-| `POST /api/factory` | **the planning box's signature** (`FACTORY_DOOR_SECRET`) | the factory's cards, pictures, preview links and heartbeats (FB-275, `docs/factory-cards.md`). Excluded from the gate. With no secret set it answers `404` to everything |
+| `POST /api/factory` | **the planning box's signature** (`FACTORY_DOOR_SECRET`) | the factory's cards, pictures, preview links and heartbeats (FB-275); and the presses on the cards, which the box collects, answers, and reports from Telegram (FB-276). The format is `docs/factory-cards.md`. Excluded from the gate. With no secret set it answers `404` to everything |
 | `GET /api/composer/[id]`, `…/document` | session | the composer's stream and deposits |
 | `/api/auth/[...nextauth]` | — | Google and password sign-in |
 
@@ -75,7 +75,8 @@ belongs to it.
 | `filePlan` | files one or more tickets as a branch and a pull request |
 | `depositDocument` | a founder hands over a document (§5) |
 | `appendToThread` / `readThread` | the conversation on a ticket |
-| `acceptWork` / `sendBackWork` | accept a piece of finished work, or return it with a note |
+| `acceptWork` / `sendBackWork` | accept a piece of finished work, or return it with a note. On a factory card, recorded as a press instead, and GitHub is never called (FB-276) |
+| `pressFactoryCard` | one press on a factory card: Stop, Send back, Accept, and John's Approve, Reject, Try again and Split it. Recorded for the planning box to collect; never calls GitHub or Archon. Another venture's card gets the answer a missing card gets (FB-276) |
 | `decideRoutine` | allow or stop recurring work |
 | `releasePlan` | let a lane begin on a plan |
 | **`approveExternalAction` / `refuseExternalAction`** | **the grant.** The only code that signs one, reachable from exactly one screen |
@@ -114,6 +115,7 @@ means editing an assertion that says you must not.
 | `docstore.blobs` | **the file itself** | **no. It exists nowhere else** |
 | `factorystore.cards`, `factorystore.pictures` | the factory's cards and their screenshots, by venture (FB-275) | no: the box resends a card when it changes, but not its pictures |
 | `factorystore.heartbeats` | when the planning box last reported. No venture's data | yes |
+| `factorystore.presses` | who pressed what on a factory card, and what the box said happened, by venture (FB-276) | **no: it is the record of who decided what** |
 
 Every table has row-level security **enabled and forced**, scoped by a per-transaction setting the
 server sets and a browser cannot influence. A connection naming no venture sees nothing. The one

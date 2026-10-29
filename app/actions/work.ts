@@ -14,6 +14,10 @@
  * **Only John's Approve merges** (FB-272, CLAUDE.md rule 2). "John" is whoever `STUDIO_ADMIN_EMAILS`
  * names. A founder's Accept is their sign-off: it says "Signed off by <founder>, waiting for John" on
  * the pull request, where John reads it, and the work waits for him.
+ *
+ * **A factory card is never pressed on GitHub** (FB-276). When the work is a card in the card store,
+ * Accept and Send back are recorded as presses for the planning box to collect (`lib/press.ts`),
+ * after the same session, venture and repository checks. Everything else goes the way it always did.
  */
 
 import { auth } from '@/auth';
@@ -23,10 +27,8 @@ import { GitHubClient, GitHubError } from '@/lib/github';
 import { approvalRepos } from '@/lib/venture-repos';
 import { acceptability } from '@/lib/work';
 import { githubWorkSource, loadWork } from '@/lib/work-load';
-import { pressRecordFile, pressesFor, recordPress, type PressLine } from '@/lib/press-record';
-import { cardOf } from '@/lib/review-load';
 import { cardStore } from '@/lib/card-store-live';
-import { isSettled, OUT_OF_DATE, stateAfter } from '@/lib/review';
+import { isFactoryCard, NOTE_LIMIT, pressCard, pressDeps, type PressResult } from '@/lib/press';
 import type { VentureSummary } from '@/lib/ventures';
 
 export interface AcceptResult {
@@ -38,9 +40,6 @@ export interface AcceptResult {
    */
   signedOff?: boolean;
 }
-
-/** How long a note may be. Long enough for a paragraph; short enough that it is a note. */
-const NOTE_LIMIT = 2000;
 
 /**
  * Send a piece of work back with a note (FB-107).
@@ -82,8 +81,8 @@ export async function sendBackWork(
     return { ok: false, message: 'That work is not part of this venture.' };
   }
 
-  const card = await cardInTestCopy(venture, repo, number);
-  if (card) return pressCard(card, { venture: venture.id, repo, number, by: email, decision: 'sent-back', note: text, seen: null });
+  const card = await onFactoryCard(venture, repo, number, { email, isJohn: access.isAdmin }, 'send-back', text);
+  if (card) return card;
 
   const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
   if (!writeToken) {
@@ -143,13 +142,9 @@ export async function acceptWork(
     return { ok: false, message: 'That work is not part of this venture.' };
   }
 
-  const card = await cardInTestCopy(venture, repo, number);
-  if (card) {
-    return pressCard(card, {
-      venture: venture.id, repo, number, by: email,
-      decision: access.isAdmin ? 'approved' : 'signed-off', note: text, seen: seenHeadSha ?? null,
-    });
-  }
+  // John's Accept on a factory card is his Approve (lib/press.ts); a founder's is their sign-off.
+  const card = await onFactoryCard(venture, repo, number, { email, isJohn: access.isAdmin }, 'accept', text, seenHeadSha);
+  if (card) return card;
 
   const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
   if (!writeToken) {
@@ -224,38 +219,27 @@ export async function acceptWork(
 }
 
 /**
- * A finished card from the factory, in a test copy (FB-274).
+ * A press on a factory card goes to the press store, never to GitHub (FB-276). Null when this is not
+ * a factory card, so every other Accept and Send back works exactly as before.
  *
- * The card comes from the card store (FB-275), but until presses have their own door (FB-276) a
- * press on one never reaches GitHub, and is only recorded in a test copy: as one line in its state
- * folder (`lib/press-record.ts`), as `harness/END-TO-END.md` says. FB-276 replaces this with the
- * press door, where the planning box collects it. Null for everything else, so every other Accept
- * and Send back works exactly as before, and in production this is always null.
+ * If the store cannot be read, nothing is done: going on to GitHub could merge a factory card's work
+ * behind the factory's back, which is the one thing this must never do.
  */
-async function cardInTestCopy(venture: VentureSummary, repo: string, number: number) {
-  const file = pressRecordFile();
-  const card = file ? await cardOf(venture, repo, number, cardStore()) : null;
-  return file && card ? { file, card } : null;
-}
-
-/** Record one press on a card, once. The first press that settles a card wins. */
-function pressCard(
-  at: NonNullable<Awaited<ReturnType<typeof cardInTestCopy>>>,
-  press: Omit<PressLine, 'at'>,
-): AcceptResult {
-  const state = stateAfter(pressesFor(at.file, press.repo, press.number));
-  if (isSettled(state)) return { ok: false, message: OUT_OF_DATE };
-  if (press.seen && press.seen !== at.card.headSha) {
-    return { ok: false, message: 'This work changed after the page loaded, so nothing was done. Refresh and look again.' };
+async function onFactoryCard(
+  venture: VentureSummary,
+  repo: string,
+  number: number,
+  who: { email: string; isJohn: boolean },
+  action: 'accept' | 'send-back',
+  note: string,
+  seenHeadSha?: string,
+): Promise<PressResult | null> {
+  const store = cardStore();
+  try {
+    if (!store || !(await isFactoryCard(store, venture, repo, number))) return null;
+    return await pressCard(pressDeps(store), venture, who, repo, number, action, { note, seenHeadSha });
+  } catch (e) {
+    console.error('[press] could not record a press', { message: (e as Error)?.message });
+    return { ok: false, message: 'The studio could not record that just now. Nothing was done. Try again in a minute.' };
   }
-  if (press.decision === 'signed-off' && state.kind === 'signed-off' && state.by === press.by) {
-    return { ok: true, signedOff: true, message: 'You have already signed this off. It is waiting for John.' };
-  }
-
-  recordPress(at.file, { at: new Date().toISOString(), ...press });
-  if (press.decision === 'sent-back') return { ok: true, message: 'Sent back with your notes. Your team picks them up next.' };
-  if (press.decision === 'signed-off') {
-    return { ok: true, signedOff: true, message: 'Signed off by you, waiting for John. Nothing changes in your product until he approves it.' };
-  }
-  return { ok: true, message: 'Approved. It becomes part of the product.' };
 }

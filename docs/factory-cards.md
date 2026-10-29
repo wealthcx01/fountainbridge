@@ -1,9 +1,11 @@
-# The factory's door: cards, pictures, preview links and heartbeats
+# The factory's door: cards, pictures, preview links, heartbeats and presses
 
 The planning box sends the studio four kinds of thing: **cards**, **screenshots**, **preview links**
-and **heartbeats**. They all go through one door, `POST /api/factory`, signed with a secret only the
-box and the studio hold. This page is what the box's side (cowgate CG-0063 and CG-0065) is built
-against. The studio's side is `lib/factory-door.ts` (FB-275).
+and **heartbeats**. It also collects the **presses** made on the cards in the studio, says what
+happened to each, and reports the taps made on Telegram. All of it goes through one door,
+`POST /api/factory`, signed with a secret only the box and the studio hold. The box has no address
+the studio could call, so it asks. This page is what the box's side (cowgate CG-0063, CG-0065 and
+CG-0066) is built against. The studio's side is `lib/factory-door.ts` (FB-275, FB-276).
 
 ## Rules that hold for every request
 
@@ -42,10 +44,12 @@ In a shell: `printf '%s' "$ts.$body" | openssl dgst -sha256 -hmac "$FACTORY_DOOR
 
 - A screenshot request: at most 6 MB in all; the PNG itself at most 4 MB once decoded.
 - Everything else: at most 64 KB.
+- The studio's answer to a `collect`: at most 56 KB, so it fits the same limit.
 
-## The four kinds
+## The kinds
 
-Every body is a JSON object with `kind`. Dates are ISO 8601, for example `2026-11-04T09:15:00Z`.
+Every body is a JSON object with `kind`: `card`, `screenshot`, `preview` and `heartbeat` bring things
+in; `collect`, `press-result` and `answered-elsewhere` are about presses (below). Dates are ISO 8601, for example `2026-11-04T09:15:00Z`.
 
 ### `card`
 
@@ -140,9 +144,107 @@ Once a minute. The studio keeps the time from your signed timestamp.
 
 `box` is optional (`planning-box` when left out): lower-case letters, digits and dashes.
 
+## Presses (FB-276)
+
+A **press** is a button pressed on a card in the studio: `stop`, `send-back`, `accept`, `approve`,
+`reject`, `try-again` or `split`. The studio checks who pressed and keeps the press. It never calls
+Archon or GitHub for a factory card. The box collects the press, runs it through the same code as a
+tap on Telegram, and says what happened.
+
+- **Who may press what is checked by the studio**, before anything is kept. A founder may press
+  `stop`, `send-back` and `accept` on their own venture's cards. Only John (`STUDIO_ADMIN_EMAILS`)
+  may press `approve`, `reject`, `try-again` and `split`. A press a founder is not allowed to make
+  is refused and never kept, so the box never sees it. `byJohn` is the studio's, never the browser's.
+- **A founder's `accept` is their sign-off.** It settles nothing and merges nothing: the card says
+  "Signed off by <founder>, waiting for John". Sign-offs come back from `collect` in their own list,
+  `signOffs`, never in `presses`. They are for the words on Telegram's card. **Never send one to
+  Archon.** John's Accept in the studio is kept as `approve`.
+- **The first press wins.** Every press but `accept` settles the card. Once one stands (not
+  answered yet, or answered `done`), the studio refuses any other with "This card is out of date:
+  the run isn't waiting at it any more. Nothing was done." A press you answer `out-of-date` or
+  `refused` did nothing, so it no longer stands.
+- **A press is about one version of the work**, the card's `headSha` when it was pressed
+  (`seenHeadSha`). When you send a card with a new `headSha`, it starts again with no presses.
+
+### `collect`
+
+```json
+{ "kind": "collect" }
+```
+
+Answers 200 with every press not yet collected, across every venture, oldest first:
+
+```json
+{
+  "ok": true,
+  "message": "1 press, 1 sign-off.",
+  "presses": [
+    {
+      "id": "6f1c0a52-3b7e-4c1d-9a41-2f0e8c7d5b10",
+      "venture": "arca",
+      "repo": "arca",
+      "number": 21,
+      "action": "approve",
+      "by": "john.gallagher@wealthcx.com",
+      "byJohn": true,
+      "note": "",
+      "seenHeadSha": "4f2c9e1",
+      "pressedAt": "2026-11-04T09:20:00.000Z"
+    }
+  ],
+  "signOffs": [
+    { "id": "…", "venture": "arca", "repo": "arca", "number": 21, "action": "accept", "by": "arca.founder@bruntsfield.capital", "byJohn": false, "note": "", "seenHeadSha": "4f2c9e1", "pressedAt": "2026-11-04T09:12:00.000Z" }
+  ],
+  "more": false
+}
+```
+
+- Each press is handed out **once**. What a collect returns is marked collected, so asking again
+  returns only what is new. Keep what you were given before you act on it.
+- `note` is Send back's note, or the notes that went with an Accept or an Approve, in full. Notes
+  pinned on a picture name the picture and the spot: `1. On the "after" picture, on a phone, 82%
+  across and 41% down: The button is cut off here`.
+- `repo` is the manifests' name for the repository (`arca`), not the full one.
+- At most 20 presses and 20 sign-offs, and never more than 56 KB in all. When more are waiting,
+  `more` is `true`: collect again.
+
+### `press-result`
+
+What happened to one press you collected. Send one for every press, never for a sign-off.
+
+```json
+{ "kind": "press-result", "id": "6f1c0a52-3b7e-4c1d-9a41-2f0e8c7d5b10", "outcome": "done", "message": "Made part of ARCA." }
+```
+
+`outcome` is `done`, `out-of-date` (the run was not waiting at the card any more) or `refused`.
+`message` is needed, up to 1,000 characters, in plain words: the founder reads it on the card, after
+the studio has removed any dollar figure, "What to do next" line or mention of Archon. The card then
+shows it and has no buttons.
+
+The same answer sent again is 200, so a retry is safe. A different answer for a press that already
+has one is 409 and changes nothing. An id that is not a press, or is a sign-off, is 409.
+
+### `answered-elsewhere`
+
+A tap John made on Telegram, for a card the studio has. The studio keeps it as a press of its own,
+already answered, and the card shows it and loses its buttons. It is never collected.
+
+```json
+{ "kind": "answered-elsewhere", "repo": "arca", "number": 21, "action": "approve", "at": "2026-11-04T09:18:00Z", "outcome": "done", "message": "Approved on Telegram." }
+```
+
+Needed: `repo`, `number` (as on a card; `venture` may be sent as a check), `action` (any press but
+`accept`: Telegram has no sign-off) and `at` (when John tapped). Optional: `outcome` (`done` when left
+out) and `message` (up to 1,000 characters; "Done on Telegram." or "Nothing was done." when left
+out). The tap is John's.
+
+The same tap (repository, number, action and `at`) sent again is 200 and kept once. Sent again with a
+different answer it is 409. A card the studio does not have yet is 409: send the card first.
+
 ## Answers
 
-Every answer but the first is JSON: `{ "ok": true|false, "message": "<a sentence>" }`.
+Every answer but the first is JSON: `{ "ok": true|false, "message": "<a sentence>" }`. A `collect`
+adds `presses`, `signOffs` and `more`.
 
 | Status | Means | Do |
 |---|---|---|
@@ -150,7 +252,7 @@ Every answer but the first is JSON: `{ "ok": true|false, "message": "<a sentence
 | 200 | kept | nothing |
 | 400 | a field is wrong; the message names it | fix the sender |
 | 401 | not signed, wrongly signed, or the timestamp is more than five minutes out | check the secret and the clock |
-| 409 | a newer card is already here; or a picture or preview for a card not sent yet, or of another version | send the card first, or drop it |
+| 409 | a newer card is already here; or a picture, preview or tap for a card not sent yet, or a picture of another version; or a press id that is not a press, is a sign-off, or already has a different answer | send the card first, or drop it |
 | 413 | too big | send less |
 | 415 | the picture is not a PNG | send a PNG |
 | 422 | no venture lists that repository, two do, the `venture` sent does not match, or the address is not a preview address | fix the manifest or the sender |

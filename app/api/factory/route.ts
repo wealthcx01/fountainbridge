@@ -1,10 +1,13 @@
 import { notFound } from 'next/navigation';
 import { loadVentures } from '@/lib/ventures';
+import { parseAdminEmails } from '@/lib/authz';
 import { cardStore } from '@/lib/card-store-live';
 import { handleDoor, type DoorAnswer } from '@/lib/factory-door';
 
 /**
- * The planning box's door (FB-275): `POST /api/factory`, signed with `FACTORY_DOOR_SECRET`.
+ * The planning box's door (FB-275): `POST /api/factory`, signed with `FACTORY_DOOR_SECRET`. Cards,
+ * pictures, preview links and heartbeats come in; since FB-276 the box also collects presses here
+ * and answers them, because it has no address of its own the studio could call.
  *
  * Outside the sign-in gate (`middleware.ts`), because the box has no session. So this is a public
  * address, and `handleDoor` (lib/factory-door.ts) checks the signature before it reads anything the
@@ -26,6 +29,9 @@ export async function POST(req: Request): Promise<Response> {
       org: env.GITHUB_ORG ?? 'wealthcx01',
       now: Date.now,
       log: (line) => console.log(`[factory-door] ${line}`),
+      // A tap on Telegram is John's. Kept under his address so the studio names him as it names him
+      // everywhere else.
+      john: parseAdminEmails(env.STUDIO_ADMIN_EMAILS)[0] ?? 'john',
     },
     req.headers,
     (max) => readAtMost(req, max),

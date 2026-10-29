@@ -1,8 +1,7 @@
 import type { VentureSummary } from './ventures';
 import { approvalRepos } from './venture-repos';
 import { checkedPreview } from './preview-check';
-import { pressRecordFile, pressesFor } from './press-record';
-import { reviewFor, stateAfter, type ReviewCardFile, type ReviewView } from './review';
+import { reviewFor, stateFrom, type ReviewCardFile, type ReviewView } from './review';
 import { toReviewCard, type CardStore } from './card-store';
 
 /**
@@ -52,19 +51,19 @@ export async function loadReview(
   const card = await cardOf(venture, repo, number, store);
   if (!card || !store) return null;
 
-  const file = pressRecordFile(env);
-  const state = stateAfter(file ? pressesFor(file, repo, number) : [], namer(viewer.email, viewer.admins, venture));
+  // Where it stands: the presses on it, from the press store, with the box's answers (FB-276).
+  const state = stateFrom(await store.presses(venture.id, repo, number), namer(viewer.email, viewer.admins, venture));
 
   // "1 of 6 pieces of finished work": every card of the venture's still waiting on someone, in the
   // order of the venture's repositories, lowest number first.
   const repos = approvalRepos(venture);
-  const waiting = (await store.finished(venture.id, repos))
-    .filter((w) => {
-      if (w.repo === repo && w.number === number) return true;
-      const s = stateAfter(file ? pressesFor(file, w.repo, w.number) : []);
-      return s.kind === 'finished' || s.kind === 'signed-off';
-    })
-    .sort((a, b) => repos.indexOf(a.repo) - repos.indexOf(b.repo) || a.number - b.number);
+  // One at a time: a venture has a handful of finished cards, and each read is its own transaction.
+  const waiting: { repo: string; number: number }[] = [];
+  for (const w of await store.finished(venture.id, repos)) {
+    const s = w.repo === repo && w.number === number ? null : stateFrom(await store.presses(venture.id, w.repo, w.number));
+    if (!s || s.kind === 'finished' || s.kind === 'signed-off') waiting.push(w);
+  }
+  waiting.sort((a, b) => repos.indexOf(a.repo) - repos.indexOf(b.repo) || a.number - b.number);
   const index = waiting.findIndex((w) => w.repo === repo && w.number === number);
   const next = waiting[index + 1] ?? (index > 0 ? waiting[0] : null);
 
