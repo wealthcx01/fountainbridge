@@ -13,7 +13,7 @@
  */
 
 import type { PreviewCheck } from './result-link';
-import type { PressLine } from './press-record';
+import { settles, type BoxAnswer, type StoredPress } from './presses';
 
 /** The four pictures: before and after the change, at a computer's size and a phone's. */
 export const PICTURES = ['before-computer', 'after-computer', 'before-phone', 'after-phone'] as const;
@@ -60,35 +60,42 @@ export interface ReviewCardFile {
 
 export type Tone = 'ok' | 'working' | 'attention' | 'blocked' | 'idle';
 
-/** Where the card stands now, after any presses. */
+/** Where the card stands now, after any presses (FB-276: read from the press store). */
 export type CardState =
   | { kind: 'finished' }
   | { kind: 'signed-off'; by: string; at: string; note: string }
-  | { kind: 'sent-back'; by: string; at: string; note: string; signedOffBy: string | null }
-  | { kind: 'approved'; by: string; at: string; signedOffBy: string | null };
+  | { kind: 'sent-back'; by: string; at: string; note: string; signedOffBy: string | null; answer: BoxAnswer | null }
+  | { kind: 'approved'; by: string; at: string; signedOffBy: string | null; answer: BoxAnswer | null }
+  /** John's other presses: Stop (a founder's too), Reject, Try again, Split it. From here or from Telegram. */
+  | { kind: 'decided'; action: 'stop' | 'reject' | 'try-again' | 'split'; by: string; at: string; note: string; signedOffBy: string | null; answer: BoxAnswer | null };
 
 /**
- * A card's state: what the factory sent, then each press in the order it was made.
+ * A card's state, from the presses on the version of the work it is about now, oldest first.
+ *
+ * The press that settles it is the one the box said it did (`done`). Before the box has answered,
+ * it is the latest settling press: the one that still stands, or, if the box said each did nothing,
+ * the last of those, with its answer. A founder's sign-off before it is remembered.
  *
  * `name` turns the address that pressed into what this viewer reads: "you", "John", the founder's
- * name. Done here, on the server, so no address reaches a screen that does not need it.
+ * name. Done here, on the server, so no address reaches a screen that does not need it. A tap on
+ * Telegram says so.
  */
-export function stateAfter(presses: PressLine[], name: (email: string) => string = (e) => e): CardState {
-  let state: CardState = { kind: 'finished' };
-  for (const p of presses) {
-    // The first final press wins. Anything after it was refused, so it should not be here at all.
-    if (state.kind === 'sent-back' || state.kind === 'approved') break;
-    const signedOffBy: string | null = state.kind === 'signed-off' ? state.by : null;
-    const by = name(p.by);
-    if (p.decision === 'signed-off') state = { kind: 'signed-off', by, at: p.at, note: p.note };
-    else if (p.decision === 'sent-back') state = { kind: 'sent-back', by, at: p.at, note: p.note, signedOffBy };
-    else state = { kind: 'approved', by, at: p.at, signedOffBy };
-  }
-  return state;
+export function stateFrom(presses: StoredPress[], name: (email: string) => string = (e) => e): CardState {
+  const settling = presses.filter((p) => settles(p.action));
+  const chosen = settling.find((p) => p.answer?.outcome === 'done') ?? settling[settling.length - 1] ?? null;
+  const signOffs = presses.filter((p) => p.action === 'accept' && (!chosen || p.pressedAt <= chosen.pressedAt));
+  const signOff = signOffs[signOffs.length - 1] ?? null;
+  const who = (p: StoredPress) => (p.source === 'telegram' ? `${name(p.by)} on Telegram` : name(p.by));
+
+  if (!chosen) return signOff ? { kind: 'signed-off', by: who(signOff), at: signOff.pressedAt, note: signOff.note } : { kind: 'finished' };
+  const base = { by: who(chosen), at: chosen.pressedAt, signedOffBy: signOff ? who(signOff) : null, answer: chosen.answer };
+  if (chosen.action === 'send-back') return { kind: 'sent-back', ...base, note: chosen.note };
+  if (chosen.action === 'approve') return { kind: 'approved', ...base };
+  return { kind: 'decided', action: chosen.action as 'stop' | 'reject' | 'try-again' | 'split', ...base, note: chosen.note };
 }
 
-/** Sent back or approved: the card is no longer waiting for anyone, so nothing more can be pressed. */
-export const isSettled = (state: CardState) => state.kind === 'sent-back' || state.kind === 'approved';
+/** Anything but waiting or signed off: the card is no longer waiting for anyone, so nothing more can be pressed. */
+export const isSettled = (state: CardState) => state.kind !== 'finished' && state.kind !== 'signed-off';
 
 /** What a press on a settled card is told (harness journey 5). */
 export const OUT_OF_DATE = "This card is out of date: the run isn't waiting at it any more. Nothing was done.";
@@ -220,9 +227,13 @@ export function reviewFor(
   };
 }
 
-/** A note written by John and shown to a founder goes through the same lock as everything else. */
+/**
+ * A note written by John, or the box's answer, shown to a founder goes through the same lock as
+ * everything else.
+ */
 function founderSafeState(state: CardState): CardState {
-  return 'note' in state ? { ...state, note: founderSafe(state.note) } : state;
+  const out = 'note' in state ? { ...state, note: founderSafe(state.note) } : state;
+  return 'answer' in out && out.answer ? { ...out, answer: { ...out.answer, message: founderSafe(out.answer.message) } } : out;
 }
 
 /** A note pinned on one spot of one picture. `x` and `y` are percentages across and down. */

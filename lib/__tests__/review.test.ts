@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { founderSafe, noteFrom, reviewFor, stateAfter, type ReviewCardFile } from '../review';
+import { founderSafe, isSettled, noteFrom, reviewFor, stateFrom, type ReviewCardFile } from '../review';
 import { toReviewCard } from '../card-store';
-import type { PressLine } from '../press-record';
+import type { BoxAnswer, PressAction, StoredPress } from '../presses';
 import { storedCard, withPictures } from './review-fixtures';
 
 /**
@@ -55,10 +55,22 @@ describe("a founder's Review screen", () => {
   it('a note John wrote is read through the same lock', () => {
     const view2 = reviewFor(CARD, {
       ...at(false),
-      state: { kind: 'sent-back', by: 'John', at: '2026-07-21T00:00:00Z', note: 'Too slow. What to do next: retry it. Cost $3.', signedOffBy: null },
+      state: { kind: 'sent-back', by: 'John', at: '2026-07-21T00:00:00Z', note: 'Too slow. What to do next: retry it. Cost $3.', signedOffBy: null, answer: null },
     });
     expect(JSON.stringify(view2)).not.toMatch(/what to do next|\$3/i);
     expect(view2.state.kind === 'sent-back' && view2.state.note).toBe('Too slow.');
+  });
+
+  it("the factory's answer is read through the same lock", () => {
+    const view2 = reviewFor(CARD, {
+      ...at(false),
+      state: {
+        kind: 'approved', by: 'John', at: '2026-07-21T00:00:00Z', signedOffBy: null,
+        answer: { outcome: 'done', message: 'Merged. The run cost $2.10. See it in Archon.', at: '2026-07-21T00:01:00Z' },
+      },
+    });
+    expect(JSON.stringify(view2)).not.toMatch(/\$2|archon/i);
+    expect(view2.state.kind === 'approved' && view2.state.answer?.message).toBe('Merged.');
   });
 });
 
@@ -120,23 +132,58 @@ describe('the note a Send back carries', () => {
 });
 
 describe("a card's state", () => {
-  const line = (decision: PressLine['decision'], by: string): PressLine =>
-    ({ at: '2026-07-21T10:00:00Z', venture: 'arca', repo: 'arca', number: 20, by, decision, note: '', seen: null });
+  let n = 0;
+  const press = (action: PressAction, by: string, patch: Partial<StoredPress> = {}): StoredPress => ({
+    id: `p${++n}`, ventureId: 'arca', repo: 'arca', number: 20, action, by, byJohn: by === 'j@x', source: 'studio', note: '',
+    seenHeadSha: 'sha', pressedAt: `2026-07-21T10:00:0${n % 10}Z`, collectedAt: null, answer: null, ...patch,
+  });
+  const said = (outcome: BoxAnswer['outcome'], message = 'Said.'): BoxAnswer => ({ outcome, message, at: '2026-07-21T11:00:00Z' });
 
   it('is finished until someone presses', () => {
-    expect(stateAfter([])).toEqual({ kind: 'finished' });
+    expect(stateFrom([])).toEqual({ kind: 'finished' });
+  });
+
+  it("a founder's sign-off does not settle it", () => {
+    const s = stateFrom([press('accept', 'f@x', { note: 'Lovely.' })]);
+    expect(s).toMatchObject({ kind: 'signed-off', by: 'f@x', note: 'Lovely.' });
+    expect(isSettled(s)).toBe(false);
   });
 
   it("a founder's sign-off then John's approval is approved, and remembers the sign-off", () => {
-    const s = stateAfter([line('signed-off', 'f@x'), line('approved', 'j@x')]);
-    expect(s).toMatchObject({ kind: 'approved', by: 'j@x', signedOffBy: 'f@x' });
+    const s = stateFrom([press('accept', 'f@x'), press('approve', 'j@x')]);
+    expect(s).toMatchObject({ kind: 'approved', by: 'j@x', signedOffBy: 'f@x', answer: null });
+    expect(isSettled(s)).toBe(true);
   });
 
-  it('the first press that settles it wins', () => {
-    expect(stateAfter([line('sent-back', 'f@x'), line('approved', 'j@x')])).toMatchObject({ kind: 'sent-back', by: 'f@x' });
+  it("shows the factory's answer once it has one", () => {
+    expect(stateFrom([press('approve', 'j@x', { answer: said('done', 'Made part of ARCA.') })])).toMatchObject({
+      kind: 'approved', answer: { outcome: 'done', message: 'Made part of ARCA.' },
+    });
+  });
+
+  it('the press the factory did wins over a later one it said did nothing', () => {
+    const s = stateFrom([press('send-back', 'f@x', { answer: said('done') }), press('approve', 'j@x', { answer: said('out-of-date') })]);
+    expect(s).toMatchObject({ kind: 'sent-back', by: 'f@x' });
+  });
+
+  it('a press the factory said did nothing still shows, with what it said', () => {
+    const s = stateFrom([press('approve', 'j@x', { answer: said('out-of-date', 'Nothing was done.') })]);
+    expect(s).toMatchObject({ kind: 'approved', answer: { outcome: 'out-of-date' } });
+    expect(isSettled(s)).toBe(true);
+  });
+
+  it("John's other presses are decided, by name", () => {
+    for (const action of ['stop', 'reject', 'try-again', 'split'] as const) {
+      expect(stateFrom([press(action, 'j@x')])).toMatchObject({ kind: 'decided', action, by: 'j@x' });
+    }
+  });
+
+  it('a tap on Telegram says so', () => {
+    const s = stateFrom([press('reject', 'j@x', { source: 'telegram', answer: said('done') })], (e) => (e === 'j@x' ? 'John' : e));
+    expect(s).toMatchObject({ kind: 'decided', action: 'reject', by: 'John on Telegram' });
   });
 
   it('says who pressed in the words the viewer reads', () => {
-    expect(stateAfter([line('signed-off', 'f@x')], (e) => (e === 'f@x' ? 'you' : e))).toMatchObject({ by: 'you' });
+    expect(stateFrom([press('accept', 'f@x')], (e) => (e === 'f@x' ? 'you' : e))).toMatchObject({ by: 'you' });
   });
 });

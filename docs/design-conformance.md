@@ -1138,3 +1138,32 @@ Where it differs from the canvas, and why:
   ARCA-069" are not shown: nothing records them yet.
 - **The pictures are test drawings,** drawn by the studio from the card's words. Real pictures come
   from the planning box (cowgate CG-0065) and live in the studio's database, never in git.
+
+## FB-276 — the Review screen's states after a press, 2026-10-29
+
+No new screen and no new layout. The Review screen's state now comes from the press store and the
+factory's answers, so its settled panel has four new readings: approved and waiting for the factory,
+part of the product (with what the factory said), nothing was done (the factory said it was out of
+date), and rejected, stopped, sent to try again or sent to be split (here, or on Telegram). Each is
+drawn with the existing "Sent back" and "Part of the product" panels. Rendered on Playwright's own
+studio, this branch beside `main` (70621dc), on the rig's ARCA cards, as ARCA's founder and as John.
+**Not compared with the canvas:** the canvas has no artboard for these states. Not production.
+
+| Screen | `main`, 1440×1000 | Build, 1440×1000 | `main`, 393×851 | Build, 393×851 |
+| --- | --- | --- | --- | --- |
+| Founder, waiting | 1,347px | 1,347px | 1,675px | 1,675px |
+| Founder, signed off | 1,319px | 1,319px | 1,595px | 1,595px |
+| John, after the sign-off | 1,413px | 1,413px | 1,802px | 1,802px |
+| John, just approved | 1,361px ("Part of the product") | 1,361px ("Approved · waiting for the factory") | 1,529px | 1,559px |
+| John, part of the product, with the factory's answer | — | 1,361px | — | 1,565px |
+| Founder, part of the product | — | 1,319px | — | 1,565px |
+| Founder, rejected on Telegram | — | 1,329px | — | 1,448px |
+| John, nothing was done (out of date) | — | 1,361px | — | 1,499px |
+
+Where it differs from before, and why:
+
+- **John's Approve no longer says "Part of the product" at once.** The studio only records the
+  press now; the factory does the merge. Until it says so, the flag reads "Approved · waiting for the
+  factory" and the panel "The factory makes it part of the product next."
+- **John's Reject, Try again, Split it and Stop have no buttons.** The canvas draws none, so they are
+  built on the server and in the door only. Pressed on Telegram, they show on the card.

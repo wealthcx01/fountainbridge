@@ -15,6 +15,10 @@ import { studioTestEnv } from './server-env.mjs';
  * tests also show that a sender following the doc gets in.
  *
  * Safe to run more than once: the same card again replaces itself.
+ *
+ * FB-276: this is also the stand-in factory's side of a press. It collects what the studio recorded
+ * (`collect`), says what happened to each (`answerPress`), and reports a tap made on Telegram
+ * (`reportTelegram`), all through the same door, signed the same way.
  */
 
 const FIXTURES = 'e2e/fixtures/review';
@@ -55,11 +59,19 @@ export async function sendToDoor(api: APIRequestContext, body: string, secret: s
   });
 }
 
-/** Every test card and its pictures, into the studio at `baseURL`. Fails loudly if the door says no. */
+/**
+ * Every test card and its pictures, into the studio at `baseURL`. Fails loudly if the door says no.
+ *
+ * Each call sends a new version of each card (a new `headSha`), as the factory does when the work
+ * changes. Presses belong to one version of the work (FB-276), so every call starts the cards with no
+ * presses, whatever earlier tests pressed, and a retry sees the cards as the factory sent them.
+ */
 export async function putReviewCards(browser: Browser, baseURL: string): Promise<void> {
   const api = await request.newContext({ baseURL });
+  const version = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   try {
-    for (const card of testCards()) {
+    for (const fixture of testCards()) {
+      const card = { ...fixture, headSha: `${fixture.headSha}-${version}` };
       const sent = await sendToDoor(api, JSON.stringify(card));
       if (!sent.ok()) throw new Error(`the door refused ${card.repo}#${card.number}: ${sent.status()} ${await sent.text()}`);
       for (const name of PICTURES[`${card.repo}/${card.number}`] ?? []) {
@@ -75,6 +87,37 @@ export async function putReviewCards(browser: Browser, baseURL: string): Promise
   } finally {
     await api.dispose();
   }
+}
+
+/** One press, as the stand-in collects it (`docs/factory-cards.md`, "collect"). */
+export interface CollectedPress {
+  id: string;
+  venture: string;
+  repo: string;
+  number: number;
+  action: string;
+  by: string;
+  byJohn: boolean;
+  note: string;
+  seenHeadSha: string;
+  pressedAt: string;
+}
+
+/** What the stand-in collects: the presses, and the founders' sign-offs on their own. */
+export async function collect(api: APIRequestContext): Promise<{ presses: CollectedPress[]; signOffs: CollectedPress[]; more: boolean }> {
+  const r = await sendToDoor(api, JSON.stringify({ kind: 'collect' }));
+  if (!r.ok()) throw new Error(`the door refused a collect: ${r.status()} ${await r.text()}`);
+  return r.json();
+}
+
+/** The stand-in says what happened to a press it collected. */
+export async function answerPress(api: APIRequestContext, id: string, outcome: 'done' | 'out-of-date' | 'refused', message: string) {
+  return sendToDoor(api, JSON.stringify({ kind: 'press-result', id, outcome, message }));
+}
+
+/** The stand-in reports a tap John made on Telegram. */
+export async function reportTelegram(api: APIRequestContext, tap: { repo: string; number: number; action: string; at: string; message?: string }) {
+  return sendToDoor(api, JSON.stringify({ kind: 'answered-elsewhere', ...tap }));
 }
 
 /** One test picture, as a PNG of its own size. */

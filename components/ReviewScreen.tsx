@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { Decision, type DecisionResult, type ReviewNotes } from './Decision';
-import { noteFrom, pictureWords, type CardState, type Pin, type PictureName, type ReviewView } from '@/lib/review';
+import { isSettled, noteFrom, pictureWords, type CardState, type Pin, type PictureName, type ReviewView } from '@/lib/review';
 
 /**
  * The Review screen (FB-274), drawn as the "Studios, aligned" canvas draws it, in the Bruntsfield
@@ -49,8 +49,18 @@ function longDay(iso: string): string {
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** John's other presses, as the screen names them once made (FB-276). */
+const DECIDED: Record<Extract<CardState, { kind: 'decided' }>['action'], string> = {
+  stop: 'Stopped',
+  reject: 'Rejected',
+  'try-again': 'Sent to try again',
+  split: 'Sent to be split',
+};
+
 /** The state, as the flag at the top of the screen says it. */
 function stateFlag(state: CardState, isJohn: boolean): { tone: string; text: string } {
+  // The box said the press did nothing: the card is out of date, and says so first.
+  if ('answer' in state && state.answer && state.answer.outcome !== 'done') return { tone: 'is-attention', text: 'Nothing was done' };
   switch (state.kind) {
     case 'finished':
       return { tone: 'is-attention', text: 'Ready for review' };
@@ -59,7 +69,11 @@ function stateFlag(state: CardState, isJohn: boolean): { tone: string; text: str
     case 'sent-back':
       return { tone: 'is-attention', text: 'Sent back' };
     case 'approved':
-      return { tone: 'is-ok', text: 'Part of the product' };
+      return state.answer ? { tone: 'is-ok', text: 'Part of the product' } : { tone: 'is-working', text: 'Approved · waiting for the factory' };
+    case 'decided':
+      return state.answer
+        ? { tone: 'is-attention', text: DECIDED[state.action] }
+        : { tone: 'is-working', text: `${DECIDED[state.action]} · waiting for the factory` };
   }
 }
 
@@ -87,7 +101,7 @@ export function ReviewScreen({ view }: { view: ReviewView }) {
 
   const shown = pictureName(when, size);
   const picture = view.pictures.find((p) => p.name === shown) ?? null;
-  const settled = state.kind === 'sent-back' || state.kind === 'approved';
+  const settled = isSettled(state);
   // Notes go with a press, so they are offered only to someone who still has one to make: not once
   // the card is settled, and not to a founder who has already signed it off.
   const canNote = !settled && !(state.kind === 'signed-off' && !isJohn);
@@ -129,11 +143,12 @@ export function ReviewScreen({ view }: { view: ReviewView }) {
   const decided = (r: DecisionResult) => {
     const at = new Date().toISOString();
     if (r.decided === 'send-back') {
-      setState({ kind: 'sent-back', by: 'you', at, note: reviewNotes?.text ?? '', signedOffBy: state.kind === 'signed-off' ? state.by : null });
+      setState({ kind: 'sent-back', by: 'you', at, note: reviewNotes?.text ?? '', signedOffBy: state.kind === 'signed-off' ? state.by : null, answer: null });
     } else if (r.signedOff) {
       setState({ kind: 'signed-off', by: 'you', at, note: own });
     } else {
-      setState({ kind: 'approved', by: 'you', at, signedOffBy: state.kind === 'signed-off' ? state.by : null });
+      // Recorded, not yet done: the factory makes it part of the product, and says so (FB-276).
+      setState({ kind: 'approved', by: 'you', at, signedOffBy: state.kind === 'signed-off' ? state.by : null, answer: null });
     }
     setPins([]);
     setWhole('');
@@ -379,15 +394,20 @@ export function ReviewScreen({ view }: { view: ReviewView }) {
 
 /** The last line of "Follow the change": where it stands now, for whoever is reading. */
 function trailLast(state: CardState, isJohn: boolean): string {
+  // What the factory said, when it says the press did nothing. When it did it, the line says so already.
+  const said = 'answer' in state && state.answer && state.answer.outcome !== 'done' ? ` ${state.answer.message}` : '';
   switch (state.kind) {
     case 'finished':
       return isJohn ? 'Waiting for the founder’s sign-off. You can decide now.' : 'Waiting for your sign-off.';
     case 'signed-off':
       return state.by === 'you' ? 'Signed off by you. Waiting for John.' : `Signed off by ${state.by}. Waiting for your decision.`;
     case 'sent-back':
-      return `Sent back by ${state.by}. Your team is on it.`;
+      return said ? `Sent back by ${state.by}.${said}` : `Sent back by ${state.by}. Your team is on it.`;
     case 'approved':
-      return `Made part of the product by ${state.by === 'you' ? 'you' : state.by}.`;
+      if (!state.answer) return `Approved by ${state.by}. Waiting for the factory to make it part of the product.`;
+      return said ? `Approved by ${state.by}.${said}` : `Made part of the product by ${state.by}.`;
+    case 'decided':
+      return `${DECIDED[state.action]} by ${state.by}.${state.answer ? said : ' Waiting for the factory.'}`;
   }
 }
 
@@ -420,7 +440,7 @@ function DecisionPanel({
       <section className="bs-decision rv-decision" aria-label="Sent back" data-testid="review-decision">
         <div className="bs-decision__head"><span className="label rv-head-attention">Sent back</span><span className="mono rv-quiet">{day(state.at)}</span></div>
         <div className="rv-flags"><span className="bs-flag is-attention">Sent back by {state.by}</span></div>
-        <p className="ui rv-ink">Your team has the notes and starts again. It comes back here when they finish.</p>
+        {state.answer ? <BoxSaid answer={state.answer} /> : <p className="ui rv-ink">Your team has the notes and starts again. It comes back here when they finish.</p>}
         {state.note ? <p className="ui rv-theirs__text" data-testid="review-sent-note">{state.note}</p> : null}
         <NextLink view={view} />
       </section>
@@ -428,14 +448,32 @@ function DecisionPanel({
   }
 
   if (state.kind === 'approved') {
+    const done = state.answer?.outcome === 'done';
+    const head = done ? 'Part of the product' : state.answer ? 'Nothing was done' : 'Approved';
     return (
-      <section className="bs-decision is-done rv-decision" aria-label="Part of the product" data-testid="review-decision">
-        <div className="bs-decision__head"><span className="label rv-head-ok">Part of the product</span><span className="mono rv-quiet">{day(state.at)}</span></div>
+      <section className={`bs-decision${done ? ' is-done' : ''} rv-decision`} aria-label={head} data-testid="review-decision">
+        <div className="bs-decision__head"><span className={`label ${state.answer && !done ? 'rv-head-attention' : 'rv-head-ok'}`}>{head}</span><span className="mono rv-quiet">{day(state.at)}</span></div>
         <div className="rv-flags">
           {state.signedOffBy ? <span className="bs-flag is-ok">Signed off by {state.signedOffBy}</span> : null}
           <span className="bs-flag is-ok">Approved by {state.by === 'you' ? 'you' : state.by}</span>
         </div>
-        <p className="ui rv-ink">Nothing more is needed. It appears in What happened.</p>
+        {state.answer ? <BoxSaid answer={state.answer} /> : (
+          <p className="ui rv-ink">The factory makes it part of the product next. This page says when it has.</p>
+        )}
+        {done ? <p className="ui rv-ink">Nothing more is needed. It appears in What happened.</p> : null}
+        <NextLink view={view} />
+      </section>
+    );
+  }
+
+  if (state.kind === 'decided') {
+    // Stop, Reject, Try again or Split it, pressed here or on Telegram (FB-276). Drawn as a Send back is.
+    const words = DECIDED[state.action];
+    return (
+      <section className="bs-decision rv-decision" aria-label={words} data-testid="review-decision">
+        <div className="bs-decision__head"><span className="label rv-head-attention">{words}</span><span className="mono rv-quiet">{day(state.at)}</span></div>
+        <div className="rv-flags"><span className="bs-flag is-attention">{words} by {state.by}</span></div>
+        {state.answer ? <BoxSaid answer={state.answer} /> : <p className="ui rv-ink">The factory does this next. This page says when it has.</p>}
         <NextLink view={view} />
       </section>
     );
@@ -489,6 +527,11 @@ function DecisionPanel({
       </p>
     </section>
   );
+}
+
+/** What the factory said happened, once it has (FB-276). */
+function BoxSaid({ answer }: { answer: NonNullable<Extract<CardState, { kind: 'approved' }>['answer']> }) {
+  return <p className="ui rv-ink" data-testid="review-answer" data-outcome={answer.outcome}>{answer.message}</p>;
 }
 
 function NextLink({ view, primary = false }: { view: ReviewView; primary?: boolean }) {

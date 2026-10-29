@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The server actions, replaced: these tests are about what the component does with their answer.
-const { acceptWork, sendBackWork } = vi.hoisted(() => ({ acceptWork: vi.fn(), sendBackWork: vi.fn() }));
+const { acceptWork, sendBackWork, pressFactoryCard } = vi.hoisted(() => ({ acceptWork: vi.fn(), sendBackWork: vi.fn(), pressFactoryCard: vi.fn() }));
 vi.mock('@/app/actions/work', () => ({ acceptWork, sendBackWork }));
+vi.mock('@/app/actions/press', () => ({ pressFactoryCard }));
 
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -27,6 +28,7 @@ const SENT = { ok: true, message: 'Sent. Your team picks this up on its next wak
 beforeEach(() => {
   acceptWork.mockReset();
   sendBackWork.mockReset();
+  pressFactoryCard.mockReset();
 });
 
 describe('a press', () => {
@@ -56,6 +58,17 @@ describe('a press', () => {
     acceptWork.mockResolvedValue(SIGNED_OFF);
     await press('arca', WORK, 'accept', '1. On the "after" picture: shorter.');
     expect(acceptWork).toHaveBeenCalledWith('arca', 'arca', 10, 'abc1234', '1. On the "after" picture: shorter.');
+  });
+
+  it("the Review screen's presses go to the press door, never to acceptWork or sendBackWork (FB-276)", async () => {
+    pressFactoryCard.mockResolvedValue(SIGNED_OFF);
+    expect(await press('arca', WORK, 'accept', 'Lovely.', true)).toEqual({ ...SIGNED_OFF, decided: 'accept' });
+    expect(pressFactoryCard).toHaveBeenCalledWith('arca', 'arca', 10, 'accept', 'Lovely.', 'abc1234');
+    pressFactoryCard.mockResolvedValue(SENT);
+    await press('arca', WORK, 'send-back', 'Shorter.', true);
+    expect(pressFactoryCard).toHaveBeenLastCalledWith('arca', 'arca', 10, 'send-back', 'Shorter.', 'abc1234');
+    expect(acceptWork).not.toHaveBeenCalled();
+    expect(sendBackWork).not.toHaveBeenCalled();
   });
 
   it('a refused press comes back as it was said, marked with which button it was', async () => {
