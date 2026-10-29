@@ -1,0 +1,32 @@
+{
+  "ref": "ARCA-072",
+  "title": "Prices in pounds for every collector",
+  "state": "finished",
+  "finishedAt": "2026-07-21T09:15:00Z",
+  "headSha": "sha-arca-21",
+  "demo": true,
+  "summary": "Every price on ARCA now shows in pounds, whichever country a collector signs up from.",
+  "changes": [
+    { "label": "Changed", "text": "prices show in pounds everywhere, with the pound sign." },
+    { "label": "Kept", "text": "a collector's own currency still shows beside it, in grey." }
+  ],
+  "reaches": "Every collector who sees a price on ARCA",
+  "checks": { "passed": 3, "total": 3 },
+  "previewUrl": "https://arca-pr-21.up.railway.app",
+  "picturesTakenAt": "2026-07-21T09:15:00Z",
+  "pictures": {
+    "before-computer": { "width": 1440, "height": 1000 },
+    "after-computer": { "width": 1440, "height": 1000 },
+    "before-phone": { "width": 393, "height": 851 },
+    "after-phone": { "width": 393, "height": 851 }
+  },
+  "trail": [
+    { "at": "2026-07-03T10:00:00Z", "tone": "ok", "text": "Filed after a collector in Dublin asked why a price showed in euros." },
+    { "at": "2026-07-21T09:15:00Z", "tone": "ok", "text": "Your team finished it and checked it three ways." }
+  ],
+  "forJohn": {
+    "cost": "$2.10, of a $15 budget",
+    "nextStep": "What to do next: approve it once ARCA's founder has signed it off.",
+    "runUrl": "https://archon.example.invalid/runs/arca-21"
+  }
+}

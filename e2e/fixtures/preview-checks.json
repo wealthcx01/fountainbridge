@@ -1,5 +1,7 @@
 {
   "https://arca-production-4e99.up.railway.app": { "state": "opens" },
   "https://arca-pr-11.up.railway.app": { "state": "opens" },
-  "https://arca-pr-13.up.railway.app": { "state": "does-not-open", "reason": "it is not answering" }
+  "https://arca-pr-13.up.railway.app": { "state": "does-not-open", "reason": "it is not answering" },
+  "https://arca-pr-20.up.railway.app": { "state": "opens" },
+  "https://arca-pr-21.up.railway.app": { "state": "does-not-open", "reason": "it is not answering" }
 }

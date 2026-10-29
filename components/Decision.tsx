@@ -4,6 +4,7 @@ import { useState, useTransition, type ReactNode } from 'react';
 import { acceptWork, sendBackWork, type AcceptResult } from '@/app/actions/work';
 import { noteDecision } from '@/lib/decided';
 import { toneColor } from '@/lib/status';
+import { OUT_OF_DATE } from '@/lib/review';
 import { Mark } from './Mark';
 
 /**
@@ -22,6 +23,10 @@ import { Mark } from './Mark';
  * lay it out differently. FB-273 changed no words and no layout, so each screen picks its `look`,
  * and the look decides only the words, the test ids and where things sit. What a press does is the
  * same for all of them.
+ *
+ * The Review screen (FB-274) is the fourth look, `review`. It is the one look where notes go with an
+ * Accept as well as a Send back, because a founder may sign off and still leave notes for their
+ * team. Its notes are written on the screen's pictures, so the screen hands them in (`reviewNotes`).
  *
  * ## What a founder's Accept says
  *
@@ -52,8 +57,9 @@ export interface DecisionWork {
 export async function press(ventureId: string, work: DecisionWork, decided: Decided, note = ''): Promise<DecisionResult> {
   const r = decided === 'accept'
     // The commit they were shown, when the screen showed one. `acceptWork` refuses if something
-    // has been pushed since, so nobody accepts a change that landed after they looked.
-    ? noteDecision(await acceptWork(ventureId, work.repo, work.number, work.headSha ?? undefined))
+    // has been pushed since, so nobody accepts a change that landed after they looked. A note goes
+    // with an Accept only from the Review screen, where a founder may sign off and still leave notes.
+    ? noteDecision(await acceptWork(ventureId, work.repo, work.number, work.headSha ?? undefined, ...((note ? [note] : []) as [string?])))
     : noteDecision(await sendBackWork(ventureId, work.repo, work.number, note));
   return { ...r, decided };
 }
@@ -85,7 +91,17 @@ function stateLabel(result: DecisionResult | null): string {
   return result?.signedOff ? 'signed off' : 'accepted';
 }
 
-type Look = 'work' | 'tickets' | 'drawer';
+type Look = 'work' | 'tickets' | 'drawer' | 'review';
+
+/** The Review screen's words (FB-274). It writes its notes itself, on the pictures, so it hands them in. */
+export interface ReviewNotes {
+  /** The whole note, ready to send: every pin, then the note about the whole thing. */
+  text: string;
+  /** "Send it back with my 3 notes", "with Ross's notes": what the Send back button says goes with it. */
+  sendBackLabel: string;
+  /** The same, short enough for a phone's bottom bar. */
+  sendBackShort: string;
+}
 
 export function Decision({
   look,
@@ -94,6 +110,8 @@ export function Decision({
   merged = false,
   blocked = null,
   suggestion = null,
+  isJohn = false,
+  reviewNotes = null,
   onDecided,
 }: {
   /** Which screen this is on. Sets the words, the test ids and the layout; never what a press does. */
@@ -106,6 +124,10 @@ export function Decision({
   blocked?: ReactNode;
   /** Work page: a first line of the note, already written, for when the page named what to ask. */
   suggestion?: string | null;
+  /** Review screen: John's Accept makes it part of the product; a founder's is their sign-off. */
+  isJohn?: boolean;
+  /** Review screen: the notes written on its pictures and in its box. */
+  reviewNotes?: ReviewNotes | null;
   /** Called once a press has gone through. The Tickets screen shows its outcome from this. */
   onDecided?: (result: DecisionResult) => void;
 }) {
@@ -120,9 +142,12 @@ export function Decision({
 
   const go = (decided: Decided) => {
     setPressing(decided);
+    // The Review screen's notes go with either press. Everywhere else a note goes only with a Send
+    // back: a note typed and not sent must not ride along with an Accept.
+    const text = look === 'review' ? (reviewNotes?.text ?? '') : decided === 'send-back' ? note : '';
     startTransition(async () => {
       setError(null);
-      const r = await press(ventureId, work, decided, note);
+      const r = await press(ventureId, work, decided, text);
       setResult(r);
       if (r.ok) onDecided?.(r);
       else setError(r.message);
@@ -186,6 +211,44 @@ export function Decision({
             {result.message}
           </span>
         ) : null}
+      </div>
+    );
+  }
+
+  if (look === 'review') {
+    // A card answered somewhere else has nothing left to press here: say so, and draw no buttons.
+    if (result && !result.ok && result.message === OUT_OF_DATE) {
+      return <p className="rv-decide__msg is-refused" data-testid="review-msg" role="status"><Mark />{result.message}</p>;
+    }
+    const sendBack = reviewNotes?.text.trim() ? reviewNotes : null;
+    return (
+      <div className="rv-decide">
+        {error ? <p className="rv-decide__msg is-refused" data-testid="review-msg" role="status"><Mark />{error}</p> : null}
+        <div className="rv-decide__buttons">
+          <button
+            type="button"
+            className="bs-btn bs-btn--primary rv-decide__accept"
+            data-testid="review-accept"
+            disabled={pending}
+            onClick={() => go('accept')}
+          >
+            {busy('accept') ? 'Working…' : isJohn ? 'Make it part of my product →' : 'Sign it off →'}
+          </button>
+          <button
+            type="button"
+            className="bs-btn rv-decide__sendback"
+            data-testid="review-sendback"
+            disabled={pending || !sendBack}
+            onClick={() => go('send-back')}
+          >
+            {busy('send-back') ? 'Sending…' : (
+              <>
+                <span className="rv-wide">{sendBack?.sendBackLabel ?? 'Send it back with a note'}</span>
+                <span className="rv-narrow">{sendBack?.sendBackShort ?? 'Send it back'}</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     );
   }
