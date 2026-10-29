@@ -13,6 +13,8 @@
  * Plain JavaScript, not TypeScript, because the test copy is started with plain `node`.
  */
 
+import { resolve } from 'node:path';
+
 /**
  * FB-178: when `scale` names a directory, the four sources that GROW with a venture (tickets, pull
  * requests, run reports, work) are read from it instead of from the committed fixture.
@@ -41,6 +43,9 @@ export function studioTestEnv({ scale, failReads = '' } = {}) {
     RUNREPORTS_FIXTURE_DIR: backlog(scale, 'runreports', 'e2e/fixtures/runreports'),
     // FB-064. Gated on E2E_TEST_LOGIN at the call site as well — this surface can MERGE.
     WORK_FIXTURE_DIR: backlog(scale, 'work', 'e2e/fixtures/work'),
+    // FB-274: the factory's finished cards, for the Review screen, until the card store (FB-275).
+    // Invented work on invented screens; the pictures are drawn by the studio, never stored here.
+    REVIEW_FIXTURE_DIR: 'e2e/fixtures/review',
     // FB-106: the venture's corpus, offline.
     KNOWLEDGE_FIXTURE_DIR: 'e2e/fixtures/knowledge',
     READINGS_FIXTURE_DIR: 'e2e/fixtures/readings',
@@ -100,4 +105,15 @@ export function studioTestEnv({ scale, failReads = '' } = {}) {
     GOOGLE_CLIENT_ID: 'e2e-dummy',
     GOOGLE_CLIENT_SECRET: 'e2e-dummy',
   };
+}
+
+/**
+ * FB-274: the state folder of the studio under test, where it writes each press as one line.
+ *
+ * Playwright's own server is given `e2e/__state__`; a test copy prints its own, and the specs read
+ * it from FACTORY_RUNTIME_STATE when they run against that copy (`E2E_BASE_URL`).
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function stateFolder(env = process.env) {
+  return resolve(env.FACTORY_RUNTIME_STATE?.trim() || 'e2e/__state__');
 }

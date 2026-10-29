@@ -133,7 +133,7 @@ describe('loadApprovals verifies the grant rather than trusting the file', () =>
   const REPO = 'wealthcx01/arca';
   const venture = { id: 'arca', repos: [REPO] } as never;
   const sign = (id: string, sha: string, approver: string) => attestationFor(REPO, id, sha, approver, SECRET);
-  const goodGrant = (id = 'a1', sha = 'sha-proposal', approver = 'ross@b.capital') =>
+  const goodGrant = (id = 'a1', sha = 'sha-proposal', approver = 'arca.founder@b.capital') =>
     ({ approver, proposal_sha: sha, attestation: sign(id, sha, approver), granted_at: '2026-07-30T11:00:00Z' });
 
   const source = (files: Record<string, unknown>): ApprovalSource => ({
@@ -147,7 +147,7 @@ describe('loadApprovals verifies the grant rather than trusting the file', () =>
     const [a] = await loadApprovals(venture, source({ proposal: { summary: 'Send it' }, grant: goodGrant() }), undefined, SECRET);
     expect(a.status).toBe('granted');
     expect(a.grantProvenance).toBe('attested');
-    expect(a.provenance?.text).toContain('ross@b.capital');
+    expect(a.provenance?.text).toContain('arca.founder@b.capital');
     expect(a.provenance?.text).toContain('30 July 2026');
   });
 

@@ -52,6 +52,12 @@ describe('a press', () => {
     expect(r).toEqual({ ...SENT, decided: 'send-back' });
   });
 
+  it('Accept with notes passes them on, for the Review screen (FB-274)', async () => {
+    acceptWork.mockResolvedValue(SIGNED_OFF);
+    await press('arca', WORK, 'accept', '1. On the "after" picture: shorter.');
+    expect(acceptWork).toHaveBeenCalledWith('arca', 'arca', 10, 'abc1234', '1. On the "after" picture: shorter.');
+  });
+
   it('a refused press comes back as it was said, marked with which button it was', async () => {
     acceptWork.mockResolvedValue({ ok: false, message: 'You need to sign in.' });
     expect(await press('arca', WORK, 'accept')).toEqual({ ok: false, message: 'You need to sign in.', decided: 'accept' });
@@ -106,6 +112,21 @@ describe('each screen, before anyone presses', () => {
     expect(ids(html)).toEqual(['detail-approve', 'detail-refuse']);
     expect(html).toContain('>Make it part of my product<');
     expect(html).toContain('>Refuse, and say why<');
+  });
+
+  it("the Review screen, for a founder: Sign it off, and Send back off until there is a note (FB-274)", () => {
+    const html = draw({ look: 'review' });
+    expect(ids(html)).toEqual(['review-accept', 'review-sendback']);
+    expect(html).toContain('>Sign it off →<');
+    expect(html).toMatch(/data-testid="review-sendback"[^>]*disabled/);
+  });
+
+  it("the Review screen, for John: his Accept makes it part of the product (FB-274)", () => {
+    const notes = { text: '1. A note', sendBackLabel: 'Send it back with my 1 note', sendBackShort: 'Send it back' };
+    const html = draw({ look: 'review', isJohn: true, reviewNotes: notes });
+    expect(html).toContain('>Make it part of my product →<');
+    expect(html).toContain('>Send it back with my 1 note<');
+    expect(html).not.toMatch(/data-testid="review-sendback"[^>]*disabled/);
   });
 
   it('the drawer: Accept and Send back', () => {

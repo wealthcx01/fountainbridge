@@ -87,7 +87,7 @@ Take a Hetzner **snapshot** after the [MANUAL] tooling is in place to shortcut f
 ## [MANUAL] Founder identity (Google Workspace)
 
 Per D3/GTM (`docs/research-gtm.md` §7): the founder operates on a **Bruntsfield-assigned
-venture-domain Workspace account** (e.g. `ross@thereset.com`), never a personal `@gmail.com`. Create
+venture-domain Workspace account** (e.g. `founder@example-venture.com`), never a personal `@gmail.com`. Create
 it in Google Workspace, hand it to the founder to manage, and record it as `founder.workspace_email`
 in the manifest. Agent *send* identities (Phase 4b) are provisioned the same way. The provision
 script hard-fails if the manifest's `workspace_email` is an `@gmail.com`.

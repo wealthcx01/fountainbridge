@@ -27,6 +27,8 @@ coverage/
 playwright-report/
 test-results/
 e2e/__screenshots__/
+# FB-274: the presses the UI gate's studio records, read back by e2e/review.spec.ts.
+e2e/__state__/
 .playwright/
 
 # Editor / OS

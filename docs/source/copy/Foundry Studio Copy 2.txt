@@ -191,7 +191,7 @@ Value is not features. It is a measurable change in the customer's world.
 
 Map the full life-cycle use case — how they discover, buy, onboard, use, pay, and get value, start to finish. Gaps here are where ventures leak.
 Spec the product at a high level — a picture of what it does, not how it's built.
-Quantify the value proposition — in the customer's own terms and numbers. "Saves Ross six hours a week and one dropped client a month" beats "increases efficiency." If you can't quantify it, you're guessing at value.
+Quantify the value proposition — in the customer's own terms and numbers. "Saves the founder six hours a week and one dropped client a month" beats "increases efficiency." If you can't quantify it, you're guessing at value.
 Name the next ten customers — real people who fit the persona. Not a list you hope exists; ten you could email today. If you can't, the beachhead is wrong.
 3 — How does your customer acquire your product?
 Define your core — the one thing you do better than anyone that is hard to copy. Everything else you can buy, borrow, or defer. (This is where the moats chapter starts.)

@@ -89,7 +89,7 @@ test.describe('the desk', () => {
     // rather than as ARCA's founder, so it names them — "Founder: you" is what their own founder
     // reads (FB-100, item 7: the studio does not introduce someone to themselves).
     const meta = page.getByTestId('board-founder');
-    await expect(meta).toContainText('Founder: John Gallagher');
+    await expect(meta).toContainText('Founder: Founder');
     await expect(meta).toContainText('updated');
     await expect(meta.getByTestId('refresh')).toBeVisible();
 

@@ -145,7 +145,7 @@
           "type": "string"
         },
         "workspace_email": {
-          "description": "Bruntsfield-assigned venture-domain Google Workspace account (e.g. ross@thereset.com). Never a personal @gmail.com.",
+          "description": "Bruntsfield-assigned venture-domain Google Workspace account (e.g. founder@example-venture.com). Never a personal @gmail.com.",
           "format": "email",
           "title": "Workspace Email",
           "type": "string"

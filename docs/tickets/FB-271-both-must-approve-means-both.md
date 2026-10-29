@@ -28,12 +28,12 @@ either order.**
    signed record, `approvals/<id>/first-approval.json`, on the same approvals ref. It says who
    approved and which version of the request they read. No grant is written, so nothing can go out.
    They see: "Approved by you. Waiting for Bruntsfield to approve it too. Nothing goes out until
-   they do." (or "Waiting for Ross, the founder, …" when Bruntsfield went first).
+   they do." (or "Waiting for <their name>, the founder, …" when Bruntsfield went first).
 2. **The second approval must come from the other side.** When the other person approves the same
    version, the studio writes the grant exactly as before. The grant format and the executor are
    unchanged. The grant names the second person, and also lists the first as `first_approver`. The
    signed `approval.granted` event in the studio's record names both people, and "What happened"
-   says "Ross and John approved it."
+   names both of them: "<the founder> and John approved it."
 3. **The first half has its own signature.** The signed text includes the word `first-approval`,
    the same way a refusal's includes `refused` (FB-183). So a first half can never be renamed
    `grant.json` and pass as a grant. Not in the studio, and not in the executor.
@@ -91,7 +91,7 @@ That is a fact about who those ventures' founder is, not something code can fix.
 
 ## Follow-ups (not in this PR)
 
-- **Show the first half on the card itself.** After a reload, the card does not yet say "Ross has
+- **Show the first half on the card itself.** After a reload, the card does not yet say "the founder has
   approved; waiting for Bruntsfield". The person who still has to approve sees the normal Approve
   button. The person who approved first is told when they press it again. Reading
   `first-approval.json` into the card is a separate, screen-level change.

@@ -25,7 +25,7 @@ describe('where the executor sends its GitHub token (FB-171 review)', () => {
 });
 
 const NOW = '2026-07-31T12:00:00Z';
-const ok = { ok: true, approver: 'ross@b.capital' };
+const ok = { ok: true, approver: 'founder@b.capital' };
 
 describe('the executor records what actually happened', () => {
   it('records a THROWING action as failed, never as executed', async () => {
@@ -46,7 +46,7 @@ describe('the executor records what actually happened', () => {
       performAction: async () => ({ performed: true }),
     });
     expect(out[0].status).toBe('executing');
-    expect(out[1]).toMatchObject({ status: 'executed', approver: 'ross@b.capital' });
+    expect(out[1]).toMatchObject({ status: 'executed', approver: 'founder@b.capital' });
   });
 
   it('refuses an unverified grant without ever calling the action', async () => {
@@ -78,11 +78,11 @@ describe('the attestation formula matches the studio', () => {
 });
 
 describe('the ActiveGraph gate (FB-171)', () => {
-  const fileYes = { ok: true, approver: 'ross@b.capital' };
+  const fileYes = { ok: true, approver: 'founder@b.capital' };
   const fileNo = { ok: false, reason: 'grant attestation is missing or invalid' };
-  const graphYes = { ok: true, approver: 'Ross@B.capital', reason: '', retry: false };
+  const graphYes = { ok: true, approver: 'Founder@B.capital', reason: '', retry: false };
   const graphWaiting = { ok: false, approver: null, reason: 'nobody has approved it yet', retry: true };
-  const graphRefused = { ok: false, approver: null, reason: 'it was refused by ross@b.capital', retry: false };
+  const graphRefused = { ok: false, approver: null, reason: 'it was refused by founder@b.capital', retry: false };
 
   it('is off unless someone turns it on, and a typo turns it fully on rather than off', () => {
     expect(graphGateMode(undefined)).toBe('off');

@@ -10,7 +10,7 @@ Decision D4 (v2): bcap-contracts is the shared type system where studios meet Ho
 
 ## Scope
 Add models (JSON Schema export + generated TS types per the package's existing pipeline):
-- `Venture` — id, name, status, tier3_ref?, **vps** {host, provider, provisioned_at}, **founder** {name, github_login, workspace_email — the Bruntsfield-assigned venture-domain Google account, e.g. ross@thereset.com; never a personal @gmail.com}, **approval_matrix** (D7: rules mapping change class — product-visible / platform-infra / high-blast-radius — to required approver(s): founder | bruntsfield | dual), repos[], lanes[], departments[], connectors[].
+- `Venture` — id, name, status, tier3_ref?, **vps** {host, provider, provisioned_at}, **founder** {name, github_login, workspace_email — the Bruntsfield-assigned venture-domain Google account, e.g. founder@example-venture.com; never a personal @gmail.com}, **approval_matrix** (D7: rules mapping change class — product-visible / platform-infra / high-blast-radius — to required approver(s): founder | bruntsfield | dual), repos[], lanes[], departments[], connectors[].
 - `Lane` — id, venture_id, repo, tmux binding, standing_order, status.
 - `Ticket` — id (e.g. FB-001), repo, path, title, phase, depends_on[], status (todo/in-progress/pr-open/done), branch, pr_url?, body_md.
 - `Approval` — id, venture_id, kind (`pr` | `activegraph_policy` — kind list extensible pending FB-012), source_ref, summary, requested_at, state (pending/approved/rejected), decided_by?, decided_at?.

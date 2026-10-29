@@ -11,7 +11,7 @@ The Handbook explains the *philosophy* — gates, moats, the playbook — and ne
 founder's first practical questions have no page: How do I get work done here? What happens after I
 press send in the composer? What does "Needs you" want from me? What is a good ask versus a vague
 one? Who is "the team"? John built most of this platform and still finds the journey confusing;
-Ross arrives with none of that context.
+The founder arrives with none of that context.
 
 ## What ships
 

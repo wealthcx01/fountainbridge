@@ -257,7 +257,10 @@ async function start(args) {
     for (const [key, value] of Object.entries(process.env)) {
       if (key.startsWith('FACTORY_RUNTIME_')) env[key] = value;
     }
-    Object.assign(env, studioTestEnv(), { DATABASE_URL: url, PORT: port });
+    // The state folder, by name, so the studio can write each press there as one line (FB-274,
+    // harness/END-TO-END.md: "each decision and press is also written as one line to a file in its
+    // state folder").
+    Object.assign(env, studioTestEnv(), { DATABASE_URL: url, PORT: port, FACTORY_RUNTIME_STATE: state });
     const sha = commit();
     if (sha) env.BUILD_COMMIT_SHA = sha;
 

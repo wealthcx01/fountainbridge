@@ -1,4 +1,4 @@
-# ARCA — the dogfood venture (Decision D5). A real repo (wealthcx01/arca) with John as founder; the
+# ARCA — the dogfood venture (Decision D5). A real repo (wealthcx01/arca); the
 # graded-trading-card analytics terminal. Its ticket backlog lives on the default branch (FB-030), it
 # is onboarded in the studio, and it runs on its own Hetzner box (FB-019/FB-011) with the LibreChat
 # conversational composer (FB-025) at chat.arca.bruntsfield.capital.
@@ -21,14 +21,16 @@ vps:
   provisioned_at: "2026-07-28T16:00:00Z"
 
 founder:
-  name: John Gallagher
+  # "Founder" is a placeholder for the demo (John, 29 October 2026). Bruntsfield's own authority
+  # is the approval_matrix below, not this field.
+  name: Founder
   github_login: wealthcx01
   # The founder account, deliberately SEPARATE from John's Bruntsfield admin address (FB-090).
   # Both john@ and john.gallagher@ are in STUDIO_ADMIN_EMAILS, so signing in with either shows the
   # Bruntsfield view — every venture, the activity page, repository health, the wiring warnings.
   # Useful for running the studio; useless for judging what a founder actually experiences.
   # This address is in no admin list, so it sees ARCA and nothing else — the same shape of access
-  # Ross has on THE RESET. Shared Bruntsfield Workspace until spin-out (D3) — never @gmail.com.
+  # THE RESET's founder has there. Shared Bruntsfield Workspace until spin-out (D3) — never @gmail.com.
   workspace_email: arca.founder@bruntsfield.capital
 
 approval_matrix:

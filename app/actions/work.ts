@@ -23,6 +23,10 @@ import { GitHubClient, GitHubError } from '@/lib/github';
 import { approvalRepos } from '@/lib/venture-repos';
 import { acceptability } from '@/lib/work';
 import { githubWorkSource, loadWork } from '@/lib/work-load';
+import { pressRecordFile, pressesFor, recordPress, type PressLine } from '@/lib/press-record';
+import { cardOf, cardSource } from '@/lib/review-load';
+import { isSettled, OUT_OF_DATE, stateAfter } from '@/lib/review';
+import type { VentureSummary } from '@/lib/ventures';
 
 export interface AcceptResult {
   ok: boolean;
@@ -77,6 +81,9 @@ export async function sendBackWork(
     return { ok: false, message: 'That work is not part of this venture.' };
   }
 
+  const card = cardInTestCopy(venture, repo, number);
+  if (card) return pressCard(card, { venture: venture.id, repo, number, by: email, decision: 'sent-back', note: text, seen: null });
+
   const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
   if (!writeToken) {
     return { ok: false, message: 'This studio is not set up to send work back yet — an admin needs to finish setting it up.' };
@@ -108,8 +115,17 @@ export async function acceptWork(
    * must still be current — otherwise they would be accepting something they never saw.
    */
   seenHeadSha?: string,
+  /**
+   * Notes that go with the Accept (FB-274): the Review screen lets a founder sign off and still
+   * leave notes for their team. Written beside the sign-off, or beside John's approval.
+   */
+  note = '',
 ): Promise<AcceptResult> {
   if (!Number.isInteger(number) || number <= 0) return { ok: false, message: 'That work could not be found.' };
+  const text = note.trim();
+  if (text.length > NOTE_LIMIT) {
+    return { ok: false, message: `Those notes are too long — keep them under ${NOTE_LIMIT} characters.` };
+  }
 
   const session = await auth();
   const email = session?.user?.email;
@@ -124,6 +140,14 @@ export async function acceptWork(
   }
   if (!approvalRepos(venture).includes(repo)) {
     return { ok: false, message: 'That work is not part of this venture.' };
+  }
+
+  const card = cardInTestCopy(venture, repo, number);
+  if (card) {
+    return pressCard(card, {
+      venture: venture.id, repo, number, by: email,
+      decision: access.isAdmin ? 'approved' : 'signed-off', note: text, seen: seenHeadSha ?? null,
+    });
   }
 
   const writeToken = process.env.STUDIO_APPROVAL_GITHUB_TOKEN;
@@ -153,7 +177,8 @@ export async function acceptWork(
     // The commit they read goes in the record, so John knows exactly what was signed off.
     const body =
       `**Signed off by ${email}, waiting for John.**\n\n` +
-      `They read commit \`${work.headSha.slice(0, 7)}\`. Nothing has been merged: only John's approval merges this.`;
+      `They read commit \`${work.headSha.slice(0, 7)}\`. Nothing has been merged: only John's approval merges this.` +
+      (text ? `\n\n**Their notes for the team:**\n\n${text}` : '');
     try {
       await writer.commentOnPullRequest(full, number, body);
       return { ok: true, signedOff: true, message: 'Signed off by you, waiting for John. Nothing changes in your product until he approves it.' };
@@ -162,6 +187,16 @@ export async function acceptWork(
         return { ok: false, message: 'The studio is not allowed to write to this repository. An admin needs to widen its access.' };
       }
       return { ok: false, message: 'Something went wrong recording your sign-off. Nothing was recorded — try again.' };
+    }
+  }
+
+  // John's own notes go on the work before it merges, where the team reads them. If they cannot be
+  // written, nothing is merged: an approval must not quietly drop what he asked for.
+  if (text) {
+    try {
+      await writer.commentOnPullRequest(full, number, `**Notes from ${email}, with their approval:**\n\n${text}`);
+    } catch {
+      return { ok: false, message: 'Your notes could not be written, so nothing was merged. Try again.' };
     }
   }
 
@@ -185,4 +220,41 @@ export async function acceptWork(
     }
     return { ok: false, message: 'Something went wrong accepting this. Nothing was merged.' };
   }
+}
+
+/**
+ * A finished card from the factory, in a test copy (FB-274).
+ *
+ * The Review screen's cards exist only in the test rig until the card store lands (FB-275), and a
+ * press on one never reaches GitHub: it is written as one line to the test copy's state folder
+ * (`lib/press-record.ts`), as `harness/END-TO-END.md` says. FB-276 replaces this with the press
+ * door, where the planning box collects it. Null for everything else, so every other Accept and
+ * Send back works exactly as before, and in production this is always null.
+ */
+function cardInTestCopy(venture: VentureSummary, repo: string, number: number) {
+  const file = pressRecordFile();
+  const card = file ? cardOf(venture, repo, number, cardSource()) : null;
+  return file && card ? { file, card } : null;
+}
+
+/** Record one press on a card, once. The first press that settles a card wins. */
+function pressCard(
+  at: NonNullable<ReturnType<typeof cardInTestCopy>>,
+  press: Omit<PressLine, 'at'>,
+): AcceptResult {
+  const state = stateAfter(pressesFor(at.file, press.repo, press.number));
+  if (isSettled(state)) return { ok: false, message: OUT_OF_DATE };
+  if (press.seen && press.seen !== at.card.headSha) {
+    return { ok: false, message: 'This work changed after the page loaded, so nothing was done. Refresh and look again.' };
+  }
+  if (press.decision === 'signed-off' && state.kind === 'signed-off' && state.by === press.by) {
+    return { ok: true, signedOff: true, message: 'You have already signed this off. It is waiting for John.' };
+  }
+
+  recordPress(at.file, { at: new Date().toISOString(), ...press });
+  if (press.decision === 'sent-back') return { ok: true, message: 'Sent back with your notes. Your team picks them up next.' };
+  if (press.decision === 'signed-off') {
+    return { ok: true, signedOff: true, message: 'Signed off by you, waiting for John. Nothing changes in your product until he approves it.' };
+  }
+  return { ok: true, message: 'Approved. It becomes part of the product.' };
 }
