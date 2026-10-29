@@ -97,7 +97,7 @@ type Look = 'work' | 'tickets' | 'drawer' | 'review';
 export interface ReviewNotes {
   /** The whole note, ready to send: every pin, then the note about the whole thing. */
   text: string;
-  /** "Send it back with my 3 notes", "with Ross's notes": what the Send back button says goes with it. */
+  /** "Send it back with my 3 notes", "with the founder's notes": what the Send back button says goes with it. */
   sendBackLabel: string;
   /** The same, short enough for a phone's bottom bar. */
   sendBackShort: string;

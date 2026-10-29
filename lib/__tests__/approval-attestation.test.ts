@@ -84,11 +84,11 @@ describe('the repo is part of the signed message', () => {
  * grant it can verify.
  */
 describe('dual: both must approve, and one person is one person (FB-271)', () => {
-  const FOUNDER = 'ross@bruntsfield.capital';
+  const FOUNDER = 'arca.founder@bruntsfield.capital';
   const ADMIN = 'john@bruntsfield.capital';
   const OTHER_ADMIN = 'second.admin@bruntsfield.capital';
   const ADMINS = [ADMIN, OTHER_ADMIN];
-  const dual: VentureSummary = { ...venture, founderName: 'Ross', founderEmail: FOUNDER };
+  const dual: VentureSummary = { ...venture, founderName: 'Founder', founderEmail: FOUNDER };
   const both: VentureSummary = { ...venture, founderName: 'John', founderEmail: ADMIN };
 
   it('nobody can approve a dual decision alone: not the founder, not an admin, not someone who is both', () => {
@@ -106,7 +106,7 @@ describe('dual: both must approve, and one person is one person (FB-271)', () =>
   it('the founder and an admin make a pair, in either order', () => {
     expect(isDualPair(FOUNDER, ADMIN, dual, ADMINS)).toBe(true);
     expect(isDualPair(ADMIN, FOUNDER, dual, ADMINS)).toBe(true);
-    expect(isDualPair(' Ross@Bruntsfield.Capital ', ADMIN, dual, ADMINS)).toBe(true);
+    expect(isDualPair(' ARCA.Founder@Bruntsfield.Capital ', ADMIN, dual, ADMINS)).toBe(true);
   });
 
   it('the same address twice is never a pair, even when it is both founder and admin', () => {
@@ -121,7 +121,9 @@ describe('dual: both must approve, and one person is one person (FB-271)', () =>
 
   it('says who is still needed, by name', () => {
     expect(stillNeededAfter(FOUNDER, dual, ADMINS)).toBe('Bruntsfield');
-    expect(stillNeededAfter(ADMIN, dual, ADMINS)).toBe('Ross, the founder,');
+    expect(stillNeededAfter(ADMIN, dual, ADMINS)).toBe('the founder');
+    const reset = { ...dual, id: 'the-reset', name: 'THE RESET', founderName: 'Ross', founderEmail: 'ross@bruntsfield.capital' };
+    expect(stillNeededAfter(ADMIN, reset, ADMINS)).toBe('Ross, the founder,');
     expect(stillNeededAfter(ADMIN, both, ADMINS)).toBe('someone else at Bruntsfield');
   });
 

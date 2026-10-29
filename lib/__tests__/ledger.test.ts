@@ -17,8 +17,8 @@ const row = (over: Partial<LedgerRow> = {}): LedgerRow => ({
   ventureId: 'arca',
   name: 'ARCA',
   status: 'active',
-  founderName: 'Ross',
-  founderEmail: 'ross@bruntsfield.capital',
+  founderName: 'Founder',
+  founderEmail: 'arca.founder@bruntsfield.capital',
   needsThem: 0,
   underway: 0,
   engine: { state: 'running' as const, text: 'Your team checked in 4 minutes ago.' },
@@ -30,8 +30,8 @@ const row = (over: Partial<LedgerRow> = {}): LedgerRow => ({
 describe('what colour a venture is', () => {
   it('is amber when its founder is the bottleneck', () => {
     expect(rowTone(row({ needsThem: 3 }))).toBe('attention');
-    expect(rowReason(row({ needsThem: 3 }))).toBe('3 things waiting on Ross.');
-    expect(rowReason(row({ needsThem: 1 }))).toBe('1 thing waiting on Ross.');
+    expect(rowReason(row({ needsThem: 3 }))).toBe('3 things waiting on Founder.');
+    expect(rowReason(row({ needsThem: 1 }))).toBe('1 thing waiting on Founder.');
   });
 
   it('is red when its team has stopped', () => {
@@ -94,7 +94,7 @@ describe('what colour a venture is', () => {
 
 describe('what waits on a founder', () => {
   const base = {
-    venture: { id: 'arca', name: 'ARCA', status: 'active', founderName: 'Ross', founderEmail: 'r@x' },
+    venture: { id: 'arca', name: 'ARCA', status: 'active', founderName: 'Founder', founderEmail: 'f@x' },
     underway: 1,
     engine: { state: 'running' as const, text: 'ok' },
     budgets: [],

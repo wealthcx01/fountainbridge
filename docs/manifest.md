@@ -51,7 +51,7 @@ per-venture founder. For the ARCA fixture, John is the founder.
 ### founder.workspace_email — never a personal mailbox
 
 `workspace_email` is a Bruntsfield-assigned account on the venture's Google Workspace domain
-(e.g. `ross@thereset.com`), managed by the founder. It is the studio login (Google OAuth) and the
+(e.g. `founder@example-venture.com`), managed by the founder. It is the studio login (Google OAuth) and the
 venture-scoping key (D6). It must **never** be a personal consumer mailbox — the validator rejects
 `gmail.com` / `googlemail.com` (D3, `docs/research-gtm.md` §1), mirroring the Pydantic contract's
 own guard. FB-011 provisions the real identity.
