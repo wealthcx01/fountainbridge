@@ -95,7 +95,7 @@ test.describe('memory (FB-133)', () => {
     // The composer deposited this one. Not "You" — the machine made that call mid-conversation.
     await expect(page.getByTestId('memory-from-arca/context/sell/brand-positioning.md')).toHaveText('Your composer');
     // Nobody the studio recognises: whoever actually wrote it.
-    await expect(page.getByTestId('memory-from-arca/library/build/set-naming.md')).toHaveText('Ross');
+    await expect(page.getByTestId('memory-from-arca/library/build/set-naming.md')).toHaveText('Founder');
   });
 
   test('a document with a history says Updated, never Added over the date of an edit', async ({ page }) => {

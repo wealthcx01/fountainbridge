@@ -96,7 +96,7 @@ describe('the welcome (FB-143)', () => {
   });
 
   it('invites the founder to hand over what they already have', () => {
-    const body = welcome('ARCA', 'Ross', 'ready').body;
+    const body = welcome('ARCA', 'Founder', 'ready').body;
     expect(body).toContain('waiting for its first piece of work');
     expect(body).toContain('research, notes, a deck');
     expect(body).toContain('becomes what ARCA knows');
@@ -105,7 +105,7 @@ describe('the welcome (FB-143)', () => {
   it('lists what will be here, beside the action rather than instead of it', () => {
     // The design shows both. A founder who presses nothing should still leave knowing what this
     // page is for.
-    const w = welcome('ARCA', 'Ross', 'ready');
+    const w = welcome('ARCA', 'Founder', 'ready');
     expect(w.action).not.toBeNull();
     expect(w.coming).toHaveLength(3);
     expect(w.coming[0]).toContain('office');
@@ -123,7 +123,7 @@ describe('the welcome (FB-143)', () => {
     // The admin ledger's own warning: "Caldera's composer key is not set; its founder meets a dead
     // button on day one." A machine WITH no key is the case a boolean could not express, and it is
     // the one that ships a control that fails on press.
-    const w = welcome('CALDERA', 'Ross', 'no-key');
+    const w = welcome('CALDERA', 'Founder', 'no-key');
     expect(w.action, 'day one offers a control that would fail on press').toBeNull();
     expect(w.body).toContain('cannot reach it yet');
     expect(w.body).toContain('nothing is lost');
@@ -131,7 +131,7 @@ describe('the welcome (FB-143)', () => {
 
   it('never blames the founder for either kind of not-ready', () => {
     for (const wiring of ['no-box', 'no-key'] as const) {
-      const w = welcome('CALDERA', 'Ross', wiring);
+      const w = welcome('CALDERA', 'Founder', wiring);
       expect(w.body).toContain('nothing for you to do');
       expect(w.body).toContain('Bruntsfield');
     }
@@ -140,12 +140,12 @@ describe('the welcome (FB-143)', () => {
 
 describe('greeting someone by name', () => {
   it('uses the first name', () => {
-    expect(firstName('Ross Cameron')).toBe('Ross');
+    expect(firstName('Founder Placeholder')).toBe('Founder');
   });
 
   it('copes with one name, extra spaces, and none at all', () => {
-    expect(firstName('Ross')).toBe('Ross');
-    expect(firstName('  Ross   Cameron ')).toBe('Ross');
+    expect(firstName('Founder')).toBe('Founder');
+    expect(firstName('  Founder   Placeholder ')).toBe('Founder');
     expect(firstName(null)).toBeNull();
     expect(firstName('   ')).toBeNull();
   });

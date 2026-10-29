@@ -36,7 +36,7 @@ Four separate problems.
 not know what CI is and should not need to.
 
 **Every repository reports its branch protection.** `unprotected` is true, is an engineering concern,
-and is genuinely important — to Bruntsfield, not to Ross. It belongs on an operations surface.
+and is genuinely important — to Bruntsfield, not to the founder. It belongs on an operations surface.
 
 **"No CI runs" reads as a fault.** It is the normal state for a young venture that has not set up
 tests yet. FB-064 already learned to phrase this honestly on the work view — *"this work has no

@@ -75,7 +75,7 @@ describe('who handed a document over', () => {
   });
 
   it('falls back to whoever actually wrote it', () => {
-    expect(whoAdded({ messageHeadline: 'sell: refresh the price list', authorName: 'Ross' })).toBe('Ross');
+    expect(whoAdded({ messageHeadline: 'sell: refresh the price list', authorName: 'Founder' })).toBe('Founder');
   });
 
   it('says "your team" only when there is no name at all', () => {
@@ -137,7 +137,7 @@ describe('ordering the memory table', () => {
   it('puts the most recent first — a founder is checking this morning’s upload landed', () => {
     const rows = [
       row('context/sell/old.md', { kind: 'added', who: 'You', at: '2026-01-01T00:00:00Z' }),
-      row('context/sell/new.md', { kind: 'changed', who: 'Ross', at: '2026-08-30T00:00:00Z' }),
+      row('context/sell/new.md', { kind: 'changed', who: 'Founder', at: '2026-08-30T00:00:00Z' }),
       row('context/sell/mid.md', { kind: 'added', who: 'You', at: '2026-05-05T00:00:00Z' }),
     ];
     expect(orderRows(rows).map((r) => r.doc.path)).toEqual([

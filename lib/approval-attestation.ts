@@ -131,7 +131,9 @@ export function isDualPair(first: string, second: string, venture: VentureSummar
 export function stillNeededAfter(first: string, venture: VentureSummary, adminEmails: string[]): string {
   const founder = isFounderOf(first, venture);
   const admin = isAdmin(first, adminEmails);
-  const founderName = venture.founderName?.trim() ? `${venture.founderName.trim()}, the founder,` : 'the founder';
+  // ARCA's founder is named "Founder", a placeholder: "Founder, the founder," would say it twice.
+  const name = venture.founderName?.trim();
+  const founderName = name && name.toLowerCase() !== 'founder' ? `${name}, the founder,` : 'the founder';
   if (founder && admin) return 'someone else at Bruntsfield';
   if (founder) return 'Bruntsfield';
   return founderName;

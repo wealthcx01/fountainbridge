@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { authorizeVentures, canAccessVenture, parseAdminEmails } from '../authz';
 import { loadVentures } from '../ventures';
 
-// Mirrors the real manifests: arca's founder is John (who is also the admin), the-reset's is Ross.
+// arca's founder here is John (who is also the admin); the-reset's is Ross.
 const ventures = [
   { id: 'arca', founderEmail: 'john.gallagher@wealthcx.com' },
   { id: 'the-reset', founderEmail: 'ross@thereset.com' },

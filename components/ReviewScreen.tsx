@@ -116,7 +116,7 @@ export function ReviewScreen({ view }: { view: ReviewView }) {
   };
 
   // What goes with a press. A founder sends their own notes. John sends his own, or, when he has
-  // written none, the notes the founder signed off with, so "Send it back with Ross's notes" means it.
+  // written none, the notes the founder signed off with, so "Send it back with the founder's notes" means it.
   const written = pins.filter((p) => p.text.trim()).length + (whole.trim() ? 1 : 0);
   const own = noteFrom(pins, whole);
   const founderNote = state.kind === 'signed-off' ? state.note : '';
