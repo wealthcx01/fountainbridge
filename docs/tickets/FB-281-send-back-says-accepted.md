@@ -1,6 +1,6 @@
 # FB-281 — Sending work back also labels it "accepted"
 
-**Status:** Todo · **Kind:** small · **Budget:** $10 · **Rough date:** 3 November 2026 · **Pilot step:** 3a, after FB-274 · **Raised by:** John, 28 October 2026 (found while building FB-272; budget 28 October) · One ticket = one branch = one PR.
+**Status:** Done · **Kind:** small · **Budget:** $10 · **Rough date:** 3 November 2026 · **Pilot step:** 3a, after FB-274 · **Raised by:** John, 28 October 2026 (found while building FB-272; budget 28 October) · One ticket = one branch = one PR.
 
 ## Why
 
@@ -29,10 +29,10 @@ fixed.
 
 ## Done when
 
-- [ ] After a successful Send back, the tag says "sent back" and never "accepted" or "signed off".
-- [ ] A test fails on today's code and passes after.
-- [ ] The work page is looked at after each of the three decisions, at 1440×1000 and 393×851.
-- [ ] Every command in `CLAUDE.md` `## Checks` passes.
+- [x] After a successful Send back, the tag says "sent back" and never "accepted" or "signed off".
+- [x] A test fails on today's code and passes after.
+- [x] The work page is looked at after each of the three decisions, at 1440×1000 and 393×851.
+- [x] Every command in `CLAUDE.md` `## Checks` passes.
 
 ## Out of scope
 
