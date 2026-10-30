@@ -89,13 +89,9 @@ export function decisionOutcome(result: DecisionResult): { heading: string; text
   return { heading: result.signedOff ? 'Signed off, waiting for John' : 'Approved and verified', text: result.message };
 }
 
-/**
- * The label on the work page once it is decided.
- *
- * FB-281: a Send back also says "accepted" here today. That is kept as it is for now (FB-273 changes
- * no words); `result.decided` is what the fix reads.
- */
-function stateLabel(result: DecisionResult | null): string {
+/** The label on the work page once it is decided. With no press, the work was already merged. */
+export function stateLabel(result: DecisionResult | null): string {
+  if (result?.decided === 'send-back') return 'sent back';
   return result?.signedOff ? 'signed off' : 'accepted';
 }
 

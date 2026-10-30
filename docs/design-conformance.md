@@ -1210,3 +1210,21 @@ Where it differs from the canvas, and why:
   `/attention`. The canvas has no John boards for these lists; nothing new was added for it.
 - **"What happened" keeps its twelve rows for the record and gives the factory's newest six lines
   room of their own**, so a busy factory never pushes a founder's own decisions off the page.
+
+## FB-281 — the work page's tag after a Send back, 2026-10-30
+
+No new screen and no new layout: one word changes. After a Send back, the tag beside the decision
+on the work page said "accepted". It now says "sent back". Rendered on a test copy of this branch
+(`scripts/test-copy.mjs`), on the rig's ARCA work, after each of the three decisions. The work was
+put in as a factory card first, so each press went through and drew its tag. Each picture was
+looked at. **Not compared with the canvas:** the canvas has no artboard for a work page after a
+press. Not production: a press there is a real decision on ARCA's work.
+
+| After | Tag | 1440×1000 | 393×851 |
+| --- | --- | --- | --- |
+| The founder's Send back (pull request 10) | "sent back" | 1,346px | 1,995px |
+| The founder's Accept (pull request 13) | "signed off" | 1,000px | 1,014px |
+| John's Accept (pull request 10) | "accepted" | 1,383px | 2,104px |
+
+Nothing scrolls sideways at either size. Each tag sits beside its own confirmation sentence, as
+before.

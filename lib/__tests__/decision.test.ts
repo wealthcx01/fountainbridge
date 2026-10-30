@@ -18,7 +18,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 // Under vitest, JSX compiles to `React.createElement`; the component expects it in scope.
 (globalThis as { React?: typeof React }).React = React;
-const { Decision, decisionOutcome, press } = await import('@/components/Decision');
+const { Decision, decisionOutcome, press, stateLabel } = await import('@/components/Decision');
 
 const WORK = { repo: 'arca', number: 10, headSha: 'abc1234' };
 const SIGNED_OFF = { ok: true, signedOff: true, message: 'Signed off by you, waiting for John. Nothing changes in your product until he approves it.' };
@@ -94,6 +94,21 @@ describe('what the Tickets screen says after a press', () => {
       heading: 'Sent back with your note',
       text: 'Nothing went out. Your team re-opens it, reads your note, and comes back with a revision.',
     });
+  });
+});
+
+describe('what the work page says after a press', () => {
+  it("John's Accept is accepted", () => {
+    expect(stateLabel({ ...MERGED, decided: 'accept' })).toBe('accepted');
+  });
+
+  it("a founder's Accept is signed off (FB-272)", () => {
+    expect(stateLabel({ ...SIGNED_OFF, decided: 'accept' })).toBe('signed off');
+  });
+
+  it('a Send back is sent back, never accepted or signed off (FB-281)', () => {
+    expect(stateLabel({ ...SENT, decided: 'send-back' })).toBe('sent back');
+    expect(stateLabel({ ...SENT, signedOff: true, decided: 'send-back' })).toBe('sent back');
   });
 });
 
