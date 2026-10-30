@@ -4,8 +4,7 @@ import { checkedPreview } from './preview-check';
 import { reviewFor, stateFrom, type ReviewCardFile, type ReviewView } from './review';
 import { toReviewCard, type CardStore } from './card-store';
 import { namer } from './factory-work';
-import { factoryQuietSince } from './press';
-import { quietLine } from './presses';
+import { factoryQuietLine } from './press';
 
 /**
  * Where the Review screen's cards come from: the card store (FB-275), which the planning box fills
@@ -68,7 +67,7 @@ export async function loadReview(
 
   // Opened before it is drawn as a link (FB-184), the same as on the work page.
   const preview = card.previewUrl ? await checkedPreview(card.previewUrl, env) : null;
-  const quiet = await factoryQuietSince(store, now);
+  const quiet = await factoryQuietLine(store, now);
 
   return reviewFor(card, {
     ventureId: venture.id,
@@ -83,6 +82,6 @@ export async function loadReview(
       next: next ? `/venture/${venture.id}/review/${next.repo}/${next.number}` : null,
     },
     viewer: { isJohn: viewer.isJohn },
-    quiet: quiet ? quietLine(quiet, now) : null,
+    quiet,
   });
 }

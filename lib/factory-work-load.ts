@@ -8,8 +8,7 @@ import {
   FACTORY_NAME, FACTORY_REPO, FACTORY_VENTURE, cardRows, namer,
   type CardRow, type LoadedCard, type Viewer,
 } from './factory-work';
-import { factoryQuietSince } from './press';
-import { quietLine } from './presses';
+import { factoryQuietLine } from './press';
 
 /**
  * Reading the factory's cards for the lists a founder already has (FB-277). The rules for what a
@@ -64,8 +63,8 @@ export const ventureCards = cache(async (ventureId: string): Promise<VentureCard
     // The real clock, not `studioNow()`: the press times it is compared with are the real clock's.
     const readAt = Date.now();
     const cards = got.filter((c) => repos.includes(c.card.repo)).map((c) => ({ ventureId, readAt, ...c }));
-    const since = cards.length ? await factoryQuietSince(store, readAt) : null;
-    return { cards, unread: false, quiet: since ? quietLine(since, readAt) : null };
+    const quiet = cards.length ? await factoryQuietLine(store, readAt) : null;
+    return { cards, unread: false, quiet };
   } catch (e) {
     console.error('[cards] could not read', { venture: ventureId, message: (e as Error)?.message });
     return { cards: [], unread: true, quiet: null };

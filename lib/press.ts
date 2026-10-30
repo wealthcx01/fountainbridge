@@ -2,7 +2,7 @@ import type { VentureSummary } from './ventures';
 import type { CardStore } from './card-store';
 import { OUT_OF_DATE } from './review';
 import { pressRecordFile, recordPress, type PressLine } from './press-record';
-import { isPressAction, mayPress, quietSince, reportedWhen, type PressAction } from './presses';
+import { isPressAction, mayPress, quietLine, quietSince, reportedWhen, type PressAction } from './presses';
 import { DEFAULT_BOX } from './factory-door';
 
 /**
@@ -87,6 +87,12 @@ const LINE: Record<PressAction, PressLine['decision']> = {
  */
 export async function factoryQuietSince(store: CardStore, now: number): Promise<string | null> {
   return quietSince((await store.lastBeat(DEFAULT_BOX))?.reportedAt ?? null, now);
+}
+
+/** The line a card shows while the factory is quiet, or null while it reports. */
+export async function factoryQuietLine(store: CardStore, now: number): Promise<string | null> {
+  const since = await factoryQuietSince(store, now);
+  return since ? quietLine(since, now) : null;
 }
 
 /** What a press made while the factory is quiet is told. */
