@@ -419,6 +419,11 @@ function Detail({
           pictures and the preview, so this panel points there and draws no control of its own. */}
       {row.card ? (
         <div data-testid="detail-card" data-standing={row.card.standing} style={{ marginTop: '0.25rem' }}>
+          {row.card.quiet ? (
+            <p className="card" data-testid="detail-card-quiet" role="status" style={{ borderColor: toneColor('attention'), color: toneColor('attention'), fontSize: 'var(--fs-body-sm)', padding: '0.5rem 0.75rem', maxWidth: 'var(--content-narrow)' }}>
+              {row.card.quiet}
+            </p>
+          ) : null}
           <p data-testid="detail-card-what" style={{ fontSize: 'var(--fs-body-sm)', margin: '0 0 0.75rem', maxWidth: 'var(--content-narrow)' }}>
             {row.card.sentence}
           </p>
