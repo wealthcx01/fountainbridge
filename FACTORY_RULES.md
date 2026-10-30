@@ -14,3 +14,8 @@ publication constraints in the shared workflow's supported inputs.
 **Irreversible actions stop the factory.** Changing identity, authentication or who
 may act as whom, and migrating or deleting stored data, are never decided by an
 agent: an issue that needs one is held for a human.
+
+**Issues close only on John's word.** An issue may close when the pull request that delivers
+it merges on John's Approve: that merge is his word, so its pull request may say "Closes #N".
+Nothing else closes an issue. When the factory finds an issue needs no work, is blocked, or
+repeats another, it says so on the issue and labels it, and leaves it open for John.
