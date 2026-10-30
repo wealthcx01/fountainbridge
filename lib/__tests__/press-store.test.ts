@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { sqlCardStore, type CardStore, type Querier } from '../card-store';
 import { PRESS_SQL, type Room } from '../press-store';
+import { stateFrom } from '../review';
 import { putTestCards, storedCard } from './review-fixtures';
 
 /**
@@ -315,6 +316,22 @@ describe('a press the box never answers (FB-278)', () => {
     expect(await store.answer(['arca'], first.id, 'done', 'Made part of ARCA.')).toBe('stored');
     expect((await store.presses('arca', 'arca', 21)).map((p) => [p.action, p.answer?.outcome ?? null])).toEqual([['approve', 'done'], ['try-again', null]]);
     // The box did it after all: the card is settled, and nothing more can be pressed.
+    expect(await press('arca', 'arca', 21, 'stop', JOHN, true)).toBe('out-of-date');
+  });
+
+  it('a late "done" on a lapsed press is kept even when the press after it was done too, and the card shows the later', async () => {
+    await press('arca', 'arca', 21, 'approve', JOHN, true);
+    const [first] = (await store.collect(['arca'], ROOM)).presses;
+    await age(first.id, { pressed: 30, collected: 11 });
+    expect(await press('arca', 'arca', 21, 'try-again', JOHN, true)).toBe('recorded');
+    const [second] = (await store.collect(['arca'], ROOM)).presses;
+    expect(await store.answer(['arca'], second.id, 'done', 'Building it again.')).toBe('stored');
+
+    // The box crashed after doing the first, and says so once it is back. What it did is kept.
+    expect(await store.answer(['arca'], first.id, 'done', 'Made part of ARCA.')).toBe('stored');
+    const all = await store.presses('arca', 'arca', 21);
+    expect(all.map((p) => p.answer?.outcome)).toEqual(['done', 'done']);
+    expect(stateFrom(all, Date.now())).toMatchObject({ kind: 'decided', action: 'try-again' });
     expect(await press('arca', 'arca', 21, 'stop', JOHN, true)).toBe('out-of-date');
   });
 

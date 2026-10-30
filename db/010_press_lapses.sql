@@ -11,6 +11,11 @@
 -- the studio marks the old one with `lapsed_at` in the same transaction (`PRESS_SQL.lapse` in
 -- lib/press-store.ts), and the index counts only presses that are not marked.
 --
+-- So a marked press the box answers `done` late is not counted by the index, and a card can then
+-- hold two presses the box did. That is kept on purpose: the box did both, and refusing its answer
+-- would hide what it did. The card shows the later (`stateFrom` in lib/review.ts), and `standing`
+-- counts any `done`, so nothing more is taken on that card.
+--
 --   `lapsed_at` — when a later press took the place of this one, after it had lapsed. Empty for
 --                 every other press. It is not an answer: it says nothing about what the box did.
 --

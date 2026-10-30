@@ -189,6 +189,8 @@ tap on Telegram, and says what happened.
   says "Nothing was done." and takes a new press. A press left uncollected that long is never handed
   out: `collect` skips it. A press you collected can still be answered late. Your answer is kept,
   and the card shows it, because you may have acted on it.
+  If a new press was made after it lapsed and you did that one too, both answers are kept and the
+  card shows the later.
 - **A press is about one version of the work**, the card's `headSha` when it was pressed
   (`seenHeadSha`). When you send a card with a new `headSha`, it starts again with no presses.
 

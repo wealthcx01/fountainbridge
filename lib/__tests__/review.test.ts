@@ -210,6 +210,14 @@ describe("a card's state", () => {
     expect(stateFrom([late], Date.parse('2026-07-22T00:00:00Z'))).toMatchObject({ kind: 'approved', answer: { outcome: 'done' } });
   });
 
+  it('when the box did a lapsed press after all and the press after it too, the card shows the later', () => {
+    const presses = [
+      press('approve', 'j@x', { collectedAt: '2026-07-21T10:00:00Z', answer: said('done', 'Made part of ARCA.') }),
+      press('try-again', 'j@x', { answer: said('done', 'Building it again.') }),
+    ];
+    expect(stateFrom(presses, NOW)).toMatchObject({ kind: 'decided', action: 'try-again', answer: { message: 'Building it again.' } });
+  });
+
   it('says who pressed in the words the viewer reads', () => {
     expect(stateFrom([press('accept', 'f@x')], NOW, (e) => (e === 'f@x' ? 'you' : e))).toMatchObject({ by: 'you' });
   });

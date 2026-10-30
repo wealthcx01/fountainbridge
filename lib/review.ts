@@ -91,7 +91,9 @@ export type CardState =
  * the last of those, with its answer. A founder's sign-off before it is remembered.
  *
  * When the latest settling press has lapsed by `now` (FB-278), it settles nothing: the card waits as
- * it did before it, with the lapse beside it. A real answer from the box, however late, wins.
+ * it did before it, with the lapse beside it. A real answer from the box, however late, wins. A late
+ * `done` can leave two presses the box did, the lapsed one and the one pressed after it: the card
+ * shows the later, which is the newer decision.
  *
  * `name` turns the address that pressed into what this viewer reads: "you", "John", the founder's
  * name. Done here, on the server, so no address reaches a screen that does not need it. A tap on
@@ -100,7 +102,8 @@ export type CardState =
 export function stateFrom(presses: StoredPress[], now: number, name: (email: string) => string = (e) => e): CardState {
   const settling = presses.filter((p) => settles(p.action));
   const latest = settling[settling.length - 1] ?? null;
-  const chosen = settling.find((p) => p.answer?.outcome === 'done') ?? (latest && !hasLapsed(latest, now) ? latest : null);
+  const done = settling.filter((p) => p.answer?.outcome === 'done');
+  const chosen = done[done.length - 1] ?? (latest && !hasLapsed(latest, now) ? latest : null);
   const signOffs = presses.filter((p) => p.action === 'accept' && (!chosen || p.pressedAt <= chosen.pressedAt));
   const signOff = signOffs[signOffs.length - 1] ?? null;
   const who = (p: StoredPress) => (p.source === 'telegram' ? `${name(p.by)} on Telegram` : name(p.by));
