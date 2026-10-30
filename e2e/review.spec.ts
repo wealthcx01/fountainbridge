@@ -401,7 +401,7 @@ test.describe('journey 7: the factory goes quiet', () => {
     await drain(standIn);
   });
 
-  test('after five minutes without a report the card says so and its buttons are off; when it reports again they come back', async ({ page }) => {
+  test('after five minutes without a report the card says so and its buttons are off; when it reports again they come back', async ({ page, browser }) => {
     await testLogin(page, JOHN);
     await page.goto(REVIEW_21);
     await expect(page.getByTestId('review-quiet')).toHaveCount(0);
@@ -425,12 +425,29 @@ test.describe('journey 7: the factory goes quiet', () => {
     expect(presses(21)).toEqual([]);
     expect(await collect(standIn)).toMatchObject({ presses: [], signOffs: [] });
 
+    // Every other list of the founder's cards says it too: the desk, "What happened", and a card's
+    // detail on the Tickets screen.
+    const founder = await browser.newPage();
+    await testLogin(founder, FOUNDER);
+    const QUIET = /The factory hasn't reported since \d\d:\d\d\. These may be out of date\./;
+    await founder.goto('/venture/arca');
+    await expect(founder.getByTestId('waiting-cards-quiet')).toHaveText(QUIET);
+    await founder.goto('/venture/arca/activity');
+    await expect(founder.getByTestId('activity-cards-quiet')).toHaveText(QUIET);
+    await founder.goto('/venture/arca/tickets?filter=needs');
+    await founder.getByTestId('tickets-row-ARCA-070').click();
+    await expect(founder.getByTestId('detail-card-quiet')).toHaveText(QUIET);
+
     // The stand-in reports again.
     expect((await reportHeartbeat(standIn)).status()).toBe(200);
     await page.reload();
     await expect(page.getByTestId('review-quiet')).toHaveCount(0);
     await expect(page.getByTestId('review-off')).toHaveCount(0);
     await expect(page.getByTestId('review-accept')).toBeEnabled();
+    await founder.goto('/venture/arca');
+    await expect(founder.getByTestId('waiting-on-you')).toBeVisible();
+    await expect(founder.getByTestId('waiting-cards-quiet')).toHaveCount(0);
+    await founder.close();
   });
 });
 

@@ -150,5 +150,8 @@ export function reportedWhen(iso: string, now: number): string {
 export const quietLine = (since: string, now: number) =>
   `The factory hasn't reported since ${reportedWhen(since, now)}. These may be out of date.`;
 
+/** Why a card's buttons are off while the box is quiet, said beside them. */
+export const BUTTONS_OFF = 'The buttons are off until the factory reports again, because a decision made now would not reach it.';
+
 /** The most the box collects at once, of presses and of sign-offs each, so an answer stays small. */
 export const COLLECT_LIMIT = 20;

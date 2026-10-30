@@ -8,7 +8,8 @@ import {
   FACTORY_NAME, FACTORY_REPO, FACTORY_VENTURE, cardRows, namer,
   type CardRow, type LoadedCard, type Viewer,
 } from './factory-work';
-import { factoryQuietLine } from './press';
+import { factoryQuietLine, isFactoryCard } from './press';
+import { BUTTONS_OFF } from './presses';
 
 /**
  * Reading the factory's cards for the lists a founder already has (FB-277). The rules for what a
@@ -90,10 +91,27 @@ export async function ventureCardRows(venture: VentureSummary, viewer: Viewer): 
  * The factory's own cards, cowgate's, for John's cross-venture pages. Nothing for anyone else: the
  * check is made here, again, so a page that forgot to make it still hands a founder nothing.
  */
-export async function factoryCardsForJohn(viewer: Viewer): Promise<{ rows: CardRow[]; cards: LoadedCard[]; unread: boolean }> {
-  if (!viewer.isJohn) return { rows: [], cards: [], unread: false };
+export async function factoryCardsForJohn(viewer: Viewer): Promise<{ rows: CardRow[]; cards: LoadedCard[]; unread: boolean; quiet: string | null }> {
+  if (!viewer.isJohn) return { rows: [], cards: [], unread: false, quiet: null };
   const read = await ventureCards(FACTORY_VENTURE);
-  return { rows: cardRows(read.cards, viewer, () => FACTORY_NAME), cards: read.cards, unread: read.unread };
+  return { rows: cardRows(read.cards, viewer, () => FACTORY_NAME), cards: read.cards, unread: read.unread, quiet: read.quiet };
+}
+
+/**
+ * Why the work page's buttons are off, when the work is a factory card and the planning box is quiet
+ * (FB-278). Null for any other work, and while the box reports. The press is refused on the server
+ * either way (`pressCard`); this is so the founder is told before pressing, not after.
+ */
+export async function workPageOff(venture: VentureSummary, repo: string, number: number): Promise<string | null> {
+  const store = cardStore();
+  try {
+    if (!store || !(await isFactoryCard(store, venture, repo, number))) return null;
+    const quiet = await factoryQuietLine(store, Date.now());
+    return quiet ? `${quiet} ${BUTTONS_OFF}` : null;
+  } catch (e) {
+    console.error('[cards] could not read', { venture: venture.id, message: (e as Error)?.message });
+    return null;
+  }
 }
 
 /** The message a list shows when the cards could not be read. */

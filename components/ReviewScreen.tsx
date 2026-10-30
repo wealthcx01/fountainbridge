@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { Decision, type DecisionResult, type ReviewNotes } from './Decision';
 import { isSettled, noteFrom, pictureWords, type CardState, type Pin, type PictureName, type ReviewView } from '@/lib/review';
+import { BUTTONS_OFF } from '@/lib/presses';
 
 /**
  * The Review screen (FB-274), drawn as the "Studios, aligned" canvas draws it, in the Bruntsfield
@@ -524,7 +525,7 @@ function DecisionPanel({
       <Lapsed state={state} />
       <Decision
         look="review" ventureId={view.ventureId} work={work} isJohn={isJohn} reviewNotes={reviewNotes} onDecided={onDecided}
-        off={view.quiet ? 'The buttons are off until the factory reports again, because a decision made now would not reach it.' : null}
+        off={view.quiet ? BUTTONS_OFF : null}
       />
       <p className="help rv-quiet rv-decision__help">
         {isJohn

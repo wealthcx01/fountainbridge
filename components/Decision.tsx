@@ -133,7 +133,7 @@ export function Decision({
   isJohn?: boolean;
   /** Review screen: the notes written on its pictures and in its box. */
   reviewNotes?: ReviewNotes | null;
-  /** Review screen: why the buttons are switched off, drawn above them. Null when they are on. */
+  /** Why the buttons are switched off, drawn above them. Null when they are on. */
   off?: string | null;
   /** Called once a press has gone through. The Tickets screen shows its outcome from this. */
   onDecided?: (result: DecisionResult) => void;
@@ -174,12 +174,17 @@ export function Decision({
           <span className="tag tag-accent" data-testid="work-state">{stateLabel(result)}</span>
         ) : (
           <>
+            {off ? (
+              <p data-testid="work-off" style={{ fontSize: 'var(--fs-body-sm)', margin: 0, width: '100%', maxWidth: 'var(--content-narrow)', color: toneColor('attention') }}>
+                <Mark tone="attention" />{off}
+              </p>
+            ) : null}
             {blocked ?? (
               <button
                 type="button"
                 className="btn btn-primary"
                 data-testid="work-accept"
-                disabled={busy('accept')}
+                disabled={busy('accept') || Boolean(off)}
                 onClick={() => go('accept')}
               >
                 {busy('accept') ? 'Accepting…' : 'Accept this work'}
@@ -193,7 +198,7 @@ export function Decision({
                     type="button"
                     className="btn btn-primary"
                     data-testid="work-sendback"
-                    disabled={busy('send-back') || !note.trim()}
+                    disabled={busy('send-back') || !note.trim() || Boolean(off)}
                     onClick={() => go('send-back')}
                   >
                     {busy('send-back') ? 'Sending…' : 'Send this back'}
@@ -204,7 +209,7 @@ export function Decision({
                 </div>
               </div>
             ) : (
-              <button type="button" className="btn" data-testid="work-sendback-open" onClick={() => setNoteOpen(true)}>
+              <button type="button" className="btn" data-testid="work-sendback-open" disabled={Boolean(off)} onClick={() => setNoteOpen(true)}>
                 Send it back with a note
               </button>
             )}
